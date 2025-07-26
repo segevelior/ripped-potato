@@ -11,7 +11,7 @@ import {
   SidebarFooter,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import FloatingAIAssistant from "./components/FloatingAIAssistant";
+import FloatingAIAssistant from "@/components/FloatingAIAssistant";
 
 const navigationItems = [
   {
