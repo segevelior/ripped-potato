@@ -30,3 +30,15 @@ dist-ssr
 .env
 .env.local
 .env.production
+.env.*
+!.env.example
+!.env.template
+# Catch any backup/duplicate files (often created by text editors/file managers)
+* 2.*
+*\ 2.*
+*\ 2
+*\ copy.*
+*-copy.*
+*.backup
+*.bak
+*.orig
