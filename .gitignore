@@ -26,6 +26,9 @@ dist-ssr
 # cursor memory
 .memory
 
+# Claude Code project instructions
+CLAUDE.md
+
 # Environment variables
 .env
 .env.local
