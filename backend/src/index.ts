@@ -19,6 +19,24 @@ app.use(cors({
   credentials: true
 }));
 
+// Root welcome route
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Welcome to Ripped Potato API! 💪',
+    description: 'A comprehensive fitness tracking backend',
+    version: '1.0.0',
+    status: 'Running',
+    documentation: {
+      health: '/health',
+      api_info: '/api/v1',
+      exercises: '/api/v1/exercises'
+    },
+    database: 'MongoDB connected',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // API Routes
 app.use('/health', healthRoutes);
 app.use('/api/v1/exercises', exercisesRoutes);
