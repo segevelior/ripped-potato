@@ -23,6 +23,8 @@ async def connect_to_mongo():
     # Import all document models here
     from app.models.user import User
     from app.models.exercise import Exercise
+    from app.models.workout import Workout
+    from app.models.goal import Goal
     
     # Initialize beanie with document models
     await init_beanie(
@@ -30,6 +32,8 @@ async def connect_to_mongo():
         document_models=[
             User,
             Exercise,
+            Workout,
+            Goal,
             # Add more models here as we create them
         ]
     )
