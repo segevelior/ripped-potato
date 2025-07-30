@@ -1,7 +1,7 @@
 {
   "name": "@base44/sdk",
   "version": "0.1.2-mock",
-  "main": "index.js",
+  "main": "index-browser.js",
   "type": "module",
   "description": "Mock implementation of Base44 SDK for local development",
   "keywords": [
