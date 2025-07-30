@@ -485,19 +485,49 @@ synergy-fit-dd971bc6/
    - No workouts, external activities, plans
    - CSV data still not integrated
 
+## GIT BRANCHING STRATEGY
+
+### Current Branch Plan
+**Branch Name**: `feature/mock-sdk-mvp`
+
+**Purpose**: Get SynergyFit to minimum viable state with mock data
+- All pages loading with sample data
+- Stable server (no crashes)
+- Basic CRUD operations working
+- CSV data integrated
+
+**When to Merge to Main**:
+1. ✅ App runs stable for 30+ minutes without crashes
+2. ✅ All main pages show data (Exercises, Goals, PredefinedWorkouts, etc.)
+3. ✅ Can create/edit/delete at least one entity type
+4. ✅ CSV data loaded (even if partially)
+5. ✅ Basic auth working (login/logout)
+
+**Future Branches** (after merge):
+- `feature/backend-api` - Replace mock SDK with real backend
+- `feature/database-integration` - Add PostgreSQL
+- `feature/ai-agent-python` - Python/LangGraph implementation
+
 ## NEXT SESSION FOCUS
 
-1. **Fix PredefinedWorkouts page**:
-   - Check what method it calls (list? find? something else?)
-   - Add debug logging to see the issue
-   - Verify data format matches expectations
-   
+1. **Create branch and continue work**:
+   ```bash
+   git checkout -b feature/mock-sdk-mvp
+   git add .
+   git commit -m "WIP: Mock SDK with sample data, exercises working"
+   ```
+
 2. **Fix vite stability issue**:
    - Use `npm run build` and serve dist folder
    - Or create simple Express server
    - Or use `npm run preview` for production mode
    
-3. **Integrate CSV data**:
+3. **Fix PredefinedWorkouts page**:
+   - Check what method it calls (list? find? something else?)
+   - Add debug logging to see the issue
+   - Verify data format matches expectations
+   
+4. **Integrate CSV data**:
    - Bundle all JSON data directly in mock SDK
    - Or create data loader script
    - Need ~200+ exercises from CSV
