@@ -1,0 +1,7 @@
+name,primary_discipline,estimated_duration,intensity_level,recovery_hours,description,id,created_date,updated_date,created_by_id,created_by,is_sample
+"Strength Session","strength","75","high","48","Heavy compound movements","68813835fb7df3835a37a013","2025-07-23T19:29:57.947000","2025-07-23T19:29:57.947000","68812e1c2e9d8fc3dd971bc7","segev.elior@gmail.com",""
+"Climbing Session","climbing","90","high","36","Bouldering and route climbing","68813835fb7df3835a37a014","2025-07-23T19:29:57.947000","2025-07-23T19:29:57.947000","68812e1c2e9d8fc3dd971bc7","segev.elior@gmail.com",""
+"Running Session","running","45","moderate","24","Endurance running","68813835fb7df3835a37a015","2025-07-23T19:29:57.947000","2025-07-23T19:29:57.947000","68812e1c2e9d8fc3dd971bc7","segev.elior@gmail.com",""
+"Mobility Session","mobility","30","low","","Stretching and recovery","68813835fb7df3835a37a016","2025-07-23T19:29:57.947000","2025-07-23T19:29:57.947000","68812e1c2e9d8fc3dd971bc7","segev.elior@gmail.com",""
+"Calisthenics Session","calisthenics","60","moderate","24","Bodyweight strength","68813835fb7df3835a37a017","2025-07-23T19:29:57.947000","2025-07-23T19:29:57.947000","68812e1c2e9d8fc3dd971bc7","segev.elior@gmail.com",""
+"Recovery","mobility","20","low","","Active recovery","68813835fb7df3835a37a018","2025-07-23T19:29:57.947000","2025-07-23T19:29:57.947000","68812e1c2e9d8fc3dd971bc7","segev.elior@gmail.com",""

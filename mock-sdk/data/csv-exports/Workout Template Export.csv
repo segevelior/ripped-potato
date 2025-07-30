@@ -1,0 +1,3 @@
+title,day_of_week,workout_type,exercises,id,created_date,updated_date,created_by_id,created_by,is_sample
+"","Monday","strength","[{""exercise_id"":""68813316a083cfa68874e8be"",""exercise_name"":""climbing""}]","6881332bc41bbfe0a63bdb4f","2025-07-23T19:08:27.773000","2025-07-23T19:08:27.773000","68812e1c2e9d8fc3dd971bc7","segev.elior@gmail.com",""
+"","Friday","strength","[]","688133ccc41bbfe0a63bdf81","2025-07-23T19:11:08.805000","2025-07-23T19:11:08.805000","68812e1c2e9d8fc3dd971bc7","segev.elior@gmail.com",""

@@ -1,0 +1,366 @@
+[
+  {
+    "name": "Muscle-Up",
+    "discipline": [
+      "calisthenics",
+      "strength"
+    ],
+    "description": "A fluid transition from pull-up to dip position on rings or bar - the ultimate upper body milestone",
+    "category": "skill",
+    "icon": "🔥",
+    "difficulty_level": "advanced",
+    "estimated_weeks": 16,
+    "prerequisites": [
+      "10 strict pull-ups",
+      "15 dips",
+      "basic false grip"
+    ],
+    "id": "6884face3975361a223c014a",
+    "created_date": "2025-07-26T15:57:02.007000",
+    "updated_date": "2025-07-26T15:57:02.007000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:10.686Z",
+    "updatedAt": "2025-07-30T22:18:10.686Z"
+  },
+  {
+    "name": "Front Lever",
+    "discipline": [
+      "calisthenics"
+    ],
+    "description": "Hold body horizontal with straight arms - demonstrates exceptional core and back strength",
+    "category": "skill",
+    "icon": "⚡",
+    "difficulty_level": "advanced",
+    "estimated_weeks": 24,
+    "prerequisites": [
+      "10 pull-ups",
+      "1min plank",
+      "L-sit hold"
+    ],
+    "id": "6884face3975361a223c014b",
+    "created_date": "2025-07-26T15:57:02.007000",
+    "updated_date": "2025-07-26T15:57:02.007000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:10.687Z",
+    "updatedAt": "2025-07-30T22:18:10.687Z"
+  },
+  {
+    "name": "Handstand",
+    "discipline": [
+      "calisthenics",
+      "mobility"
+    ],
+    "description": "Freestanding handstand for 30+ seconds with perfect alignment and control",
+    "category": "skill",
+    "icon": "🤸",
+    "difficulty_level": "intermediate",
+    "estimated_weeks": 20,
+    "prerequisites": [
+      "wall handstand 1min",
+      "hollow body hold",
+      "wrist mobility"
+    ],
+    "id": "6884face3975361a223c014c",
+    "created_date": "2025-07-26T15:57:02.007000",
+    "updated_date": "2025-07-26T15:57:02.007000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:10.687Z",
+    "updatedAt": "2025-07-30T22:18:10.687Z"
+  },
+  {
+    "name": "V6 Boulder",
+    "discipline": [
+      "climbing"
+    ],
+    "description": "Complete a V6 grade boulder problem - advanced technique and power required",
+    "category": "performance",
+    "icon": "🧗",
+    "difficulty_level": "advanced",
+    "estimated_weeks": 32,
+    "prerequisites": [
+      "V4 consistent",
+      "campus board training",
+      "core strength"
+    ],
+    "id": "6884face3975361a223c014d",
+    "created_date": "2025-07-26T15:57:02.007000",
+    "updated_date": "2025-07-26T15:57:02.007000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:10.687Z",
+    "updatedAt": "2025-07-30T22:18:10.687Z"
+  },
+  {
+    "name": "100km Cycling",
+    "discipline": [
+      "cycling"
+    ],
+    "description": "Complete a century ride (100 kilometers) - endurance cycling milestone",
+    "category": "endurance",
+    "icon": "🚴",
+    "difficulty_level": "intermediate",
+    "estimated_weeks": 12,
+    "prerequisites": [
+      "50km ride completed",
+      "basic bike maintenance",
+      "proper nutrition"
+    ],
+    "id": "6884face3975361a223c014e",
+    "created_date": "2025-07-26T15:57:02.007000",
+    "updated_date": "2025-07-26T15:57:02.007000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:10.687Z",
+    "updatedAt": "2025-07-30T22:18:10.687Z"
+  },
+  {
+    "name": "Sub-20min 5K",
+    "discipline": [
+      "running"
+    ],
+    "description": "Run 5 kilometers in under 20 minutes - competitive recreational pace",
+    "category": "performance",
+    "icon": "🏃",
+    "difficulty_level": "intermediate",
+    "estimated_weeks": 16,
+    "prerequisites": [
+      "consistent 5K runs",
+      "speed work experience",
+      "injury-free base"
+    ],
+    "id": "6884face3975361a223c014f",
+    "created_date": "2025-07-26T15:57:02.007000",
+    "updated_date": "2025-07-26T15:57:02.007000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:10.687Z",
+    "updatedAt": "2025-07-30T22:18:10.687Z"
+  },
+  {
+    "name": "2x Bodyweight Deadlift",
+    "discipline": [
+      "strength"
+    ],
+    "description": "Deadlift twice your bodyweight for a single rep with perfect form",
+    "category": "strength",
+    "icon": "💪",
+    "difficulty_level": "intermediate",
+    "estimated_weeks": 20,
+    "prerequisites": [
+      "1.5x BW deadlift",
+      "proper form",
+      "consistent training"
+    ],
+    "id": "6884face3975361a223c0150",
+    "created_date": "2025-07-26T15:57:02.007000",
+    "updated_date": "2025-07-26T15:57:02.007000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:10.687Z",
+    "updatedAt": "2025-07-30T22:18:10.687Z"
+  },
+  {
+    "name": "Planche",
+    "discipline": [
+      "calisthenics"
+    ],
+    "description": "Hold body horizontal with only hands touching ground - ultimate pushing strength",
+    "category": "skill",
+    "icon": "🦅",
+    "difficulty_level": "elite",
+    "estimated_weeks": 48,
+    "prerequisites": [
+      "handstand",
+      "front lever",
+      "advanced pushing strength"
+    ],
+    "id": "6884face3975361a223c0151",
+    "created_date": "2025-07-26T15:57:02.007000",
+    "updated_date": "2025-07-26T15:57:02.007000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:10.687Z",
+    "updatedAt": "2025-07-30T22:18:10.687Z"
+  },
+  {
+    "name": "Bar Muscle-Up",
+    "discipline": [
+      "calisthenics",
+      "strength"
+    ],
+    "description": "Achieve a strict, controlled bar muscle-up from a dead hang to a full support hold.",
+    "category": "skill",
+    "icon": "🤸",
+    "difficulty_level": "advanced",
+    "estimated_weeks": 24,
+    "prerequisites": [
+      "15+ Pull-ups",
+      "20+ Dips",
+      "Strong core"
+    ],
+    "id": "6884ffd64be07ac0a1ee72ea",
+    "created_date": "2025-07-26T16:18:30.001000",
+    "updated_date": "2025-07-26T16:18:30.001000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:10.687Z",
+    "updatedAt": "2025-07-30T22:18:10.687Z"
+  },
+  {
+    "name": "Freestanding Handstand",
+    "discipline": [
+      "calisthenics",
+      "mobility"
+    ],
+    "description": "Hold a freestanding handstand with good form for at least 30 seconds.",
+    "category": "skill",
+    "icon": "🤸‍♂️",
+    "difficulty_level": "intermediate",
+    "estimated_weeks": 16,
+    "prerequisites": [
+      "60s Wall Handstand",
+      "Wrist mobility"
+    ],
+    "id": "6884ffd64be07ac0a1ee72eb",
+    "created_date": "2025-07-26T16:18:30.001000",
+    "updated_date": "2025-07-26T16:18:30.001000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:10.687Z",
+    "updatedAt": "2025-07-30T22:18:10.687Z"
+  },
+  {
+    "name": "V6 Boulder",
+    "discipline": [
+      "climbing"
+    ],
+    "description": "Consistently send V6 bouldering problems in a variety of styles (crimp, sloper, dynamic).",
+    "category": "performance",
+    "icon": "🧗",
+    "difficulty_level": "advanced",
+    "estimated_weeks": 52,
+    "prerequisites": [
+      "V4-V5 proficiency",
+      "Finger strength"
+    ],
+    "id": "6884ffd64be07ac0a1ee72ec",
+    "created_date": "2025-07-26T16:18:30.001000",
+    "updated_date": "2025-07-26T16:18:30.001000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:10.687Z",
+    "updatedAt": "2025-07-30T22:18:10.687Z"
+  },
+  {
+    "name": "Handstand",
+    "discipline": [
+      "calisthenics",
+      "mobility"
+    ],
+    "description": "Achieve a freestanding handstand hold for 30+ seconds with perfect form and control.",
+    "category": "skill",
+    "icon": "🤸‍♂️",
+    "difficulty_level": "intermediate",
+    "estimated_weeks": 12,
+    "prerequisites": [
+      "Wall handstand 60s",
+      "Hollow body hold",
+      "Wrist mobility"
+    ],
+    "id": "688508f4e259b3d4106d663f",
+    "created_date": "2025-07-26T16:57:24.655000",
+    "updated_date": "2025-07-26T16:57:24.655000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:10.687Z",
+    "updatedAt": "2025-07-30T22:18:10.687Z"
+  },
+  {
+    "name": "Muscle-Up",
+    "discipline": [
+      "calisthenics",
+      "strength"
+    ],
+    "description": "Perform a strict muscle-up from dead hang to full support position on rings or bar.",
+    "category": "skill",
+    "icon": "💪",
+    "difficulty_level": "advanced",
+    "estimated_weeks": 16,
+    "prerequisites": [
+      "10 strict pull-ups",
+      "10 dips",
+      "False grip strength"
+    ],
+    "id": "688508f4e259b3d4106d6640",
+    "created_date": "2025-07-26T16:57:24.655000",
+    "updated_date": "2025-07-26T16:57:24.655000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:10.687Z",
+    "updatedAt": "2025-07-30T22:18:10.687Z"
+  },
+  {
+    "name": "V6 Boulder",
+    "discipline": [
+      "climbing"
+    ],
+    "description": "Successfully climb a V6 grade boulder problem demonstrating advanced technique and strength.",
+    "category": "performance",
+    "icon": "🧗‍♂️",
+    "difficulty_level": "advanced",
+    "estimated_weeks": 24,
+    "prerequisites": [
+      "Consistent V4 sends",
+      "Advanced footwork",
+      "Core strength"
+    ],
+    "id": "688508f4e259b3d4106d6641",
+    "created_date": "2025-07-26T16:57:24.655000",
+    "updated_date": "2025-07-26T16:57:24.655000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:10.687Z",
+    "updatedAt": "2025-07-30T22:18:10.687Z"
+  },
+  {
+    "name": "5K Sub-20",
+    "discipline": [
+      "running"
+    ],
+    "description": "Run a 5K race in under 20 minutes, demonstrating excellent cardiovascular fitness.",
+    "category": "performance",
+    "icon": "🏃‍♂️",
+    "difficulty_level": "advanced",
+    "estimated_weeks": 20,
+    "prerequisites": [
+      "5K sub-22",
+      "Regular tempo runs",
+      "Speed work experience"
+    ],
+    "id": "688508f4e259b3d4106d6642",
+    "created_date": "2025-07-26T16:57:24.655000",
+    "updated_date": "2025-07-26T16:57:24.655000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:10.687Z",
+    "updatedAt": "2025-07-30T22:18:10.687Z"
+  }
+]

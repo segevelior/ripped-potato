@@ -1,0 +1,2364 @@
+[
+  {
+    "name": "Pull-ups",
+    "description": "Vertical pulling powerhouse",
+    "id": "68812ef731b451574f347e9d",
+    "created_date": "2025-07-23T18:50:31.195000",
+    "updated_date": "2025-07-23T18:50:31.195000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "back",
+      "biceps",
+      "forearms"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.836Z",
+    "updatedAt": "2025-07-30T22:17:12.836Z"
+  },
+  {
+    "name": "Push-ups",
+    "description": "Bodyweight pressing classic",
+    "id": "68812ef731b451574f347e9e",
+    "created_date": "2025-07-23T18:50:31.195000",
+    "updated_date": "2025-07-23T18:50:31.195000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "chest",
+      "shoulders",
+      "triceps",
+      "core"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Dumbbell Rows",
+    "description": "Unilateral back builder",
+    "id": "68812ef731b451574f347e9f",
+    "created_date": "2025-07-23T18:50:31.195000",
+    "updated_date": "2025-07-23T18:50:31.195000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "back",
+      "biceps"
+    ],
+    "discipline": [
+      "dumbbell"
+    ],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Overhead Press",
+    "description": "Vertical press for strength",
+    "id": "68812ef731b451574f347ea0",
+    "created_date": "2025-07-23T18:50:31.195000",
+    "updated_date": "2025-07-23T18:50:31.195000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "shoulders",
+      "triceps",
+      "core"
+    ],
+    "discipline": [
+      "barbell"
+    ],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Fingerboard Hangs",
+    "description": "Grip strength for climbers",
+    "id": "68812ef731b451574f347ea1",
+    "created_date": "2025-07-23T18:50:31.195000",
+    "updated_date": "2025-07-23T18:50:31.195000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "forearms",
+      "back"
+    ],
+    "discipline": [
+      "climbing"
+    ],
+    "strain": {
+      "intensity": "high",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Plank",
+    "description": "Isometric core stability",
+    "id": "68812ef731b451574f347ea2",
+    "created_date": "2025-07-23T18:50:31.195000",
+    "updated_date": "2025-07-23T18:50:31.195000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "core"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "low",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Bulgarian Split Squats",
+    "description": "Unilateral leg strength",
+    "id": "68812ef731b451574f347ea3",
+    "created_date": "2025-07-23T18:50:31.195000",
+    "updated_date": "2025-07-23T18:50:31.195000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "quads",
+      "glutes"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Kettlebell Swings",
+    "description": "Explosive hip hinge",
+    "id": "68812ef731b451574f347ea4",
+    "created_date": "2025-07-23T18:50:31.195000",
+    "updated_date": "2025-07-23T18:50:31.195000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "glutes",
+      "hamstrings",
+      "core"
+    ],
+    "discipline": [
+      "kettlebell"
+    ],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Face Pulls",
+    "description": "Rear delt and posture work",
+    "id": "68812ef731b451574f347ea5",
+    "created_date": "2025-07-23T18:50:31.195000",
+    "updated_date": "2025-07-23T18:50:31.195000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "shoulders",
+      "back"
+    ],
+    "discipline": [
+      "resistance_band"
+    ],
+    "strain": {
+      "intensity": "low",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Burpees",
+    "description": "Full body conditioning",
+    "id": "68812ef731b451574f347ea6",
+    "created_date": "2025-07-23T18:50:31.195000",
+    "updated_date": "2025-07-23T18:50:31.195000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "full_body"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "high",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Lat Pulldowns",
+    "description": "Assisted vertical pulling",
+    "id": "68812ef731b451574f347ea7",
+    "created_date": "2025-07-23T18:50:31.195000",
+    "updated_date": "2025-07-23T18:50:31.195000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "back",
+      "biceps"
+    ],
+    "discipline": [
+      "machine"
+    ],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Dips",
+    "description": "Bodyweight tricep builder",
+    "id": "68812ef731b451574f347ea8",
+    "created_date": "2025-07-23T18:50:31.195000",
+    "updated_date": "2025-07-23T18:50:31.195000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "chest",
+      "triceps",
+      "shoulders"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "climbing",
+    "description": "Custom user exercise.",
+    "id": "68813316a083cfa68874e8be",
+    "created_date": "2025-07-23T19:08:06.150000",
+    "updated_date": "2025-07-23T19:08:06.150000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "full_body"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "muscleup",
+    "description": "Custom user exercise.",
+    "id": "6881339c562cff044eedcfcb",
+    "created_date": "2025-07-23T19:10:20.295000",
+    "updated_date": "2025-07-23T19:10:20.295000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "back"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Barbell Back Squat",
+    "description": "King of lower body exercises",
+    "id": "68813836fb7df3835a37a01a",
+    "created_date": "2025-07-23T19:29:58.035000",
+    "updated_date": "2025-07-23T19:29:58.035000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "quads",
+      "glutes",
+      "core"
+    ],
+    "discipline": [
+      "barbell"
+    ],
+    "strain": {
+      "intensity": "high",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Deadlift",
+    "description": "Full posterior chain movement",
+    "id": "68813836fb7df3835a37a01b",
+    "created_date": "2025-07-23T19:29:58.035000",
+    "updated_date": "2025-07-23T19:29:58.035000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "back",
+      "glutes",
+      "hamstrings",
+      "core"
+    ],
+    "discipline": [
+      "barbell"
+    ],
+    "strain": {
+      "intensity": "high",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Bench Press",
+    "description": "Primary horizontal push",
+    "id": "68813836fb7df3835a37a01c",
+    "created_date": "2025-07-23T19:29:58.035000",
+    "updated_date": "2025-07-23T19:29:58.035000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "chest",
+      "shoulders",
+      "triceps"
+    ],
+    "discipline": [
+      "barbell"
+    ],
+    "strain": {
+      "intensity": "high",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Pull-ups",
+    "description": "Vertical pulling powerhouse",
+    "id": "68813836fb7df3835a37a01d",
+    "created_date": "2025-07-23T19:29:58.035000",
+    "updated_date": "2025-07-23T19:29:58.035000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "back",
+      "biceps",
+      "forearms"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Push-ups",
+    "description": "Bodyweight pressing classic",
+    "id": "68813836fb7df3835a37a01e",
+    "created_date": "2025-07-23T19:29:58.035000",
+    "updated_date": "2025-07-23T19:29:58.035000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "chest",
+      "shoulders",
+      "triceps",
+      "core"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Fingerboard Hangs",
+    "description": "Grip strength for climbers",
+    "id": "68813836fb7df3835a37a01f",
+    "created_date": "2025-07-23T19:29:58.035000",
+    "updated_date": "2025-07-23T19:29:58.035000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "forearms",
+      "back"
+    ],
+    "discipline": [
+      "climbing"
+    ],
+    "strain": {
+      "intensity": "high",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Campus Board Training",
+    "description": "Dynamic finger strength",
+    "id": "68813836fb7df3835a37a020",
+    "created_date": "2025-07-23T19:29:58.035000",
+    "updated_date": "2025-07-23T19:29:58.035000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "forearms",
+      "back",
+      "shoulders"
+    ],
+    "discipline": [
+      "climbing"
+    ],
+    "strain": {
+      "intensity": "high",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Pistol Squats",
+    "description": "Single-leg strength",
+    "id": "68813836fb7df3835a37a021",
+    "created_date": "2025-07-23T19:29:58.035000",
+    "updated_date": "2025-07-23T19:29:58.035000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "quads",
+      "glutes",
+      "core"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "high",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Muscle-ups",
+    "description": "Advanced pulling and pushing",
+    "id": "68813836fb7df3835a37a022",
+    "created_date": "2025-07-23T19:29:58.035000",
+    "updated_date": "2025-07-23T19:29:58.035000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "back",
+      "chest",
+      "shoulders",
+      "triceps"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "high",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Plank",
+    "description": "Isometric core stability",
+    "id": "68813836fb7df3835a37a023",
+    "created_date": "2025-07-23T19:29:58.035000",
+    "updated_date": "2025-07-23T19:29:58.035000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "core"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "low",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Pike Push Ups",
+    "description": "Custom user exercise",
+    "id": "688139715545d101296f0b00",
+    "created_date": "2025-07-23T19:35:13.979000",
+    "updated_date": "2025-07-23T19:35:13.979000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "shoulders",
+      "triceps",
+      "core"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Pike Pushups",
+    "description": "Custom user exercise",
+    "id": "6881397bfd547cb951a2a1fb",
+    "created_date": "2025-07-23T19:35:23.545000",
+    "updated_date": "2025-07-23T19:35:23.545000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "shoulders",
+      "triceps",
+      "upper chest"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "low",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Pull-ups",
+    "description": "Standard pull-up on bar",
+    "id": "6881c6293df27db77366de24",
+    "created_date": "2025-07-24T05:35:37.594000",
+    "updated_date": "2025-07-24T05:35:37.594000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "back",
+      "biceps"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Hangboard Max Hang",
+    "description": "Maximum dead hang on hangboard",
+    "id": "6881c6293df27db77366de25",
+    "created_date": "2025-07-24T05:35:37.594000",
+    "updated_date": "2025-07-24T05:35:37.594000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "forearms",
+      "back"
+    ],
+    "discipline": [
+      "climbing"
+    ],
+    "strain": {
+      "intensity": "high",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Barbell Back Squat",
+    "description": "Back squat with barbell",
+    "id": "6881c6293df27db77366de26",
+    "created_date": "2025-07-24T05:35:37.594000",
+    "updated_date": "2025-07-24T05:35:37.594000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "quads",
+      "glutes"
+    ],
+    "discipline": [
+      "barbell"
+    ],
+    "strain": {
+      "intensity": "high",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Push-ups",
+    "description": "Standard push-up",
+    "id": "6881c6293df27db77366de27",
+    "created_date": "2025-07-24T05:35:37.594000",
+    "updated_date": "2025-07-24T05:35:37.594000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "chest",
+      "triceps"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Deadlift",
+    "description": "Conventional deadlift",
+    "id": "6881c6293df27db77366de28",
+    "created_date": "2025-07-24T05:35:37.594000",
+    "updated_date": "2025-07-24T05:35:37.594000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "back",
+      "glutes",
+      "hamstrings"
+    ],
+    "discipline": [
+      "barbell"
+    ],
+    "strain": {
+      "intensity": "high",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Biking workout",
+    "description": "Custom exercise added via chat.",
+    "id": "6881de65e71c3b51886064f0",
+    "created_date": "2025-07-24T07:19:01.500000",
+    "updated_date": "2025-07-24T07:19:01.500000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "legs",
+      "core"
+    ],
+    "discipline": [
+      "aerobic"
+    ],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Barbell Back Squat",
+    "description": "Core compound movement for lower body strength",
+    "id": "688317b3cc76327512b8bff4",
+    "created_date": "2025-07-25T05:35:47.458000",
+    "updated_date": "2025-07-25T05:35:47.458000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "quads",
+      "glutes",
+      "core"
+    ],
+    "discipline": [
+      "barbell"
+    ],
+    "strain": {
+      "intensity": "high",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Pull-ups",
+    "description": "Essential upper body pulling movement",
+    "id": "688317b3cc76327512b8bff5",
+    "created_date": "2025-07-25T05:35:47.458000",
+    "updated_date": "2025-07-25T05:35:47.458000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "back",
+      "biceps"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Hangboard Max Hangs",
+    "description": "Finger strength training for climbers",
+    "id": "688317b3cc76327512b8bff6",
+    "created_date": "2025-07-25T05:35:47.459000",
+    "updated_date": "2025-07-25T05:35:47.459000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "forearms",
+      "back"
+    ],
+    "discipline": [
+      "climbing"
+    ],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Deadlift",
+    "description": "Full body compound pulling movement",
+    "id": "688317b3cc76327512b8bff7",
+    "created_date": "2025-07-25T05:35:47.459000",
+    "updated_date": "2025-07-25T05:35:47.459000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "back",
+      "glutes",
+      "hamstrings"
+    ],
+    "discipline": [
+      "barbell"
+    ],
+    "strain": {
+      "intensity": "high",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Push-ups",
+    "description": "Basic upper body pushing movement",
+    "id": "688317b3cc76327512b8bff8",
+    "created_date": "2025-07-25T05:35:47.459000",
+    "updated_date": "2025-07-25T05:35:47.459000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "chest",
+      "triceps",
+      "shoulders"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "low",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Plank",
+    "description": "Core stabilization exercise",
+    "id": "688317b3cc76327512b8bff9",
+    "created_date": "2025-07-25T05:35:47.459000",
+    "updated_date": "2025-07-25T05:35:47.459000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "core"
+    ],
+    "discipline": [
+      "bodyweight"
+    ],
+    "equipment": [],
+    "strain": {
+      "intensity": "low",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Campus Board Ladders",
+    "description": "Dynamic climbing power training",
+    "id": "688317b3cc76327512b8bffa",
+    "created_date": "2025-07-25T05:35:47.459000",
+    "updated_date": "2025-07-25T05:35:47.459000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "forearms",
+      "back",
+      "core"
+    ],
+    "discipline": [
+      "climbing"
+    ],
+    "strain": {
+      "intensity": "high",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Running",
+    "description": "Cardiovascular endurance training",
+    "id": "688317b3cc76327512b8bffb",
+    "created_date": "2025-07-25T05:35:47.459000",
+    "updated_date": "2025-07-25T05:35:47.459000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "muscles": [
+      "full_body"
+    ],
+    "discipline": [
+      "cardio"
+    ],
+    "strain": {
+      "intensity": "moderate",
+      "load": "moderate",
+      "duration_type": "reps"
+    },
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Dragon Flag",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Advanced core exercise performed lying supine, raising legs and torso while supported on shoulders",
+    "id": "688477ca45c2714d5c894abe",
+    "created_date": "2025-07-26T06:38:02.656000",
+    "updated_date": "2025-07-26T06:38:02.656000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Deep Pike Push-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Pike position push-ups with elevated feet for increased shoulder emphasis",
+    "id": "688477ca45c2714d5c894abf",
+    "created_date": "2025-07-26T06:38:02.656000",
+    "updated_date": "2025-07-26T06:38:02.656000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Ring Dips",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Dips performed on gymnastic rings for increased instability and difficulty",
+    "id": "688477ca45c2714d5c894ac0",
+    "created_date": "2025-07-26T06:38:02.656000",
+    "updated_date": "2025-07-26T06:38:02.656000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Tucked Planche",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Static hold with knees tucked, body parallel to ground, supported on hands",
+    "id": "688477ca45c2714d5c894ac1",
+    "created_date": "2025-07-26T06:38:02.656000",
+    "updated_date": "2025-07-26T06:38:02.656000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Easy Bouldering",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Low-grade boulder problems for technique and movement practice",
+    "id": "688477ca45c2714d5c894ac2",
+    "created_date": "2025-07-26T06:38:02.656000",
+    "updated_date": "2025-07-26T06:38:02.656000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "L-Sit",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Static hold with legs extended parallel to ground while supporting body weight on hands",
+    "id": "688477ca45c2714d5c894ac3",
+    "created_date": "2025-07-26T06:38:02.656000",
+    "updated_date": "2025-07-26T06:38:02.656000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Shoulder Warm-up",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Dynamic shoulder mobility exercises and activation movements",
+    "id": "688477ca45c2714d5c894ac4",
+    "created_date": "2025-07-26T06:38:02.656000",
+    "updated_date": "2025-07-26T06:38:02.656000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Handstand Hold",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Static handstand hold against wall for strength and balance development",
+    "id": "688477ca45c2714d5c894ac5",
+    "created_date": "2025-07-26T06:38:02.656000",
+    "updated_date": "2025-07-26T06:38:02.656000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Push-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Classic bodyweight exercise targeting chest and arms. Keep body in straight line from head to heels.",
+    "id": "68848acd744c8eb3550ab944",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Pull-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Compound upper body exercise. Pull body up until chin clears bar, lower with control.",
+    "id": "68848acd744c8eb3550ab945",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Squats",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Fundamental lower body movement. Sit back and down as if sitting in a chair, keep chest up.",
+    "id": "68848acd744c8eb3550ab946",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Deadlifts",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "King of compound movements. Lift bar from ground to standing position, focus on hip hinge.",
+    "id": "68848acd744c8eb3550ab947",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Barbell Bench Press",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Primary chest exercise. Lower bar to chest with control, press up powerfully.",
+    "id": "68848acd744c8eb3550ab948",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Overhead Press",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Press bar from shoulders overhead. Keep core tight and avoid arching back.",
+    "id": "68848acd744c8eb3550ab949",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Barbell Rows",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Bend forward and row bar to lower chest. Keep back neutral throughout movement.",
+    "id": "68848acd744c8eb3550ab94a",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Dips",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Lower body between parallel bars, press back up. Lean forward for chest emphasis.",
+    "id": "68848acd744c8eb3550ab94b",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Plank",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Hold straight line position from head to heels. Engage core throughout.",
+    "id": "68848acd744c8eb3550ab94c",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Burpees",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Drop to push-up, jump feet to hands, jump up with arms overhead. Full body cardio exercise.",
+    "id": "68848acd744c8eb3550ab94d",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Jump Rope",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Cardio exercise with rope. Stay light on feet, rotate rope with wrists.",
+    "id": "68848acd744c8eb3550ab94e",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Mountain Climbers",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "From plank position, alternate bringing knees to chest rapidly.",
+    "id": "68848acd744c8eb3550ab94f",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Dumbbell Bicep Curls",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Curl dumbbells from arms extended to shoulders. Control the weight throughout.",
+    "id": "68848acd744c8eb3550ab950",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Tricep Extensions",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Extend dumbbell overhead, lower behind head by bending only at elbows.",
+    "id": "68848acd744c8eb3550ab951",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Lunges",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Step forward into lunge position, lower back knee toward ground, return to start.",
+    "id": "68848acd744c8eb3550ab952",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Side Plank",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Hold side position supported on forearm. Keep body in straight line.",
+    "id": "68848acd744c8eb3550ab953",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Russian Twists",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Seated position, lean back slightly, rotate torso side to side.",
+    "id": "68848acd744c8eb3550ab954",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Hollow Body Hold",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Lie on back, lift shoulders and legs off ground creating hollow position.",
+    "id": "68848acd744c8eb3550ab955",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Wall Sits",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Sit against wall with thighs parallel to ground. Hold position.",
+    "id": "68848acd744c8eb3550ab956",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Kettlebell Swings",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Hip hinge movement swinging kettlebell from between legs to chest height.",
+    "id": "68848acd744c8eb3550ab957",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Box Jumps",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Jump onto box or platform, step down with control. Focus on soft landing.",
+    "id": "68848acd744c8eb3550ab958",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Bear Crawl",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Crawl forward on hands and feet, keep knees just off ground.",
+    "id": "68848acd744c8eb3550ab959",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Band Pull-Aparts",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Pull resistance band apart at chest level, squeeze shoulder blades together.",
+    "id": "68848acd744c8eb3550ab95a",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Turkish Get-Up",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Complex movement from lying to standing while holding weight overhead.",
+    "id": "68848acd744c8eb3550ab95b",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Farmer's Walk",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Walk while carrying heavy weights at sides. Maintain upright posture.",
+    "id": "68848acd744c8eb3550ab95c",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Ring Rows",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Horizontal row using gymnastic rings. Adjust body angle for difficulty.",
+    "id": "68848acd744c8eb3550ab95d",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Handstand Push-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Push-up while in handstand position against wall. Advanced movement.",
+    "id": "68848acd744c8eb3550ab95e",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Muscle-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Transition from pull-up to dip position in one fluid movement.",
+    "id": "68848acd744c8eb3550ab95f",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "L-Sit",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Hold seated position with legs extended parallel to ground.",
+    "id": "68848acd744c8eb3550ab960",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Pistol Squats",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Single leg squat with other leg extended forward. Advanced movement.",
+    "id": "68848acd744c8eb3550ab961",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Shoulder Dislocates",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Mobility exercise rotating arms overhead and behind back using band or pipe.",
+    "id": "68848acd744c8eb3550ab962",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Cat-Cow Stretch",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "On hands and knees, alternate between arching and rounding spine.",
+    "id": "68848acd744c8eb3550ab963",
+    "created_date": "2025-07-26T07:59:09.620000",
+    "updated_date": "2025-07-26T07:59:09.620000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Fingerboard Hangs",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Grip strength training for climbers using fingerboard with various hold sizes.",
+    "id": "68848c987f488e0906a60c90",
+    "created_date": "2025-07-26T08:06:48.541000",
+    "updated_date": "2025-07-26T08:06:48.541000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Face Pulls",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Rear delt and posture exercise pulling cable or band to face level.",
+    "id": "68848c987f488e0906a60c91",
+    "created_date": "2025-07-26T08:06:48.541000",
+    "updated_date": "2025-07-26T08:06:48.541000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Bulgarian Split Squats",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Unilateral leg exercise with rear foot elevated on bench or step.",
+    "id": "68848c987f488e0906a60c92",
+    "created_date": "2025-07-26T08:06:48.541000",
+    "updated_date": "2025-07-26T08:06:48.541000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Dumbbell Rows",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Single-arm row using dumbbell with bench support for back development.",
+    "id": "68848c987f488e0906a60c93",
+    "created_date": "2025-07-26T08:06:48.541000",
+    "updated_date": "2025-07-26T08:06:48.541000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Bench Press",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Primary horizontal push exercise lying on bench pressing barbell.",
+    "id": "68848c987f488e0906a60c94",
+    "created_date": "2025-07-26T08:06:48.541000",
+    "updated_date": "2025-07-26T08:06:48.541000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Deadlift",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Full posterior chain exercise lifting barbell from ground to standing.",
+    "id": "68848c987f488e0906a60c95",
+    "created_date": "2025-07-26T08:06:48.541000",
+    "updated_date": "2025-07-26T08:06:48.541000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Plank",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Isometric core exercise holding straight line from head to heels",
+    "id": "68848db3d43663b13cf9bcbe",
+    "created_date": "2025-07-26T08:11:31.230000",
+    "updated_date": "2025-07-26T08:11:31.230000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Campus Board Ladders",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Dynamic finger strength training on overhanging board with numbered rungs",
+    "id": "68848db3d43663b13cf9bcbf",
+    "created_date": "2025-07-26T08:11:31.230000",
+    "updated_date": "2025-07-26T08:11:31.230000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Running",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Cardiovascular endurance exercise at various paces and distances",
+    "id": "68848db3d43663b13cf9bcc0",
+    "created_date": "2025-07-26T08:11:31.230000",
+    "updated_date": "2025-07-26T08:11:31.230000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Dragon Flag",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Advanced core exercise holding body horizontal while gripping bench",
+    "id": "68848db3d43663b13cf9bcc1",
+    "created_date": "2025-07-26T08:11:31.230000",
+    "updated_date": "2025-07-26T08:11:31.230000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Deep Pike Push-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Inverted push-up variation targeting shoulders in pike position",
+    "id": "68848db3d43663b13cf9bcc2",
+    "created_date": "2025-07-26T08:11:31.230000",
+    "updated_date": "2025-07-26T08:11:31.230000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Ring Dips",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Unstable dip variation using gymnastic rings for increased difficulty",
+    "id": "68848db3d43663b13cf9bcc3",
+    "created_date": "2025-07-26T08:11:31.230000",
+    "updated_date": "2025-07-26T08:11:31.230000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Tucked Planche",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Advanced static hold with knees tucked, building toward full planche",
+    "id": "68848db3d43663b13cf9bcc4",
+    "created_date": "2025-07-26T08:11:31.230000",
+    "updated_date": "2025-07-26T08:11:31.230000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Easy Bouldering",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Low-grade bouldering for technique and movement practice",
+    "id": "68848db3d43663b13cf9bcc5",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "L-Sit",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Static hold with legs extended parallel to ground",
+    "id": "68848db3d43663b13cf9bcc6",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Shoulder Warm-up",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Dynamic shoulder mobility preparation before training",
+    "id": "68848db3d43663b13cf9bcc7",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Handstand Hold",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Static inverted balance hold against wall or freestanding",
+    "id": "68848db3d43663b13cf9bcc8",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Kettlebell Swings",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Explosive hip hinge movement swinging kettlebell to shoulder height",
+    "id": "68848db3d43663b13cf9bcc9",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Shoulder Dislocates",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Shoulder mobility exercise rotating band/pipe over head and behind back",
+    "id": "68848db3d43663b13cf9bcca",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Kip Swings",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Dynamic hanging movement developing kipping motion for pull-ups",
+    "id": "68848db3d43663b13cf9bccb",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Scapula Push-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Shoulder blade mobility in plank position focusing on protraction/retraction",
+    "id": "68848db3d43663b13cf9bccc",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Bodyweight Squats",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Basic squatting movement sitting back and down, keeping chest up",
+    "id": "68848db3d43663b13cf9bccd",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Banded Pull-Aparts",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Rear delt strengthening pulling band apart at chest level",
+    "id": "68848db3d43663b13cf9bcce",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Weighted Pull-Ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Pull-ups with added weight for increased strength development",
+    "id": "68848db3d43663b13cf9bccf",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Ring Rows",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Horizontal pulling exercise using gymnastic rings, scalable by angle",
+    "id": "68848db3d43663b13cf9bcd0",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Band Pull-Aparts",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Rear deltoid and rhomboid strengthening with resistance band",
+    "id": "68848db3d43663b13cf9bcd1",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Dumbbell Lateral Raises",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Isolation exercise for side deltoids raising weights to shoulder height",
+    "id": "68848db3d43663b13cf9bcd2",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Russian Twists",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Rotational core exercise sitting and twisting side to side",
+    "id": "68848db3d43663b13cf9bcd3",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Hollow Body Rocks",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Core strengthening rocking back and forth in hollow body position",
+    "id": "68848db3d43663b13cf9bcd4",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Side Plank",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Lateral core strengthening holding body sideways in straight line",
+    "id": "68848db3d43663b13cf9bcd5",
+    "created_date": "2025-07-26T08:11:31.231000",
+    "updated_date": "2025-07-26T08:11:31.231000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Wall Push-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Beginner push-up variation performed against a wall",
+    "id": "688490711efd4632f78d6699",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Incline Push-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Push-ups performed with hands elevated to reduce difficulty",
+    "id": "688490711efd4632f78d669a",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Knee Push-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Modified push-up performed on knees to reduce load",
+    "id": "688490711efd4632f78d669b",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Push-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Standard bodyweight pushing exercise",
+    "id": "688490711efd4632f78d669c",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Diamond Push-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Push-up with hands forming diamond shape, emphasizing triceps",
+    "id": "688490711efd4632f78d669d",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Archer Push-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Unilateral push-up with one arm extended",
+    "id": "688490711efd4632f78d669e",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "One-Arm Push-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Advanced single-arm push-up requiring significant strength",
+    "id": "688490711efd4632f78d669f",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Dead Hang",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Static hang from pull-up bar to build grip strength",
+    "id": "688490711efd4632f78d66a0",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Scapula Pull-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Small pulling motion engaging only shoulder blades",
+    "id": "688490711efd4632f78d66a1",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Assisted Pull-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Pull-ups with band or partner assistance to reduce load",
+    "id": "688490711efd4632f78d66a2",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Negative Pull-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Eccentric-only pull-ups focusing on the lowering phase",
+    "id": "688490711efd4632f78d66a3",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Pull-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Standard bodyweight pulling exercise",
+    "id": "688490711efd4632f78d66a4",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Weighted Pull-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Pull-ups with additional weight for increased difficulty",
+    "id": "688490711efd4632f78d66a5",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Archer Pull-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Unilateral pull-up with one arm extended",
+    "id": "688490711efd4632f78d66a6",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "One-Arm Pull-ups",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Elite single-arm pull-up requiring exceptional strength",
+    "id": "688490711efd4632f78d66a7",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Frog Stand",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Basic arm balance with knees resting on elbows",
+    "id": "688490711efd4632f78d66a8",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Crow Pose",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Arm balance with knees balanced on upper arms",
+    "id": "688490711efd4632f78d66a9",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Tucked Planche",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Planche with knees tucked to chest",
+    "id": "688490711efd4632f78d66aa",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.711000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Advanced Tucked Planche",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Planche with knees tucked closer to chest, more forward lean",
+    "id": "688490711efd4632f78d66ab",
+    "created_date": "2025-07-26T08:23:13.711000",
+    "updated_date": "2025-07-26T08:23:13.712000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Straddle Planche",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Planche with legs straddled wide apart",
+    "id": "688490711efd4632f78d66ac",
+    "created_date": "2025-07-26T08:23:13.712000",
+    "updated_date": "2025-07-26T08:23:13.712000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  },
+  {
+    "name": "Full Planche",
+    "modality": null,
+    "muscle_groups": null,
+    "strain_rating": null,
+    "description": "Perfect horizontal hold with legs together - ultimate planche",
+    "id": "688490711efd4632f78d66ad",
+    "created_date": "2025-07-26T08:23:13.712000",
+    "updated_date": "2025-07-26T08:23:13.712000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:17:12.837Z",
+    "updatedAt": "2025-07-30T22:17:12.837Z"
+  }
+]

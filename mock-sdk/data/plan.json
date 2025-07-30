@@ -1,0 +1,56 @@
+[
+  {
+    "name": "8 weeks",
+    "description": null,
+    "start_date": "2025-07-26T00:00:00.000Z",
+    "end_date": "2025-09-20T00:00:00.000Z",
+    "recurrence": "once",
+    "status": "active",
+    "linked_goals": [
+      "6884face3975361a223c014a"
+    ],
+    "linked_workouts": [
+      {
+        "workout_id": "688477ca45c2714d5c894ac7",
+        "workout_type": "predefined",
+        "scheduled_date": "2025-07-26",
+        "goal_id": "6884face3975361a223c014a",
+        "is_completed": false,
+        "completion_date": null
+      },
+      {
+        "workout_id": "688477ca45c2714d5c894ac8",
+        "workout_type": "predefined",
+        "scheduled_date": "2025-08-05",
+        "goal_id": "6884face3975361a223c014a",
+        "is_completed": false,
+        "completion_date": null
+      },
+      {
+        "workout_id": "68847fd5744c8eb3550ab6e4",
+        "workout_type": "predefined",
+        "scheduled_date": "2025-08-15",
+        "goal_id": "6884face3975361a223c014a",
+        "is_completed": false,
+        "completion_date": null
+      }
+    ],
+    "progress_metrics": {
+      "total_workouts": 3,
+      "completed_workouts": 0,
+      "completion_percentage": 0,
+      "current_week": 1,
+      "streak_days": 0
+    },
+    "settings": null,
+    "tags": [],
+    "id": "68851fc4cc31f955cacddd57",
+    "created_date": "2025-07-26T18:34:44.626000",
+    "updated_date": "2025-07-26T19:19:25.994000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:10.591Z",
+    "updatedAt": "2025-07-30T22:18:10.591Z"
+  }
+]

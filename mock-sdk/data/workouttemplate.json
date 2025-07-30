@@ -1,0 +1,35 @@
+[
+  {
+    "title": null,
+    "day_of_week": "Monday",
+    "workout_type": "strength",
+    "exercises": [
+      {
+        "exercise_id": "68813316a083cfa68874e8be",
+        "exercise_name": "climbing"
+      }
+    ],
+    "id": "6881332bc41bbfe0a63bdb4f",
+    "created_date": "2025-07-23T19:08:27.773000",
+    "updated_date": "2025-07-23T19:08:27.773000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:11.031Z",
+    "updatedAt": "2025-07-30T22:18:11.031Z"
+  },
+  {
+    "title": null,
+    "day_of_week": "Friday",
+    "workout_type": "strength",
+    "exercises": [],
+    "id": "688133ccc41bbfe0a63bdf81",
+    "created_date": "2025-07-23T19:11:08.805000",
+    "updated_date": "2025-07-23T19:11:08.805000",
+    "created_by_id": "68812e1c2e9d8fc3dd971bc7",
+    "created_by": "segev.elior@gmail.com",
+    "is_sample": null,
+    "createdAt": "2025-07-30T22:18:11.032Z",
+    "updatedAt": "2025-07-30T22:18:11.032Z"
+  }
+]

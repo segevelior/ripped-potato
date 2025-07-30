@@ -1,0 +1,424 @@
+# SynergyFit Local Migration Implementation Guide & Memory
+# Last Updated: 2025-07-30
+# Status: Phase 0.5 - Mock SDK Implementation (NOT WORKING - localhost:5173 connection refused)
+
+## PROJECT OVERVIEW
+
+**Goal**: Migrate SynergyFit from Base44 to run locally with independent backend, then migrate AI agent to Python/LangGraph
+
+**Tech Stack**: 
+- Frontend: Vite + React SPA, Tailwind CSS, shadcn/ui components
+- Backend SDK: @base44/sdk (to be replaced)
+- UI Libraries: Radix UI, Framer Motion, Recharts, React Router
+- Build: Vite 6, Node.js 20 LTS
+
+**Architecture**: Single Page Application with Base44 backend (transitioning to independent microservices)
+
+## IMPLEMENTATION STATUS
+
+### ✅ COMPLETED COMPONENTS
+
+#### Frontend Application Structure
+- [x] **Complete React SPA** - Full fitness tracking application
+  - Dashboard with strain meter, weekly calendar, body region chart
+  - Exercise library with progression paths
+  - Workout creation and templates
+  - Goal tracking system
+  - Training plans and schedules
+  - Live workout mode
+  - AI assistant integration (FloatingAIAssistant)
+
+#### Base44 Integration Layer  
+- [x] **API Client Setup** - Configured in src/api/base44Client.js
+  - App ID: 68812e1c2e9d8fc3dd971bc6
+  - Authentication required for all operations
+  - Entity exports configured
+
+### 🔄 PARTIALLY IMPLEMENTED
+
+#### Local Development Setup
+- [x] Project structure analyzed
+- [x] Dependencies identified
+- [x] Complete Base44 schema captured
+- [ ] **BLOCKED**: Base44 CORS configuration (platform limitation)
+- [ ] **PIVOTING**: Moving to full export strategy
+
+### ❌ CRITICAL MISSING COMPONENTS
+
+#### Backend Infrastructure
+```
+# NEEDED: Independent backend services
+- api/server.js (Node.js/Express proxy server)
+- api/auth/* (Authentication service)
+- api/database/* (PostgreSQL schema and migrations)
+- api/endpoints/* (REST API endpoints matching Base44)
+```
+
+#### Python AI Agent
+```
+# NEEDED: Python/LangGraph implementation
+- agent/app.py (FastAPI service)
+- agent/langgraph/* (AI workflow implementation)
+- agent/tools/* (Fitness-specific tools)
+- requirements.txt
+```
+
+## CRITICAL DECISIONS & CROSSROADS
+
+### ✅ Decision 1: CORS Limitation Discovery (2025-07-30)
+**Context**: Base44 platform doesn't expose CORS settings - fully managed platform
+
+**Options Considered**:
+1. **Keep trying Base44 SDK**: Pros: Native integration. Cons: CORS blocks all requests
+2. **Proxy through backend**: Pros: Works around CORS. Cons: Still tied to Base44
+3. **Full export & mock SDK**: Pros: Complete independence. Cons: More initial work
+
+**Choice**: Full export with mock SDK approach
+
+**Results**: Proceeding with complete app export and local data strategy
+
+### 🔄 CURRENT CROSSROADS: Mock SDK Architecture (2025-07-30)
+
+**Context**: Need to replace @base44/sdk with local implementation
+
+**Option A: JSON File Storage**
+- **Pros**: Simple, no database needed, easy to version control
+- **Cons**: No real queries, limited scalability
+- **Timeline**: 1-2 days
+- **Risk**: Low for POC, high for production
+
+**Option B: SQLite Local Database**
+- **Pros**: Real SQL queries, better performance, migration path to PostgreSQL
+- **Cons**: More setup complexity
+- **Timeline**: 3-4 days  
+- **Risk**: Low overall, better long-term
+
+**Option C: In-Memory Store with LocalStorage**
+- **Pros**: Fast, works in browser, no backend needed initially
+- **Cons**: Data loss on clear, size limits
+- **Timeline**: 1 day
+- **Risk**: Medium, good for development only
+
+**Recommendation**: Start with Option A (JSON files) for immediate progress, plan Option B for next phase
+
+## BASE44 ENTITIES & DATA MODEL
+
+### Complete Schema Documentation (Captured 2025-07-30)
+
+#### 1. Exercise
+```javascript
+{
+  name: "text, required",
+  discipline: ["array, required"],
+  muscles: ["array, required"],
+  equipment: ["array"],
+  strain: {
+    intensity: "low|moderate|high|max",
+    load: "bodyweight|light|moderate|heavy",
+    duration_type: "reps|time|distance",
+    typical_volume: "text"
+  },
+  similar_exercises: ["array"],
+  progression_group: "text",
+  progression_level: "number",
+  next_progression: ["array"],
+  previous_progression: ["array"],
+  thumbnail_url: "text",
+  prerequisites: ["array"],
+  description: "text"
+}
+```
+
+#### 2. Workout
+```javascript
+{
+  title: "text, required",
+  date: "date, required",
+  type: "strength|cardio|climbing|hybrid|recovery",
+  duration_minutes: "number",
+  exercises: [{
+    exercise_id: "text, required",
+    exercise_name: "text, required",
+    duration_seconds: "number",
+    notes: "text",
+    sets: [{
+      reps: "number",
+      weight: "number",
+      rpe: "number",
+      rest_seconds: "number",
+      is_completed: "boolean, default: false"
+    }]
+  }],
+  total_strain: "number",
+  muscle_strain: {}, // strain by muscle group
+  notes: "text"
+}
+```
+
+#### 3. ExternalActivity
+```javascript
+{
+  title: "text, required",
+  date: "date, required",
+  type: "climbing|cycling|running|hiking|swimming|other",
+  duration_minutes: "number",
+  distance_km: "number",
+  elevation_gain_m: "number",
+  intensity: "low|moderate|high|max",
+  strain_rating: "number, required (1-10)",
+  affected_regions: ["array"],
+  notes: "text"
+}
+```
+
+#### 4. Goal
+```javascript
+{
+  name: "text, required",
+  discipline: ["array, required"],
+  description: "text, required",
+  category: "skill|performance|endurance|strength",
+  icon: "text",
+  difficulty_level: "beginner|intermediate|advanced|elite",
+  estimated_weeks: "number",
+  prerequisites: ["array"]
+}
+```
+
+#### 5. Plan
+```javascript
+{
+  name: "text, required",
+  description: "text",
+  start_date: "date, required",
+  end_date: "date, required",
+  recurrence: "once|weekly|monthly (default: once)",
+  status: "draft|active|paused|completed (default: draft)",
+  linked_goals: ["array of goal IDs"],
+  linked_workouts: [{
+    workout_id: "text, required",
+    workout_type: "scheduled|predefined",
+    scheduled_date: "date",
+    goal_id: "text",
+    is_completed: "boolean, default: false",
+    completion_date: "date"
+  }],
+  progress_metrics: {
+    total_workouts: "number",
+    completed_workouts: "number",
+    completion_percentage: "number",
+    current_week: "number",
+    streak_days: "number"
+  },
+  settings: {
+    auto_schedule: "boolean, default: true",
+    rest_day_preferences: ["array"],
+    notification_enabled: "boolean, default: true"
+  },
+  tags: ["array"]
+}
+```
+
+### Simple Entities (Reference Data)
+6. **Discipline** - Training categories
+7. **WorkoutType** - Workout classifications  
+8. **WorkoutTemplate** - Reusable workout structures
+9. **TrainingPlan** - Multi-week programs
+10. **PredefinedWorkout** - Workout library
+11. **ProgressionPath** - Exercise progressions
+12. **UserGoalProgress** - Progress tracking
+13. **UserTrainingPattern** - User patterns
+
+### Integrations Used
+- **InvokeLLM** - AI assistant functionality
+- **SendEmail** - Notifications
+- **UploadFile** - Media handling
+- **GenerateImage** - Visual content
+- **ExtractDataFromUploadedFile** - Data import
+
+## DEBUGGING PLAYBOOK
+
+### Common Issues & Solutions
+
+#### Issue 1: Authentication Failures
+**Symptoms**: 401/403 errors, login loops
+**Investigation Steps**:
+```bash
+# Check Base44 allowed origins
+# Verify in Base44 dashboard that localhost:5173 is added
+
+# Check browser console for CORS errors
+# Look for blocked requests to base44.api
+```
+**Root Causes**: 
+- Missing allowed origins (80% of cases)
+- Incorrect appId configuration (20% of cases)
+
+#### Issue 2: Missing Dependencies
+**Symptoms**: Module not found errors
+**Quick Fix**: `npm install`
+**Long-term Fix**: Commit package-lock.json
+
+### Performance Benchmarks
+```
+Initial Load Time: Target < 3s
+API Response Time: Target < 500ms
+Bundle Size: Target < 2MB
+```
+
+## IMMEDIATE PRIORITIES
+
+### This Week: Export & Mock SDK Implementation
+- [ ] **Copy synergy-fit code to ripped-potato**
+  - Maintain exact structure
+  - **Goal**: Preserve all functionality
+- [ ] **Create mock @base44/sdk package**
+  - Match exact API surface
+  - Use JSON files for data
+  - **Goal**: Drop-in replacement
+- [ ] **Implement basic auth mock**
+  - Simple user session
+  - No real security (dev only)
+  - **Goal**: Unblock UI flows
+
+### Next 1-2 Weeks: Local Backend
+- [ ] **Create Express server**
+  - Serve static files
+  - API routes for data
+  - **Decision Point**: JSON vs SQLite storage
+
+## MEDIUM-TERM ROADMAP (1-2 months)
+
+### 1. Backend Decoupling
+- [ ] Create Express/FastAPI backend
+- [ ] Implement Base44-compatible endpoints
+- [ ] Set up PostgreSQL database
+- [ ] Migrate authentication
+
+### 2. AI Agent Migration
+- [ ] Set up Python/FastAPI service
+- [ ] Implement LangGraph workflows
+- [ ] Create fitness-specific tools
+- [ ] Connect to frontend
+
+## TECHNICAL DEBT & IMPROVEMENTS
+
+### High Priority
+- [ ] **No package-lock.json**: Creates inconsistent builds
+- [ ] **Direct Base44 dependency**: Blocks independent operation
+
+### Medium Priority  
+- [ ] **No error boundaries**: App crashes on API errors
+- [ ] **No offline support**: Requires constant connection
+
+### Low Priority
+- [ ] **No tests**: Add unit and integration tests
+
+## INTEGRATION POINTS
+
+### Internal Dependencies
+- **src/api/base44Client.js**: Central SDK configuration
+- **src/api/entities.js**: All data model exports
+- **src/api/integrations.js**: External service calls
+
+### External Dependencies
+- **@base44/sdk**: Core functionality (to be replaced)
+- **Base44 API**: All data and auth operations
+
+## PROJECT STRUCTURE
+
+```
+synergy-fit-dd971bc6/
+├── src/
+│   ├── api/              # Base44 integration layer
+│   ├── components/       # Reusable UI components
+│   ├── pages/           # Route components
+│   ├── hooks/           # Custom React hooks
+│   └── utils/           # Helper functions
+├── package.json         # Dependencies
+├── vite.config.js      # Build configuration
+└── tailwind.config.js  # Styling configuration
+```
+
+## PROPOSED IMPLEMENTATION PLAN
+
+### Phase 0.5: Export & Mock SDK (NEW - Immediate)
+1. **Project Structure in ripped-potato**:
+   ```
+   ripped-potato/
+   ├── frontend/          # Copy of synergy-fit code
+   ├── mock-sdk/          # @base44/sdk replacement
+   │   ├── index.js       # Main SDK interface
+   │   ├── entities/      # Entity CRUD operations
+   │   ├── auth/          # Mock authentication
+   │   └── data/          # JSON data files
+   ├── backend/           # Future Express server
+   └── docs/              # Migration documentation
+   ```
+
+2. **Mock SDK Architecture**:
+   - Maintain exact `base44.entities.*` API
+   - Use localStorage for persistence
+   - JSON files for seed data
+   - Simple auth with hardcoded user
+
+3. **Data Migration Strategy**:
+   - Create JSON files per entity type
+   - Seed with sample fitness data
+   - Include progression paths
+   - Add example workouts/goals
+
+## NEXT SESSION FOCUS
+
+1. **Immediate**: Decision on project structure
+2. **Next**: Copy synergy-fit to ripped-potato/frontend
+3. **Then**: Create mock SDK matching Base44 API
+
+## USEFUL COMMANDS
+
+```bash
+# Install dependencies
+cd /Users/eliorsegevprivate/Documents/GitHub/synergy-fit-dd971bc6
+npm install
+
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+
+# Run linter
+npm run lint
+```
+
+## MIGRATION PHASES
+
+### Phase 0: Make it Run Locally (Current)
+- Install dependencies
+- Configure Base44 allowed origins
+- Verify basic functionality
+
+### Phase 1: Render Deployment
+- Deploy as static site initially
+- Add web service if needed for secrets
+
+### Phase 2: Stabilize & Document
+- Add package-lock.json
+- Create deployment documentation
+- Set up monitoring
+
+### Phase 3: Backend Decoupling
+- Create independent API
+- Set up database
+- Implement custom auth
+
+### Phase 4: AI Agent Migration
+- Python/FastAPI service
+- LangGraph implementation
+- Connect to new backend
+
+---
+*This file is the project brain. Update it when making decisions or encountering issues. Future developers (including AI assistants) will need this context.*

@@ -1,0 +1,20 @@
+{
+  "name": "@base44/sdk",
+  "version": "0.1.2-mock",
+  "main": "index.js",
+  "type": "module",
+  "description": "Mock implementation of Base44 SDK for local development",
+  "keywords": [
+    "base44",
+    "mock",
+    "sdk"
+  ],
+  "author": "SynergyFit Migration",
+  "license": "MIT",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "csv-parse": "^6.1.0"
+  }
+}
