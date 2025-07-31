@@ -491,15 +491,16 @@ optimizeDeps: {
 2. Added `filter()` method to MockEntity class
 3. Updated WorkoutSelectionModal to handle blocks properly
 
-### Current State (2025-07-31 - MAJOR PROGRESS!)
+### Current State (2025-07-31 - READY TO MERGE!)
 1. **✅ PredefinedWorkouts page works!**: Full CRUD with modal editing
 2. **✅ Calendar page works!**: Can add workouts from predefined templates
 3. **✅ Vite stable**: No more crashes with the optimization fix
 4. **✅ All main pages tested**: Dashboard, Goals, Calendar, Exercises, Plans, PredefinedWorkouts
 5. **✅ Data structure fixed**: Workouts now have proper sets structure
-6. **⏳ Authentication**: Not implemented yet (no user system), will do later
-7. **⏳ CSV data**: Skipped - moving to MongoDB soon anyway
-8. **⏳ Cleanup needed**: Remove redundant files before final commit
+6. **✅ Exercise CRUD tested**: Create, edit, delete all working
+7. **✅ Repository cleaned**: Removed all redundant files and console.logs
+8. **⏳ Authentication**: Postponed - will implement with database
+9. **⏳ CSV data**: Skipped - moving to MongoDB soon anyway
 
 ## GIT BRANCHING STRATEGY
 
@@ -512,13 +513,13 @@ optimizeDeps: {
 - Basic CRUD operations working
 - CSV data integrated
 
-**When to Merge to Main**:
+**When to Merge to Main** (ALL CRITERIA MET!):
 1. ✅ App runs stable for 30+ minutes without crashes - DONE
 2. ✅ All main pages show data (Exercises, Goals, PredefinedWorkouts, etc.) - DONE
-3. ✅ Can create/edit/delete at least one entity type - DONE (PredefinedWorkouts & Calendar)
+3. ✅ Can create/edit/delete at least one entity type - DONE (Multiple: PredefinedWorkouts, Calendar, Exercises)
 4. ❌ CSV data loaded - SKIPPED (moving to MongoDB)
-5. ❌ Basic auth working - POSTPONED (no user system yet)
-6. ⏳ **NEW**: Clean up redundant files before merge
+5. ❌ Basic auth working - POSTPONED (implement with database)
+6. ✅ Clean up redundant files before merge - DONE
 
 **Future Branches** (after merge):
 - `feature/backend-api` - Replace mock SDK with real backend
@@ -592,33 +593,39 @@ optimizeDeps: {
 - [ ] Login/logout working
 - [ ] Ready to merge to main
 
-## CLEANUP BEFORE MERGE (Priority!)
+## CLEANUP COMPLETED (2025-07-31) ✅
 
-### Files to Remove:
+### Files Removed:
 1. **Duplicate/Test Files**:
-   - `/frontend/src/pages/PredefinedWorkouts-Safe.jsx` (if exists)
-   - Any other `-Safe`, `-Backup`, `-Minimal` versions
+   - ✅ `/frontend/src/pages/PredefinedWorkouts-Safe.jsx`
+   - ✅ `/frontend/src/pages/PredefinedWorkouts-Backup.jsx`
+   - ✅ `/frontend/src/pages/PredefinedWorkouts-Minimal.jsx`
+   - ✅ `/frontend/package-lock 2.json`
+   - ✅ `/frontend/vite.log`
    
-2. **Failed Server Attempts** (from earlier mess):
-   - `/server.js` (if still exists)
-   - `/simple-server.js` (if still exists)
-   - Root `/package.json` (if exists - we only need frontend/package.json)
+2. **Root level cleanup**:
+   - ✅ `/package-lock.json` (from debugging mess)
+   - Note: server.js and simple-server.js were already removed earlier
    
 3. **Test Buttons**:
-   - Remove "Test Create Workout" button from Calendar.jsx
+   - ✅ Removed "Test Create Workout" button from Calendar.jsx
 
-### Code to Clean:
-1. Remove excessive console.log statements from:
-   - `/mock-sdk/index-browser.js`
+### Code Cleaned:
+1. ✅ Removed console.log statements from:
+   - `/mock-sdk/index-browser.js` (kept only error logging)
    - `/frontend/src/pages/Calendar.jsx`
    - `/frontend/src/components/calendar/WorkoutSelectionModal.jsx`
 
-## NEXT SESSION FOCUS
+## NEXT SESSION FOCUS (After Merge)
 
-1. **Clean up repository** - Remove redundant files
-2. **Test Exercise CRUD** - Quick test of create/edit/delete
-3. **Final commit and merge** to main branch
-4. **Plan next phase** - MongoDB backend implementation
+1. **Create new branch**: `feature/backend-api`
+2. **Set up backend structure**:
+   - Express.js server
+   - MongoDB connection
+   - API routes for all entities
+3. **Replace mock SDK** with real API calls
+4. **Add authentication**: JWT tokens with proper user system
+5. **Migrate data**: Import CSV data into MongoDB
 
 ## SHORTCUTS & HACKS TAKEN
 
