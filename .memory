@@ -480,11 +480,26 @@ optimizeDeps: {
 }
 ```
 
-### Current State (2025-07-31)
-1. **✅ PredefinedWorkouts page works!**: Shows 2 workouts, no crashes on reload
-2. **✅ Vite stable**: No more crashes with the optimization fix
-3. **⏳ Need to test all pages**: Dashboard, Goals, Calendar, etc.
-4. **❌ Data is minimal**: Only 5 exercises, 3 goals, 2 workouts (need CSV data)
+### FIXED: Calendar Add Workout Issue (2025-07-31)
+**Problem**: Couldn't add workouts to calendar, button clicks did nothing
+**Root Cause**: Multiple issues:
+1. Workout data structure mismatch - sets should be array of objects, not number
+2. Missing `filter()` method in mock SDK
+3. WorkoutSelectionModal expected wrong data structure
+**Solutions**:
+1. Fixed workout sets structure: `sets: [{ reps, weight, rpe, rest_seconds, is_completed }]`
+2. Added `filter()` method to MockEntity class
+3. Updated WorkoutSelectionModal to handle blocks properly
+
+### Current State (2025-07-31 - MAJOR PROGRESS!)
+1. **✅ PredefinedWorkouts page works!**: Full CRUD with modal editing
+2. **✅ Calendar page works!**: Can add workouts from predefined templates
+3. **✅ Vite stable**: No more crashes with the optimization fix
+4. **✅ All main pages tested**: Dashboard, Goals, Calendar, Exercises, Plans, PredefinedWorkouts
+5. **✅ Data structure fixed**: Workouts now have proper sets structure
+6. **⏳ Authentication**: Not implemented yet (no user system), will do later
+7. **⏳ CSV data**: Skipped - moving to MongoDB soon anyway
+8. **⏳ Cleanup needed**: Remove redundant files before final commit
 
 ## GIT BRANCHING STRATEGY
 
@@ -498,11 +513,12 @@ optimizeDeps: {
 - CSV data integrated
 
 **When to Merge to Main**:
-1. ✅ App runs stable for 30+ minutes without crashes
-2. ✅ All main pages show data (Exercises, Goals, PredefinedWorkouts, etc.)
-3. ✅ Can create/edit/delete at least one entity type
-4. ✅ CSV data loaded (even if partially)
-5. ✅ Basic auth working (login/logout)
+1. ✅ App runs stable for 30+ minutes without crashes - DONE
+2. ✅ All main pages show data (Exercises, Goals, PredefinedWorkouts, etc.) - DONE
+3. ✅ Can create/edit/delete at least one entity type - DONE (PredefinedWorkouts & Calendar)
+4. ❌ CSV data loaded - SKIPPED (moving to MongoDB)
+5. ❌ Basic auth working - POSTPONED (no user system yet)
+6. ⏳ **NEW**: Clean up redundant files before merge
 
 **Future Branches** (after merge):
 - `feature/backend-api` - Replace mock SDK with real backend
@@ -576,11 +592,33 @@ optimizeDeps: {
 - [ ] Login/logout working
 - [ ] Ready to merge to main
 
+## CLEANUP BEFORE MERGE (Priority!)
+
+### Files to Remove:
+1. **Duplicate/Test Files**:
+   - `/frontend/src/pages/PredefinedWorkouts-Safe.jsx` (if exists)
+   - Any other `-Safe`, `-Backup`, `-Minimal` versions
+   
+2. **Failed Server Attempts** (from earlier mess):
+   - `/server.js` (if still exists)
+   - `/simple-server.js` (if still exists)
+   - Root `/package.json` (if exists - we only need frontend/package.json)
+   
+3. **Test Buttons**:
+   - Remove "Test Create Workout" button from Calendar.jsx
+
+### Code to Clean:
+1. Remove excessive console.log statements from:
+   - `/mock-sdk/index-browser.js`
+   - `/frontend/src/pages/Calendar.jsx`
+   - `/frontend/src/components/calendar/WorkoutSelectionModal.jsx`
+
 ## NEXT SESSION FOCUS
 
-1. **Start Phase 1**: Create branch and stabilize server
-2. **Move to Phase 2**: Fix PredefinedWorkouts and test all pages  
-3. **Continue Phase 3-5**: Based on progress
+1. **Clean up repository** - Remove redundant files
+2. **Test Exercise CRUD** - Quick test of create/edit/delete
+3. **Final commit and merge** to main branch
+4. **Plan next phase** - MongoDB backend implementation
 
 ## SHORTCUTS & HACKS TAKEN
 

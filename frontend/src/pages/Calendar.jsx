@@ -559,15 +559,12 @@ export default function CalendarPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      console.log("Calendar: Starting to load data...");
       const [plans, trainingPlans, disciplineData, workoutData] = await Promise.all([
         Plan.filter({ status: 'active' }),
         TrainingPlan.filter({ is_active: true }),
         Discipline.list(),
         Workout.list("-date", 100)
       ]);
-      
-      console.log("Calendar: Raw workout data:", workoutData);
       
       setActivePlans(plans || []);
       if (trainingPlans && trainingPlans.length > 0) setCurrentPlan(trainingPlans[0]);
@@ -604,9 +601,7 @@ export default function CalendarPage() {
 
   const handleAddWorkout = async (workoutData) => {
     try {
-      console.log("Calendar: Attempting to create workout:", workoutData);
       const result = await Workout.create(workoutData);
-      console.log("Calendar: Workout created successfully:", result);
       loadData();
     } catch (error) {
       console.error("Error adding workout:", error);
@@ -782,34 +777,6 @@ export default function CalendarPage() {
           <button onClick={() => openAICoach('Help me create a workout plan.')} className="apple-button-primary">Go to AI Coach</button>
           
           {/* Test button */}
-          <button 
-            onClick={() => {
-              const testWorkout = {
-                title: "Test Workout",
-                date: format(new Date(), 'yyyy-MM-dd'),
-                type: "strength",
-                duration_minutes: 60,
-                exercises: [{
-                  exercise_id: "ex-1",
-                  exercise_name: "Push-up",
-                  duration_seconds: null,
-                  notes: "Test exercise",
-                  sets: [
-                    { reps: 10, weight: 0, rpe: 7, rest_seconds: 60, is_completed: false },
-                    { reps: 10, weight: 0, rpe: 7, rest_seconds: 60, is_completed: false },
-                    { reps: 10, weight: 0, rpe: 7, rest_seconds: 60, is_completed: false }
-                  ]
-                }],
-                total_strain: 0,
-                muscle_strain: {},
-                notes: "Test workout created directly"
-              };
-              handleAddWorkout(testWorkout);
-            }}
-            className="ml-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-          >
-            Test Create Workout
-          </button>
         </div>
       )}
     </div>

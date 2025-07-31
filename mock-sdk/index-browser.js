@@ -6,7 +6,6 @@ const auth = {
   user: null,
   
   async signIn(email, password) {
-    console.log('Mock sign in:', email);
     this.user = {
       id: 'mock-user-123',
       email: email || 'user@example.com',
@@ -17,7 +16,6 @@ const auth = {
   },
   
   async signOut() {
-    console.log('Mock sign out');
     this.user = null;
     localStorage.removeItem('mockAuth');
   },
@@ -48,9 +46,7 @@ class MockEntity {
   loadData() {
     try {
       const stored = localStorage.getItem(`base44_${this.name}`);
-      console.log(`Loading ${this.name} from localStorage:`, stored ? 'found' : 'not found');
       const data = stored ? JSON.parse(stored) : [];
-      console.log(`Loaded ${this.name} data:`, data);
       return data;
     } catch (error) {
       console.error(`Error loading ${this.name} from localStorage:`, error);
@@ -63,7 +59,6 @@ class MockEntity {
   }
   
   async create(item) {
-    console.log(`MockEntity.create(${this.name}):`, item);
     const newItem = {
       ...item,
       id: item.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -72,19 +67,15 @@ class MockEntity {
     };
     this.data.push(newItem);
     this.saveData();
-    console.log(`MockEntity.create(${this.name}) success:`, newItem);
     return newItem;
   }
   
   async find(query = {}) {
-    console.log(`MockEntity.find(${this.name}):`, this.data.length, 'items');
     return [...this.data];
   }
   
   // Base44 compatibility - list() is what the app uses
   async list(query = {}) {
-    console.log(`MockEntity.list(${this.name}):`, this.data.length, 'items');
-    console.log(`MockEntity.list(${this.name}) data:`, this.data);
     return [...this.data];
   }
   
@@ -125,7 +116,6 @@ class MockEntity {
   
   // Base44 compatibility - filter() method
   async filter(query = {}) {
-    console.log(`MockEntity.filter(${this.name}):`, query);
     let filtered = [...this.data];
     
     // Simple filtering by exact match
@@ -135,7 +125,6 @@ class MockEntity {
       }
     });
     
-    console.log(`MockEntity.filter(${this.name}) results:`, filtered.length, 'items');
     return filtered;
   }
 }

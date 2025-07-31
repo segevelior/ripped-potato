@@ -128,7 +128,6 @@ export default function WorkoutSelectionModal({ date, onClose, onApplyWorkout })
       }
 
       // You could also show the AI's message to the user
-      console.log("AI Coach says:", result.message);
       
     } catch (error) {
       console.error("Error processing coach prompt:", error);
@@ -140,7 +139,6 @@ export default function WorkoutSelectionModal({ date, onClose, onApplyWorkout })
   const handleApply = () => {
     if (!selectedWorkout) return;
     
-    console.log("WorkoutSelectionModal: Applying workout:", selectedWorkout);
     
     // Convert predefined workout to actual workout format
     const workoutExercises = [];
@@ -197,7 +195,6 @@ export default function WorkoutSelectionModal({ date, onClose, onApplyWorkout })
       muscle_strain: {}
     };
 
-    console.log("WorkoutSelectionModal: Sending workout data:", workoutData);
     onApplyWorkout(workoutData);
   };
 
