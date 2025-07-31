@@ -508,29 +508,78 @@ synergy-fit-dd971bc6/
 - `feature/database-integration` - Add PostgreSQL
 - `feature/ai-agent-python` - Python/LangGraph implementation
 
+## MVP COMPLETION PLAN
+
+### Phase 1: Stabilize Server (Day 1 - Tomorrow)
+**Goal**: App runs stable for 30+ minutes ✅
+1. Create feature branch: `git checkout -b feature/mock-sdk-mvp`
+2. Build production version: `npm run build`
+3. Serve with stable server:
+   ```bash
+   npm run preview  # Vite's production preview
+   # OR
+   npx serve dist -p 3000  # Simple static server
+   ```
+4. Test stability for 30+ minutes
+5. Document stable serving method
+
+### Phase 2: Fix All Pages (Day 1-2)
+**Goal**: All main pages show data ✅
+1. **Fix PredefinedWorkouts**:
+   - Add console.log to see what methods are called
+   - Check if it needs different data structure
+   - Verify sample data matches expected format
+2. **Test all pages**:
+   - ✅ Exercises (already working)
+   - ⏳ Goals 
+   - ⏳ PredefinedWorkouts
+   - ⏳ Calendar
+   - ⏳ Dashboard
+   - ⏳ Plans
+3. Add sample data for any missing entities
+
+### Phase 3: Basic CRUD Operations (Day 2)
+**Goal**: Can create/edit/delete at least one entity ✅
+1. Test Exercise CRUD:
+   - Create new exercise
+   - Edit existing exercise  
+   - Delete exercise
+2. Fix any SDK methods needed (create, update, delete)
+3. Verify localStorage persistence
+
+### Phase 4: CSV Data Integration (Day 2-3)
+**Goal**: CSV data loaded (even if partially) ✅
+1. **Option A - Bundle in SDK**:
+   - Copy JSON files content directly into index-browser.js
+   - Load on initialization
+2. **Option B - Data loader script**:
+   - Create separate data-loader.js
+   - Import and parse JSON files
+   - Run once to populate localStorage
+3. Start with Exercise data (200+ exercises)
+4. Add Goals, PredefinedWorkouts from CSV
+
+### Phase 5: Authentication (Day 3)
+**Goal**: Basic auth working (login/logout) ✅
+1. Test login flow
+2. Verify user stays logged in (localStorage)
+3. Test logout
+4. Ensure protected routes work
+
+### Completion Checklist
+- [ ] Branch created and commits organized
+- [ ] Server stable for 30+ minutes
+- [ ] All pages show appropriate data
+- [ ] Can create/edit/delete exercises
+- [ ] 50+ exercises from CSV loaded
+- [ ] Login/logout working
+- [ ] Ready to merge to main
+
 ## NEXT SESSION FOCUS
 
-1. **Create branch and continue work**:
-   ```bash
-   git checkout -b feature/mock-sdk-mvp
-   git add .
-   git commit -m "WIP: Mock SDK with sample data, exercises working"
-   ```
-
-2. **Fix vite stability issue**:
-   - Use `npm run build` and serve dist folder
-   - Or create simple Express server
-   - Or use `npm run preview` for production mode
-   
-3. **Fix PredefinedWorkouts page**:
-   - Check what method it calls (list? find? something else?)
-   - Add debug logging to see the issue
-   - Verify data format matches expectations
-   
-4. **Integrate CSV data**:
-   - Bundle all JSON data directly in mock SDK
-   - Or create data loader script
-   - Need ~200+ exercises from CSV
+1. **Start Phase 1**: Create branch and stabilize server
+2. **Move to Phase 2**: Fix PredefinedWorkouts and test all pages  
+3. **Continue Phase 3-5**: Based on progress
 
 ## SHORTCUTS & HACKS TAKEN
 
