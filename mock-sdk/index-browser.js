@@ -185,7 +185,7 @@ export function createClient(config) {
   console.log('Mock Base44 SDK initialized with config:', config);
   
   // Force refresh data - change version number to reset
-  const DATA_VERSION = 'v2';  // Change this to force refresh
+  const DATA_VERSION = 'v3';  // Change this to force refresh
   if (localStorage.getItem('base44_data_version') !== DATA_VERSION) {
     // Clear all old data
     Object.keys(localStorage).forEach(key => {
@@ -347,13 +347,14 @@ export function createClient(config) {
     entities.PredefinedWorkout.data = [
       {
         id: 'pw-1',
-        name: 'Full Body Beginner',
-        goal: 'Build foundational strength and muscle endurance',
+        name: 'Full Body Strength Foundation',
+        goal: 'Build overall strength and muscle endurance with compound movements',
         type: 'strength',
         primary_disciplines: ['strength', 'bodyweight'],
         difficulty_level: 'beginner',
-        duration_minutes: 30,
-        description: 'Perfect workout for beginners to build strength',
+        duration_minutes: 45,
+        estimated_duration: 45,
+        description: 'A balanced full-body workout focusing on fundamental movement patterns',
         exercises: [
           {
             exercise_id: 'ex-1',
