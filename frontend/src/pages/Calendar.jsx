@@ -601,10 +601,13 @@ export default function CalendarPage() {
 
   const handleAddWorkout = async (workoutData) => {
     try {
-      await Workout.create(workoutData);
+      console.log("Calendar: Attempting to create workout:", workoutData);
+      const result = await Workout.create(workoutData);
+      console.log("Calendar: Workout created successfully:", result);
       loadData();
     } catch (error) {
       console.error("Error adding workout:", error);
+      alert(`Failed to add workout: ${error.message}`);
     }
   };
 
@@ -774,6 +777,36 @@ export default function CalendarPage() {
             Click on any date to add a workout, or use the AI Coach to create a plan.
           </p>
           <button onClick={() => openAICoach('Help me create a workout plan.')} className="apple-button-primary">Go to AI Coach</button>
+          
+          {/* Test button */}
+          <button 
+            onClick={() => {
+              const testWorkout = {
+                title: "Test Workout",
+                date: format(new Date(), 'yyyy-MM-dd'),
+                type: "strength",
+                duration_minutes: 60,
+                exercises: [{
+                  exercise_id: "ex-1",
+                  exercise_name: "Push-up",
+                  duration_seconds: null,
+                  notes: "Test exercise",
+                  sets: [
+                    { reps: 10, weight: 0, rpe: 7, rest_seconds: 60, is_completed: false },
+                    { reps: 10, weight: 0, rpe: 7, rest_seconds: 60, is_completed: false },
+                    { reps: 10, weight: 0, rpe: 7, rest_seconds: 60, is_completed: false }
+                  ]
+                }],
+                total_strain: 0,
+                muscle_strain: {},
+                notes: "Test workout created directly"
+              };
+              handleAddWorkout(testWorkout);
+            }}
+            className="ml-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            Test Create Workout
+          </button>
         </div>
       )}
     </div>

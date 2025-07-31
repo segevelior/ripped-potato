@@ -49,7 +49,9 @@ class MockEntity {
     try {
       const stored = localStorage.getItem(`base44_${this.name}`);
       console.log(`Loading ${this.name} from localStorage:`, stored ? 'found' : 'not found');
-      return stored ? JSON.parse(stored) : [];
+      const data = stored ? JSON.parse(stored) : [];
+      console.log(`Loaded ${this.name} data:`, data);
+      return data;
     } catch (error) {
       console.error(`Error loading ${this.name} from localStorage:`, error);
       return [];
