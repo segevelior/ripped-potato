@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head><title>Simple API Test</title></head>
+<body>
+<h1>Testing Backend API Connection</h1>
+<button onclick="testAPI()">Test Backend API</button>
+<div id="results" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;"></div>
+
+<script>
+async function testAPI() {
+    const resultsDiv = document.getElementById('results');
+    resultsDiv.innerHTML = 'Testing...';
+    
+    try {
+        console.log('🧪 Testing API connection...');
+        
+        // Test 1: Health check
+        console.log('1. Testing health endpoint...');
+        const healthResponse = await fetch('http://localhost:5001/api/v1/health');
+        console.log('Health response:', healthResponse.status);
+        
+        if (!healthResponse.ok) {
+            throw new Error(`Health check failed: ${healthResponse.status}`);
+        }
+        
+        const healthData = await healthResponse.json();
+        console.log('Health data:', healthData);
+        
+        // Test 2: Exercises API
+        console.log('2. Testing exercises endpoint...');
+        const exerciseResponse = await fetch('http://localhost:5001/api/v1/exercises');
+        console.log('Exercise response:', exerciseResponse.status);
+        
+        if (!exerciseResponse.ok) {
+            throw new Error(`Exercise API failed: ${exerciseResponse.status} ${exerciseResponse.statusText}`);
+        }
+        
+        const exerciseData = await exerciseResponse.json();
+        console.log('Exercise data:', exerciseData);
+        
+        // Extract exercises properly
+        const exercises = exerciseData.data?.exercises || exerciseData.exercises || exerciseData;
+        console.log('Extracted exercises:', exercises.length);
+        
+        // Success!
+        resultsDiv.innerHTML = `
+            <h3 style="color: green;">✅ API CONNECTION SUCCESS!</h3>
+            <p><strong>Health:</strong> ${healthData.message}</p>
+            <p><strong>Exercises found:</strong> ${exercises.length}</p>
+            <p><strong>First exercise:</strong> ${exercises[0]?.name || 'None'}</p>
+            <p style="color: blue;">Check browser console for detailed logs</p>
+        `;
+        
+    } catch (error) {
+        console.error('❌ API test failed:', error);
+        resultsDiv.innerHTML = `
+            <h3 style="color: red;">❌ API CONNECTION FAILED</h3>
+            <p><strong>Error:</strong> ${error.message}</p>
+            <p style="color: orange;">Check browser console for details</p>
+            <p><strong>Common issues:</strong></p>
+            <ul>
+                <li>Backend server not running (check localhost:5001)</li>
+                <li>CORS blocking the request</li>
+                <li>Network connectivity issue</li>
+            </ul>
+        `;
+    }
+}
+
+// Show initial message
+document.getElementById('results').innerHTML = 'Click the button to test API connection';
+</script>
+</body>
+</html>

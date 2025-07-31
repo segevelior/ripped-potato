@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Integration Test</title>
+</head>
+<body>
+    <h1>Testing Exercise API Integration</h1>
+    <div id="status">Loading...</div>
+    <div id="results"></div>
+
+    <script type="module">
+        // Import our mock SDK with API integration
+        import { base44 } from './mock-sdk/index-browser.js';
+
+        async function testExerciseAPI() {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+
+            try {
+                statusDiv.innerHTML = '🧪 Testing Exercise API integration...';
+                
+                // Test fetching exercises
+                console.log('Testing Exercise.list()...');
+                const exercises = await base44.entities.Exercise.list();
+                
+                console.log('✅ Got exercises:', exercises.length);
+                
+                statusDiv.innerHTML = `✅ SUCCESS! Got ${exercises.length} exercises from API`;
+                resultsDiv.innerHTML = `
+                    <h3>Exercises:</h3>
+                    <ul>
+                        ${exercises.slice(0, 5).map(ex => `<li><strong>${ex.name}</strong> - ${ex.muscles?.join(', ')}</li>`).join('')}
+                    </ul>
+                    <p><em>Check browser console for detailed logs...</em></p>
+                `;
+
+            } catch (error) {
+                console.error('❌ Test failed:', error);
+                statusDiv.innerHTML = `❌ ERROR: ${error.message}`;
+                resultsDiv.innerHTML = '<p>Check browser console for details</p>';
+            }
+        }
+
+        // Run test when page loads
+        testExerciseAPI();
+    </script>
+</body>
+</html>

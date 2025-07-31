@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head><title>CORS Test</title></head>
+<body>
+<h1>Testing CORS</h1>
+<div id="result">Loading...</div>
+
+<script>
+async function testCORS() {
+    const resultDiv = document.getElementById('result');
+    
+    try {
+        console.log('Testing CORS to backend...');
+        const response = await fetch('http://localhost:5001/api/v1/health');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('✅ CORS test successful:', data);
+        resultDiv.innerHTML = `✅ SUCCESS: ${data.message}`;
+        
+        // Now test exercises
+        const exerciseResponse = await fetch('http://localhost:5001/api/v1/exercises');
+        const exerciseData = await exerciseResponse.json();
+        console.log('✅ Exercise API test:', exerciseData);
+        
+        resultDiv.innerHTML += `<br>✅ Exercises: ${exerciseData.data?.exercises?.length || 0} found`;
+        
+    } catch (error) {
+        console.error('❌ CORS test failed:', error);
+        resultDiv.innerHTML = `❌ CORS FAILED: ${error.message}`;
+    }
+}
+
+testCORS();
+</script>
+</body>
+</html>

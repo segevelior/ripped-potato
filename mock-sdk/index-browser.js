@@ -129,9 +129,195 @@ class MockEntity {
   }
 }
 
+// API Exercise Entity - uses backend API with localStorage fallback
+class APIExercise {
+  constructor() {
+    this.baseURL = 'http://localhost:5001/api/v1';
+    this.entityName = 'Exercise';
+  }
+
+  async list(query = {}) {
+    try {
+      console.log('🌐 Trying API call to fetch exercises...');
+      const response = await fetch(`${this.baseURL}/exercises`);
+      if (!response.ok) {
+        console.warn('⚠️ API call failed, falling back to localStorage');
+        return this.fallbackList();
+      }
+      const data = await response.json();
+      // Backend returns { success: true, data: { exercises: [...] } }
+      const exercises = data.data?.exercises || data.exercises || data;
+      console.log('✅ API call successful, got', exercises.length, 'exercises');
+      return exercises;
+    } catch (error) {
+      console.warn('⚠️ API error, falling back to localStorage:', error.message);
+      return this.fallbackList();
+    }
+  }
+
+  async create(exerciseData) {
+    try {
+      console.log('🌐 Trying API call to create exercise...');
+      const response = await fetch(`${this.baseURL}/exercises`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // TODO: Add auth header when auth is implemented
+        },
+        body: JSON.stringify(exerciseData)
+      });
+      
+      if (!response.ok) {
+        console.warn('⚠️ API create failed, falling back to localStorage');
+        return this.fallbackCreate(exerciseData);
+      }
+      
+      const result = await response.json();
+      console.log('✅ API create successful');
+      return result;
+    } catch (error) {
+      console.warn('⚠️ API create error, falling back to localStorage:', error.message);
+      return this.fallbackCreate(exerciseData);
+    }
+  }
+
+  async get(id) {
+    return this.findById(id);
+  }
+
+  async findById(id) {
+    try {
+      const response = await fetch(`${this.baseURL}/exercises/${id}`);
+      if (!response.ok) {
+        return this.fallbackGet(id);
+      }
+      return await response.json();
+    } catch (error) {
+      console.warn('⚠️ API get error, falling back to localStorage:', error.message);
+      return this.fallbackGet(id);
+    }
+  }
+
+  async update(id, updates) {
+    try {
+      const response = await fetch(`${this.baseURL}/exercises/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates)
+      });
+      
+      if (!response.ok) {
+        return this.fallbackUpdate(id, updates);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.warn('⚠️ API update error, falling back to localStorage:', error.message);
+      return this.fallbackUpdate(id, updates);
+    }
+  }
+
+  async delete(id) {
+    try {
+      const response = await fetch(`${this.baseURL}/exercises/${id}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        return this.fallbackDelete(id);
+      }
+      
+      return true;
+    } catch (error) {
+      console.warn('⚠️ API delete error, falling back to localStorage:', error.message);
+      return this.fallbackDelete(id);
+    }
+  }
+
+  // Base44 compatibility methods
+  async filter(query = {}) {
+    const exercises = await this.list();
+    return exercises; // For now, return all - can add filtering later
+  }
+
+  // Fallback methods using localStorage (same as MockEntity)
+  fallbackList() {
+    const stored = localStorage.getItem(this.entityName);
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  fallbackCreate(exerciseData) {
+    const exercises = this.fallbackList();
+    const newExercise = {
+      id: Date.now().toString(),
+      ...exerciseData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    exercises.push(newExercise);
+    localStorage.setItem(this.entityName, JSON.stringify(exercises));
+    return newExercise;
+  }
+
+  fallbackGet(id) {
+    const exercises = this.fallbackList();
+    return exercises.find(ex => ex.id === id) || null;
+  }
+
+  fallbackUpdate(id, updates) {
+    const exercises = this.fallbackList();
+    const index = exercises.findIndex(ex => ex.id === id);
+    if (index === -1) return null;
+    
+    exercises[index] = {
+      ...exercises[index],
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+    localStorage.setItem(this.entityName, JSON.stringify(exercises));
+    return exercises[index];
+  }
+
+  fallbackDelete(id) {
+    const exercises = this.fallbackList();
+    const index = exercises.findIndex(ex => ex.id === id);
+    if (index === -1) return false;
+    
+    exercises.splice(index, 1);
+    localStorage.setItem(this.entityName, JSON.stringify(exercises));
+    return true;
+  }
+}
+
+// User entity with me() method
+class MockUser extends MockEntity {
+  constructor() {
+    super('User');
+  }
+  
+  async me() {
+    // Return current user data
+    return {
+      id: 'user-1',
+      name: 'Test User',
+      email: 'test@synergyfit.com',
+      profile: {
+        age: 30,
+        weight: 75,
+        height: 180,
+        fitnessLevel: 'intermediate'
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+  }
+}
+
 // Create entities
 const entities = {
-  Exercise: new MockEntity('Exercise'),
+  Exercise: new MockEntity('Exercise'), // 🔄 Back to localStorage - API integration needs debugging
   Workout: new MockEntity('Workout'),
   ExternalActivity: new MockEntity('ExternalActivity'),
   WorkoutTemplate: new MockEntity('WorkoutTemplate'),
@@ -143,7 +329,8 @@ const entities = {
   ProgressionPath: new MockEntity('ProgressionPath'),
   UserGoalProgress: new MockEntity('UserGoalProgress'),
   Plan: new MockEntity('Plan'),
-  UserTrainingPattern: new MockEntity('UserTrainingPattern')
+  UserTrainingPattern: new MockEntity('UserTrainingPattern'),
+  User: new MockUser() // ✅ Added missing User entity with me() method
 };
 
 // Mock integrations
@@ -502,5 +689,5 @@ export function createClient(config) {
   };
 }
 
-// Default export for convenience
-export default { createClient };
+// Create the base44 client instance for convenience
+export const base44 = createClient();
