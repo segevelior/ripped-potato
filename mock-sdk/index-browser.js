@@ -122,6 +122,22 @@ class MockEntity {
     this.saveData();
     return true;
   }
+  
+  // Base44 compatibility - filter() method
+  async filter(query = {}) {
+    console.log(`MockEntity.filter(${this.name}):`, query);
+    let filtered = [...this.data];
+    
+    // Simple filtering by exact match
+    Object.keys(query).forEach(key => {
+      if (query[key] !== undefined) {
+        filtered = filtered.filter(item => item[key] === query[key]);
+      }
+    });
+    
+    console.log(`MockEntity.filter(${this.name}) results:`, filtered.length, 'items');
+    return filtered;
+  }
 }
 
 // Create entities
@@ -189,7 +205,7 @@ export function createClient(config) {
   console.log('Mock Base44 SDK initialized with config:', config);
   
   // Force refresh data - change version number to reset
-  const DATA_VERSION = 'v5';  // Change this to force refresh
+  const DATA_VERSION = 'v6';  // Change this to force refresh
   if (localStorage.getItem('base44_data_version') !== DATA_VERSION) {
     // Clear all old data
     Object.keys(localStorage).forEach(key => {

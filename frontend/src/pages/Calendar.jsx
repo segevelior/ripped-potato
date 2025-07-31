@@ -559,6 +559,7 @@ export default function CalendarPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
+      console.log("Calendar: Starting to load data...");
       const [plans, trainingPlans, disciplineData, workoutData] = await Promise.all([
         Plan.filter({ status: 'active' }),
         TrainingPlan.filter({ is_active: true }),
@@ -566,12 +567,14 @@ export default function CalendarPage() {
         Workout.list("-date", 100)
       ]);
       
-      setActivePlans(plans);
-      if (trainingPlans.length > 0) setCurrentPlan(trainingPlans[0]);
-      setDisciplines(disciplineData);
+      console.log("Calendar: Raw workout data:", workoutData);
+      
+      setActivePlans(plans || []);
+      if (trainingPlans && trainingPlans.length > 0) setCurrentPlan(trainingPlans[0]);
+      setDisciplines(disciplineData || []);
       
       // Filter out invalid/placeholder workouts and add plan info
-      const validWorkouts = workoutData.filter(workout => 
+      const validWorkouts = (workoutData || []).filter(workout => 
         workout.exercises && 
         workout.exercises.length > 0 && 
         workout.title && 
