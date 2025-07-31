@@ -149,16 +149,8 @@ class APIExercise extends MockEntity {
       const data = await response.json();
       // Backend returns { success: true, data: { exercises: [...] } }
       const exercises = data.data?.exercises || data.exercises || data;
-      
-      // Normalize the data: convert _id to id
-      const normalized = exercises.map(ex => ({
-        ...ex,
-        id: ex.id || ex._id,
-        _id: undefined // Remove _id to avoid confusion
-      }));
-      
-      console.log('✅ API call successful, got', normalized.length, 'exercises');
-      return normalized;
+      console.log('✅ API call successful, got', exercises.length, 'exercises');
+      return exercises;
     } catch (error) {
       console.warn('⚠️ API error, falling back to localStorage:', error.message);
       return super.list(query);
@@ -184,14 +176,7 @@ class APIExercise extends MockEntity {
       
       const result = await response.json();
       console.log('✅ API create successful');
-      
-      // Handle nested response structure and normalize ID
-      const exercise = result.data?.exercise || result;
-      return {
-        ...exercise,
-        id: exercise.id || exercise._id,
-        _id: undefined
-      };
+      return result;
     } catch (error) {
       console.warn('⚠️ API create error, falling back to localStorage:', error.message);
       return super.create(exerciseData);
@@ -360,306 +345,302 @@ const integrations = {
   }
 };
 
-// Initialize sample data function
-function initializeSampleData(entities) {
-  console.log('Initializing sample data...');
-  
-  // Sample exercise data
-  const sampleExercises = [
-    {
-      id: 'ex-1',
-      name: 'Push-up',
-      muscles: ['chest', 'triceps', 'shoulders', 'core'],
-      discipline: ['strength', 'bodyweight'],
-      equipment: [],
-      strain: {
-        intensity: 'moderate',
-        load: 'bodyweight',
-        duration_type: 'reps',
-        typical_volume: '3x15'
+// Main SDK client creation function
+export function createClient(config) {
+  console.log('Mock Base44 SDK initialized with config:', config);
+    
+    // Sample exercise data
+    const sampleExercises = [
+      {
+        id: 'ex-1',
+        name: 'Push-up',
+        muscles: ['chest', 'triceps', 'shoulders', 'core'],
+        discipline: ['strength', 'bodyweight'],
+        equipment: [],
+        strain: {
+          intensity: 'moderate',
+          load: 'bodyweight',
+          duration_type: 'reps',
+          typical_volume: '3x15'
+        },
+        description: 'Classic bodyweight pushing exercise',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       },
-      description: 'Classic bodyweight pushing exercise',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'ex-2',
-      name: 'Pull-up',
-      muscles: ['back', 'biceps', 'forearms'],
-      discipline: ['strength', 'bodyweight'],
-      equipment: ['pull-up bar'],
-      strain: {
-        intensity: 'high',
-        load: 'bodyweight',
-        duration_type: 'reps',
-        typical_volume: '3x8'
+      {
+        id: 'ex-2',
+        name: 'Pull-up',
+        muscles: ['back', 'biceps', 'forearms'],
+        discipline: ['strength', 'bodyweight'],
+        equipment: ['pull-up bar'],
+        strain: {
+          intensity: 'high',
+          load: 'bodyweight',
+          duration_type: 'reps',
+          typical_volume: '3x8'
+        },
+        description: 'Vertical pulling exercise',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       },
-      description: 'Vertical pulling exercise',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'ex-3',
-      name: 'Squat',
-      muscles: ['quadriceps', 'glutes', 'hamstrings', 'core'],
-      discipline: ['strength'],
-      equipment: [],
-      strain: {
-        intensity: 'moderate',
-        load: 'bodyweight',
-        duration_type: 'reps',
-        typical_volume: '3x20'
+      {
+        id: 'ex-3',
+        name: 'Squat',
+        muscles: ['quadriceps', 'glutes', 'hamstrings', 'core'],
+        discipline: ['strength'],
+        equipment: [],
+        strain: {
+          intensity: 'moderate',
+          load: 'bodyweight',
+          duration_type: 'reps',
+          typical_volume: '3x20'
+        },
+        description: 'Fundamental lower body exercise',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       },
-      description: 'Fundamental lower body exercise',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'ex-4',
-      name: 'Plank',
-      muscles: ['core', 'shoulders', 'back'],
-      discipline: ['strength', 'stability'],
-      equipment: [],
-      strain: {
-        intensity: 'low',
-        load: 'bodyweight',
-        duration_type: 'time',
-        typical_volume: '3x60s'
+      {
+        id: 'ex-4',
+        name: 'Plank',
+        muscles: ['core', 'shoulders', 'back'],
+        discipline: ['strength', 'stability'],
+        equipment: [],
+        strain: {
+          intensity: 'low',
+          load: 'bodyweight',
+          duration_type: 'time',
+          typical_volume: '3x60s'
+        },
+        description: 'Isometric core stability exercise',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       },
-      description: 'Isometric core stability exercise',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'ex-5',
-      name: 'Running',
-      muscles: ['legs', 'core'],
-      discipline: ['cardio', 'endurance'],
-      equipment: [],
-      strain: {
-        intensity: 'moderate',
-        load: 'bodyweight',
-        duration_type: 'time',
-        typical_volume: '30 minutes'
-      },
-      description: 'Cardiovascular endurance exercise',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-  ];
-  
+      {
+        id: 'ex-5',
+        name: 'Running',
+        muscles: ['legs', 'core'],
+        discipline: ['cardio', 'endurance'],
+        equipment: [],
+        strain: {
+          intensity: 'moderate',
+          load: 'bodyweight',
+          duration_type: 'time',
+          typical_volume: '30 minutes'
+        },
+        description: 'Cardiovascular endurance exercise',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ];
+    
   // Save sample exercises to localStorage for Exercise entity
   localStorage.setItem('base44_Exercise', JSON.stringify(sampleExercises));
   console.log('Initialized Exercise data in localStorage:', sampleExercises.length, 'exercises');
   
   // Add disciplines
   entities.Discipline.data = [
-    { id: 'd-1', name: 'strength' },
-    { id: 'd-2', name: 'cardio' },
-    { id: 'd-3', name: 'flexibility' },
-    { id: 'd-4', name: 'bodyweight' },
-    { id: 'd-5', name: 'endurance' },
-    { id: 'd-6', name: 'stability' }
-  ];
-  entities.Discipline.saveData();
-  
-  // Add workout types
-  entities.WorkoutType.data = [
-    { id: 'wt-1', name: 'strength' },
-    { id: 'wt-2', name: 'cardio' },
-    { id: 'wt-3', name: 'hybrid' },
-    { id: 'wt-4', name: 'recovery' },
-    { id: 'wt-5', name: 'hiit' }
-  ];
-  entities.WorkoutType.saveData();
-  
-  // Add sample goals
-  entities.Goal.data = [
-    {
-      id: 'goal-1',
-      name: 'First Pull-up',
-      discipline: ['strength', 'bodyweight'],
-      description: 'Achieve your first unassisted pull-up',
-      category: 'skill',
-      difficulty_level: 'beginner',
-      estimated_weeks: 12,
-      prerequisites: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'goal-2',
-      name: '5K Run',
-      discipline: ['cardio', 'endurance'],
-      description: 'Complete a 5K run without stopping',
-      category: 'endurance',
-      difficulty_level: 'beginner',
-      estimated_weeks: 8,
-      prerequisites: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'goal-3',
-      name: '100 Push-ups',
-      discipline: ['strength', 'bodyweight'],
-      description: 'Complete 100 push-ups in a single workout',
-      category: 'performance',
-      difficulty_level: 'intermediate',
-      estimated_weeks: 6,
-      prerequisites: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-  ];
-  entities.Goal.saveData();
-  console.log('Initialized Goal data:', entities.Goal.data.length, 'goals');
-  
-  // Add sample predefined workouts
-  entities.PredefinedWorkout.data = [
-    {
-      id: 'pw-1',
-      name: 'Climbing + Push Strength Day',
-      goal: 'Build upper body pushing strength while maintaining climbing technique and finger strength.',
-      type: 'strength',
-      primary_disciplines: ['climbing', 'calisthenics'],
-      difficulty_level: 'intermediate',
-      duration_minutes: 90,
-      estimated_duration: 90,
-      description: 'A comprehensive climbing and strength workout focusing on pushing movements',
-      blocks: [
-        {
-          name: 'Warm-up',
-          duration_minutes: 15,
-          exercises: [
-            {
-              exercise_id: 'ex-1',
-              exercise_name: 'Shoulder Warm-up',
-              volume: '5 min',
-              notes: 'Include band pull-aparts and arm circles'
-            },
-            {
-              exercise_id: 'ex-4',
-              exercise_name: 'Handstand Hold',
-              volume: '3x30s',
-              notes: 'Against wall for support'
-            }
-          ]
-        },
-        {
-          name: 'Upper Body Strength',
-          duration_minutes: 30,
-          exercises: [
-            {
-              exercise_id: 'ex-1',
-              exercise_name: 'Push-up',
-              volume: '4x12',
-              notes: 'Focus on full range of motion'
-            },
-            {
-              exercise_id: 'ex-2',
-              exercise_name: 'Pull-up',
-              volume: '4x8',
-              notes: 'Strict form, no kipping'
-            }
-          ]
-        }
-      ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'pw-2',
-      name: 'Morning Movement Flow',
-      goal: 'Gentle full-body activation and mobility for starting the day with energy and focus.',
-      type: 'mobility',
-      primary_disciplines: ['mobility', 'calisthenics'],
-      difficulty_level: 'beginner',
-      duration_minutes: 30,
-      estimated_duration: 30,
-      description: 'Wake up your body with this energizing morning routine',
-      blocks: [
-        {
-          name: 'Dynamic Stretching',
-          duration_minutes: 10,
-          exercises: [
-            {
-              exercise_id: 'ex-3',
-              exercise_name: 'Bodyweight Squat',
-              volume: '2x15',
-              notes: 'Slow and controlled'
-            }
-          ]
-        },
-        {
-          name: 'Core Activation',
-          duration_minutes: 10,
-          exercises: [
-            {
-              exercise_id: 'ex-4',
-              exercise_name: 'Plank',
-              volume: '3x45s',
-              notes: 'Focus on breathing'
-            }
-          ]
-        }
-      ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'pw-3',
-      name: 'Upper Body Strength',
-      goal: 'Build upper body pushing and pulling strength with compound movements',
-      type: 'strength',
-      primary_disciplines: ['strength'],
-      difficulty_level: 'intermediate',
-      duration_minutes: 75,
-      estimated_duration: 75,
-      description: 'Comprehensive upper body workout for strength gains',
-      blocks: [
-        {
-          name: 'Main Lifts',
-          duration_minutes: 45,
-          exercises: [
-            {
-              exercise_id: 'ex-1',
-              exercise_name: 'Push-up Variations',
-              volume: '5x10',
-              notes: 'Diamond, wide-grip, regular'
-            },
-            {
-              exercise_id: 'ex-2',
-              exercise_name: 'Pull-up Variations',
-              volume: '5x6',
-              notes: 'Wide-grip, chin-ups, neutral grip'
-            }
-          ]
-        },
-        {
-          name: 'Accessory Work',
-          duration_minutes: 20,
-          exercises: [
-            {
-              exercise_id: 'ex-4',
-              exercise_name: 'Plank to Push-up',
-              volume: '3x10',
-              notes: 'Alternate starting arm each set'
-            }
-          ]
-        }
-      ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-  ];
-  entities.PredefinedWorkout.saveData();
+      { id: 'd-1', name: 'strength' },
+      { id: 'd-2', name: 'cardio' },
+      { id: 'd-3', name: 'flexibility' },
+      { id: 'd-4', name: 'bodyweight' },
+      { id: 'd-5', name: 'endurance' },
+      { id: 'd-6', name: 'stability' }
+    ];
+    entities.Discipline.saveData();
+    
+    // Add workout types
+    entities.WorkoutType.data = [
+      { id: 'wt-1', name: 'strength' },
+      { id: 'wt-2', name: 'cardio' },
+      { id: 'wt-3', name: 'hybrid' },
+      { id: 'wt-4', name: 'recovery' },
+      { id: 'wt-5', name: 'hiit' }
+    ];
+    entities.WorkoutType.saveData();
+    
+    // Add sample goals
+    entities.Goal.data = [
+      {
+        id: 'goal-1',
+        name: 'First Pull-up',
+        discipline: ['strength', 'bodyweight'],
+        description: 'Achieve your first unassisted pull-up',
+        category: 'skill',
+        difficulty_level: 'beginner',
+        estimated_weeks: 12,
+        prerequisites: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 'goal-2',
+        name: '5K Run',
+        discipline: ['cardio', 'endurance'],
+        description: 'Complete a 5K run without stopping',
+        category: 'endurance',
+        difficulty_level: 'beginner',
+        estimated_weeks: 8,
+        prerequisites: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 'goal-3',
+        name: '100 Push-ups',
+        discipline: ['strength', 'bodyweight'],
+        description: 'Complete 100 push-ups in a single workout',
+        category: 'performance',
+        difficulty_level: 'intermediate',
+        estimated_weeks: 6,
+        prerequisites: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ];
+    entities.Goal.saveData();
+    console.log('Initialized Goal data:', entities.Goal.data.length, 'goals');
+    
+    // Add sample predefined workouts
+    entities.PredefinedWorkout.data = [
+      {
+        id: 'pw-1',
+        name: 'Climbing + Push Strength Day',
+        goal: 'Build upper body pushing strength while maintaining climbing technique and finger strength.',
+        type: 'strength',
+        primary_disciplines: ['climbing', 'calisthenics'],
+        difficulty_level: 'intermediate',
+        duration_minutes: 90,
+        estimated_duration: 90,
+        description: 'A comprehensive climbing and strength workout focusing on pushing movements',
+        blocks: [
+          {
+            name: 'Warm-up',
+            duration_minutes: 15,
+            exercises: [
+              {
+                exercise_id: 'ex-1',
+                exercise_name: 'Shoulder Warm-up',
+                volume: '5 min',
+                notes: 'Include band pull-aparts and arm circles'
+              },
+              {
+                exercise_id: 'ex-4',
+                exercise_name: 'Handstand Hold',
+                volume: '3x30s',
+                notes: 'Against wall for support'
+              }
+            ]
+          },
+          {
+            name: 'Upper Body Strength',
+            duration_minutes: 30,
+            exercises: [
+              {
+                exercise_id: 'ex-1',
+                exercise_name: 'Push-up',
+                volume: '4x12',
+                notes: 'Focus on full range of motion'
+              },
+              {
+                exercise_id: 'ex-2',
+                exercise_name: 'Pull-up',
+                volume: '4x8',
+                notes: 'Strict form, no kipping'
+              }
+            ]
+          }
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 'pw-2',
+        name: 'Morning Movement Flow',
+        goal: 'Gentle full-body activation and mobility for starting the day with energy and focus.',
+        type: 'mobility',
+        primary_disciplines: ['mobility', 'calisthenics'],
+        difficulty_level: 'beginner',
+        duration_minutes: 30,
+        estimated_duration: 30,
+        description: 'Wake up your body with this energizing morning routine',
+        blocks: [
+          {
+            name: 'Dynamic Stretching',
+            duration_minutes: 10,
+            exercises: [
+              {
+                exercise_id: 'ex-3',
+                exercise_name: 'Bodyweight Squat',
+                volume: '2x15',
+                notes: 'Slow and controlled'
+              }
+            ]
+          },
+          {
+            name: 'Core Activation',
+            duration_minutes: 10,
+            exercises: [
+              {
+                exercise_id: 'ex-4',
+                exercise_name: 'Plank',
+                volume: '3x45s',
+                notes: 'Focus on breathing'
+              }
+            ]
+          }
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 'pw-3',
+        name: 'Upper Body Strength',
+        goal: 'Build upper body pushing and pulling strength with compound movements',
+        type: 'strength',
+        primary_disciplines: ['strength'],
+        difficulty_level: 'intermediate',
+        duration_minutes: 75,
+        estimated_duration: 75,
+        description: 'Comprehensive upper body workout for strength gains',
+        blocks: [
+          {
+            name: 'Main Lifts',
+            duration_minutes: 45,
+            exercises: [
+              {
+                exercise_id: 'ex-1',
+                exercise_name: 'Push-up Variations',
+                volume: '5x10',
+                notes: 'Diamond, wide-grip, regular'
+              },
+              {
+                exercise_id: 'ex-2',
+                exercise_name: 'Pull-up Variations',
+                volume: '5x6',
+                notes: 'Wide-grip, chin-ups, neutral grip'
+              }
+            ]
+          },
+          {
+            name: 'Accessory Work',
+            duration_minutes: 20,
+            exercises: [
+              {
+                exercise_id: 'ex-4',
+                exercise_name: 'Plank to Push-up',
+                volume: '3x10',
+                notes: 'Alternate starting arm each set'
+              }
+            ]
+          }
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ];
+    entities.PredefinedWorkout.saveData();
   console.log('Initialized PredefinedWorkout data:', entities.PredefinedWorkout.data.length, 'workouts');
 }
-
-// Main SDK client creation function
-export function createClient(config) {
-  console.log('Mock Base44 SDK initialized with config:', config);
   
   // Force refresh data - change version number to reset
   const DATA_VERSION = 'v6';  // Change this to force refresh
@@ -683,6 +664,10 @@ export function createClient(config) {
     config
   };
 }
+
+// Initialize sample data function
+function initializeSampleData(entities) {
+  console.log('Initializing sample data...');
 
 // Create the base44 client instance for convenience
 export const base44 = createClient();

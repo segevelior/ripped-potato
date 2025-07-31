@@ -30,4 +30,7 @@ export const UserTrainingPattern = base44.entities.UserTrainingPattern;
 
 
 // auth sdk:
-export const User = base44.auth;
+export const auth = base44.auth;
+
+// User entity (has me() method)
+export const User = base44.entities.User;
