@@ -128,7 +128,6 @@ export default function WorkoutSelectionModal({ date, onClose, onApplyWorkout })
       }
 
       // You could also show the AI's message to the user
-      console.log("AI Coach says:", result.message);
       
     } catch (error) {
       console.error("Error processing coach prompt:", error);
@@ -140,40 +139,58 @@ export default function WorkoutSelectionModal({ date, onClose, onApplyWorkout })
   const handleApply = () => {
     if (!selectedWorkout) return;
     
+    
     // Convert predefined workout to actual workout format
     const workoutExercises = [];
     
-    selectedWorkout.blocks.forEach(block => {
-      block.exercises.forEach(ex => {
-        const volume = ex.volume || "3x8";
-        let sets = 3;
-        let reps = [8, 8, 8];
-        
-        if (volume.includes('x')) {
-          const [setsStr, repsStr] = volume.split('x');
-          sets = parseInt(setsStr) || 3;
-          const repCount = parseInt(repsStr) || 8;
-          reps = Array(sets).fill(repCount);
+    // Check if blocks exist and has exercises
+    if (selectedWorkout.blocks && Array.isArray(selectedWorkout.blocks)) {
+      selectedWorkout.blocks.forEach(block => {
+        if (block.exercises && Array.isArray(block.exercises)) {
+          block.exercises.forEach(ex => {
+            const volume = ex.volume || "3x8";
+            let sets = 3;
+            let reps = [8, 8, 8];
+            
+            if (volume.includes('x')) {
+              const [setsStr, repsStr] = volume.split('x');
+              sets = parseInt(setsStr) || 3;
+              const repCount = parseInt(repsStr) || 8;
+              reps = Array(sets).fill(repCount);
+            }
+            
+            // Create sets array with proper structure
+            const setsArray = [];
+            for (let i = 0; i < sets; i++) {
+              setsArray.push({
+                reps: reps[i],
+                weight: 0,
+                rpe: 7,
+                rest_seconds: 60,
+                is_completed: false
+              });
+            }
+            
+            workoutExercises.push({
+              exercise_id: ex.exercise_id || `temp-${Date.now()}`,
+              exercise_name: ex.exercise_name || "Unknown Exercise",
+              duration_seconds: null,
+              notes: ex.notes || "",
+              sets: setsArray
+            });
+          });
         }
-        
-        workoutExercises.push({
-          exercise_id: ex.exercise_id,
-          exercise_name: ex.exercise_name,
-          sets: sets,
-          reps: reps,
-          weight: Array(sets).fill(0),
-          rpe: Array(sets).fill(7),
-          notes: ex.notes || ""
-        });
       });
-    });
+    } else {
+      console.warn("WorkoutSelectionModal: No blocks found in workout, creating empty workout");
+    }
 
     const workoutData = {
-      title: selectedWorkout.name,
-      type: selectedWorkout.primary_disciplines?.[0] || "strength",
-      duration_minutes: selectedWorkout.estimated_duration || 60,
+      title: selectedWorkout.name || "Unnamed Workout",
+      type: selectedWorkout.primary_disciplines?.[0] || selectedWorkout.type || "strength",
+      duration_minutes: selectedWorkout.estimated_duration || selectedWorkout.duration_minutes || 60,
       exercises: workoutExercises,
-      notes: `Applied from: ${selectedWorkout.name}\n\nGoal: ${selectedWorkout.goal}`,
+      notes: `Applied from: ${selectedWorkout.name}\n\nGoal: ${selectedWorkout.goal || "No goal specified"}`,
       total_strain: 0,
       muscle_strain: {}
     };

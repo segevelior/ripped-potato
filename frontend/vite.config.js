@@ -18,6 +18,7 @@ export default defineConfig({
     extensions: ['.mjs', '.js', '.jsx', '.ts', '.tsx', '.json']
   },
   optimizeDeps: {
+    exclude: ['@base44/sdk'],  // Don't pre-bundle the mock SDK
     esbuildOptions: {
       loader: {
         '.js': 'jsx',

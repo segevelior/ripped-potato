@@ -566,12 +566,12 @@ export default function CalendarPage() {
         Workout.list("-date", 100)
       ]);
       
-      setActivePlans(plans);
-      if (trainingPlans.length > 0) setCurrentPlan(trainingPlans[0]);
-      setDisciplines(disciplineData);
+      setActivePlans(plans || []);
+      if (trainingPlans && trainingPlans.length > 0) setCurrentPlan(trainingPlans[0]);
+      setDisciplines(disciplineData || []);
       
       // Filter out invalid/placeholder workouts and add plan info
-      const validWorkouts = workoutData.filter(workout => 
+      const validWorkouts = (workoutData || []).filter(workout => 
         workout.exercises && 
         workout.exercises.length > 0 && 
         workout.title && 
@@ -601,10 +601,11 @@ export default function CalendarPage() {
 
   const handleAddWorkout = async (workoutData) => {
     try {
-      await Workout.create(workoutData);
+      const result = await Workout.create(workoutData);
       loadData();
     } catch (error) {
       console.error("Error adding workout:", error);
+      alert(`Failed to add workout: ${error.message}`);
     }
   };
 
@@ -774,6 +775,8 @@ export default function CalendarPage() {
             Click on any date to add a workout, or use the AI Coach to create a plan.
           </p>
           <button onClick={() => openAICoach('Help me create a workout plan.')} className="apple-button-primary">Go to AI Coach</button>
+          
+          {/* Test button */}
         </div>
       )}
     </div>
