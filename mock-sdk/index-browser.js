@@ -185,7 +185,7 @@ export function createClient(config) {
   console.log('Mock Base44 SDK initialized with config:', config);
   
   // Force refresh data - change version number to reset
-  const DATA_VERSION = 'v3';  // Change this to force refresh
+  const DATA_VERSION = 'v4';  // Change this to force refresh
   if (localStorage.getItem('base44_data_version') !== DATA_VERSION) {
     // Clear all old data
     Object.keys(localStorage).forEach(key => {
@@ -347,40 +347,49 @@ export function createClient(config) {
     entities.PredefinedWorkout.data = [
       {
         id: 'pw-1',
-        name: 'Full Body Strength Foundation',
-        goal: 'Build overall strength and muscle endurance with compound movements',
+        name: 'Climbing + Push Strength Day',
+        goal: 'Build upper body pushing strength while maintaining climbing technique and finger strength.',
         type: 'strength',
-        primary_disciplines: ['strength', 'bodyweight'],
-        difficulty_level: 'beginner',
-        duration_minutes: 45,
-        estimated_duration: 45,
-        description: 'A balanced full-body workout focusing on fundamental movement patterns',
-        exercises: [
+        primary_disciplines: ['climbing', 'calisthenics'],
+        difficulty_level: 'intermediate',
+        duration_minutes: 90,
+        estimated_duration: 90,
+        description: 'A comprehensive climbing and strength workout focusing on pushing movements',
+        blocks: [
           {
-            exercise_id: 'ex-1',
-            exercise_name: 'Push-up',
-            sets: [
-              { reps: 10, rest_seconds: 60 },
-              { reps: 10, rest_seconds: 60 },
-              { reps: 10, rest_seconds: 90 }
+            name: 'Warm-up',
+            duration_minutes: 15,
+            exercises: [
+              {
+                exercise_id: 'ex-1',
+                exercise_name: 'Shoulder Warm-up',
+                volume: '5 min',
+                notes: 'Include band pull-aparts and arm circles'
+              },
+              {
+                exercise_id: 'ex-4',
+                exercise_name: 'Handstand Hold',
+                volume: '3x30s',
+                notes: 'Against wall for support'
+              }
             ]
           },
           {
-            exercise_id: 'ex-3',
-            exercise_name: 'Squat',
-            sets: [
-              { reps: 15, rest_seconds: 60 },
-              { reps: 15, rest_seconds: 60 },
-              { reps: 15, rest_seconds: 90 }
-            ]
-          },
-          {
-            exercise_id: 'ex-4',
-            exercise_name: 'Plank',
-            sets: [
-              { reps: 30, rest_seconds: 60 },
-              { reps: 30, rest_seconds: 60 },
-              { reps: 30, rest_seconds: 90 }
+            name: 'Upper Body Strength',
+            duration_minutes: 30,
+            exercises: [
+              {
+                exercise_id: 'ex-1',
+                exercise_name: 'Push-up',
+                volume: '4x12',
+                notes: 'Focus on full range of motion'
+              },
+              {
+                exercise_id: 'ex-2',
+                exercise_name: 'Pull-up',
+                volume: '4x8',
+                notes: 'Strict form, no kipping'
+              }
             ]
           }
         ],
@@ -389,14 +398,85 @@ export function createClient(config) {
       },
       {
         id: 'pw-2',
-        name: 'Quick Cardio Blast',
-        goal: 'Improve cardiovascular fitness and burn calories',
-        type: 'cardio',
-        primary_disciplines: ['cardio', 'hiit'],
+        name: 'Morning Movement Flow',
+        goal: 'Gentle full-body activation and mobility for starting the day with energy and focus.',
+        type: 'mobility',
+        primary_disciplines: ['mobility', 'calisthenics'],
+        difficulty_level: 'beginner',
+        duration_minutes: 30,
+        estimated_duration: 30,
+        description: 'Wake up your body with this energizing morning routine',
+        blocks: [
+          {
+            name: 'Dynamic Stretching',
+            duration_minutes: 10,
+            exercises: [
+              {
+                exercise_id: 'ex-3',
+                exercise_name: 'Bodyweight Squat',
+                volume: '2x15',
+                notes: 'Slow and controlled'
+              }
+            ]
+          },
+          {
+            name: 'Core Activation',
+            duration_minutes: 10,
+            exercises: [
+              {
+                exercise_id: 'ex-4',
+                exercise_name: 'Plank',
+                volume: '3x45s',
+                notes: 'Focus on breathing'
+              }
+            ]
+          }
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 'pw-3',
+        name: 'Upper Body Strength',
+        goal: 'Build upper body pushing and pulling strength with compound movements',
+        type: 'strength',
+        primary_disciplines: ['strength'],
         difficulty_level: 'intermediate',
-        duration_minutes: 20,
-        description: 'High-energy cardio workout',
-        exercises: [],
+        duration_minutes: 75,
+        estimated_duration: 75,
+        description: 'Comprehensive upper body workout for strength gains',
+        blocks: [
+          {
+            name: 'Main Lifts',
+            duration_minutes: 45,
+            exercises: [
+              {
+                exercise_id: 'ex-1',
+                exercise_name: 'Push-up Variations',
+                volume: '5x10',
+                notes: 'Diamond, wide-grip, regular'
+              },
+              {
+                exercise_id: 'ex-2',
+                exercise_name: 'Pull-up Variations',
+                volume: '5x6',
+                notes: 'Wide-grip, chin-ups, neutral grip'
+              }
+            ]
+          },
+          {
+            name: 'Accessory Work',
+            duration_minutes: 20,
+            exercises: [
+              {
+                exercise_id: 'ex-4',
+                exercise_name: 'Plank to Push-up',
+                volume: '3x10',
+                notes: 'Alternate starting arm each set'
+              }
+            ]
+          }
+        ],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
