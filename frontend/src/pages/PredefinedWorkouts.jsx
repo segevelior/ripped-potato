@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { PredefinedWorkout } from "@/api/entities";
 import { Eye, Edit, Copy, Trash2, Clock, Target, ChevronDown, ChevronUp } from "lucide-react";
+import WorkoutDetailModal from "@/components/WorkoutDetailModal";
 
 export default function PredefinedWorkouts() {
   const [predefinedWorkouts, setPredefinedWorkouts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [expandedWorkout, setExpandedWorkout] = useState(null);
+  const [selectedWorkout, setSelectedWorkout] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   
   useEffect(() => {
     loadData();
@@ -24,11 +26,13 @@ export default function PredefinedWorkouts() {
   };
 
   const handleView = (workout) => {
-    setExpandedWorkout(expandedWorkout === workout.id ? null : workout.id);
+    setSelectedWorkout(workout);
+    setShowDetailModal(true);
   };
 
   const handleEdit = (workout) => {
-    alert(`Edit functionality for "${workout.name}" coming soon!`);
+    setSelectedWorkout(workout);
+    setShowDetailModal(true);
   };
 
   const handleDuplicate = async (workout) => {
@@ -59,6 +63,18 @@ export default function PredefinedWorkouts() {
     } catch (error) {
       console.error("Error deleting workout:", error);
       alert("Error deleting workout. Please try again.");
+    }
+  };
+
+  const handleSave = async (updatedWorkout) => {
+    try {
+      await PredefinedWorkout.update(updatedWorkout.id, updatedWorkout);
+      await loadData();
+      setShowDetailModal(false);
+      alert("Workout updated successfully!");
+    } catch (error) {
+      console.error("Error updating workout:", error);
+      alert("Error updating workout. Please try again.");
     }
   };
 
@@ -186,32 +202,19 @@ export default function PredefinedWorkouts() {
                 </div>
               </div>
 
-              {expandedWorkout === workout.id && workout.blocks && (
-                <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
-                  <div className="space-y-4">
-                    {workout.blocks.map((block, blockIndex) => (
-                      <div key={blockIndex}>
-                        <h4 className="font-semibold text-gray-900 mb-2">
-                          {block.name} ({block.duration_minutes}min)
-                        </h4>
-                        <div className="space-y-1 ml-4">
-                          {block.exercises?.map((exercise, exIndex) => (
-                            <div key={exIndex} className="text-sm text-gray-600">
-                              <span className="font-medium">{exercise.exercise_name}</span>
-                              {exercise.volume && <span className="text-gray-500"> - {exercise.volume}</span>}
-                              {exercise.notes && <div className="text-xs text-gray-400 ml-4">{exercise.notes}</div>}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           );
         })}
       </div>
+
+      {/* Workout Detail Modal */}
+      {showDetailModal && selectedWorkout && (
+        <WorkoutDetailModal
+          workout={selectedWorkout}
+          onClose={() => setShowDetailModal(false)}
+          onSave={handleSave}
+        />
+      )}
     </div>
   );
 }
