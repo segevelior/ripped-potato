@@ -61,6 +61,7 @@ class MockEntity {
   }
   
   async create(item) {
+    console.log(`MockEntity.create(${this.name}):`, item);
     const newItem = {
       ...item,
       id: item.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -69,6 +70,7 @@ class MockEntity {
     };
     this.data.push(newItem);
     this.saveData();
+    console.log(`MockEntity.create(${this.name}) success:`, newItem);
     return newItem;
   }
   
@@ -185,7 +187,7 @@ export function createClient(config) {
   console.log('Mock Base44 SDK initialized with config:', config);
   
   // Force refresh data - change version number to reset
-  const DATA_VERSION = 'v4';  // Change this to force refresh
+  const DATA_VERSION = 'v5';  // Change this to force refresh
   if (localStorage.getItem('base44_data_version') !== DATA_VERSION) {
     // Clear all old data
     Object.keys(localStorage).forEach(key => {
