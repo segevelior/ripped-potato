@@ -470,20 +470,21 @@ synergy-fit-dd971bc6/
 
 **Result**: Data now shows! User saw exercises in the library.
 
-### Current Problems (2025-07-31)
-1. **PredefinedWorkouts page shows nothing**: 
-   - Data exists but page might use different method
-   - Need to check what API calls that page makes
-   
-2. **Vite crashes after 2 minutes**:
-   - Server stops responding
-   - Safari shows "can't connect" error
-   - Need to run vite in production mode or use proper server
-   
-3. **Data is minimal**:
-   - Only 5 exercises (vs hundreds in CSV)
-   - No workouts, external activities, plans
-   - CSV data still not integrated
+### FIXED: Vite Crash Issue (2025-07-31)
+**Problem**: Vite dev server crashed on page reload when navigating to PredefinedWorkouts
+**Root Cause**: Mock SDK (local file: package) was causing Vite's dependency pre-bundling to fail on reload
+**Solution**: Exclude mock SDK from optimization in vite.config.js:
+```javascript
+optimizeDeps: {
+  exclude: ['@base44/sdk'],  // Don't pre-bundle the mock SDK
+}
+```
+
+### Current State (2025-07-31)
+1. **✅ PredefinedWorkouts page works!**: Shows 2 workouts, no crashes on reload
+2. **✅ Vite stable**: No more crashes with the optimization fix
+3. **⏳ Need to test all pages**: Dashboard, Goals, Calendar, etc.
+4. **❌ Data is minimal**: Only 5 exercises, 3 goals, 2 workouts (need CSV data)
 
 ## GIT BRANCHING STRATEGY
 
@@ -644,21 +645,34 @@ ripped-potato/
 
 ## USEFUL COMMANDS
 
+### HOW TO START THE APP (IMPORTANT!)
 ```bash
-# Check current state
-cd /Users/eliorsegevprivate/Documents/GitHub/ripped-potato
-ls -la  # See all the mess we created
-ls frontend/src/mock-sdk  # Check if copy worked
-ls mock-sdk  # Original still there
+cd /Users/eliorsegevprivate/Documents/GitHub/ripped-potato/frontend
 
-# Clean up commands (for next session)
-rm server.js simple-server.js  # Remove failed attempts
-rm -rf frontend/src/mock-sdk  # Remove duplicate
-rm package.json package-lock.json node_modules  # Remove root npm
+# This ALWAYS works - use --host flag!
+npm run dev -- --host 0.0.0.0
 
-# Start fresh
-cd frontend
-npm run dev  # Try once more and CHECK BROWSER CONSOLE
+# Then open: http://localhost:5173
+# Or if Safari has issues: http://127.0.0.1:5173
+```
+
+**Why this works**: The `--host 0.0.0.0` flag forces vite to bind to all network interfaces, not just localhost. Without this flag, vite sometimes doesn't bind properly and Safari can't connect.
+
+### Other useful commands
+```bash
+# Check if vite is running
+ps aux | grep vite | grep -v grep
+
+# Kill vite if needed
+pkill -f vite
+
+# Clear browser data and reload
+# In browser console: localStorage.clear()
+# Then refresh page
+
+# Build for production (more stable)
+npm run build
+npm run preview  # Serves on port 4173
 ```
 
 ## MIGRATION PHASES

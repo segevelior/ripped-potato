@@ -46,8 +46,14 @@ class MockEntity {
   }
   
   loadData() {
-    const stored = localStorage.getItem(`base44_${this.name}`);
-    return stored ? JSON.parse(stored) : [];
+    try {
+      const stored = localStorage.getItem(`base44_${this.name}`);
+      console.log(`Loading ${this.name} from localStorage:`, stored ? 'found' : 'not found');
+      return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+      console.error(`Error loading ${this.name} from localStorage:`, error);
+      return [];
+    }
   }
   
   saveData() {
@@ -74,6 +80,7 @@ class MockEntity {
   // Base44 compatibility - list() is what the app uses
   async list(query = {}) {
     console.log(`MockEntity.list(${this.name}):`, this.data.length, 'items');
+    console.log(`MockEntity.list(${this.name}) data:`, this.data);
     return [...this.data];
   }
   
@@ -177,8 +184,16 @@ const integrations = {
 export function createClient(config) {
   console.log('Mock Base44 SDK initialized with config:', config);
   
-  // Load some sample data on first use
-  if (!localStorage.getItem('base44_initialized')) {
+  // Force refresh data - change version number to reset
+  const DATA_VERSION = 'v2';  // Change this to force refresh
+  if (localStorage.getItem('base44_data_version') !== DATA_VERSION) {
+    // Clear all old data
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('base44_')) {
+        localStorage.removeItem(key);
+      }
+    });
+    localStorage.setItem('base44_data_version', DATA_VERSION);
     // Add sample exercises with full data structure
     entities.Exercise.data = [
       {
@@ -332,8 +347,11 @@ export function createClient(config) {
     entities.PredefinedWorkout.data = [
       {
         id: 'pw-1',
-        title: 'Full Body Beginner',
+        name: 'Full Body Beginner',
+        goal: 'Build foundational strength and muscle endurance',
         type: 'strength',
+        primary_disciplines: ['strength', 'bodyweight'],
+        difficulty_level: 'beginner',
         duration_minutes: 30,
         description: 'Perfect workout for beginners to build strength',
         exercises: [
@@ -370,8 +388,11 @@ export function createClient(config) {
       },
       {
         id: 'pw-2',
-        title: 'Quick Cardio Blast',
+        name: 'Quick Cardio Blast',
+        goal: 'Improve cardiovascular fitness and burn calories',
         type: 'cardio',
+        primary_disciplines: ['cardio', 'hiit'],
+        difficulty_level: 'intermediate',
         duration_minutes: 20,
         description: 'High-energy cardio workout',
         exercises: [],
@@ -381,8 +402,6 @@ export function createClient(config) {
     ];
     entities.PredefinedWorkout.saveData();
     console.log('Initialized PredefinedWorkout data:', entities.PredefinedWorkout.data.length, 'workouts');
-    
-    localStorage.setItem('base44_initialized', 'true');
   }
   
   return {
