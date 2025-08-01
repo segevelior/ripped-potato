@@ -1,33 +1,90 @@
 // Mock Base44 SDK - Browser-safe version with no external imports
 // This provides a drop-in replacement for @base44/sdk with localStorage
 
-// Mock auth module
+// Real auth module with JWT
 const auth = {
   user: null,
+  token: null,
+  baseURL: 'http://localhost:5001/api/v1',
   
   async signIn(email, password) {
-    this.user = {
-      id: 'mock-user-123',
-      email: email || 'user@example.com',
-      name: 'Test User'
-    };
-    localStorage.setItem('mockAuth', JSON.stringify(this.user));
-    return this.user;
+    try {
+      console.log('🔐 Attempting login with backend...');
+      const response = await fetch(`${this.baseURL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...auth.getAuthHeaders()
+        },
+        body: JSON.stringify({ email, password })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Login failed');
+      }
+
+      const data = await response.json();
+      this.user = data.data.user;
+      this.token = data.data.token;
+      
+      // Store in localStorage
+      localStorage.setItem('authToken', this.token);
+      localStorage.setItem('authUser', JSON.stringify(this.user));
+      
+      console.log('✅ Login successful');
+      return this.user;
+    } catch (error) {
+      console.warn('⚠️ Login failed, using mock auth:', error.message);
+      // Fallback to mock auth
+      this.user = {
+        id: 'mock-user-123',
+        email: email || 'user@example.com',
+        name: 'Test User'
+      };
+      localStorage.setItem('mockAuth', JSON.stringify(this.user));
+      return this.user;
+    }
   },
   
   async signOut() {
     this.user = null;
+    this.token = null;
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('authUser');
     localStorage.removeItem('mockAuth');
   },
   
   async getCurrentUser() {
     if (!this.user) {
-      const stored = localStorage.getItem('mockAuth');
-      if (stored) {
-        this.user = JSON.parse(stored);
+      // Try to restore from localStorage
+      const token = localStorage.getItem('authToken');
+      const user = localStorage.getItem('authUser');
+      
+      if (token && user) {
+        this.token = token;
+        this.user = JSON.parse(user);
+      } else {
+        // Check for mock auth
+        const mockUser = localStorage.getItem('mockAuth');
+        if (mockUser) {
+          this.user = JSON.parse(mockUser);
+        }
       }
     }
     return this.user;
+  },
+  
+  getToken() {
+    if (!this.token) {
+      this.token = localStorage.getItem('authToken');
+    }
+    return this.token;
+  },
+  
+  getAuthHeaders() {
+    const token = this.getToken();
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
   },
   
   onAuthStateChange(callback) {
@@ -141,7 +198,9 @@ class APIExercise extends MockEntity {
   async list(query = {}) {
     try {
       console.log('🌐 Trying API call to fetch exercises...');
-      const response = await fetch(`${this.baseURL}/exercises`);
+      const response = await fetch(`${this.baseURL}/exercises`, {
+        headers: auth.getAuthHeaders()
+      });
       if (!response.ok) {
         console.warn('⚠️ API call failed, falling back to localStorage');
         return super.list(query);
@@ -172,7 +231,7 @@ class APIExercise extends MockEntity {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // TODO: Add auth header when auth is implemented
+          ...auth.getAuthHeaders()
         },
         body: JSON.stringify(exerciseData)
       });
@@ -204,7 +263,9 @@ class APIExercise extends MockEntity {
 
   async findById(id) {
     try {
-      const response = await fetch(`${this.baseURL}/exercises/${id}`);
+      const response = await fetch(`${this.baseURL}/exercises/${id}`, {
+        headers: auth.getAuthHeaders()
+      });
       if (!response.ok) {
         return super.get(id);
       }
@@ -221,6 +282,7 @@ class APIExercise extends MockEntity {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          ...auth.getAuthHeaders()
         },
         body: JSON.stringify(updates)
       });
@@ -239,7 +301,10 @@ class APIExercise extends MockEntity {
   async delete(id) {
     try {
       const response = await fetch(`${this.baseURL}/exercises/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          ...auth.getAuthHeaders()
+        }
       });
       
       if (!response.ok) {
@@ -269,7 +334,9 @@ class APIWorkout extends MockEntity {
   async list(query = {}) {
     try {
       console.log('🌐 Trying API call to fetch workouts...');
-      const response = await fetch(`${this.baseURL}/workouts`);
+      const response = await fetch(`${this.baseURL}/workouts`, {
+        headers: auth.getAuthHeaders()
+      });
       if (!response.ok) {
         console.warn('⚠️ API call failed, falling back to localStorage');
         return super.list(query);
@@ -300,7 +367,7 @@ class APIWorkout extends MockEntity {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // TODO: Add auth header when auth is implemented
+          ...auth.getAuthHeaders()
         },
         body: JSON.stringify(workoutData)
       });
@@ -332,7 +399,9 @@ class APIWorkout extends MockEntity {
 
   async findById(id) {
     try {
-      const response = await fetch(`${this.baseURL}/workouts/${id}`);
+      const response = await fetch(`${this.baseURL}/workouts/${id}`, {
+        headers: auth.getAuthHeaders()
+      });
       if (!response.ok) {
         return super.get(id);
       }
@@ -355,6 +424,7 @@ class APIWorkout extends MockEntity {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          ...auth.getAuthHeaders()
         },
         body: JSON.stringify(updates)
       });
@@ -379,7 +449,8 @@ class APIWorkout extends MockEntity {
   async delete(id) {
     try {
       const response = await fetch(`${this.baseURL}/workouts/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: auth.getAuthHeaders()
       });
       
       if (!response.ok) {
@@ -406,7 +477,9 @@ class APIGoal extends MockEntity {
   async list(query = {}) {
     try {
       console.log('🌐 Trying API call to fetch goals...');
-      const response = await fetch(`${this.baseURL}/goals`);
+      const response = await fetch(`${this.baseURL}/goals`, {
+        headers: auth.getAuthHeaders()
+      });
       if (!response.ok) {
         console.warn('⚠️ API call failed, falling back to localStorage');
         return super.list(query);
@@ -437,6 +510,7 @@ class APIGoal extends MockEntity {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...auth.getAuthHeaders()
         },
         body: JSON.stringify(goalData)
       });
@@ -468,7 +542,9 @@ class APIGoal extends MockEntity {
 
   async findById(id) {
     try {
-      const response = await fetch(`${this.baseURL}/goals/${id}`);
+      const response = await fetch(`${this.baseURL}/goals/${id}`, {
+        headers: auth.getAuthHeaders()
+      });
       if (!response.ok) {
         return super.get(id);
       }
@@ -491,6 +567,7 @@ class APIGoal extends MockEntity {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          ...auth.getAuthHeaders()
         },
         body: JSON.stringify(updates)
       });
@@ -515,7 +592,8 @@ class APIGoal extends MockEntity {
   async delete(id) {
     try {
       const response = await fetch(`${this.baseURL}/goals/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: auth.getAuthHeaders()
       });
       
       if (!response.ok) {
@@ -542,7 +620,9 @@ class APIPredefinedWorkout extends MockEntity {
   async list(query = {}) {
     try {
       console.log('🌐 Trying API call to fetch predefined workouts...');
-      const response = await fetch(`${this.baseURL}/predefined-workouts`);
+      const response = await fetch(`${this.baseURL}/predefined-workouts`, {
+        headers: auth.getAuthHeaders()
+      });
       if (!response.ok) {
         console.warn('⚠️ API call failed, falling back to localStorage');
         return super.list(query);
@@ -563,7 +643,7 @@ class APIPredefinedWorkout extends MockEntity {
       console.log('🌐 Trying API call to create predefined workout...');
       const response = await fetch(`${this.baseURL}/predefined-workouts`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...auth.getAuthHeaders() },
         body: JSON.stringify(data)
       });
       if (!response.ok) return super.create(data);
@@ -578,7 +658,9 @@ class APIPredefinedWorkout extends MockEntity {
   async get(id) { return this.findById(id); }
   async findById(id) {
     try {
-      const response = await fetch(`${this.baseURL}/predefined-workouts/${id}`);
+      const response = await fetch(`${this.baseURL}/predefined-workouts/${id}`, {
+        headers: auth.getAuthHeaders()
+      });
       if (!response.ok) return super.get(id);
       const data = await response.json();
       const workout = data.data?.predefinedWorkout || data;
@@ -592,7 +674,7 @@ class APIPredefinedWorkout extends MockEntity {
     try {
       const response = await fetch(`${this.baseURL}/predefined-workouts/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...auth.getAuthHeaders() },
         body: JSON.stringify(updates)
       });
       if (!response.ok) return super.update(id, updates);
@@ -606,7 +688,10 @@ class APIPredefinedWorkout extends MockEntity {
 
   async delete(id) {
     try {
-      const response = await fetch(`${this.baseURL}/predefined-workouts/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${this.baseURL}/predefined-workouts/${id}`, {
+        method: 'DELETE',
+        headers: auth.getAuthHeaders()
+      });
       if (!response.ok) return super.delete(id);
       return true;
     } catch (error) {
@@ -627,7 +712,9 @@ class APIPlan extends MockEntity {
   async list(query = {}) {
     try {
       console.log('🌐 Trying API call to fetch plans...');
-      const response = await fetch(`${this.baseURL}/plans`);
+      const response = await fetch(`${this.baseURL}/plans`, {
+        headers: auth.getAuthHeaders()
+      });
       if (!response.ok) return super.list(query);
       const data = await response.json();
       const plans = data.data?.plans || data.plans || data;
@@ -643,7 +730,7 @@ class APIPlan extends MockEntity {
     try {
       const response = await fetch(`${this.baseURL}/plans`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...auth.getAuthHeaders() },
         body: JSON.stringify(data)
       });
       if (!response.ok) return super.create(data);
@@ -658,7 +745,9 @@ class APIPlan extends MockEntity {
   async get(id) { return this.findById(id); }
   async findById(id) {
     try {
-      const response = await fetch(`${this.baseURL}/plans/${id}`);
+      const response = await fetch(`${this.baseURL}/plans/${id}`, {
+        headers: auth.getAuthHeaders()
+      });
       if (!response.ok) return super.get(id);
       const data = await response.json();
       const plan = data.data?.plan || data;
@@ -672,7 +761,7 @@ class APIPlan extends MockEntity {
     try {
       const response = await fetch(`${this.baseURL}/plans/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...auth.getAuthHeaders() },
         body: JSON.stringify(updates)
       });
       if (!response.ok) return super.update(id, updates);
@@ -686,7 +775,10 @@ class APIPlan extends MockEntity {
 
   async delete(id) {
     try {
-      const response = await fetch(`${this.baseURL}/plans/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${this.baseURL}/plans/${id}`, {
+        method: 'DELETE',
+        headers: auth.getAuthHeaders()
+      });
       if (!response.ok) return super.delete(id);
       return true;
     } catch (error) {

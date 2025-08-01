@@ -22,17 +22,17 @@ router.get('/:id', getExercise);
 
 // @route   POST /api/v1/exercises
 // @desc    Create new exercise
-// @access  Private (temporarily disabled for testing)
-router.post('/', validateExercise, createExercise);
+// @access  Private
+router.post('/', auth, validateExercise, createExercise);
 
 // @route   PUT /api/v1/exercises/:id
 // @desc    Update exercise
-// @access  Private (temporarily disabled for testing)
-router.put('/:id', validateExercise, updateExercise);
+// @access  Private (only owner can update)
+router.put('/:id', auth, validateExercise, updateExercise);
 
 // @route   DELETE /api/v1/exercises/:id
 // @desc    Delete exercise
-// @access  Private (temporarily disabled for testing)
-router.delete('/:id', deleteExercise);
+// @access  Private (only owner can delete)
+router.delete('/:id', auth, deleteExercise);
 
 module.exports = router;

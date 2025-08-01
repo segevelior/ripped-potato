@@ -118,7 +118,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/goals - Create new goal (authenticated, admin only for now)
-router.post('/', async (req, res) => { // auth temporarily disabled for testing
+router.post('/', auth, async (req, res) => {
   try {
     const goal = new Goal(req.body);
     await goal.save();
@@ -135,7 +135,7 @@ router.post('/', async (req, res) => { // auth temporarily disabled for testing
 });
 
 // PUT /api/goals/:id - Update goal (authenticated, admin only)
-router.put('/:id', async (req, res) => { // auth temporarily disabled for testing
+router.put('/:id', auth, async (req, res) => {
   try {
     const goal = await Goal.findByIdAndUpdate(
       req.params.id,
@@ -157,7 +157,7 @@ router.put('/:id', async (req, res) => { // auth temporarily disabled for testin
 });
 
 // DELETE /api/goals/:id - Delete goal (authenticated, admin only)
-router.delete('/:id', async (req, res) => { // auth temporarily disabled for testing
+router.delete('/:id', auth, async (req, res) => {
   try {
     const goal = await Goal.findByIdAndDelete(req.params.id);
 

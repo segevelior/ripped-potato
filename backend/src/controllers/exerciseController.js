@@ -108,7 +108,7 @@ const createExercise = async (req, res) => {
     const exerciseData = {
       ...req.body,
       isCustom: true,
-      createdBy: req.user ? req.user._id : null // Handle unauthenticated requests
+      createdBy: req.user ? req.user.id || req.user._id : null // Handle both id formats
     };
 
     const exercise = new Exercise(exerciseData);
@@ -142,8 +142,8 @@ const updateExercise = async (req, res) => {
     }
 
     // Check if user owns the exercise or it's a system exercise
-    // Skip ownership check if no user (auth disabled for testing)
-    if (req.user && exercise.createdBy && exercise.createdBy.toString() !== req.user._id.toString()) {
+    // Skip ownership check if exercise has no owner (created when auth was disabled)
+    if (exercise.createdBy && req.user && exercise.createdBy.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to update this exercise'
@@ -183,7 +183,8 @@ const deleteExercise = async (req, res) => {
     }
 
     // Check if user owns the exercise
-    if (exercise.createdBy && exercise.createdBy.toString() !== req.user._id.toString()) {
+    // Skip ownership check if exercise has no owner (created when auth was disabled)
+    if (exercise.createdBy && req.user && exercise.createdBy.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to delete this exercise'
