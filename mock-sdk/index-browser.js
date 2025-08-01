@@ -257,6 +257,444 @@ class APIExercise extends MockEntity {
   // async filter(query = {}) is inherited from MockEntity
 }
 
+// API Workout Entity - uses backend API with localStorage fallback
+class APIWorkout extends MockEntity {
+  constructor() {
+    console.log('🔧 APIWorkout constructor starting...');
+    super('Workout'); // Initialize parent MockEntity
+    this.baseURL = 'http://localhost:5001/api/v1';
+    console.log('🔧 APIWorkout constructor completed successfully');
+  }
+
+  async list(query = {}) {
+    try {
+      console.log('🌐 Trying API call to fetch workouts...');
+      const response = await fetch(`${this.baseURL}/workouts`);
+      if (!response.ok) {
+        console.warn('⚠️ API call failed, falling back to localStorage');
+        return super.list(query);
+      }
+      const data = await response.json();
+      // Backend returns { success: true, data: { workouts: [...] } }
+      const workouts = data.data?.workouts || data.workouts || data;
+      
+      // Normalize the data: convert _id to id
+      const normalized = workouts.map(w => ({
+        ...w,
+        id: w.id || w._id,
+        _id: undefined // Remove _id to avoid confusion
+      }));
+      
+      console.log('✅ API call successful, got', normalized.length, 'workouts');
+      return normalized;
+    } catch (error) {
+      console.warn('⚠️ API error, falling back to localStorage:', error.message);
+      return super.list(query);
+    }
+  }
+
+  async create(workoutData) {
+    try {
+      console.log('🌐 Trying API call to create workout...');
+      const response = await fetch(`${this.baseURL}/workouts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // TODO: Add auth header when auth is implemented
+        },
+        body: JSON.stringify(workoutData)
+      });
+      
+      if (!response.ok) {
+        console.warn('⚠️ API create failed, falling back to localStorage');
+        return super.create(workoutData);
+      }
+      
+      const result = await response.json();
+      console.log('✅ API create successful');
+      
+      // Handle nested response structure and normalize ID
+      const workout = result.data?.workout || result;
+      return {
+        ...workout,
+        id: workout.id || workout._id,
+        _id: undefined
+      };
+    } catch (error) {
+      console.warn('⚠️ API create error, falling back to localStorage:', error.message);
+      return super.create(workoutData);
+    }
+  }
+
+  async get(id) {
+    return this.findById(id);
+  }
+
+  async findById(id) {
+    try {
+      const response = await fetch(`${this.baseURL}/workouts/${id}`);
+      if (!response.ok) {
+        return super.get(id);
+      }
+      const data = await response.json();
+      const workout = data.data?.workout || data;
+      return {
+        ...workout,
+        id: workout.id || workout._id,
+        _id: undefined
+      };
+    } catch (error) {
+      console.warn('⚠️ API get error, falling back to localStorage:', error.message);
+      return super.get(id);
+    }
+  }
+
+  async update(id, updates) {
+    try {
+      const response = await fetch(`${this.baseURL}/workouts/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates)
+      });
+      
+      if (!response.ok) {
+        return super.update(id, updates);
+      }
+      
+      const result = await response.json();
+      const workout = result.data?.workout || result;
+      return {
+        ...workout,
+        id: workout.id || workout._id,
+        _id: undefined
+      };
+    } catch (error) {
+      console.warn('⚠️ API update error, falling back to localStorage:', error.message);
+      return super.update(id, updates);
+    }
+  }
+
+  async delete(id) {
+    try {
+      const response = await fetch(`${this.baseURL}/workouts/${id}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        return super.delete(id);
+      }
+      
+      return true;
+    } catch (error) {
+      console.warn('⚠️ API delete error, falling back to localStorage:', error.message);
+      return super.delete(id);
+    }
+  }
+}
+
+// API Goal Entity - uses backend API with localStorage fallback
+class APIGoal extends MockEntity {
+  constructor() {
+    console.log('🔧 APIGoal constructor starting...');
+    super('Goal'); // Initialize parent MockEntity
+    this.baseURL = 'http://localhost:5001/api/v1';
+    console.log('🔧 APIGoal constructor completed successfully');
+  }
+
+  async list(query = {}) {
+    try {
+      console.log('🌐 Trying API call to fetch goals...');
+      const response = await fetch(`${this.baseURL}/goals`);
+      if (!response.ok) {
+        console.warn('⚠️ API call failed, falling back to localStorage');
+        return super.list(query);
+      }
+      const data = await response.json();
+      // Backend returns { goals: [...], pagination: {...} }
+      const goals = data.goals || data;
+      
+      // Normalize the data: convert _id to id
+      const normalized = goals.map(g => ({
+        ...g,
+        id: g.id || g._id,
+        _id: undefined // Remove _id to avoid confusion
+      }));
+      
+      console.log('✅ API call successful, got', normalized.length, 'goals');
+      return normalized;
+    } catch (error) {
+      console.warn('⚠️ API error, falling back to localStorage:', error.message);
+      return super.list(query);
+    }
+  }
+
+  async create(goalData) {
+    try {
+      console.log('🌐 Trying API call to create goal...');
+      const response = await fetch(`${this.baseURL}/goals`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(goalData)
+      });
+      
+      if (!response.ok) {
+        console.warn('⚠️ API create failed, falling back to localStorage');
+        return super.create(goalData);
+      }
+      
+      const result = await response.json();
+      console.log('✅ API create successful');
+      
+      // Handle nested response structure and normalize ID
+      const goal = result.data?.goal || result;
+      return {
+        ...goal,
+        id: goal.id || goal._id,
+        _id: undefined
+      };
+    } catch (error) {
+      console.warn('⚠️ API create error, falling back to localStorage:', error.message);
+      return super.create(goalData);
+    }
+  }
+
+  async get(id) {
+    return this.findById(id);
+  }
+
+  async findById(id) {
+    try {
+      const response = await fetch(`${this.baseURL}/goals/${id}`);
+      if (!response.ok) {
+        return super.get(id);
+      }
+      const data = await response.json();
+      const goal = data.data?.goal || data;
+      return {
+        ...goal,
+        id: goal.id || goal._id,
+        _id: undefined
+      };
+    } catch (error) {
+      console.warn('⚠️ API get error, falling back to localStorage:', error.message);
+      return super.get(id);
+    }
+  }
+
+  async update(id, updates) {
+    try {
+      const response = await fetch(`${this.baseURL}/goals/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates)
+      });
+      
+      if (!response.ok) {
+        return super.update(id, updates);
+      }
+      
+      const result = await response.json();
+      const goal = result.data?.goal || result;
+      return {
+        ...goal,
+        id: goal.id || goal._id,
+        _id: undefined
+      };
+    } catch (error) {
+      console.warn('⚠️ API update error, falling back to localStorage:', error.message);
+      return super.update(id, updates);
+    }
+  }
+
+  async delete(id) {
+    try {
+      const response = await fetch(`${this.baseURL}/goals/${id}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        return super.delete(id);
+      }
+      
+      return true;  
+    } catch (error) {
+      console.warn('⚠️ API delete error, falling back to localStorage:', error.message);
+      return super.delete(id);
+    }
+  }
+}
+
+// API PredefinedWorkout Entity
+class APIPredefinedWorkout extends MockEntity {
+  constructor() {
+    console.log('🔧 APIPredefinedWorkout constructor starting...');
+    super('PredefinedWorkout');
+    this.baseURL = 'http://localhost:5001/api/v1';
+    console.log('🔧 APIPredefinedWorkout constructor completed successfully');
+  }
+
+  async list(query = {}) {
+    try {
+      console.log('🌐 Trying API call to fetch predefined workouts...');
+      const response = await fetch(`${this.baseURL}/predefined-workouts`);
+      if (!response.ok) {
+        console.warn('⚠️ API call failed, falling back to localStorage');
+        return super.list(query);
+      }
+      const data = await response.json();
+      const workouts = data.data?.predefinedWorkouts || data.predefinedWorkouts || data;
+      const normalized = workouts.map(w => ({ ...w, id: w.id || w._id, _id: undefined }));
+      console.log('✅ API call successful, got', normalized.length, 'predefined workouts');
+      return normalized;
+    } catch (error) {
+      console.warn('⚠️ API error, falling back to localStorage:', error.message);
+      return super.list(query);
+    }
+  }
+
+  async create(data) {
+    try {
+      console.log('🌐 Trying API call to create predefined workout...');
+      const response = await fetch(`${this.baseURL}/predefined-workouts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) return super.create(data);
+      const result = await response.json();
+      const workout = result.data?.predefinedWorkout || result;
+      return { ...workout, id: workout.id || workout._id, _id: undefined };
+    } catch (error) {
+      return super.create(data);
+    }
+  }
+
+  async get(id) { return this.findById(id); }
+  async findById(id) {
+    try {
+      const response = await fetch(`${this.baseURL}/predefined-workouts/${id}`);
+      if (!response.ok) return super.get(id);
+      const data = await response.json();
+      const workout = data.data?.predefinedWorkout || data;
+      return { ...workout, id: workout.id || workout._id, _id: undefined };
+    } catch (error) {
+      return super.get(id);
+    }
+  }
+
+  async update(id, updates) {
+    try {
+      const response = await fetch(`${this.baseURL}/predefined-workouts/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      if (!response.ok) return super.update(id, updates);
+      const result = await response.json();
+      const workout = result.data?.predefinedWorkout || result;
+      return { ...workout, id: workout.id || workout._id, _id: undefined };
+    } catch (error) {
+      return super.update(id, updates);
+    }
+  }
+
+  async delete(id) {
+    try {
+      const response = await fetch(`${this.baseURL}/predefined-workouts/${id}`, { method: 'DELETE' });
+      if (!response.ok) return super.delete(id);
+      return true;
+    } catch (error) {
+      return super.delete(id);
+    }
+  }
+}
+
+// API Plan Entity
+class APIPlan extends MockEntity {
+  constructor() {
+    console.log('🔧 APIPlan constructor starting...');
+    super('Plan');
+    this.baseURL = 'http://localhost:5001/api/v1';
+    console.log('🔧 APIPlan constructor completed successfully');
+  }
+
+  async list(query = {}) {
+    try {
+      console.log('🌐 Trying API call to fetch plans...');
+      const response = await fetch(`${this.baseURL}/plans`);
+      if (!response.ok) return super.list(query);
+      const data = await response.json();
+      const plans = data.data?.plans || data.plans || data;
+      const normalized = plans.map(p => ({ ...p, id: p.id || p._id, _id: undefined }));
+      console.log('✅ API call successful, got', normalized.length, 'plans');
+      return normalized;
+    } catch (error) {
+      return super.list(query);
+    }
+  }
+
+  async create(data) {
+    try {
+      const response = await fetch(`${this.baseURL}/plans`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) return super.create(data);
+      const result = await response.json();
+      const plan = result.data?.plan || result;
+      return { ...plan, id: plan.id || plan._id, _id: undefined };
+    } catch (error) {
+      return super.create(data);
+    }
+  }
+
+  async get(id) { return this.findById(id); }
+  async findById(id) {
+    try {
+      const response = await fetch(`${this.baseURL}/plans/${id}`);
+      if (!response.ok) return super.get(id);
+      const data = await response.json();
+      const plan = data.data?.plan || data;
+      return { ...plan, id: plan.id || plan._id, _id: undefined };
+    } catch (error) {
+      return super.get(id);
+    }
+  }
+
+  async update(id, updates) {
+    try {
+      const response = await fetch(`${this.baseURL}/plans/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      if (!response.ok) return super.update(id, updates);
+      const result = await response.json();
+      const plan = result.data?.plan || result;
+      return { ...plan, id: plan.id || plan._id, _id: undefined };
+    } catch (error) {
+      return super.update(id, updates);
+    }
+  }
+
+  async delete(id) {
+    try {
+      const response = await fetch(`${this.baseURL}/plans/${id}`, { method: 'DELETE' });
+      if (!response.ok) return super.delete(id);
+      return true;
+    } catch (error) {
+      return super.delete(id);
+    }
+  }
+}
+
 // User entity with me() method
 class MockUser extends MockEntity {
   constructor() {
@@ -296,19 +734,51 @@ try {
   entities.Exercise = new MockEntity('Exercise');
 }
 
-// Create other entities
+try {
+  console.log('📍 Creating Workout entity with APIWorkout...');
+  entities.Workout = new APIWorkout(); // 🔄 Testing API integration
+  console.log('✅ Workout entity created successfully');
+} catch (error) {
+  console.error('❌ Failed to create APIWorkout, falling back to MockEntity:', error);
+  entities.Workout = new MockEntity('Workout');
+}
+
+try {
+  console.log('📍 Creating Goal entity with APIGoal...');
+  entities.Goal = new APIGoal(); // 🔄 Testing API integration
+  console.log('✅ Goal entity created successfully');
+} catch (error) {
+  console.error('❌ Failed to create APIGoal, falling back to MockEntity:', error);
+  entities.Goal = new MockEntity('Goal');
+}
+
+try {
+  console.log('📍 Creating PredefinedWorkout entity with APIPredefinedWorkout...');
+  entities.PredefinedWorkout = new APIPredefinedWorkout(); // 🔄 Testing API integration
+  console.log('✅ PredefinedWorkout entity created successfully');
+} catch (error) {
+  console.error('❌ Failed to create APIPredefinedWorkout, falling back to MockEntity:', error);
+  entities.PredefinedWorkout = new MockEntity('PredefinedWorkout');
+}
+
+try {
+  console.log('📍 Creating Plan entity with APIPlan...');
+  entities.Plan = new APIPlan(); // 🔄 Testing API integration
+  console.log('✅ Plan entity created successfully');
+} catch (error) {
+  console.error('❌ Failed to create APIPlan, falling back to MockEntity:', error);
+  entities.Plan = new MockEntity('Plan');
+}
+
+// Create other entities (remaining non-API entities)
 const otherEntities = {
-  Workout: new MockEntity('Workout'),
   ExternalActivity: new MockEntity('ExternalActivity'),
   WorkoutTemplate: new MockEntity('WorkoutTemplate'),
   Discipline: new MockEntity('Discipline'),
   WorkoutType: new MockEntity('WorkoutType'),
   TrainingPlan: new MockEntity('TrainingPlan'),
-  PredefinedWorkout: new MockEntity('PredefinedWorkout'),
-  Goal: new MockEntity('Goal'),
   ProgressionPath: new MockEntity('ProgressionPath'),
   UserGoalProgress: new MockEntity('UserGoalProgress'),
-  Plan: new MockEntity('Plan'),
   UserTrainingPattern: new MockEntity('UserTrainingPattern'),
   User: new MockUser() // ✅ Added missing User entity with me() method
 };

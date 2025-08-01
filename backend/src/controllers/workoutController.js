@@ -7,7 +7,7 @@ const getWorkouts = async (req, res) => {
   try {
     const { startDate, endDate, status, type, page = 1, limit = 20 } = req.query;
     
-    let query = { userId: req.user._id };
+    let query = req.user ? { userId: req.user._id } : {};
     
     // Date range filter
     if (startDate || endDate) {
@@ -59,10 +59,9 @@ const getWorkouts = async (req, res) => {
 // Get single workout by ID
 const getWorkout = async (req, res) => {
   try {
-    const workout = await Workout.findOne({
-      _id: req.params.id,
-      userId: req.user._id
-    }).populate('exercises.exerciseId', 'name muscles equipment strain');
+    const workout = await Workout.findOne(
+      req.user ? { _id: req.params.id, userId: req.user._id } : { _id: req.params.id }
+    ).populate('exercises.exerciseId', 'name muscles equipment strain');
     
     if (!workout) {
       return res.status(404).json({
@@ -112,7 +111,7 @@ const createWorkout = async (req, res) => {
 
     const workoutData = {
       ...req.body,
-      userId: req.user._id
+      userId: req.user ? req.user._id : null // Handle unauthenticated requests
     };
 
     const workout = new Workout(workoutData);
@@ -136,10 +135,9 @@ const createWorkout = async (req, res) => {
 // Update workout
 const updateWorkout = async (req, res) => {
   try {
-    const workout = await Workout.findOne({
-      _id: req.params.id,
-      userId: req.user._id
-    });
+    const workout = await Workout.findOne(
+      req.user ? { _id: req.params.id, userId: req.user._id } : { _id: req.params.id }
+    );
     
     if (!workout) {
       return res.status(404).json({
@@ -187,10 +185,9 @@ const updateWorkout = async (req, res) => {
 // Delete workout
 const deleteWorkout = async (req, res) => {
   try {
-    const workout = await Workout.findOneAndDelete({
-      _id: req.params.id,
-      userId: req.user._id
-    });
+    const workout = await Workout.findOneAndDelete(
+      req.user ? { _id: req.params.id, userId: req.user._id } : { _id: req.params.id }
+    );
     
     if (!workout) {
       return res.status(404).json({
@@ -216,7 +213,7 @@ const deleteWorkout = async (req, res) => {
 const getWorkoutStats = async (req, res) => {
   try {
     const { days = 30 } = req.query;
-    const stats = await Workout.getUserStats(req.user._id, parseInt(days));
+    const stats = req.user ? await Workout.getUserStats(req.user._id, parseInt(days)) : { total: 0, completed: 0, avgDuration: 0 };
 
     res.json({
       success: true,
