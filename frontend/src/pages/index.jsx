@@ -78,24 +78,27 @@ function PagesContent() {
     const location = useLocation();
     const currentPage = _getCurrentPage(location.pathname);
     
-    // Check if we're on the auth page
-    if (location.pathname === '/auth') {
-        return <Auth />;
-    }
-    
     // Check if user is authenticated
     const token = localStorage.getItem('authToken');
-    if (!token) {
-        // Redirect to auth if not authenticated
+    const isAuthPage = location.pathname === '/auth';
+    
+    // If not authenticated and not on auth page, redirect to auth
+    if (!token && !isAuthPage) {
         window.location.href = '/auth';
         return null;
     }
     
+    // If authenticated and on auth page, redirect to dashboard
+    if (token && isAuthPage) {
+        window.location.href = '/';
+        return null;
+    }
+    
     return (
-        <Layout currentPageName={currentPage}>
-            <Routes>            
-                
-                    <Route path="/" element={<Dashboard />} />
+        <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route element={<Layout currentPageName={currentPage} />}>
+                <Route path="/" element={<Dashboard />} />
                 
                 
                 <Route path="/Dashboard" element={<Dashboard />} />
@@ -123,9 +126,8 @@ function PagesContent() {
                 <Route path="/Chat" element={<Chat />} />
                 
                 <Route path="/Documentation" element={<Documentation />} />
-                
-            </Routes>
-        </Layout>
+            </Route>
+        </Routes>
     );
 }
 
