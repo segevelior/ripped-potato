@@ -6,8 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:prod": "NODE_ENV=production vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "lint:fix": "eslint . --fix",
+    "preview": "vite preview",
+    "preview:prod": "NODE_ENV=production vite preview",
+    "install:prod": "npm ci --only=production"
   },
   "dependencies": {
     "@base44/sdk": "file:../mock-sdk",

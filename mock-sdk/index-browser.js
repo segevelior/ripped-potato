@@ -5,7 +5,7 @@
 const auth = {
   user: null,
   token: null,
-  baseURL: 'http://localhost:5001/api/v1',
+  baseURL: import.meta.env?.VITE_API_URL || 'http://localhost:5001/api/v1',
   
   async signIn(email, password) {
     try {
@@ -198,7 +198,7 @@ class APIExercise extends MockEntity {
   constructor() {
     console.log('🔧 APIExercise constructor starting...');
     super('Exercise'); // Initialize parent MockEntity
-    this.baseURL = 'http://localhost:5001/api/v1';
+    this.baseURL = import.meta.env?.VITE_API_URL || 'http://localhost:5001/api/v1';
     console.log('🔧 APIExercise constructor completed successfully');
   }
 
@@ -334,7 +334,7 @@ class APIWorkout extends MockEntity {
   constructor() {
     console.log('🔧 APIWorkout constructor starting...');
     super('Workout'); // Initialize parent MockEntity
-    this.baseURL = 'http://localhost:5001/api/v1';
+    this.baseURL = import.meta.env?.VITE_API_URL || 'http://localhost:5001/api/v1';
     console.log('🔧 APIWorkout constructor completed successfully');
   }
 
@@ -477,7 +477,7 @@ class APIGoal extends MockEntity {
   constructor() {
     console.log('🔧 APIGoal constructor starting...');
     super('Goal'); // Initialize parent MockEntity
-    this.baseURL = 'http://localhost:5001/api/v1';
+    this.baseURL = import.meta.env?.VITE_API_URL || 'http://localhost:5001/api/v1';
     console.log('🔧 APIGoal constructor completed successfully');
   }
 
@@ -620,7 +620,7 @@ class APIPredefinedWorkout extends MockEntity {
   constructor() {
     console.log('🔧 APIPredefinedWorkout constructor starting...');
     super('PredefinedWorkout');
-    this.baseURL = 'http://localhost:5001/api/v1';
+    this.baseURL = import.meta.env?.VITE_API_URL || 'http://localhost:5001/api/v1';
     console.log('🔧 APIPredefinedWorkout constructor completed successfully');
   }
 
@@ -712,7 +712,7 @@ class APIPlan extends MockEntity {
   constructor() {
     console.log('🔧 APIPlan constructor starting...');
     super('Plan');
-    this.baseURL = 'http://localhost:5001/api/v1';
+    this.baseURL = import.meta.env?.VITE_API_URL || 'http://localhost:5001/api/v1';
     console.log('🔧 APIPlan constructor completed successfully');
   }
 
