@@ -818,6 +818,45 @@ class MockUser extends MockEntity {
   }
 }
 
+// API-connected User class
+class APIUser extends MockUser {
+  constructor() {
+    super();
+    this.baseURL = `${import.meta.env?.VITE_API_URL || 'http://localhost:5001/api'}/v1`;
+  }
+  
+  async me() {
+    try {
+      // First try to get user from localStorage
+      const cachedUser = localStorage.getItem('authUser');
+      if (cachedUser) {
+        return JSON.parse(cachedUser);
+      }
+      
+      // If not in localStorage, fetch from API
+      const response = await fetch(`${this.baseURL}/auth/profile`, {
+        headers: auth.getAuthHeaders()
+      });
+      
+      if (!response.ok) {
+        console.warn('Failed to fetch user profile, using mock data');
+        return super.me();
+      }
+      
+      const result = await response.json();
+      const user = result.data || result;
+      
+      // Cache in localStorage
+      localStorage.setItem('authUser', JSON.stringify(user));
+      
+      return user;
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      return super.me();
+    }
+  }
+}
+
 // Create entities
 console.log('🚀 Starting entity creation...');
 
@@ -879,7 +918,7 @@ const otherEntities = {
   ProgressionPath: new MockEntity('ProgressionPath'),
   UserGoalProgress: new MockEntity('UserGoalProgress'),
   UserTrainingPattern: new MockEntity('UserTrainingPattern'),
-  User: new MockUser() // ✅ Added missing User entity with me() method
+  User: new APIUser() // ✅ Use API-connected User with me() method
 };
 
 // Merge entities
