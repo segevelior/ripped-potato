@@ -1,7 +1,7 @@
 
 
 import React from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot } from "lucide-react"; // Added Bot
 import {
@@ -119,7 +119,7 @@ export default function Layout({ children }) {
         </Sidebar>
 
         <main className="flex-1 overflow-y-auto p-6 md:p-8">
-          {children}
+          <Outlet />
         </main>
 
         <FloatingAIAssistant />

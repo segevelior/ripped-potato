@@ -97,6 +97,64 @@ const auth = {
   onAuthStateChange(callback) {
     callback(this.user);
     return () => {};
+  },
+  
+  // Add me() method for compatibility with frontend code
+  async me() {
+    try {
+      // First try to get user from localStorage
+      const cachedUser = localStorage.getItem('authUser');
+      if (cachedUser) {
+        return JSON.parse(cachedUser);
+      }
+      
+      // If not in localStorage, fetch from API
+      const response = await fetch(`${this.baseURL}/auth/profile`, {
+        headers: this.getAuthHeaders()
+      });
+      
+      if (!response.ok) {
+        console.warn('Failed to fetch user profile, using mock data');
+        // Return mock user data
+        return {
+          id: 'user-1',
+          name: 'Test User',
+          email: 'test@synergyfit.com',
+          profile: {
+            age: 30,
+            weight: 75,
+            height: 180,
+            fitnessLevel: 'intermediate'
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+      }
+      
+      const result = await response.json();
+      const user = result.data || result;
+      
+      // Cache in localStorage
+      localStorage.setItem('authUser', JSON.stringify(user));
+      
+      return user;
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      // Return mock user data
+      return {
+        id: 'user-1',
+        name: 'Test User',
+        email: 'test@synergyfit.com',
+        profile: {
+          age: 30,
+          weight: 75,
+          height: 180,
+          fitnessLevel: 'intermediate'
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+    }
   }
 };
 
@@ -213,7 +271,26 @@ class APIEntity extends MockEntity {
       }
       
       const result = await response.json();
-      const items = result.data?.[this.endpoint] || result.data || result || [];
+      // Handle different response formats from backend
+      let items = [];
+      if (Array.isArray(result)) {
+        items = result;
+      } else if (result[this.endpoint]) {
+        items = result[this.endpoint];
+      } else if (result.data && Array.isArray(result.data)) {
+        items = result.data;
+      } else if (result.data && result.data[this.endpoint]) {
+        items = result.data[this.endpoint];
+      } else {
+        console.warn(`Unexpected API response format for ${this.endpoint}:`, result);
+        items = [];
+      }
+      
+      // Ensure items is an array
+      if (!Array.isArray(items)) {
+        console.warn(`API response for ${this.endpoint} is not an array:`, items);
+        return super.list();
+      }
       
       // Normalize IDs
       return items.map(item => ({
