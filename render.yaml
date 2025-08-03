@@ -1,0 +1,89 @@
+services:
+  # Backend API Service
+  - type: web
+    name: synergyfit-api
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: cd backend && npm ci --only=production
+    startCommand: cd backend && npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5001
+      - key: HOST
+        value: 0.0.0.0
+      - key: MONGODB_URI
+        sync: false  # Will be set manually for security
+      - key: JWT_SECRET
+        sync: false  # Will be set manually for security
+      - key: JWT_EXPIRE
+        value: 7d
+      - key: CORS_ORIGIN
+        sync: false  # Will be set to frontend URL after frontend deploys
+      - key: CORS_CREDENTIALS
+        value: true
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: 100
+      - key: COMPRESSION_LEVEL
+        value: 6
+      - key: REQUEST_TIMEOUT
+        value: 30000
+      - key: HEALTH_CHECK_ENABLED
+        value: true
+      - key: LOG_LEVEL
+        value: info
+      - key: DB_MAX_POOL_SIZE
+        value: 10
+      - key: DB_MIN_POOL_SIZE
+        value: 2
+      - key: TRUST_PROXY
+        value: 1
+      - key: SESSION_SECURE
+        value: true
+      - key: COOKIE_SECURE
+        value: true
+      - key: APP_VERSION
+        value: 1.0.0
+
+  # Frontend Static Site
+  - type: static
+    name: synergyfit-app
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_ENV
+        value: production
+      - key: VITE_API_URL
+        sync: false  # Will be set to backend URL after backend deploys
+      - key: VITE_API_VERSION
+        value: v1
+      - key: VITE_APP_NAME
+        value: SynergyFit
+      - key: VITE_APP_VERSION
+        value: 1.0.0
+      - key: VITE_JWT_EXPIRE
+        value: 7d
+      - key: VITE_SESSION_TIMEOUT
+        value: 3600000
+      - key: VITE_BUILD_SOURCEMAP
+        value: false
+      - key: VITE_BUILD_MINIFY
+        value: true
+      - key: VITE_SECURE_COOKIES
+        value: true
+      - key: VITE_ENABLE_PWA
+        value: true
+      - key: VITE_ENABLE_ANALYTICS
+        value: false
+      - key: VITE_ENABLE_DEBUG
+        value: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

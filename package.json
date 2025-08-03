@@ -1,0 +1,44 @@
+{
+  "name": "synergyfit",
+  "version": "1.0.0",
+  "description": "SynergyFit - AI-Powered Fitness Tracking Application",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "start:backend": "cd backend && npm start",
+    "start:frontend": "cd frontend && npm run preview",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd frontend && npm test",
+    "deploy:check": "./scripts/pre-deploy-check.sh",
+    "deploy:backend": "cd backend && ./scripts/deploy.sh production",
+    "deploy:frontend": "cd frontend && ./scripts/deploy.sh production"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eliorsegevprivate/ripped-potato.git"
+  },
+  "keywords": [
+    "fitness",
+    "tracking",
+    "ai",
+    "workout",
+    "health",
+    "mongodb",
+    "react",
+    "nodejs"
+  ],
+  "author": "Elior Segev",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  }
+}
