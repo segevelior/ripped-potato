@@ -177,19 +177,6 @@ export default function Auth() {
     }
   };
 
-  const handleGoogleAuth = async () => {
-    setIsLoading(true);
-    try {
-      // For now, show a message that Google auth is not implemented
-      setErrors({ general: "Google authentication is not yet implemented" });
-    } catch (error) {
-      console.error("Google auth error:", error);
-      setErrors({ general: "Google authentication failed. Please try again." });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex items-center justify-center p-4">
       {/* Background decoration */}
