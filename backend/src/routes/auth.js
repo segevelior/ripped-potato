@@ -34,18 +34,31 @@ router.get('/google', passport.authenticate('google', { scope: ['profile', 'emai
 // @desc    Google OAuth callback
 // @access  Public
 router.get('/google/callback', 
-  passport.authenticate('google', { session: false }),
+  passport.authenticate('google', { session: false, failureRedirect: '/auth?error=google_auth_failed' }),
   async (req, res) => {
     try {
+      console.log('Google OAuth callback - User authenticated:', req.user ? 'Yes' : 'No');
+      
+      if (!req.user) {
+        console.error('No user object after Google authentication');
+        return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth?error=no_user`);
+      }
+      
       // Generate JWT token for the authenticated user
       const token = req.user.generateToken();
+      console.log('JWT token generated successfully');
       
       // Redirect to frontend with token
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
+      const redirectUrl = `${frontendUrl}/auth/callback?token=${token}`;
+      console.log('Redirecting to:', redirectUrl);
+      
+      res.redirect(redirectUrl);
     } catch (error) {
       console.error('Google auth callback error:', error);
-      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth?error=oauth_failed`);
+      console.error('Error stack:', error.stack);
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      res.redirect(`${frontendUrl}/auth?error=oauth_failed&message=${encodeURIComponent(error.message)}`);
     }
   }
 );
