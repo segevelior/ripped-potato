@@ -57,15 +57,15 @@ const predefinedWorkoutSchema = new mongoose.Schema({
   },
   equipment: [String],
   exercises: [predefinedExerciseSchema],
-  isPublic: {
+  isCommon: {
     type: Boolean,
-    default: true,
+    default: false, // false means it's private to the user
     index: true
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    default: null // null for system templates
+    default: null // null for common templates
   },
   tags: {
     type: [String],
@@ -92,8 +92,8 @@ const predefinedWorkoutSchema = new mongoose.Schema({
 // Compound indexes for common queries
 predefinedWorkoutSchema.index({ type: 1, difficulty: 1 });
 predefinedWorkoutSchema.index({ targetMuscles: 1, difficulty: 1 });
-predefinedWorkoutSchema.index({ tags: 1, isPublic: 1 });
-predefinedWorkoutSchema.index({ popularity: -1, isPublic: 1 });
+predefinedWorkoutSchema.index({ tags: 1, isCommon: 1 });
+predefinedWorkoutSchema.index({ popularity: -1, isCommon: 1 });
 
 // Text search index
 predefinedWorkoutSchema.index({ 

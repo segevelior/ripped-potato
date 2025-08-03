@@ -48,14 +48,14 @@ const exerciseSchema = new mongoose.Schema({
     image: String,
     video: String
   },
-  isCustom: {
+  isCommon: {
     type: Boolean,
-    default: false
+    default: false // false means it's private to the user
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    default: null // null for system exercises
+    default: null // null for common exercises
   }
 }, {
   timestamps: true

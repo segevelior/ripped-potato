@@ -8,12 +8,28 @@ const getExercises = async (req, res) => {
     
     let query = {};
     
+    // Filter by ownership and common exercises
+    if (req.user) {
+      // Authenticated users see common exercises + their own
+      query.$or = [
+        { isCommon: true },
+        { createdBy: req.user.id }
+      ];
+    } else {
+      // Non-authenticated users only see common exercises
+      query.isCommon = true;
+    }
+    
     // Build query filters
     if (muscle) {
-      query.$or = [
-        { muscles: { $in: muscle.split(',') } },
-        { secondaryMuscles: { $in: muscle.split(',') } }
-      ];
+      const muscleFilter = {
+        $or: [
+          { muscles: { $in: muscle.split(',') } },
+          { secondaryMuscles: { $in: muscle.split(',') } }
+        ]
+      };
+      // Combine with ownership filter
+      query = { $and: [query, muscleFilter] };
     }
     
     if (discipline) {

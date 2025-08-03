@@ -71,15 +71,15 @@ const goalSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Exercise'
   }],
-  isPublic: {
+  isCommon: {
     type: Boolean,
-    default: true,
+    default: false, // false means it's private to the user
     index: true
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    default: null // null for system goals
+    default: null // null for common goals
   },
   tags: {
     type: [String],
