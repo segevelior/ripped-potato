@@ -13,14 +13,34 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
+    required: function() { return !this.googleId; }, // Password not required for Google users
     minlength: 6,
     select: false // Don't include password in queries by default
+  },
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true // Allows null values while maintaining uniqueness
+  },
+  authProvider: {
+    type: String,
+    enum: ['local', 'google'],
+    default: 'local'
+  },
+  profilePicture: {
+    type: String
   },
   name: {
     type: String,
     required: [true, 'Name is required'],
     trim: true
+  },
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  lastLogin: {
+    type: Date
   },
   profile: {
     age: Number,

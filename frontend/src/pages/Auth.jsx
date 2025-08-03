@@ -82,6 +82,11 @@ export default function Auth() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleGoogleAuth = () => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+    window.location.href = `${apiUrl}/api/v1/auth/google`;
+  };
+
   const handleSignIn = async (e) => {
     e.preventDefault();
     if (!validateSignIn()) return;

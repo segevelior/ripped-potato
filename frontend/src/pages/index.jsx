@@ -28,6 +28,8 @@ import Documentation from "./Documentation";
 
 import Auth from "./Auth";
 
+import AuthCallback from "./AuthCallback";
+
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 
 const PAGES = {
@@ -81,9 +83,10 @@ function PagesContent() {
     // Check if user is authenticated
     const token = localStorage.getItem('authToken');
     const isAuthPage = location.pathname === '/auth';
+    const isAuthCallback = location.pathname === '/auth/callback';
     
-    // If not authenticated and not on auth page, redirect to auth
-    if (!token && !isAuthPage) {
+    // If not authenticated and not on auth page or callback, redirect to auth
+    if (!token && !isAuthPage && !isAuthCallback) {
         return <Navigate to="/auth" replace />;
     }
     
@@ -95,6 +98,7 @@ function PagesContent() {
     return (
         <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route element={<Layout currentPageName={currentPage} />}>
                 <Route path="/" element={<Dashboard />} />
                 
