@@ -1,7 +1,7 @@
 
 
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot } from "lucide-react"; // Added Bot
 import {
@@ -58,6 +58,7 @@ const navigationItems = [
 
 export default function Layout({ children }) {
   const location = useLocation();
+  const navigate = useNavigate();
 
   return (
     <SidebarProvider>
@@ -106,7 +107,7 @@ export default function Layout({ children }) {
                   onClick={() => {
                     localStorage.removeItem('authToken');
                     localStorage.removeItem('authUser');
-                    window.location.href = '/auth';
+                    navigate('/auth');
                   }}
                   className="text-sm text-muted-foreground hover:text-primary"
                 >

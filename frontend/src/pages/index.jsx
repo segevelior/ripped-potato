@@ -28,7 +28,7 @@ import Documentation from "./Documentation";
 
 import Auth from "./Auth";
 
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 
 const PAGES = {
     
@@ -84,14 +84,12 @@ function PagesContent() {
     
     // If not authenticated and not on auth page, redirect to auth
     if (!token && !isAuthPage) {
-        window.location.href = '/auth';
-        return null;
+        return <Navigate to="/auth" replace />;
     }
     
     // If authenticated and on auth page, redirect to dashboard
     if (token && isAuthPage) {
-        window.location.href = '/';
-        return null;
+        return <Navigate to="/" replace />;
     }
     
     return (
@@ -127,6 +125,7 @@ function PagesContent() {
                 
                 <Route path="/Documentation" element={<Documentation />} />
             </Route>
+            <Route path="*" element={<Navigate to="/auth" replace />} />
         </Routes>
     );
 }
