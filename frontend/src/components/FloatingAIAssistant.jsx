@@ -25,9 +25,9 @@ const planningSchema = {
         name: { type: "string" },
         discipline: { type: "array", items: { type: "string" } },
         description: { type: "string" },
-        category: { type: "string", enum: ["skill", "performance", "endurance", "strength"] },
+        category: { type: "string", enum: ["skill", "performance", "endurance", "strength", "weight", "health"] },
         icon: { type: "string" },
-        difficulty_level: { type: "string", enum: ["beginner", "intermediate", "advanced", "elite"] },
+        difficulty_level: { type: "string", enum: ["beginner", "intermediate", "advanced", "expert"] },
         estimated_weeks: { type: "number" },
         prerequisites: { type: "array", items: { type: "string" } }
       }
@@ -286,7 +286,19 @@ export default function FloatingAIAssistant() {
       // Handle different actions
       if (result.action === "create_goal" && result.goal_to_create) {
         try {
-          await Goal.create(result.goal_to_create);
+          // Transform field names to match backend API
+          const goalData = {
+            ...result.goal_to_create,
+            difficultyLevel: result.goal_to_create.difficulty_level,
+            estimatedWeeks: result.goal_to_create.estimated_weeks
+          };
+          // Remove the underscore versions and fields not in backend
+          delete goalData.difficulty_level;
+          delete goalData.estimated_weeks;
+          delete goalData.icon;
+          delete goalData.prerequisites;
+          
+          await Goal.create(goalData);
           assistantResponse += `\n\n✅ **Goal Created!** "${result.goal_to_create.name}" is ready on your Goals page.`;
         } catch (error) {
           console.error("Error creating goal:", error);

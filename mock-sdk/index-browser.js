@@ -921,12 +921,59 @@ console.log('✅ All entities created successfully');
 // Mock integrations
 const integrations = {
   Core: {
-    async InvokeLLM(prompt) {
-      console.log('Mock LLM invoke:', prompt);
-      return {
-        response: "I'm a mock AI assistant. I can help you with your fitness goals!",
-        tokens: 50
-      };
+    async InvokeLLM(params) {
+      console.log('AI invoke:', params);
+      
+      // Check if we have a real API connection
+      const baseURL = import.meta.env?.VITE_API_URL || 'http://localhost:5001/api';
+      
+      try {
+        const response = await fetch(`${baseURL}/v1/ai/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...auth.getAuthHeaders()
+          },
+          body: JSON.stringify({
+            prompt: params.prompt || params,
+            response_json_schema: params.response_json_schema
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`AI request failed: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('AI response:', result);
+        
+        // Return the full result for structured responses
+        if (params.response_json_schema) {
+          return result.response || result;
+        }
+        
+        // Return in the expected format for simple responses
+        return {
+          response: result.response || result.message || "I'm having trouble connecting to the AI service. Please try again.",
+          tokens: result.tokens || 0
+        };
+        
+      } catch (error) {
+        console.warn('AI request failed, using mock response:', error);
+        // Fallback to mock response
+        if (params.response_json_schema) {
+          // Return structured mock response
+          return {
+            action: "general_advice",
+            response: "I'm currently offline but I can still help! What fitness goal are you working on?",
+            tokens: 50
+          };
+        }
+        return {
+          response: "I'm a mock AI assistant. I can help you with your fitness goals!",
+          tokens: 50
+        };
+      }
     },
     
     async SendEmail(to, subject, body) {
