@@ -10,6 +10,7 @@ import {
   SidebarHeader,
   SidebarFooter,
   SidebarProvider,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import FloatingAIAssistant from "@/components/FloatingAIAssistant";
 
@@ -118,9 +119,20 @@ export default function Layout({ children }) {
           </SidebarFooter>
         </Sidebar>
 
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
-          <Outlet />
-        </main>
+        <div className="flex-1 flex flex-col">
+          {/* Mobile header with menu button */}
+          <header className="flex items-center gap-4 border-b bg-white px-4 py-3 md:hidden">
+            <SidebarTrigger className="md:hidden" />
+            <div className="flex items-center gap-2">
+              <Activity className="w-5 h-5" style={{color: 'var(--accent)'}} />
+              <span className="font-semibold">SynergyFit</span>
+            </div>
+          </header>
+          
+          <main className="flex-1 overflow-y-auto p-6 md:p-8">
+            <Outlet />
+          </main>
+        </div>
 
         <FloatingAIAssistant />
       </div>
