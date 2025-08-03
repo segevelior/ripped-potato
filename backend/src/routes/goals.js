@@ -1,11 +1,11 @@
 const express = require('express');
 const Goal = require('../models/Goal');
 const UserGoalProgress = require('../models/UserGoalProgress');
-const { auth } = require('../middleware/auth');
+const { auth, optionalAuth } = require('../middleware/auth');
 const router = express.Router();
 
 // GET /api/goals - Get all goals with filtering
-router.get('/', async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
   try {
     const { 
       category, 
@@ -19,6 +19,18 @@ router.get('/', async (req, res) => {
     } = req.query;
 
     let query = {};
+
+    // Filter by ownership and common goals
+    if (req.user) {
+      // Authenticated users see common goals + their own
+      query.$or = [
+        { isCommon: true },
+        { createdBy: req.user.id }
+      ];
+    } else {
+      // Non-authenticated users only see common goals
+      query.isCommon = true;
+    }
 
     // Apply filters
     if (category) query.category = category;

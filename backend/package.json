@@ -11,7 +11,8 @@
     "test:prod": "NODE_ENV=production jest",
     "seed": "node src/utils/seedDatabase.js",
     "seed:prod": "NODE_ENV=production node src/utils/seedDatabase.js",
-    "install:prod": "npm ci --only=production"
+    "install:prod": "npm ci --only=production",
+    "build": "echo 'Build completed at:' && date"
   },
   "dependencies": {
     "axios": "^1.11.0",
