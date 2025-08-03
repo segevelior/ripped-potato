@@ -5,8 +5,8 @@ services:
     env: node
     region: oregon
     plan: free
-    buildCommand: cd backend && npm ci
-    startCommand: cd backend && npm start
+    buildCommand: npm ci --prefix backend
+    startCommand: npm start --prefix backend
     envVars:
       - key: NODE_ENV
         value: production
@@ -52,8 +52,8 @@ services:
   # Frontend Static Site  
   - type: static
     name: synergyfit-app
-    buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: frontend/dist
+    buildCommand: npm install --prefix frontend && npm run build --prefix frontend
+    staticPublishPath: ./frontend/dist
     envVars:
       - key: NODE_ENV
         value: production
