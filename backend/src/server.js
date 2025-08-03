@@ -145,11 +145,8 @@ const mongooseOptions = {
   maxPoolSize: 10,
   serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000,
-  family: 4, // Use IPv4, skip trying IPv6
-  ...(process.env.NODE_ENV === 'production' && {
-    ssl: true,
-    sslValidate: true
-  })
+  family: 4 // Use IPv4, skip trying IPv6
+  // SSL is handled automatically by the mongodb+srv:// protocol
 };
 
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ripped-potato', mongooseOptions)
