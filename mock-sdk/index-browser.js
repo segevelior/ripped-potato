@@ -345,34 +345,7 @@ class APIWorkout extends APIEntity {
     console.log('🔧 APIWorkout constructor completed successfully');
   }
 
-  async list(query = {}) {
-    try {
-      console.log('🌐 Trying API call to fetch workouts...');
-      const response = await fetch(`${this.baseURL}/workouts`, {
-        headers: auth.getAuthHeaders()
-      });
-      if (!response.ok) {
-        console.warn('⚠️ API call failed, falling back to localStorage');
-        return super.list(query);
-      }
-      const data = await response.json();
-      // Backend returns { success: true, data: { workouts: [...] } }
-      const workouts = data.data?.workouts || data.workouts || data;
-      
-      // Normalize the data: convert _id to id
-      const normalized = workouts.map(w => ({
-        ...w,
-        id: w.id || w._id,
-        _id: undefined // Remove _id to avoid confusion
-      }));
-      
-      console.log('✅ API call successful, got', normalized.length, 'workouts');
-      return normalized;
-    } catch (error) {
-      console.warn('⚠️ API error, falling back to localStorage:', error.message);
-      return super.list(query);
-    }
-  }
+  // Inherited list() method from APIEntity
 
   async create(workoutData) {
     try {
@@ -480,42 +453,14 @@ class APIWorkout extends APIEntity {
 }
 
 // API Goal Entity - uses backend API with localStorage fallback
-class APIGoal extends MockEntity {
+class APIGoal extends APIEntity {
   constructor() {
     console.log('🔧 APIGoal constructor starting...');
-    super('Goal'); // Initialize parent MockEntity
-    this.baseURL = import.meta.env?.VITE_API_URL || 'http://localhost:5001/api/v1';
+    super('Goal', 'goals');
     console.log('🔧 APIGoal constructor completed successfully');
   }
 
-  async list(query = {}) {
-    try {
-      console.log('🌐 Trying API call to fetch goals...');
-      const response = await fetch(`${this.baseURL}/goals`, {
-        headers: auth.getAuthHeaders()
-      });
-      if (!response.ok) {
-        console.warn('⚠️ API call failed, falling back to localStorage');
-        return super.list(query);
-      }
-      const data = await response.json();
-      // Backend returns { goals: [...], pagination: {...} }
-      const goals = data.goals || data;
-      
-      // Normalize the data: convert _id to id
-      const normalized = goals.map(g => ({
-        ...g,
-        id: g.id || g._id,
-        _id: undefined // Remove _id to avoid confusion
-      }));
-      
-      console.log('✅ API call successful, got', normalized.length, 'goals');
-      return normalized;
-    } catch (error) {
-      console.warn('⚠️ API error, falling back to localStorage:', error.message);
-      return super.list(query);
-    }
-  }
+  // Inherited list() method from APIEntity
 
   async create(goalData) {
     try {
@@ -623,34 +568,14 @@ class APIGoal extends MockEntity {
 }
 
 // API PredefinedWorkout Entity
-class APIPredefinedWorkout extends MockEntity {
+class APIPredefinedWorkout extends APIEntity {
   constructor() {
     console.log('🔧 APIPredefinedWorkout constructor starting...');
-    super('PredefinedWorkout');
-    this.baseURL = import.meta.env?.VITE_API_URL || 'http://localhost:5001/api/v1';
+    super('PredefinedWorkout', 'predefined-workouts');
     console.log('🔧 APIPredefinedWorkout constructor completed successfully');
   }
 
-  async list(query = {}) {
-    try {
-      console.log('🌐 Trying API call to fetch predefined workouts...');
-      const response = await fetch(`${this.baseURL}/predefined-workouts`, {
-        headers: auth.getAuthHeaders()
-      });
-      if (!response.ok) {
-        console.warn('⚠️ API call failed, falling back to localStorage');
-        return super.list(query);
-      }
-      const data = await response.json();
-      const workouts = data.data?.predefinedWorkouts || data.predefinedWorkouts || data;
-      const normalized = workouts.map(w => ({ ...w, id: w.id || w._id, _id: undefined }));
-      console.log('✅ API call successful, got', normalized.length, 'predefined workouts');
-      return normalized;
-    } catch (error) {
-      console.warn('⚠️ API error, falling back to localStorage:', error.message);
-      return super.list(query);
-    }
-  }
+  // Inherited list() method from APIEntity
 
   async create(data) {
     try {
@@ -715,30 +640,14 @@ class APIPredefinedWorkout extends MockEntity {
 }
 
 // API Plan Entity
-class APIPlan extends MockEntity {
+class APIPlan extends APIEntity {
   constructor() {
     console.log('🔧 APIPlan constructor starting...');
-    super('Plan');
-    this.baseURL = import.meta.env?.VITE_API_URL || 'http://localhost:5001/api/v1';
+    super('Plan', 'plans');
     console.log('🔧 APIPlan constructor completed successfully');
   }
 
-  async list(query = {}) {
-    try {
-      console.log('🌐 Trying API call to fetch plans...');
-      const response = await fetch(`${this.baseURL}/plans`, {
-        headers: auth.getAuthHeaders()
-      });
-      if (!response.ok) return super.list(query);
-      const data = await response.json();
-      const plans = data.data?.plans || data.plans || data;
-      const normalized = plans.map(p => ({ ...p, id: p.id || p._id, _id: undefined }));
-      console.log('✅ API call successful, got', normalized.length, 'plans');
-      return normalized;
-    } catch (error) {
-      return super.list(query);
-    }
-  }
+  // Inherited list() method from APIEntity
 
   async create(data) {
     try {
