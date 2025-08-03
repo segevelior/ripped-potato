@@ -53,7 +53,7 @@ services:
   - type: static
     name: synergyfit-app
     buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: frontend/dist
+    staticPublishPath: ./frontend/dist
     envVars:
       - key: NODE_ENV
         value: production
