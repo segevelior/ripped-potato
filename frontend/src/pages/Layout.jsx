@@ -91,7 +91,29 @@ export default function Layout({ children }) {
             </div>
           </SidebarContent>
           <SidebarFooter>
-            {/* User profile section can go here */}
+            <div className="p-4 border-t">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
+                  <span className="text-white font-medium">
+                    {JSON.parse(localStorage.getItem('authUser') || '{}')?.name?.charAt(0)?.toUpperCase() || 'U'}
+                  </span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{JSON.parse(localStorage.getItem('authUser') || '{}')?.name || 'User'}</p>
+                  <p className="text-xs text-muted-foreground">{JSON.parse(localStorage.getItem('authUser') || '{}')?.email || ''}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('authUser');
+                    window.location.href = '/auth';
+                  }}
+                  className="text-sm text-muted-foreground hover:text-primary"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
           </SidebarFooter>
         </Sidebar>
 

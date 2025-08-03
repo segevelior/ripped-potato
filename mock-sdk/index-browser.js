@@ -55,6 +55,13 @@ const auth = {
     localStorage.removeItem('mockAuth');
   },
   
+  // Alias for Base44 compatibility
+  async login() {
+    // Base44's login() method doesn't take parameters, it redirects to their auth page
+    // For our implementation, we'll redirect to our auth page
+    window.location.href = '/auth';
+  },
+  
   async getCurrentUser() {
     if (!this.user) {
       // Try to restore from localStorage

@@ -26,6 +26,8 @@ import Chat from "./Chat";
 
 import Documentation from "./Documentation";
 
+import Auth from "./Auth";
+
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
 const PAGES = {
@@ -75,6 +77,19 @@ function _getCurrentPage(url) {
 function PagesContent() {
     const location = useLocation();
     const currentPage = _getCurrentPage(location.pathname);
+    
+    // Check if we're on the auth page
+    if (location.pathname === '/auth') {
+        return <Auth />;
+    }
+    
+    // Check if user is authenticated
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        // Redirect to auth if not authenticated
+        window.location.href = '/auth';
+        return null;
+    }
     
     return (
         <Layout currentPageName={currentPage}>
