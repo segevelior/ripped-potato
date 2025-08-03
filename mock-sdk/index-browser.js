@@ -193,43 +193,50 @@ class MockEntity {
   }
 }
 
+// Base API Entity class with common CRUD operations
+class APIEntity extends MockEntity {
+  constructor(entityName, endpoint) {
+    super(entityName);
+    this.endpoint = endpoint || entityName.toLowerCase() + 's';
+    this.baseURL = `${import.meta.env?.VITE_API_URL || 'http://localhost:5001/api'}/v1`;
+  }
+
+  async list() {
+    try {
+      const response = await fetch(`${this.baseURL}/${this.endpoint}`, {
+        headers: auth.getAuthHeaders()
+      });
+      
+      if (!response.ok) {
+        console.warn(`⚠️ API list error for ${this.endpoint}, falling back to localStorage`);
+        return super.list();
+      }
+      
+      const result = await response.json();
+      const items = result.data?.[this.endpoint] || result.data || result || [];
+      
+      // Normalize IDs
+      return items.map(item => ({
+        ...item,
+        id: item.id || item._id,
+        _id: undefined
+      }));
+    } catch (error) {
+      console.warn(`⚠️ API list error for ${this.endpoint}, falling back to localStorage:`, error.message);
+      return super.list();
+    }
+  }
+}
+
 // API Exercise Entity - uses backend API with localStorage fallback
-class APIExercise extends MockEntity {
+class APIExercise extends APIEntity {
   constructor() {
     console.log('🔧 APIExercise constructor starting...');
-    super('Exercise'); // Initialize parent MockEntity
-    this.baseURL = import.meta.env?.VITE_API_URL || 'http://localhost:5001/api/v1';
+    super('Exercise', 'exercises'); // Pass entity name and endpoint
     console.log('🔧 APIExercise constructor completed successfully');
   }
 
-  async list(query = {}) {
-    try {
-      console.log('🌐 Trying API call to fetch exercises...');
-      const response = await fetch(`${this.baseURL}/exercises`, {
-        headers: auth.getAuthHeaders()
-      });
-      if (!response.ok) {
-        console.warn('⚠️ API call failed, falling back to localStorage');
-        return super.list(query);
-      }
-      const data = await response.json();
-      // Backend returns { success: true, data: { exercises: [...] } }
-      const exercises = data.data?.exercises || data.exercises || data;
-      
-      // Normalize the data: convert _id to id
-      const normalized = exercises.map(ex => ({
-        ...ex,
-        id: ex.id || ex._id,
-        _id: undefined // Remove _id to avoid confusion
-      }));
-      
-      console.log('✅ API call successful, got', normalized.length, 'exercises');
-      return normalized;
-    } catch (error) {
-      console.warn('⚠️ API error, falling back to localStorage:', error.message);
-      return super.list(query);
-    }
-  }
+  // Inherited list() method from APIEntity
 
   async create(exerciseData) {
     try {
@@ -325,16 +332,16 @@ class APIExercise extends MockEntity {
     }
   }
 
+
   // Use parent's filter method for now
   // async filter(query = {}) is inherited from MockEntity
 }
 
 // API Workout Entity - uses backend API with localStorage fallback
-class APIWorkout extends MockEntity {
+class APIWorkout extends APIEntity {
   constructor() {
     console.log('🔧 APIWorkout constructor starting...');
-    super('Workout'); // Initialize parent MockEntity
-    this.baseURL = import.meta.env?.VITE_API_URL || 'http://localhost:5001/api/v1';
+    super('Workout', 'workouts');
     console.log('🔧 APIWorkout constructor completed successfully');
   }
 
