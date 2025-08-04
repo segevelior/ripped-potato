@@ -5,7 +5,7 @@
 const auth = {
   user: null,
   token: null,
-  baseURL: import.meta.env?.VITE_API_URL || 'http://localhost:5001/api/v1',
+  baseURL: `${import.meta.env?.VITE_API_URL || 'http://localhost:5001'}/api/v1`,
   
   async signIn(email, password) {
     try {
@@ -256,7 +256,7 @@ class APIEntity extends MockEntity {
   constructor(entityName, endpoint) {
     super(entityName);
     this.endpoint = endpoint || entityName.toLowerCase() + 's';
-    this.baseURL = `${import.meta.env?.VITE_API_URL || 'http://localhost:5001/api'}/v1`;
+    this.baseURL = `${import.meta.env?.VITE_API_URL || 'http://localhost:5001'}/api/v1`;
   }
 
   async list() {
@@ -815,7 +815,7 @@ class MockUser extends MockEntity {
 class APIUser extends MockUser {
   constructor() {
     super();
-    this.baseURL = `${import.meta.env?.VITE_API_URL || 'http://localhost:5001/api'}/v1`;
+    this.baseURL = `${import.meta.env?.VITE_API_URL || 'http://localhost:5001'}/api/v1`;
   }
   
   async me() {
@@ -925,10 +925,10 @@ const integrations = {
       console.log('AI invoke:', params);
       
       // Check if we have a real API connection
-      const baseURL = import.meta.env?.VITE_API_URL || 'http://localhost:5001/api';
+      const baseURL = import.meta.env?.VITE_API_URL || 'http://localhost:5001';
       
       try {
-        const response = await fetch(`${baseURL}/v1/ai/chat`, {
+        const response = await fetch(`${baseURL}/api/v1/ai/chat`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
