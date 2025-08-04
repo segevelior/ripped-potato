@@ -7,7 +7,6 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const winston = require('winston');
-const session = require('express-session');
 const passport = require('./config/passport');
 require('dotenv').config();
 
@@ -128,21 +127,8 @@ app.use(mongoSanitize());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Session middleware (required for passport)
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-session-secret-change-in-production',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-}));
-
-// Passport middleware
+// Passport middleware (without sessions for stateless JWT auth)
 app.use(passport.initialize());
-app.use(passport.session());
 
 // Logging middleware
 if (process.env.NODE_ENV === 'production') {

@@ -2,6 +2,16 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const User = require('../models/User');
 
+console.log('🔐 Initializing Google OAuth Strategy');
+console.log('Google Client ID:', process.env.GOOGLE_CLIENT_ID ? `${process.env.GOOGLE_CLIENT_ID.substring(0, 10)}...` : 'NOT SET');
+console.log('Google Client Secret:', process.env.GOOGLE_CLIENT_SECRET ? 'SET' : 'NOT SET');
+
+if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  console.error('⚠️  Google OAuth credentials missing! OAuth will not work.');
+  module.exports = passport;
+  return;
+}
+
 passport.use(
   new GoogleStrategy(
     {
@@ -12,6 +22,8 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
+        console.log('Google OAuth callback - Profile received:', profile.id);
+        
         // Check if user already exists with this Google ID
         let user = await User.findOne({ googleId: profile.id });
 
@@ -45,25 +57,17 @@ passport.use(
           lastLogin: new Date()
         });
 
+        console.log('New user created successfully:', user.email);
         done(null, user);
       } catch (error) {
+        console.error('Google OAuth error:', error.message);
+        console.error('Error stack:', error.stack);
         done(error, null);
       }
     }
   )
 );
 
-passport.serializeUser((user, done) => {
-  done(null, user._id);
-});
-
-passport.deserializeUser(async (id, done) => {
-  try {
-    const user = await User.findById(id);
-    done(null, user);
-  } catch (error) {
-    done(error, null);
-  }
-});
+// Not using sessions, so no need for serialize/deserialize
 
 module.exports = passport;
