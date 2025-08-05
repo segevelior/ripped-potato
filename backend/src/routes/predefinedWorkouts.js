@@ -1,5 +1,6 @@
 const express = require('express');
 const PredefinedWorkout = require('../models/PredefinedWorkout');
+const WorkoutService = require('../services/WorkoutService');
 const { auth, optionalAuth } = require('../middleware/auth');
 const router = express.Router();
 
@@ -19,48 +20,79 @@ router.get('/', optionalAuth, async (req, res) => {
       page = 1 
     } = req.query;
 
-    let query = {};
-
-    // Filter by ownership and common workouts
+    let workouts;
+    
     if (req.user) {
-      // Authenticated users see common workouts + their own
-      query.$or = [
-        { isCommon: true },
-        { createdBy: req.user.id }
-      ];
+      // Get workouts with user modifications applied
+      workouts = await WorkoutService.getWorkoutsForUser(req.user.id);
     } else {
       // Non-authenticated users only see common workouts
-      query.isCommon = true;
-    }
-
-    // Apply filters
-    if (type) query.type = type;
-    if (difficulty) query.difficulty = difficulty;
-    if (maxDuration) query.durationMinutes = { ...query.durationMinutes, $lte: parseInt(maxDuration) };
-    if (minDuration) query.durationMinutes = { ...query.durationMinutes, $gte: parseInt(minDuration) };
-    if (equipment) query.equipment = { $in: equipment.split(',') };
-    if (targetMuscles) query.targetMuscles = { $in: targetMuscles.split(',') };
-    if (tags) query.tags = { $in: tags.split(',') };
-
-    let workoutsQuery;
-    
-    if (popular === 'true') {
-      workoutsQuery = PredefinedWorkout.findPopular(parseInt(limit));
-    } else {
-      workoutsQuery = PredefinedWorkout.find(query)
+      workouts = await PredefinedWorkout.find({ isCommon: true })
         .populate('createdBy', 'name')
         .populate('exercises.exerciseId', 'name muscles equipment')
-        .sort({ createdAt: -1 })
-        .limit(parseInt(limit))
-        .skip((parseInt(page) - 1) * parseInt(limit));
+        .lean();
     }
 
-    const workouts = await workoutsQuery;
+    // Apply filters in memory (since we need to filter after modifications are applied)
+    let filteredWorkouts = workouts;
     
-    const total = popular === 'true' ? workouts.length : await PredefinedWorkout.countDocuments(query);
+    if (type) {
+      filteredWorkouts = filteredWorkouts.filter(w => w.type === type);
+    }
+    if (difficulty) {
+      filteredWorkouts = filteredWorkouts.filter(w => w.difficulty === difficulty);
+    }
+    if (maxDuration) {
+      filteredWorkouts = filteredWorkouts.filter(w => w.durationMinutes <= parseInt(maxDuration));
+    }
+    if (minDuration) {
+      filteredWorkouts = filteredWorkouts.filter(w => w.durationMinutes >= parseInt(minDuration));
+    }
+    if (equipment) {
+      const equipmentList = equipment.split(',');
+      filteredWorkouts = filteredWorkouts.filter(w => 
+        w.equipment && w.equipment.some(e => equipmentList.includes(e))
+      );
+    }
+    if (targetMuscles) {
+      const muscleList = targetMuscles.split(',');
+      filteredWorkouts = filteredWorkouts.filter(w => 
+        w.targetMuscles.some(m => muscleList.includes(m))
+      );
+    }
+    if (tags) {
+      const tagList = tags.split(',');
+      filteredWorkouts = filteredWorkouts.filter(w => 
+        w.tags && w.tags.some(t => tagList.includes(t))
+      );
+    }
+    
+    // Sort workouts
+    filteredWorkouts.sort((a, b) => {
+      // Favorites first if user is authenticated
+      if (req.user) {
+        const aFav = a.userMetadata?.isFavorite || false;
+        const bFav = b.userMetadata?.isFavorite || false;
+        if (aFav !== bFav) return bFav - aFav;
+      }
+      // Then by popularity and ratings
+      if (popular === 'true') {
+        if (a.popularity !== b.popularity) return b.popularity - a.popularity;
+        if (a.ratings?.average !== b.ratings?.average) {
+          return (b.ratings?.average || 0) - (a.ratings?.average || 0);
+        }
+      }
+      // Default to newest first
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+    
+    // Apply pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const paginatedWorkouts = filteredWorkouts.slice(skip, skip + parseInt(limit));
+    const total = filteredWorkouts.length;
 
     res.json({
-      workouts,
+      workouts: paginatedWorkouts,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -91,11 +123,23 @@ router.get('/search/:term', async (req, res) => {
 });
 
 // GET /api/predefined-workouts/:id - Get specific predefined workout
-router.get('/:id', async (req, res) => {
+router.get('/:id', optionalAuth, async (req, res) => {
   try {
-    const workout = await PredefinedWorkout.findById(req.params.id)
+    let workout;
+    
+    if (req.user) {
+      // Get workout with modifications for authenticated user
+      workout = await WorkoutService.getWorkoutForUser(req.params.id, req.user.id);
+    } else {
+      // Non-authenticated users can only see common workouts
+      workout = await PredefinedWorkout.findOne({
+        _id: req.params.id,
+        isCommon: true
+      })
       .populate('createdBy', 'name profile')
-      .populate('exercises.exerciseId', 'name description muscles equipment difficulty');
+      .populate('exercises.exerciseId', 'name description muscles equipment difficulty')
+      .lean();
+    }
 
     if (!workout) {
       return res.status(404).json({ error: 'Predefined workout not found' });
@@ -112,8 +156,15 @@ router.post('/', auth, async (req, res) => {
   try {
     const workoutData = {
       ...req.body,
-      createdBy: req.user.id
+      createdBy: req.user.id,
+      isCommon: false // User-created workouts are private by default
     };
+    
+    // Admin can create common workouts
+    if (req.user.role === 'admin' && req.body.isCommon === true) {
+      workoutData.isCommon = true;
+      workoutData.createdBy = null; // Common workouts don't have a specific creator
+    }
 
     const workout = new PredefinedWorkout(workoutData);
     await workout.save();
@@ -130,7 +181,7 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// PUT /api/predefined-workouts/:id - Update predefined workout (authenticated, only creator)
+// PUT /api/predefined-workouts/:id - Update predefined workout (authenticated)
 router.put('/:id', auth, async (req, res) => {
   try {
     const workout = await PredefinedWorkout.findById(req.params.id);
@@ -139,18 +190,23 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(404).json({ error: 'Predefined workout not found' });
     }
 
-    // Check if user is the creator
-    if (workout.createdBy.toString() !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized to update this workout' });
+    // Check if user can edit this workout directly
+    if (workout.canUserEdit(req.user.id)) {
+      // User owns this workout - update directly
+      Object.assign(workout, req.body);
+      await workout.save();
+      
+      await workout.populate('createdBy', 'name');
+      await workout.populate('exercises.exerciseId', 'name muscles equipment');
+      
+      res.json(workout);
+    } else if (workout.isCommon || workout.createdBy?.toString() !== req.user.id) {
+      // This is a common workout or another user's workout
+      // Should use modification endpoint instead
+      return res.status(403).json({ 
+        error: 'Cannot edit this workout directly. Use modifications endpoint for common workouts.' 
+      });
     }
-
-    Object.assign(workout, req.body);
-    await workout.save();
-
-    await workout.populate('createdBy', 'name');
-    await workout.populate('exercises.exerciseId', 'name muscles equipment');
-
-    res.json(workout);
   } catch (error) {
     if (error.name === 'ValidationError') {
       return res.status(400).json({ error: error.message });
@@ -159,7 +215,7 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/predefined-workouts/:id - Delete predefined workout (authenticated, only creator)
+// DELETE /api/predefined-workouts/:id - Delete predefined workout (authenticated)
 router.delete('/:id', auth, async (req, res) => {
   try {
     const workout = await PredefinedWorkout.findById(req.params.id);
@@ -168,12 +224,14 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ error: 'Predefined workout not found' });
     }
 
-    // Check if user is the creator
-    if (workout.createdBy.toString() !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized to delete this workout' });
+    // Only the owner can delete their private workouts
+    if (!workout.canUserEdit(req.user.id)) {
+      return res.status(403).json({ 
+        error: 'You can only delete your own workouts' 
+      });
     }
 
-    await PredefinedWorkout.findByIdAndDelete(req.params.id);
+    await workout.deleteOne();
     res.json({ message: 'Predefined workout deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -195,28 +253,87 @@ router.post('/:id/rate', auth, async (req, res) => {
       return res.status(404).json({ error: 'Predefined workout not found' });
     }
 
-    // Check if user already rated
-    const existingRatingIndex = workout.ratings.findIndex(
-      r => r.userId.toString() === req.user.id
-    );
-
-    if (existingRatingIndex > -1) {
-      // Update existing rating
-      workout.ratings[existingRatingIndex].rating = rating;
-      workout.ratings[existingRatingIndex].date = new Date();
-    } else {
-      // Add new rating
-      workout.ratings.push({
-        userId: req.user.id,
-        rating,
-        date: new Date()
-      });
-    }
-
-    await workout.save();
-    res.json({ message: 'Rating submitted successfully', averageRating: workout.averageRating });
+    // Use the model method to add rating
+    await workout.addRating(rating);
+    
+    res.json({ 
+      message: 'Rating submitted successfully', 
+      averageRating: workout.ratings.average,
+      totalRatings: workout.ratings.count
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Modification endpoints
+
+// PUT /api/predefined-workouts/:id/modifications - Create or update workout modification
+router.put('/:id/modifications', auth, async (req, res) => {
+  try {
+    const { modifications, metadata } = req.body;
+    
+    const modification = await WorkoutService.saveModification(
+      req.user.id,
+      req.params.id,
+      modifications,
+      metadata
+    );
+    
+    // Return the workout with modifications applied
+    const workout = await WorkoutService.getWorkoutForUser(req.params.id, req.user.id);
+    
+    res.json(workout);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// DELETE /api/predefined-workouts/:id/modifications - Remove workout modification (revert to original)
+router.delete('/:id/modifications', auth, async (req, res) => {
+  try {
+    await WorkoutService.removeModification(req.user.id, req.params.id);
+    
+    // Return the original workout
+    const workout = await WorkoutService.getWorkoutForUser(req.params.id, req.user.id);
+    
+    res.json(workout);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// PUT /api/predefined-workouts/:id/favorite - Toggle favorite status
+router.put('/:id/favorite', auth, async (req, res) => {
+  try {
+    const { isFavorite } = req.body;
+    
+    await WorkoutService.toggleFavorite(req.user.id, req.params.id, isFavorite);
+    
+    res.json({ success: true, isFavorite });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// POST /api/predefined-workouts/:id/complete - Record workout completion
+router.post('/:id/complete', auth, async (req, res) => {
+  try {
+    const { totalWeight, completionTime } = req.body;
+    
+    const modification = await WorkoutService.recordCompletion(
+      req.user.id,
+      req.params.id,
+      { totalWeight, completionTime }
+    );
+    
+    res.json({
+      success: true,
+      timesCompleted: modification.metadata.timesCompleted,
+      personalRecord: modification.metadata.personalRecord
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 });
 

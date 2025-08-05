@@ -409,6 +409,71 @@ class APIExercise extends APIEntity {
     }
   }
 
+  // Modification methods for common exercises
+  async customize(id, data) {
+    try {
+      const response = await fetch(`${this.baseURL}/exercises/${id}/modifications`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...auth.getAuthHeaders()
+        },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to customize exercise');
+      }
+      
+      const result = await response.json();
+      return result.data || result;
+    } catch (error) {
+      console.error('⚠️ API customize error:', error.message);
+      throw error;
+    }
+  }
+
+  async removeCustomization(id) {
+    try {
+      const response = await fetch(`${this.baseURL}/exercises/${id}/modifications`, {
+        method: 'DELETE',
+        headers: auth.getAuthHeaders()
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to remove customization');
+      }
+      
+      const result = await response.json();
+      return result.data || result;
+    } catch (error) {
+      console.error('⚠️ API remove customization error:', error.message);
+      throw error;
+    }
+  }
+
+  async toggleFavorite(id, isFavorite) {
+    try {
+      const response = await fetch(`${this.baseURL}/exercises/${id}/favorite`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...auth.getAuthHeaders()
+        },
+        body: JSON.stringify({ isFavorite })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to toggle favorite');
+      }
+      
+      const result = await response.json();
+      return result.data || result;
+    } catch (error) {
+      console.error('⚠️ API toggle favorite error:', error.message);
+      throw error;
+    }
+  }
 
   // Use parent's filter method for now
   // async filter(query = {}) is inherited from MockEntity

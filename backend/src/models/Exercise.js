@@ -50,12 +50,16 @@ const exerciseSchema = new mongoose.Schema({
   },
   isCommon: {
     type: Boolean,
-    default: false // false means it's private to the user
+    default: false, // false means it's private to the user
+    index: true
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    default: null // null for common exercises
+    required: function() {
+      return !this.isCommon; // Required for user exercises, not for common
+    },
+    index: true
   }
 }, {
   timestamps: true
@@ -64,11 +68,23 @@ const exerciseSchema = new mongoose.Schema({
 // Indexes for performance
 exerciseSchema.index({ name: 'text', description: 'text' });
 exerciseSchema.index({ 'strain.intensity': 1, 'strain.load': 1 });
+// Compound index for efficient user queries
+exerciseSchema.index({ isCommon: 1, createdBy: 1 });
 
 // Virtual for full muscle groups (primary + secondary)
 exerciseSchema.virtual('allMuscles').get(function() {
   return [...new Set([...this.muscles, ...this.secondaryMuscles])];
 });
+
+// Virtual to check if this is a user's private exercise
+exerciseSchema.virtual('isPrivate').get(function() {
+  return !this.isCommon && this.createdBy;
+});
+
+// Method to check if user can edit this exercise directly
+exerciseSchema.methods.canUserEdit = function(userId) {
+  return !this.isCommon && this.createdBy?.toString() === userId.toString();
+};
 
 // Static method to find exercises by muscle group
 exerciseSchema.statics.findByMuscle = function(muscle) {

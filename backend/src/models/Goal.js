@@ -102,8 +102,8 @@ const goalSchema = new mongoose.Schema({
 // Compound indexes for common queries
 goalSchema.index({ category: 1, difficultyLevel: 1 });
 goalSchema.index({ discipline: 1, difficultyLevel: 1 });
-goalSchema.index({ tags: 1, isPublic: 1 });
-goalSchema.index({ popularity: -1, isPublic: 1 });
+goalSchema.index({ tags: 1, isCommon: 1 });
+goalSchema.index({ popularity: -1, isCommon: 1 });
 
 // Text search index
 goalSchema.index({ 
@@ -130,7 +130,7 @@ goalSchema.virtual('difficultyScore').get(function() {
 
 // Static method to find goals by category and difficulty
 goalSchema.statics.findByCategoryAndDifficulty = function(category, difficulty) {
-  const query = { isPublic: true };
+  const query = { isCommon: true };
   if (category) query.category = category;
   if (difficulty) query.difficultyLevel = difficulty;
   
@@ -144,7 +144,7 @@ goalSchema.statics.findByCategoryAndDifficulty = function(category, difficulty) 
 // Static method to find goals by discipline
 goalSchema.statics.findByDiscipline = function(disciplines) {
   return this.find({
-    isPublic: true,
+    isCommon: true,
     discipline: { $in: disciplines }
   })
     .sort({ popularity: -1 })
@@ -156,7 +156,7 @@ goalSchema.statics.findByDiscipline = function(disciplines) {
 // Static method to find beginner-friendly goals
 goalSchema.statics.findBeginnerFriendly = function() {
   return this.find({
-    isPublic: true,
+    isCommon: true,
     difficultyLevel: 'beginner',
     prerequisites: { $size: 0 } // no prerequisites
   })
@@ -176,7 +176,7 @@ goalSchema.statics.findRecommendedNext = function(completedGoalIds, userLevel = 
   };
   
   return this.find({
-    isPublic: true,
+    isCommon: true,
     _id: { $nin: completedGoalIds },
     difficultyLevel: { $in: maxDifficulty[userLevel] || ['beginner'] },
     $or: [
@@ -215,5 +215,15 @@ goalSchema.methods.checkPrerequisites = function(completedGoalIds) {
     )
   );
 };
+
+// Method to check if user can edit this goal
+goalSchema.methods.canUserEdit = function(userId) {
+  return !this.isCommon && this.createdBy?.toString() === userId.toString();
+};
+
+// Virtual for isPrivate
+goalSchema.virtual('isPrivate').get(function() {
+  return !this.isCommon;
+});
 
 module.exports = mongoose.model('Goal', goalSchema);

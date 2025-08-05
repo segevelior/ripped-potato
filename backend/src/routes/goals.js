@@ -1,6 +1,7 @@
 const express = require('express');
 const Goal = require('../models/Goal');
 const UserGoalProgress = require('../models/UserGoalProgress');
+const GoalService = require('../services/GoalService');
 const { auth, optionalAuth } = require('../middleware/auth');
 const router = express.Router();
 
@@ -18,45 +19,69 @@ router.get('/', optionalAuth, async (req, res) => {
       page = 1 
     } = req.query;
 
-    let query = {};
-
-    // Filter by ownership and common goals
+    let goals;
+    
     if (req.user) {
-      // Authenticated users see common goals + their own
-      query.$or = [
-        { isCommon: true },
-        { createdBy: req.user.id }
-      ];
+      // Get goals with user modifications applied
+      goals = await GoalService.getGoalsForUser(req.user.id);
     } else {
       // Non-authenticated users only see common goals
-      query.isCommon = true;
+      goals = await Goal.find({ isCommon: true })
+        .populate('recommendedExercises', 'name muscles equipment')
+        .lean();
     }
 
-    // Apply filters
-    if (category) query.category = category;
-    if (difficulty) query.difficultyLevel = difficulty;
-    if (discipline) query.discipline = { $in: discipline.split(',') };
-    if (maxWeeks) query.estimatedWeeks = { ...query.estimatedWeeks, $lte: parseInt(maxWeeks) };
-    if (minWeeks) query.estimatedWeeks = { ...query.estimatedWeeks, $gte: parseInt(minWeeks) };
-
-    let goalsQuery;
+    // Apply filters in memory (since we need to filter after modifications are applied)
+    let filteredGoals = goals;
+    
+    if (category) {
+      filteredGoals = filteredGoals.filter(g => g.category === category);
+    }
+    if (difficulty) {
+      filteredGoals = filteredGoals.filter(g => g.difficultyLevel === difficulty);
+    }
+    if (discipline) {
+      const disciplines = discipline.split(',');
+      filteredGoals = filteredGoals.filter(g => 
+        g.discipline.some(d => disciplines.includes(d))
+      );
+    }
+    if (maxWeeks) {
+      filteredGoals = filteredGoals.filter(g => g.estimatedWeeks <= parseInt(maxWeeks));
+    }
+    if (minWeeks) {
+      filteredGoals = filteredGoals.filter(g => g.estimatedWeeks >= parseInt(minWeeks));
+    }
     
     if (beginner === 'true') {
-      goalsQuery = Goal.findBeginnerFriendly();
-    } else {
-      goalsQuery = Goal.find(query)
-        .populate('recommendedExercises', 'name muscles equipment')
-        .sort({ createdAt: -1 })
-        .limit(parseInt(limit))
-        .skip((parseInt(page) - 1) * parseInt(limit));
+      // Filter for beginner-friendly goals
+      filteredGoals = filteredGoals.filter(g => 
+        g.difficultyLevel === 'beginner' && 
+        (!g.prerequisites || g.prerequisites.length === 0)
+      );
     }
-
-    const goals = await goalsQuery;
     
-    const total = beginner === 'true' ? goals.length : await Goal.countDocuments(query);
+    // Sort goals
+    filteredGoals.sort((a, b) => {
+      // Favorites first if user is authenticated
+      if (req.user) {
+        const aFav = a.userMetadata?.isFavorite || false;
+        const bFav = b.userMetadata?.isFavorite || false;
+        if (aFav !== bFav) return bFav - aFav;
+      }
+      // Then by popularity and success rate
+      if (a.popularity !== b.popularity) return b.popularity - a.popularity;
+      if (a.successRate !== b.successRate) return b.successRate - a.successRate;
+      return 0;
+    });
+    
+    // Apply pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const paginatedGoals = filteredGoals.slice(skip, skip + parseInt(limit));
+    const total = filteredGoals.length;
 
     res.json({
-      goals,
+      goals: paginatedGoals,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -114,10 +139,22 @@ router.get('/search/:term', async (req, res) => {
 });
 
 // GET /api/goals/:id - Get specific goal
-router.get('/:id', async (req, res) => {
+router.get('/:id', optionalAuth, async (req, res) => {
   try {
-    const goal = await Goal.findById(req.params.id)
-      .populate('recommendedExercises', 'name description muscles equipment difficulty');
+    let goal;
+    
+    if (req.user) {
+      // Get goal with modifications for authenticated user
+      goal = await GoalService.getGoalForUser(req.params.id, req.user.id);
+    } else {
+      // Non-authenticated users can only see common goals
+      goal = await Goal.findOne({
+        _id: req.params.id,
+        isCommon: true
+      })
+      .populate('recommendedExercises', 'name description muscles equipment difficulty')
+      .lean();
+    }
 
     if (!goal) {
       return res.status(404).json({ error: 'Goal not found' });
@@ -129,10 +166,22 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/goals - Create new goal (authenticated, admin only for now)
+// POST /api/goals - Create new goal (authenticated)
 router.post('/', auth, async (req, res) => {
   try {
-    const goal = new Goal(req.body);
+    const goalData = {
+      ...req.body,
+      createdBy: req.user.id,
+      isCommon: false // User-created goals are private by default
+    };
+    
+    // Admin can create common goals
+    if (req.user.role === 'admin' && req.body.isCommon === true) {
+      goalData.isCommon = true;
+      goalData.createdBy = null; // Common goals don't have a specific creator
+    }
+    
+    const goal = new Goal(goalData);
     await goal.save();
 
     await goal.populate('recommendedExercises', 'name muscles equipment');
@@ -146,20 +195,30 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// PUT /api/goals/:id - Update goal (authenticated, admin only)
+// PUT /api/goals/:id - Update goal (authenticated)
 router.put('/:id', auth, async (req, res) => {
   try {
-    const goal = await Goal.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    ).populate('recommendedExercises', 'name muscles equipment');
-
+    const goal = await Goal.findById(req.params.id);
+    
     if (!goal) {
       return res.status(404).json({ error: 'Goal not found' });
     }
-
-    res.json(goal);
+    
+    // Check if user can edit this goal directly
+    if (goal.canUserEdit(req.user.id)) {
+      // User owns this goal - update directly
+      Object.assign(goal, req.body);
+      await goal.save();
+      await goal.populate('recommendedExercises', 'name muscles equipment');
+      
+      res.json(goal);
+    } else if (goal.isCommon || goal.createdBy.toString() !== req.user.id) {
+      // This is a common goal or another user's goal
+      // Should use modification endpoint instead
+      return res.status(403).json({ 
+        error: 'Cannot edit this goal directly. Use modifications endpoint for common goals.' 
+      });
+    }
   } catch (error) {
     if (error.name === 'ValidationError') {
       return res.status(400).json({ error: error.message });
@@ -168,15 +227,24 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/goals/:id - Delete goal (authenticated, admin only)
+// DELETE /api/goals/:id - Delete goal (authenticated)
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const goal = await Goal.findByIdAndDelete(req.params.id);
-
+    const goal = await Goal.findById(req.params.id);
+    
     if (!goal) {
       return res.status(404).json({ error: 'Goal not found' });
     }
-
+    
+    // Only the owner can delete their private goals
+    if (!goal.canUserEdit(req.user.id)) {
+      return res.status(403).json({ 
+        error: 'You can only delete your own goals' 
+      });
+    }
+    
+    await goal.deleteOne();
+    
     // Also delete any user progress for this goal
     await UserGoalProgress.deleteMany({ goalId: req.params.id });
 
@@ -308,6 +376,74 @@ router.put('/progress/:progressId', auth, async (req, res) => {
     res.json(progress);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Modification endpoints
+
+// PUT /api/goals/:id/modifications - Create or update goal modification
+router.put('/:id/modifications', auth, async (req, res) => {
+  try {
+    const { modifications, metadata } = req.body;
+    
+    const modification = await GoalService.saveModification(
+      req.user.id,
+      req.params.id,
+      modifications,
+      metadata
+    );
+    
+    // Return the goal with modifications applied
+    const goal = await GoalService.getGoalForUser(req.params.id, req.user.id);
+    
+    res.json(goal);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// DELETE /api/goals/:id/modifications - Remove goal modification (revert to original)
+router.delete('/:id/modifications', auth, async (req, res) => {
+  try {
+    await GoalService.removeModification(req.user.id, req.params.id);
+    
+    // Return the original goal
+    const goal = await GoalService.getGoalForUser(req.params.id, req.user.id);
+    
+    res.json(goal);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// PUT /api/goals/:id/favorite - Toggle favorite status
+router.put('/:id/favorite', auth, async (req, res) => {
+  try {
+    const { isFavorite } = req.body;
+    
+    await GoalService.toggleFavorite(req.user.id, req.params.id, isFavorite);
+    
+    res.json({ success: true, isFavorite });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// PUT /api/goals/:id/milestone/:milestoneId/complete - Update milestone completion
+router.put('/:id/milestone/:milestoneId/complete', auth, async (req, res) => {
+  try {
+    const { completed = true } = req.body;
+    
+    const modification = await GoalService.updateMilestoneCompletion(
+      req.user.id,
+      req.params.id,
+      req.params.milestoneId,
+      completed
+    );
+    
+    res.json(modification);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 });
 

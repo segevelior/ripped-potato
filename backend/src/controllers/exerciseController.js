@@ -1,4 +1,5 @@
 const Exercise = require('../models/Exercise');
+const ExerciseService = require('../services/ExerciseService');
 const { validationResult } = require('express-validator');
 
 // Get all exercises with optional filtering
@@ -6,67 +7,84 @@ const getExercises = async (req, res) => {
   try {
     const { muscle, discipline, equipment, difficulty, search, page = 1, limit = 50 } = req.query;
     
-    let query = {};
-    
-    // Filter by ownership and common exercises
+    // If user is authenticated, get exercises with modifications applied
+    let exercises;
     if (req.user) {
-      // Authenticated users see common exercises + their own
-      query.$or = [
-        { isCommon: true },
-        { createdBy: req.user.id }
-      ];
+      exercises = await ExerciseService.getExercisesForUser(req.user.id);
     } else {
       // Non-authenticated users only see common exercises
-      query.isCommon = true;
+      const commonExercises = await Exercise.find({ isCommon: true }).lean();
+      exercises = commonExercises.map(ex => ({
+        ...ex,
+        isCommon: true,
+        isPrivate: false,
+        canEdit: false
+      }));
     }
     
-    // Build query filters
+    // Apply filters in memory (since we need to filter after modifications are applied)
+    let filteredExercises = exercises;
+    
     if (muscle) {
-      const muscleFilter = {
-        $or: [
-          { muscles: { $in: muscle.split(',') } },
-          { secondaryMuscles: { $in: muscle.split(',') } }
-        ]
-      };
-      // Combine with ownership filter
-      query = { $and: [query, muscleFilter] };
+      const muscles = muscle.split(',');
+      filteredExercises = filteredExercises.filter(ex => 
+        ex.muscles.some(m => muscles.includes(m)) ||
+        (ex.secondaryMuscles && ex.secondaryMuscles.some(m => muscles.includes(m)))
+      );
     }
     
     if (discipline) {
-      query.discipline = { $in: discipline.split(',') };
+      const disciplines = discipline.split(',');
+      filteredExercises = filteredExercises.filter(ex =>
+        ex.discipline.some(d => disciplines.includes(d))
+      );
     }
     
     if (difficulty) {
-      query.difficulty = difficulty;
+      filteredExercises = filteredExercises.filter(ex => ex.difficulty === difficulty);
     }
     
     if (equipment) {
       const equipmentList = equipment.split(',');
       if (equipmentList.includes('none')) {
-        query.equipment = { $size: 0 };
+        filteredExercises = filteredExercises.filter(ex => 
+          !ex.equipment || ex.equipment.length === 0
+        );
       } else {
-        query.equipment = { $in: equipmentList };
+        filteredExercises = filteredExercises.filter(ex =>
+          ex.equipment && ex.equipment.some(e => equipmentList.includes(e))
+        );
       }
     }
     
     if (search) {
-      query.$text = { $search: search };
+      const searchLower = search.toLowerCase();
+      filteredExercises = filteredExercises.filter(ex =>
+        ex.name.toLowerCase().includes(searchLower) ||
+        (ex.description && ex.description.toLowerCase().includes(searchLower))
+      );
     }
-
-    // Execute query with pagination
+    
+    // Sort exercises
+    filteredExercises.sort((a, b) => {
+      // Favorites first if user is authenticated
+      if (req.user) {
+        const aFav = a.userMetadata?.isFavorite || false;
+        const bFav = b.userMetadata?.isFavorite || false;
+        if (aFav !== bFav) return bFav - aFav;
+      }
+      return a.name.localeCompare(b.name);
+    });
+    
+    // Apply pagination
     const skip = (page - 1) * limit;
-    const exercises = await Exercise.find(query)
-      .sort(search ? { score: { $meta: 'textScore' } } : { name: 1 })
-      .skip(skip)
-      .limit(parseInt(limit))
-      .populate('createdBy', 'name');
-
-    const total = await Exercise.countDocuments(query);
+    const paginatedExercises = filteredExercises.slice(skip, skip + parseInt(limit));
+    const total = filteredExercises.length;
 
     res.json({
       success: true,
       data: {
-        exercises,
+        exercises: paginatedExercises,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
@@ -87,7 +105,18 @@ const getExercises = async (req, res) => {
 // Get single exercise by ID
 const getExercise = async (req, res) => {
   try {
-    const exercise = await Exercise.findById(req.params.id).populate('createdBy', 'name');
+    let exercise;
+    
+    if (req.user) {
+      // Get exercise with modifications for authenticated user
+      exercise = await ExerciseService.getExerciseForUser(req.params.id, req.user.id);
+    } else {
+      // Non-authenticated users can only see common exercises
+      exercise = await Exercise.findOne({
+        _id: req.params.id,
+        isCommon: true
+      }).lean();
+    }
     
     if (!exercise) {
       return res.status(404).json({
@@ -98,7 +127,7 @@ const getExercise = async (req, res) => {
 
     res.json({
       success: true,
-      data: { exercise }
+      data: exercise
     });
   } catch (error) {
     console.error('Get exercise error:', error);
@@ -112,29 +141,32 @@ const getExercise = async (req, res) => {
 // Create new exercise
 const createExercise = async (req, res) => {
   try {
+    // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        message: 'Validation errors',
         errors: errors.array()
       });
     }
 
     const exerciseData = {
       ...req.body,
-      isCustom: true,
-      createdBy: req.user ? req.user.id || req.user._id : null // Handle both id formats
+      createdBy: req.user.id,
+      isCommon: false // User-created exercises are private by default
     };
+    
+    // Admin can create common exercises
+    if (req.user.role === 'admin' && req.body.isCommon === true) {
+      exerciseData.isCommon = true;
+      exerciseData.createdBy = null; // Common exercises don't have a specific creator
+    }
 
-    const exercise = new Exercise(exerciseData);
-    await exercise.save();
-    await exercise.populate('createdBy', 'name');
+    const exercise = await Exercise.create(exerciseData);
 
     res.status(201).json({
       success: true,
-      message: 'Exercise created successfully',
-      data: { exercise }
+      data: exercise
     });
   } catch (error) {
     console.error('Create exercise error:', error);
@@ -156,27 +188,25 @@ const updateExercise = async (req, res) => {
         message: 'Exercise not found'
       });
     }
-
-    // Check if user owns the exercise or it's a system exercise
-    // Skip ownership check if exercise has no owner (created when auth was disabled)
-    if (exercise.createdBy && req.user && exercise.createdBy.toString() !== req.user._id.toString()) {
+    
+    // Check if user can edit this exercise directly
+    if (exercise.canUserEdit(req.user.id)) {
+      // User owns this exercise - update directly
+      Object.assign(exercise, req.body);
+      await exercise.save();
+      
+      res.json({
+        success: true,
+        data: exercise
+      });
+    } else if (exercise.isCommon || exercise.createdBy.toString() !== req.user.id) {
+      // This is a common exercise or another user's exercise
+      // Should use modification endpoint instead
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to update this exercise'
+        message: 'Cannot edit this exercise directly. Use modifications endpoint for common exercises.'
       });
     }
-
-    const updatedExercise = await Exercise.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    ).populate('createdBy', 'name');
-
-    res.json({
-      success: true,
-      message: 'Exercise updated successfully',
-      data: { exercise: updatedExercise }
-    });
   } catch (error) {
     console.error('Update exercise error:', error);
     res.status(500).json({
@@ -198,16 +228,15 @@ const deleteExercise = async (req, res) => {
       });
     }
 
-    // Check if user owns the exercise
-    // Skip ownership check if exercise has no owner (created when auth was disabled)
-    if (exercise.createdBy && req.user && exercise.createdBy.toString() !== req.user._id.toString()) {
+    // Only the owner can delete their private exercises
+    if (!exercise.canUserEdit(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to delete this exercise'
+        message: 'You can only delete your own exercises'
       });
     }
 
-    await Exercise.findByIdAndDelete(req.params.id);
+    await exercise.deleteOne();
 
     res.json({
       success: true,
