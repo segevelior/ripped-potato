@@ -35,4 +35,82 @@ router.put('/:id', auth, validateExercise, updateExercise);
 // @access  Private (only owner can delete)
 router.delete('/:id', auth, deleteExercise);
 
+// Modification endpoints
+
+// @route   PUT /api/v1/exercises/:id/modifications
+// @desc    Create or update exercise modification
+// @access  Private
+router.put('/:id/modifications', auth, async (req, res) => {
+  try {
+    const ExerciseService = require('../services/ExerciseService');
+    const { modifications, metadata } = req.body;
+    
+    const modification = await ExerciseService.saveModification(
+      req.user.id,
+      req.params.id,
+      modifications,
+      metadata
+    );
+    
+    // Return the exercise with modifications applied
+    const exercise = await ExerciseService.getExerciseForUser(req.params.id, req.user.id);
+    
+    res.json({
+      success: true,
+      data: exercise
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// @route   DELETE /api/v1/exercises/:id/modifications
+// @desc    Remove exercise modification (revert to original)
+// @access  Private
+router.delete('/:id/modifications', auth, async (req, res) => {
+  try {
+    const ExerciseService = require('../services/ExerciseService');
+    
+    await ExerciseService.removeModification(req.user.id, req.params.id);
+    
+    // Return the original exercise
+    const exercise = await ExerciseService.getExerciseForUser(req.params.id, req.user.id);
+    
+    res.json({
+      success: true,
+      data: exercise
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// @route   PUT /api/v1/exercises/:id/favorite
+// @desc    Toggle favorite status
+// @access  Private
+router.put('/:id/favorite', auth, async (req, res) => {
+  try {
+    const ExerciseService = require('../services/ExerciseService');
+    const { isFavorite } = req.body;
+    
+    await ExerciseService.toggleFavorite(req.user.id, req.params.id, isFavorite);
+    
+    res.json({
+      success: true,
+      data: { isFavorite }
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;

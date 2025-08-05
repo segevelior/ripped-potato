@@ -1,9 +1,12 @@
 
 import React, { useState, useEffect } from "react";
 import { Exercise } from "@/api/entities";
-import { Plus, Search, Filter, Edit, Trash2, Dumbbell, Target, Zap } from "lucide-react";
+import { Plus, Search, Filter, Edit, Trash2, Dumbbell, Target, Zap, Star } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import ExerciseBadges from "@/components/exercise/ExerciseBadges";
+import ExerciseFilters from "@/components/exercise/ExerciseFilters";
+import CustomizeExerciseModal from "@/components/exercise/CustomizeExerciseModal";
 
 const intensityColors = {
   low: "bg-green-100 text-green-800",
@@ -26,7 +29,9 @@ export default function Exercises() {
   const [disciplineFilter, setDisciplineFilter] = useState("all");
   const [muscleFilter, setMuscleFilter] = useState("all");
   const [intensityFilter, setIntensityFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
+  const [customizeExercise, setCustomizeExercise] = useState(null);
 
   useEffect(() => {
     loadExercises();
@@ -44,10 +49,59 @@ export default function Exercises() {
   };
 
   const handleEditExercise = (exercise) => {
-    navigate(createPageUrl(`CreateExercise?edit=${exercise.id}`));
+    if (exercise.isCommon) {
+      // For ALL common exercises (modified or not), use customize modal
+      setCustomizeExercise(exercise);
+    } else {
+      // For private exercises only, go to direct edit page
+      navigate(createPageUrl(`CreateExercise?edit=${exercise.id}`));
+    }
+  };
+
+  const handleCustomizeSave = async (data) => {
+    try {
+      await Exercise.customize(customizeExercise.id, data);
+      setCustomizeExercise(null);
+      loadExercises();
+    } catch (error) {
+      console.error("Error customizing exercise:", error);
+      alert("Error customizing exercise. Please try again.");
+    }
+  };
+
+  const handleToggleFavorite = async (exercise) => {
+    try {
+      const currentlyFavorited = exercise.userMetadata?.isFavorite || false;
+      const newFavoriteStatus = !currentlyFavorited;
+      
+      await Exercise.toggleFavorite(exercise.id, newFavoriteStatus);
+      loadExercises();
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+    }
+  };
+
+  const handleRemoveCustomization = async (exercise) => {
+    if (!confirm("Remove all customizations and revert to the original exercise?")) {
+      return;
+    }
+    
+    try {
+      await Exercise.removeCustomization(exercise.id);
+      loadExercises();
+    } catch (error) {
+      console.error("Error removing customization:", error);
+      alert("Error removing customization. Please try again.");
+    }
   };
 
   const handleDeleteExercise = async (exercise) => {
+    // Can only delete private exercises
+    if (exercise.isCommon) {
+      alert("Common exercises cannot be deleted. You can customize them instead.");
+      return;
+    }
+    
     if (!confirm(`Are you sure you want to delete "${exercise.name}"? This action cannot be undone.`)) {
       return;
     }
@@ -75,8 +129,29 @@ export default function Exercises() {
     const matchesIntensity = intensityFilter === "all" || 
                             exercise.strain?.intensity === intensityFilter;
     
-    return matchesSearch && matchesDiscipline && matchesMuscle && matchesIntensity;
+    // Type filter logic
+    let matchesType = true;
+    if (typeFilter === "common") {
+      matchesType = exercise.isCommon && !exercise.isModified;
+    } else if (typeFilter === "private") {
+      matchesType = !exercise.isCommon;
+    } else if (typeFilter === "modified") {
+      matchesType = exercise.isModified;
+    } else if (typeFilter === "favorites") {
+      matchesType = exercise.userMetadata?.isFavorite;
+    }
+    
+    return matchesSearch && matchesDiscipline && matchesMuscle && matchesIntensity && matchesType;
   });
+
+  // Calculate counts for filters
+  const filterCounts = {
+    all: exercises.length,
+    common: exercises.filter(e => e.isCommon && !e.isModified).length,
+    private: exercises.filter(e => !e.isCommon).length,
+    modified: exercises.filter(e => e.isModified).length,
+    favorites: exercises.filter(e => e.userMetadata?.isFavorite).length
+  };
 
   const disciplines = [...new Set(exercises.flatMap(ex => ex.discipline || []))];
   const muscles = [...new Set(exercises.flatMap(ex => ex.muscles || []))];
@@ -110,6 +185,15 @@ export default function Exercises() {
             Add Exercise
           </button>
         </Link>
+      </div>
+
+      {/* Type Filters */}
+      <div className="flex justify-center">
+        <ExerciseFilters 
+          activeFilter={typeFilter}
+          onFilterChange={setTypeFilter}
+          counts={filterCounts}
+        />
       </div>
 
       {/* Search and Filters */}
@@ -179,18 +263,47 @@ export default function Exercises() {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredExercises.map(exercise => (
             <div key={exercise.id} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all">
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="font-bold text-xl text-gray-900 leading-tight">
-                  {exercise.name}
-                </h3>
-                <div className="flex gap-1">
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-bold text-xl text-gray-900 leading-tight">
+                      {exercise.name}
+                    </h3>
+                    <button
+                      onClick={() => handleToggleFavorite(exercise)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        exercise.userMetadata?.isFavorite 
+                          ? 'text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50' 
+                          : 'text-gray-400 hover:text-yellow-500 hover:bg-yellow-50'
+                      }`}
+                      title="Toggle favorite"
+                    >
+                      <Star className="w-4 h-4" fill={exercise.userMetadata?.isFavorite ? 'currentColor' : 'none'} />
+                    </button>
+                  </div>
+                  <ExerciseBadges exercise={exercise} />
+                </div>
+              </div>
+              <div className="flex gap-1 mb-4">
+                <button
+                  onClick={() => handleEditExercise(exercise)}
+                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title={exercise.isCommon && !exercise.isModified ? "Customize exercise" : "Edit exercise"}
+                >
+                  <Edit className="w-4 h-4" />
+                </button>
+                {exercise.isModified && (
                   <button
-                    onClick={() => handleEditExercise(exercise)}
-                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    title="Edit exercise"
+                    onClick={() => handleRemoveCustomization(exercise)}
+                    className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                    title="Remove customization"
                   >
-                    <Edit className="w-4 h-4" />
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                   </button>
+                )}
+                {!exercise.isCommon && (
                   <button
                     onClick={() => handleDeleteExercise(exercise)}
                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -198,7 +311,7 @@ export default function Exercises() {
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
-                </div>
+                )}
               </div>
 
               {/* Exercise Tags */}
@@ -298,6 +411,16 @@ export default function Exercises() {
             </button>
           </Link>
         </div>
+      )}
+
+      {/* Customize Exercise Modal */}
+      {customizeExercise && (
+        <CustomizeExerciseModal
+          exercise={customizeExercise}
+          isOpen={!!customizeExercise}
+          onClose={() => setCustomizeExercise(null)}
+          onSave={handleCustomizeSave}
+        />
       )}
     </div>
   );

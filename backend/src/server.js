@@ -43,6 +43,7 @@ const externalActivityRoutes = require('./routes/externalActivities');
 const disciplineRoutes = require('./routes/disciplines');
 const workoutTypeRoutes = require('./routes/workoutTypes');
 const aiRoutes = require('./routes/ai');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 
@@ -214,6 +215,7 @@ app.use('/api/v1/external-activities', externalActivityRoutes);
 app.use('/api/v1/disciplines', disciplineRoutes);
 app.use('/api/v1/workout-types', workoutTypeRoutes);
 app.use('/api/v1/ai', aiRoutes);
+app.use('/api/v1/admin', adminRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

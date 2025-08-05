@@ -122,7 +122,7 @@ predefinedWorkoutSchema.virtual('estimatedCalories').get(function() {
 
 // Static method to find popular workouts
 predefinedWorkoutSchema.statics.findPopular = function(limit = 10) {
-  return this.find({ isPublic: true })
+  return this.find({ isCommon: true })
     .sort({ popularity: -1, 'ratings.average': -1 })
     .limit(limit)
     .populate('exercises.exerciseId', 'name muscles')
@@ -131,7 +131,7 @@ predefinedWorkoutSchema.statics.findPopular = function(limit = 10) {
 
 // Static method to find by difficulty and type
 predefinedWorkoutSchema.statics.findByDifficultyAndType = function(difficulty, type) {
-  const query = { isPublic: true };
+  const query = { isCommon: true };
   if (difficulty) query.difficulty = difficulty;
   if (type) query.type = type;
   
@@ -143,7 +143,7 @@ predefinedWorkoutSchema.statics.findByDifficultyAndType = function(difficulty, t
 
 // Static method to find by equipment
 predefinedWorkoutSchema.statics.findByEquipment = function(availableEquipment = []) {
-  let query = { isPublic: true };
+  let query = { isCommon: true };
   
   if (availableEquipment.length === 0) {
     // Find bodyweight workouts
@@ -172,5 +172,15 @@ predefinedWorkoutSchema.methods.addRating = function(rating) {
   this.ratings.average = (currentTotal + rating) / this.ratings.count;
   return this.save();
 };
+
+// Method to check if user can edit this workout
+predefinedWorkoutSchema.methods.canUserEdit = function(userId) {
+  return !this.isCommon && this.createdBy?.toString() === userId.toString();
+};
+
+// Virtual for isPrivate
+predefinedWorkoutSchema.virtual('isPrivate').get(function() {
+  return !this.isCommon;
+});
 
 module.exports = mongoose.model('PredefinedWorkout', predefinedWorkoutSchema);
