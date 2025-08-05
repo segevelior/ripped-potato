@@ -1,0 +1,30 @@
+<\!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Local Storage</title>
+</head>
+<body>
+    <h1>Clear SynergyFit Local Storage</h1>
+    <button onclick="clearStorage()">Clear Exercise Data</button>
+    <p id="result"></p>
+    
+    <script>
+        function clearStorage() {
+            // Clear exercise data
+            localStorage.removeItem('synergyfit_Exercise');
+            localStorage.removeItem('synergyfit_Goal');
+            localStorage.removeItem('synergyfit_PredefinedWorkout');
+            
+            // Show what's left
+            const keys = Object.keys(localStorage).filter(k => k.startsWith('synergyfit_'));
+            document.getElementById('result').innerHTML = 
+                'Cleared\! Remaining keys: ' + (keys.length ? keys.join(', ') : 'None');
+        }
+        
+        // Show current state
+        const keys = Object.keys(localStorage).filter(k => k.startsWith('synergyfit_'));
+        console.log('Current localStorage keys:', keys);
+    </script>
+</body>
+</html>
+EOF < /dev/null

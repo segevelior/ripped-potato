@@ -53,7 +53,13 @@ class ExerciseService {
       
       // Add metadata
       result.userMetadata = mod.metadata;
-      result.isModified = true;
+      
+      // Only mark as modified if there are actual content modifications
+      // (not just metadata like favorites)
+      const hasContentModifications = mod.modifications && 
+        Object.keys(mod.modifications).some(key => mod.modifications[key] !== undefined);
+      
+      result.isModified = hasContentModifications;
       result.modificationId = mod._id;
       
       return result;

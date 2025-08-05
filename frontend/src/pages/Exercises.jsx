@@ -49,11 +49,11 @@ export default function Exercises() {
   };
 
   const handleEditExercise = (exercise) => {
-    if (exercise.isCommon && !exercise.isModified) {
-      // For common exercises, open customize modal instead
+    if (exercise.isCommon) {
+      // For ALL common exercises (modified or not), use customize modal
       setCustomizeExercise(exercise);
     } else {
-      // For private exercises or already modified ones, go to edit page
+      // For private exercises only, go to direct edit page
       navigate(createPageUrl(`CreateExercise?edit=${exercise.id}`));
     }
   };
@@ -71,7 +71,10 @@ export default function Exercises() {
 
   const handleToggleFavorite = async (exercise) => {
     try {
-      await Exercise.toggleFavorite(exercise.id);
+      const currentlyFavorited = exercise.userMetadata?.isFavorite || false;
+      const newFavoriteStatus = !currentlyFavorited;
+      
+      await Exercise.toggleFavorite(exercise.id, newFavoriteStatus);
       loadExercises();
     } catch (error) {
       console.error("Error toggling favorite:", error);
