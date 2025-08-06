@@ -8,6 +8,10 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Configuration for AI provider
+const AI_PROVIDER = process.env.AI_PROVIDER || 'openai'; // 'python' or 'openai'
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8001';
+
 // Rate limiting for AI endpoints
 const aiRateLimit = require('express-rate-limit')({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -26,6 +30,65 @@ const parseAIResponse = (content) => {
   }
 };
 
+// Helper function to call Python AI service
+async function callPythonAIService(prompt, req, schema = null) {
+  try {
+    // Use built-in fetch (Node 18+) or fall back to https module
+    const url = `${AI_SERVICE_URL}/api/v1/ai/chat/`;
+    const body = JSON.stringify({
+      message: prompt,
+      context: {
+        userId: req.user?.id,
+        schema: schema
+      }
+    });
+    
+    // Use native https module for the request
+    const https = require('http'); // Use http for localhost
+    const urlParts = new URL(url);
+    
+    return new Promise((resolve, reject) => {
+      const options = {
+        hostname: urlParts.hostname,
+        port: urlParts.port,
+        path: urlParts.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': req.headers.authorization,
+          'Content-Length': Buffer.byteLength(body)
+        }
+      };
+      
+      const request = https.request(options, (response) => {
+        let data = '';
+        
+        response.on('data', (chunk) => {
+          data += chunk;
+        });
+        
+        response.on('end', () => {
+          if (response.statusCode === 200) {
+            try {
+              resolve(JSON.parse(data));
+            } catch (e) {
+              reject(new Error('Invalid JSON response from AI service'));
+            }
+          } else {
+            reject(new Error(`AI service returned status ${response.statusCode}`));
+          }
+        });
+      });
+      
+      request.on('error', reject);
+      request.write(body);
+      request.end();
+    });
+  } catch (error) {
+    throw error;
+  }
+}
+
 // Generic chat endpoint
 router.post('/chat', authMiddleware, aiRateLimit, async (req, res) => {
   try {
@@ -38,7 +101,56 @@ router.post('/chat', authMiddleware, aiRateLimit, async (req, res) => {
       });
     }
 
-    // Build system prompt based on schema if provided
+    // Use Python AI service if configured
+    if (AI_PROVIDER === 'python') {
+      try {
+        console.log('Using Python AI Coach Service...');
+        const aiResponse = await callPythonAIService(prompt, req, response_json_schema);
+        
+        // Format response to match frontend expectations
+        let formattedResponse = aiResponse.message;
+        
+        // If schema was requested, try to generate a structured response
+        if (response_json_schema) {
+          // First check if Python service provided action info
+          if (aiResponse.action) {
+            formattedResponse = {
+              response: aiResponse.message,
+              action: aiResponse.action.type,
+              ...aiResponse.action.data
+            };
+          } else {
+            // Try to parse the message as JSON if it looks like structured data
+            try {
+              // Create a simple structured response
+              formattedResponse = {
+                action: "general_advice",
+                response: aiResponse.message
+              };
+            } catch (e) {
+              // Keep as string if parsing fails
+              formattedResponse = aiResponse.message;
+            }
+          }
+        }
+        
+        return res.json({
+          success: true,
+          response: formattedResponse,
+          tokens: 0, // Python service doesn't return tokens yet
+          confidence: aiResponse.confidence,
+          provider: 'python-ai-coach'
+        });
+        
+      } catch (error) {
+        console.error('Python AI service error:', error.message);
+        console.error('Full error:', error);
+        console.log('Falling back to OpenAI...');
+        // Fall through to OpenAI implementation
+      }
+    }
+
+    // Original OpenAI implementation
     let systemPrompt = `You are a helpful AI fitness coach for SynergyFit. 
     You help users with workout planning, exercise form, nutrition advice, and fitness goals.
     Always be encouraging, knowledgeable, and safety-conscious.`;
@@ -64,7 +176,8 @@ router.post('/chat', authMiddleware, aiRateLimit, async (req, res) => {
     res.json({
       success: true,
       response: parsedResponse,
-      tokens: completion.usage?.total_tokens || 0
+      tokens: completion.usage?.total_tokens || 0,
+      provider: 'openai'
     });
 
   } catch (error) {
@@ -257,6 +370,47 @@ router.post('/check-form', authMiddleware, aiRateLimit, async (req, res) => {
       tips: null
     });
   }
+});
+
+// Status endpoint to check AI provider
+router.get('/status', async (req, res) => {
+  const status = {
+    provider: AI_PROVIDER,
+    providers: {
+      current: AI_PROVIDER,
+      available: ['openai', 'python'],
+      python_service_url: AI_SERVICE_URL
+    }
+  };
+  
+  // Check if Python service is available
+  if (AI_PROVIDER === 'python') {
+    try {
+      const http = require('http');
+      const urlParts = new URL(`${AI_SERVICE_URL}/health/`);
+      
+      await new Promise((resolve, reject) => {
+        http.get({
+          hostname: urlParts.hostname,
+          port: urlParts.port,
+          path: urlParts.pathname
+        }, (response) => {
+          if (response.statusCode === 200) {
+            resolve();
+          } else {
+            reject(new Error(`Status ${response.statusCode}`));
+          }
+        }).on('error', reject);
+      });
+      
+      status.python_service = 'online';
+    } catch (error) {
+      status.python_service = 'offline';
+      status.error = error.message;
+    }
+  }
+  
+  res.json(status);
 });
 
 module.exports = router;

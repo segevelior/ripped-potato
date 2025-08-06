@@ -1,0 +1,61 @@
+[tool.poetry]
+name = "ai-coach-service"
+version = "0.1.0"
+description = "AI Coach Service for personalized fitness guidance"
+authors = ["Elior Segev <elior@example.com>"]
+readme = "README.md"
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.109.0"
+uvicorn = {extras = ["standard"], version = "^0.27.0"}
+pydantic = "^2.5.0"
+pydantic-settings = "^2.1.0"
+motor = "^3.3.0"
+redis = "^5.0.0"
+httpx = "^0.26.0"
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+python-multipart = "^0.0.6"
+# AI/ML Dependencies (cloud-based)
+openai = "^1.10.0"
+langchain = "^0.2.0"
+langchain-openai = "^0.1.0"
+langchain-community = "^0.2.0"
+tiktoken = "^0.7.0"
+# Observability
+prometheus-client = "^0.19.0"
+structlog = "^24.1.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.23.0"
+pytest-cov = "^4.1.0"
+black = "^23.12.0"
+ruff = "^0.1.0"
+mypy = "^1.8.0"
+pre-commit = "^3.6.0"
+ipython = "^8.19.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "I", "N", "W", "B", "C90", "D", "UP"]
+ignore = ["D203", "D213"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

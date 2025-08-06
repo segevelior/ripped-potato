@@ -1012,15 +1012,28 @@ const integrations = {
         const result = await response.json();
         console.log('AI response:', result);
         
+        // Extract the actual response from the backend wrapper
+        const aiResponse = result.response || result;
+        
         // Return the full result for structured responses
         if (params.response_json_schema) {
-          return result.response || result;
+          // For structured responses, parse if it's a string
+          if (typeof aiResponse === 'string') {
+            try {
+              return JSON.parse(aiResponse);
+            } catch (e) {
+              return { response: aiResponse, action: "general_advice" };
+            }
+          }
+          return aiResponse;
         }
         
         // Return in the expected format for simple responses
         return {
-          response: result.response || result.message || "I'm having trouble connecting to the AI service. Please try again.",
-          tokens: result.tokens || 0
+          response: aiResponse || result.message || "I'm having trouble connecting to the AI service. Please try again.",
+          tokens: result.tokens || 0,
+          confidence: result.confidence,
+          provider: result.provider
         };
         
       } catch (error) {

@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  ai-coach:
+    build: .
+    ports:
+      - "8001:8000"  # Use 8001 to avoid conflict with backend
+    volumes:
+      - ./app:/app/app
+      - ./.env:/app/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - ripped-potato-network
+
+networks:
+  ripped-potato-network:
+    external: true
+    name: ripped-potato_default  # Connect to existing backend network
