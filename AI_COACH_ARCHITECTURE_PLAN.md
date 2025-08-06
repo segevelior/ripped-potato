@@ -831,34 +831,149 @@ class UserRateLimiter:
 
 ---
 
-### **Week 3-4: Database Interaction & CRUD Operations**
-**Goal:** AI can create and modify data in MongoDB
+### **Week 3-4: Database Interaction & CRUD Operations with User Confirmation**
+**Goal:** AI can create and modify data in MongoDB with user approval workflow
 
-**Week 3: Write Operations**
+**Architecture Approach:**
+1. **Schema Alignment**: Python service calls Node.js backend APIs to ensure schema consistency
+2. **User Confirmation**: All CRUD operations require explicit user approval via Accept/Reject buttons
+3. **Transactional Safety**: Operations are atomic with rollback capability
+
+**Week 3: Confirmation UI & Backend Integration**
 ```python
 # Deliverables:
-- Create new workouts via AI
-- Add exercises to user's library
-- Update user goals
-- Transaction safety
+- Pending changes data model
+- Accept/Reject UI components in chat
+- Python service calls Node.js APIs for CRUD
+- Validation layer for schema consistency
 ```
 
-**Week 4: MCP Tools Implementation**
+**Implementation Details:**
+
 ```python
-# MCP Tools:
-1. create_workout_plan(name, exercises, duration)
-2. add_exercise_to_library(exercise_data)
-3. modify_user_goal(goal_id, changes)
-4. schedule_workout(workout_id, date)
-5. track_progress(metric, value)
+# app/models/pending_changes.py
+class PendingChange(BaseModel):
+    """Model for changes awaiting user confirmation"""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    user_id: str
+    change_type: Literal["create", "update", "delete"]
+    entity_type: Literal["workout", "exercise", "goal", "plan"]
+    proposed_data: Dict[str, Any]
+    current_data: Optional[Dict[str, Any]] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime  # Auto-expire after 5 minutes
+    status: Literal["pending", "accepted", "rejected", "expired"] = "pending"
+    
+# app/services/crud_service.py
+class CRUDService:
+    """Service to interact with Node.js backend APIs"""
+    
+    async def create_pending_change(self, change: PendingChange) -> str:
+        """Store pending change in Redis with TTL"""
+        await self.redis.setex(
+            f"pending:{change.id}",
+            300,  # 5 minute TTL
+            change.json()
+        )
+        return change.id
+    
+    async def execute_change(self, change_id: str, user_id: str) -> bool:
+        """Execute approved change via Node.js API"""
+        change = await self.get_pending_change(change_id)
+        
+        if change.user_id != user_id:
+            raise PermissionError("Unauthorized")
+        
+        # Call appropriate Node.js endpoint
+        endpoint_map = {
+            "workout": f"{NODE_BACKEND_URL}/api/v1/workouts",
+            "exercise": f"{NODE_BACKEND_URL}/api/v1/exercises",
+            "goal": f"{NODE_BACKEND_URL}/api/v1/goals",
+            "plan": f"{NODE_BACKEND_URL}/api/v1/plans"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            if change.change_type == "create":
+                response = await client.post(
+                    endpoint_map[change.entity_type],
+                    json=change.proposed_data,
+                    headers=self._get_auth_headers(user_id)
+                )
+            elif change.change_type == "update":
+                response = await client.put(
+                    f"{endpoint_map[change.entity_type]}/{change.entity_id}",
+                    json=change.proposed_data,
+                    headers=self._get_auth_headers(user_id)
+                )
+            # ... handle delete
+        
+        return response.status_code == 200
+```
+
+**Frontend Integration:**
+```javascript
+// FloatingAIAssistant.jsx additions
+const PendingChangeCard = ({ change, onAccept, onReject }) => (
+  <div className="pending-change-card">
+    <h4>AI Suggestion: {change.change_type} {change.entity_type}</h4>
+    <pre>{JSON.stringify(change.proposed_data, null, 2)}</pre>
+    <div className="action-buttons">
+      <button onClick={() => onAccept(change.id)} className="accept-btn">
+        ✅ Accept
+      </button>
+      <button onClick={() => onReject(change.id)} className="reject-btn">
+        ❌ Reject
+      </button>
+    </div>
+  </div>
+);
+```
+
+**Week 4: MCP Tools with Confirmation Flow**
+```python
+# MCP Tools with user confirmation:
+1. propose_workout_plan(name, exercises, duration) -> pending_id
+2. propose_exercise_addition(exercise_data) -> pending_id
+3. propose_goal_modification(goal_id, changes) -> pending_id
+4. propose_workout_schedule(workout_id, date) -> pending_id
+5. confirm_change(pending_id) -> success/failure
+
+# Each tool returns a pending change ID that requires user confirmation
+```
+
+**API Flow Example:**
+```python
+# 1. AI proposes a workout
+pending_id = await ai_service.propose_workout_plan(
+    name="Upper Body Strength",
+    exercises=[...],
+    duration=45
+)
+
+# 2. Return to user with pending change
+return {
+    "message": "I've created an Upper Body Strength workout for you!",
+    "pending_change": {
+        "id": pending_id,
+        "type": "create_workout",
+        "preview": workout_preview
+    },
+    "requires_confirmation": True
+}
+
+# 3. User clicks Accept
+await crud_service.execute_change(pending_id, user_id)
+
+# 4. Workout created via Node.js API
 ```
 
 **Success Criteria:**
-✅ AI can create new workouts in DB
-✅ User can approve/reject AI suggestions
-✅ Changes persist correctly
-✅ No data corruption
-✅ Audit trail of AI actions
+✅ AI proposes changes that appear with Accept/Reject buttons
+✅ Changes only execute after user confirmation
+✅ All CRUD operations go through Node.js backend APIs
+✅ Schemas remain perfectly aligned
+✅ Pending changes expire after 5 minutes
+✅ Full audit trail of accepted/rejected changes
 
 ---
 
