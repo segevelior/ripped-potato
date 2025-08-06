@@ -26,6 +26,7 @@ class ChatResponse(BaseModel):
     suggestions: Optional[List[Dict[str, Any]]] = []
     action: Optional[Dict[str, Any]] = None  # For structured actions like create_goal
     disclaimer: Optional[str] = None
+    pending_change: Optional[Dict[str, Any]] = None  # For CRUD operations requiring confirmation
 
 
 class UserContext(BaseModel):

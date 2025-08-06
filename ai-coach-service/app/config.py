@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     mongodb_url: str
     mongodb_database: str = "ripped-potato"
     
+    # Redis Configuration
+    redis_url: str = "redis://localhost:6379"
+    redis_ttl: int = 3600
+    
     # AI Model Configuration
     openai_api_key: str
     openai_model: str = "gpt-3.5-turbo"

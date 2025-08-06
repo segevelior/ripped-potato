@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
+import redis.asyncio as redis
 
 from app.config import get_settings, Settings
 from app.api.v1 import health, chat
@@ -12,6 +13,7 @@ logger = structlog.get_logger()
 
 # Global clients
 mongo_client = None
+redis_client = None
 db = None
 
 
@@ -21,7 +23,7 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     
     # Startup
-    global mongo_client, db
+    global mongo_client, redis_client, db
     
     # Connect to MongoDB (existing database)
     mongo_client = AsyncIOMotorClient(settings.mongodb_url)
@@ -29,10 +31,22 @@ async def lifespan(app: FastAPI):
     app.state.db = db
     logger.info("Connected to MongoDB")
     
+    # Connect to Redis
+    try:
+        redis_client = redis.from_url(settings.redis_url)
+        await redis_client.ping()  # Test connection
+        app.state.redis = redis_client
+        logger.info("Connected to Redis")
+    except Exception as e:
+        logger.warning(f"Could not connect to Redis: {e}. CRUD operations will be disabled.")
+        redis_client = None
+    
     yield
     
     # Shutdown
     mongo_client.close()
+    if redis_client:
+        await redis_client.close()
     logger.info("Closed database connections")
 
 

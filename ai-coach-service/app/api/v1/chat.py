@@ -18,14 +18,14 @@ async def chat(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ) -> ChatResponse:
     """
-    Main chat endpoint - uses agent orchestrator for intelligent responses
+    Main chat endpoint - uses agent orchestrator for intelligent responses with CRUD support
     """
     
-    # Get database connection
-    from app.main import db
+    # Get database and Redis connections
+    from app.main import db, redis_client
     
-    # Initialize agent orchestrator
-    orchestrator = AgentOrchestrator(db)
+    # Initialize agent orchestrator with Redis for CRUD operations
+    orchestrator = AgentOrchestrator(db, redis_client)
     
     # Prepare user context
     user_context = {
@@ -42,14 +42,20 @@ async def chat(
             user_context
         )
         
-        # Build response
-        return ChatResponse(
+        # Build response with pending change support
+        response = ChatResponse(
             message=result.get("message", ""),
             action=result.get("action"),
             confidence=result.get("confidence", 0.8),
             suggestions=result.get("data", {}).get("suggestion", []) if isinstance(result.get("data", {}).get("suggestion"), list) else None,
             disclaimer="Remember to consult with a healthcare professional before starting any new fitness program."
         )
+        
+        # Add pending change information if this is a CRUD proposal
+        if result.get("type") == "crud_proposal" and result.get("pending_change"):
+            response.pending_change = result["pending_change"]
+        
+        return response
         
     except Exception as e:
         logger.error(f"Agent processing error: {e}")
