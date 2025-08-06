@@ -112,31 +112,33 @@ router.post('/chat', authMiddleware, aiRateLimit, async (req, res) => {
         
         // If schema was requested, try to generate a structured response
         if (response_json_schema) {
-          // First check if Python service provided action info
-          if (aiResponse.action) {
+          // Check if this is a CRUD proposal with pending change
+          if (aiResponse.pending_change) {
+            formattedResponse = {
+              response: aiResponse.message,
+              action: "crud_proposal",
+              pending_change: aiResponse.pending_change
+            };
+          } else if (aiResponse.action) {
+            // Python service provided action info
             formattedResponse = {
               response: aiResponse.message,
               action: aiResponse.action.type,
               ...aiResponse.action.data
             };
           } else {
-            // Try to parse the message as JSON if it looks like structured data
-            try {
-              // Create a simple structured response
-              formattedResponse = {
-                action: "general_advice",
-                response: aiResponse.message
-              };
-            } catch (e) {
-              // Keep as string if parsing fails
-              formattedResponse = aiResponse.message;
-            }
+            // Create a simple structured response
+            formattedResponse = {
+              action: "general_advice",
+              response: aiResponse.message
+            };
           }
         }
         
         return res.json({
           success: true,
           response: formattedResponse,
+          pending_change: aiResponse.pending_change, // Pass through pending change
           tokens: 0, // Python service doesn't return tokens yet
           confidence: aiResponse.confidence,
           provider: 'python-ai-coach'
@@ -411,6 +413,89 @@ router.get('/status', async (req, res) => {
   }
   
   res.json(status);
+});
+
+// Pending changes endpoints (proxy to Python AI Coach service)
+router.post('/pending/confirm', authMiddleware, async (req, res) => {
+  try {
+    const { pending_change_id, action } = req.body;
+    
+    if (!pending_change_id || !action || !['accept', 'reject'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: 'pending_change_id and action (accept/reject) are required'
+      });
+    }
+
+    // Only proxy to Python service if it's configured
+    if (AI_PROVIDER !== 'python') {
+      return res.status(503).json({
+        success: false,
+        message: 'Pending changes require Python AI Coach service'
+      });
+    }
+
+    // Proxy request to Python AI Coach service
+    const url = `${AI_SERVICE_URL}/api/v1/ai/pending/confirm`;
+    const body = JSON.stringify({
+      pending_change_id,
+      action
+    });
+    
+    const https = require('http'); // Use http for localhost
+    const urlParts = new URL(url);
+    
+    const response = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: urlParts.hostname,
+        port: urlParts.port,
+        path: urlParts.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': req.headers.authorization,
+          'Content-Length': Buffer.byteLength(body)
+        }
+      };
+      
+      const request = https.request(options, (response) => {
+        let data = '';
+        
+        response.on('data', (chunk) => {
+          data += chunk;
+        });
+        
+        response.on('end', () => {
+          if (response.statusCode === 200) {
+            try {
+              resolve(JSON.parse(data));
+            } catch (e) {
+              reject(new Error('Invalid JSON response from AI service'));
+            }
+          } else {
+            reject(new Error(`AI service returned status ${response.statusCode}: ${data}`));
+          }
+        });
+      });
+      
+      request.on('error', reject);
+      request.write(body);
+      request.end();
+    });
+
+    res.json({
+      success: true,
+      ...response
+    });
+
+  } catch (error) {
+    console.error('Pending change confirmation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process pending change confirmation',
+      error: error.message
+    });
+  }
 });
 
 module.exports = router;

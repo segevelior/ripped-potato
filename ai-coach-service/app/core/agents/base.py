@@ -59,7 +59,7 @@ class BaseAgent(ABC):
             formatted.append(f"Fitness Level: {context['fitness_level']}")
         
         if context.get("goals"):
-            goals_str = ", ".join(context["goals"][:3])  # Limit to 3 goals
+            goals_str = ", ".join([g.get("name", str(g)) for g in context["goals"][:3]] if isinstance(context["goals"][0], dict) else context["goals"][:3])
             formatted.append(f"Goals: {goals_str}")
         
         if context.get("equipment"):
@@ -69,5 +69,19 @@ class BaseAgent(ABC):
         if context.get("recent_workouts"):
             recent_count = len(context["recent_workouts"])
             formatted.append(f"Recent Workouts: {recent_count} in the last week")
+        
+        # Add exercises to context
+        if context.get("exercises"):
+            exercises = context["exercises"]
+            formatted.append(f"\nAvailable Exercises ({len(exercises)} total):")
+            for ex in exercises[:10]:  # Show first 10 exercises
+                name = ex.get("name", "Unknown")
+                muscles = ", ".join(ex.get("target_muscles", []))
+                equipment = ex.get("equipment", "N/A")
+                formatted.append(f"- {name} (targets: {muscles}, equipment: {equipment})")
+        
+        # Add data summary if present
+        if context.get("data_summary"):
+            formatted.append(f"\nAdditional Context:\n{context['data_summary']}")
         
         return "\n".join(formatted) if formatted else "No user context available"

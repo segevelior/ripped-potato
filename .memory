@@ -15,7 +15,7 @@
 - AI: OpenAI GPT-4o integration
 - Deployment: Render.com (PaaS)
 
-## CURRENT STATUS (2025-08-03)
+## CURRENT STATUS (2025-08-05)
 
 ### ✅ COMPLETED FEATURES
 
@@ -41,9 +41,17 @@
    - Users see both shared content and their own private content
    - Ownership tracking with `createdBy` field
 
-4. **AI Integration**:
+4. **Advanced AI Integration with CRUD Operations**:
+   - ✅ Python AI Coach Service implemented (FastAPI + MongoDB + Redis)
+   - ✅ MCP (Model Context Protocol) tools for CRUD operations  
+   - ✅ User confirmation workflow with Accept/Reject buttons
+   - ✅ Pending changes stored in Redis with 5-minute TTL
+   - ✅ Node.js backend proxy to Python AI Coach service
+   - ✅ Frontend integration with PendingChangeCard component
+   - ✅ CRUD operations: propose_workout_plan, propose_exercise_creation, propose_goal_creation
+   - ✅ AI can read user data and suggest modifications that require user approval
    - OpenAI GPT-4o integrated via backend
-   - FloatingAIAssistant component working
+   - FloatingAIAssistant component with pending changes support
    - Structured JSON responses for creating goals/exercises
    - Rate limiting implemented (5 requests per minute)
 
@@ -119,6 +127,48 @@ backend/
 - JWT tokens stored in localStorage
 - Automatic auth headers on all API calls
 - Fallback to localStorage if API fails
+
+## AI COACH CRUD IMPLEMENTATION STATUS
+
+### ✅ COMPLETED (Week 3-4 Implementation)
+1. **Backend Infrastructure**:
+   - Python AI Coach Service (FastAPI) with Redis integration
+   - PendingChange model with 5-minute expiration
+   - CRUDService for Node.js API integration  
+   - MCP tools: propose_workout_plan, propose_exercise_creation, propose_goal_creation
+   - Agent orchestrator with intent detection and CRUD routing
+
+2. **Frontend Integration**:
+   - PendingChangeCard component with Accept/Reject buttons
+   - FloatingAIAssistant updated to handle pending changes
+   - Utility functions for pending change management
+   - Real-time confirmation workflow
+
+3. **API Integration**:
+   - Node.js backend proxy to Python AI Coach service
+   - `/api/v1/ai/pending/confirm` endpoint for change confirmations
+   - JWT token forwarding for authentication
+   - Error handling and fallback mechanisms
+
+### 🔧 CONFIGURATION NEEDED FOR TESTING:
+```bash
+# Environment variables for Node.js backend:
+AI_PROVIDER=python
+AI_SERVICE_URL=http://localhost:8001  # Or deployed AI Coach service URL
+
+# Environment variables for Python AI Coach service:
+MONGODB_URL=<same-as-nodejs-backend>
+REDIS_URL=redis://localhost:6379
+OPENAI_API_KEY=<your-openai-key>
+JWT_SECRET_KEY=<same-as-nodejs-backend>
+```
+
+### 🧪 HOW TO TEST:
+1. Start Python AI Coach service: `cd ai-coach-service && poetry run uvicorn app.main:app --reload --port 8001`
+2. Set `AI_PROVIDER=python` in Node.js backend environment
+3. In FloatingAIAssistant, try: "Create a workout called Upper Body"
+4. Should see Accept/Reject buttons for the proposed workout
+5. Click Accept to create the workout via Node.js API
 
 ## PENDING TASKS
 
