@@ -177,7 +177,7 @@ class FitnessCRUDTools:
                 "updatedAt": datetime.utcnow()
             }
             
-            result = await self.db.workouts.insert_one(workout_data)
+            result = await self.db.predefinedworkouts.insert_one(workout_data)
             
             if result.inserted_id:
                 return {

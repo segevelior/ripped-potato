@@ -62,7 +62,7 @@ const result = await response.json();
 // Handle action if present
 if (result.action?.type === 'create_workout') {
   // Call backend to create workout
-  await api.workouts.create(result.action.data);
+  await api.predefinedworkouts.create(result.action.data);
 }
 ```
 

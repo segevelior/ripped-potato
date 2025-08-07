@@ -198,7 +198,7 @@ class DataReaderAgent(BaseAgent):
             user_oid = ObjectId(user_id)
             cutoff_date = datetime.utcnow() - timedelta(days=days)
             
-            workouts = await self.db.workouts.find(
+            workouts = await self.db.predefinedworkouts.find(
                 {
                     "userId": user_oid,
                     "date": {"$gte": cutoff_date}

@@ -73,32 +73,77 @@ class AgentOrchestrator:
                 "type": "function",
                 "function": {
                     "name": "create_workout",
-                    "description": "Create a new workout plan",
+                    "description": "Create a new workout plan. The system will automatically check for existing exercises and create any missing ones.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "name": {
                                 "type": "string",
-                                "description": "Workout name"
+                                "description": "Workout name (e.g., 'Upper Body Strength', 'HIIT Cardio')"
                             },
                             "exercises": {
                                 "type": "array",
                                 "items": {
                                     "type": "object",
                                     "properties": {
-                                        "name": {"type": "string"},
-                                        "sets": {"type": "integer"},
-                                        "reps": {"type": "integer"}
-                                    }
+                                        "name": {
+                                            "type": "string",
+                                            "description": "Exercise name (e.g., 'Push-ups', 'Squats')"
+                                        },
+                                        "sets": {
+                                            "type": "integer",
+                                            "description": "Number of sets (default: 3)"
+                                        },
+                                        "reps": {
+                                            "type": "integer",
+                                            "description": "Number of reps per set (default: 10)"
+                                        },
+                                        "weight": {
+                                            "type": "number",
+                                            "description": "Weight in kg (optional)"
+                                        },
+                                        "duration": {
+                                            "type": "integer",
+                                            "description": "Duration in seconds for time-based exercises (optional)"
+                                        },
+                                        "restTime": {
+                                            "type": "integer",
+                                            "description": "Rest time between sets in seconds (default: 60)"
+                                        },
+                                        "muscles": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                            "description": "Target muscles (used if exercise needs to be created)"
+                                        },
+                                        "equipment": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                            "description": "Required equipment (used if exercise needs to be created)"
+                                        },
+                                        "notes": {
+                                            "type": "string",
+                                            "description": "Additional notes or instructions"
+                                        }
+                                    },
+                                    "required": ["name"]
                                 },
-                                "description": "List of exercises with sets and reps"
+                                "description": "List of exercises. System will match existing exercises by name or create new ones."
                             },
                             "duration": {
                                 "type": "integer",
-                                "description": "Duration in minutes"
+                                "description": "Estimated duration in minutes (default: 45)"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Workout description"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["strength", "cardio", "hiit", "flexibility", "mixed"],
+                                "description": "Type of workout (default: strength)"
                             }
                         },
-                        "required": ["name", "exercises", "duration"]
+                        "required": ["name", "exercises"]
                     }
                 }
             },
@@ -268,21 +313,157 @@ Be conversational and helpful. If a user says they can do an exercise, add it fo
             return {"success": False, "message": str(e)}
     
     async def _create_workout(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a workout"""
+        """Create a workout with proper exercise references"""
         try:
+            # 1. First get all available exercises (just names and IDs for efficiency)
+            existing_exercises = await self.db.exercises.find(
+                {},
+                {"name": 1, "_id": 1}
+            ).to_list(None)
+            
+            exercise_map = {ex["name"].lower(): ex["_id"] for ex in existing_exercises}
+            logger.info(f"Found {len(exercise_map)} existing exercises")
+            
+            # 2. Process the exercises from the args
+            workout_exercises = []
+            exercises_to_add = []
+            
+            for i, exercise_info in enumerate(args.get("exercises", [])):
+                exercise_name = exercise_info.get("name") or exercise_info.get("exerciseName") or f"Exercise {i+1}"
+                exercise_name_lower = exercise_name.lower()
+                
+                # Check if exercise exists
+                if exercise_name_lower in exercise_map:
+                    exercise_id = exercise_map[exercise_name_lower]
+                    logger.info(f"Found existing exercise: {exercise_name}")
+                else:
+                    # Need to create this exercise
+                    logger.info(f"Need to create new exercise: {exercise_name}")
+                    exercises_to_add.append({
+                        "name": exercise_name,
+                        "muscles": exercise_info.get("muscles", ["Full Body"]),
+                        "equipment": exercise_info.get("equipment", []),
+                        "description": exercise_info.get("description", f"{exercise_name} exercise")
+                    })
+                    exercise_id = None  # Will be set after creation
+                
+                # Prepare exercise data for workout
+                workout_exercise = {
+                    "exerciseId": exercise_id,  # Will update after creating missing exercises
+                    "exerciseName": exercise_name,
+                    "sets": exercise_info.get("sets", 3),
+                    "reps": exercise_info.get("reps", 10),
+                    "weight": exercise_info.get("weight"),
+                    "duration": exercise_info.get("duration"),
+                    "restTime": exercise_info.get("restTime", 60),
+                    "notes": exercise_info.get("notes", "")
+                }
+                workout_exercises.append(workout_exercise)
+            
+            # 3. Add any missing exercises to the database
+            for ex_to_add in exercises_to_add:
+                exercise_data = {
+                    "name": ex_to_add["name"],
+                    "description": ex_to_add["description"],
+                    "muscles": ex_to_add["muscles"],
+                    "secondaryMuscles": [],
+                    "discipline": ["General Fitness"],
+                    "equipment": ex_to_add["equipment"],
+                    "difficulty": "intermediate",
+                    "instructions": [f"Perform {ex_to_add['name']} with proper form"],
+                    "strain": {
+                        "intensity": "medium",
+                        "durationType": "reps",
+                        "typicalVolume": "3x10"
+                    },
+                    "isCommon": False,
+                    "createdBy": ObjectId(user_id),
+                    "createdAt": datetime.utcnow(),
+                    "updatedAt": datetime.utcnow(),
+                    "__v": 0
+                }
+                
+                result = await self.db.exercises.insert_one(exercise_data)
+                if result.inserted_id:
+                    logger.info(f"Created new exercise: {ex_to_add['name']}")
+                    # Update the exercise_id in workout_exercises
+                    for workout_ex in workout_exercises:
+                        if workout_ex["exerciseName"].lower() == ex_to_add["name"].lower():
+                            workout_ex["exerciseId"] = result.inserted_id
+            
+            # 4. Create the workout with proper exercise references
+            # Transform exercises to match the schema
+            formatted_exercises = []
+            for i, workout_ex in enumerate(workout_exercises):
+                # Create sets array with proper structure
+                sets_array = []
+                num_sets = workout_ex.get("sets", 3)
+                reps = workout_ex.get("reps", 10)
+                rest_time = workout_ex.get("restTime", 60)
+                
+                for _ in range(num_sets):
+                    sets_array.append({
+                        "reps": reps,
+                        "restSeconds": rest_time
+                    })
+                
+                formatted_exercises.append({
+                    "exerciseId": workout_ex["exerciseId"],
+                    "exerciseName": workout_ex["exerciseName"],
+                    "order": i,
+                    "sets": sets_array,
+                    "notes": workout_ex.get("notes", f"Perform {workout_ex['exerciseName']} with controlled form")
+                })
+            
+            # Determine target muscles from all exercises
+            target_muscles = set()
+            # Get muscles from new exercises
+            for ex_to_add in exercises_to_add:
+                target_muscles.update(ex_to_add.get("muscles", []))
+            # Get muscles from existing exercises (need to fetch them)
+            for workout_ex in workout_exercises:
+                if workout_ex.get("exerciseId"):
+                    # Could fetch exercise details here if needed
+                    pass
+            if not target_muscles:
+                target_muscles = ["Full Body"]
+            
             workout_data = {
-                "userId": user_id,
-                "name": args["name"],
-                "exercises": args["exercises"],
-                "duration": args.get("duration", 45),
+                "title": args["name"],  # Use 'title' instead of 'name'
+                "description": args.get("description", ""),
+                "type": args.get("type", "strength"),
+                "difficulty": "intermediate",  # Default difficulty
+                "durationMinutes": args.get("duration", 45),
+                "targetMuscles": list(target_muscles),
+                "equipment": [],  # Could be extracted from exercises
+                "exercises": formatted_exercises,
+                "isCommon": False,  # User-created workouts are not common
+                "createdBy": ObjectId(user_id),
+                "tags": [],
+                "popularity": 0,
+                "ratings": {
+                    "average": 0,
+                    "count": 0
+                },
                 "createdAt": datetime.utcnow(),
-                "updatedAt": datetime.utcnow()
+                "updatedAt": datetime.utcnow(),
+                "__v": 0
             }
             
-            result = await self.db.workouts.insert_one(workout_data)
+            result = await self.db.predefinedworkouts.insert_one(workout_data)
             
             if result.inserted_id:
-                return {"success": True, "message": f"✅ Created workout: {args['name']}"}
+                added_count = len(exercises_to_add)
+                if added_count > 0:
+                    return {
+                        "success": True, 
+                        "message": f"✅ Created workout '{args['name']}' with {len(formatted_exercises)} exercises! (Added {added_count} new exercises to your library)"
+                    }
+                else:
+                    return {
+                        "success": True,
+                        "message": f"✅ Created workout '{args['name']}' with {len(formatted_exercises)} exercises!"
+                    }
             else:
                 return {"success": False, "message": "Failed to create workout"}
                 
