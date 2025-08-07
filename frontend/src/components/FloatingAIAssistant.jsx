@@ -1,105 +1,9 @@
 
 import React, { useState, useEffect, useRef } from "react";
-import { User, Workout, PredefinedWorkout, Goal, ProgressionPath, UserGoalProgress, Plan, TrainingPlan } from "@/api/entities";
+import { User } from "@/api/entities";
 import { InvokeLLM } from "@/api/integrations";
 import { Bot, X, Send, MessageCircle, Loader2, Minimize2, Maximize2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { createPageUrl } from "@/utils";
-
-// Same schema as Chat page
-const planningSchema = {
-  type: "object",  
-  properties: {
-    action: {
-      type: "string",
-      enum: ["clarify", "create_goal", "create_plan", "create_predefined_workout", "add_workout", "general_advice", "website_navigation"],
-      description: "The primary action to take"
-    },
-    clarification_question: {
-      type: "string",
-      description: "Question to ask if more info is needed"
-    },
-    goal_to_create: {
-      type: "object",
-      properties: {
-        name: { type: "string" },
-        discipline: { type: "array", items: { type: "string" } },
-        description: { type: "string" },
-        category: { type: "string", enum: ["skill", "performance", "endurance", "strength", "weight", "health"] },
-        icon: { type: "string" },
-        difficulty_level: { type: "string", enum: ["beginner", "intermediate", "advanced", "expert"] },
-        estimated_weeks: { type: "number" },
-        prerequisites: { type: "array", items: { type: "string" } }
-      }
-    },
-    plan_to_create: {
-      type: "object", 
-      properties: {
-        name: { type: "string" },
-        description: { type: "string" },
-        start_date: { type: "string" },
-        end_date: { type: "string" },
-        status: { type: "string", enum: ["draft", "active"] },
-        linked_goals: { type: "array", items: { type: "string" } },
-        linked_workouts: { type: "array", items: { type: "object" } }
-      }
-    },
-    predefined_workout_to_create: {
-      type: "object",
-      properties: {
-        name: { type: "string" },
-        goal: { type: "string" },
-        primary_disciplines: { type: "array", items: { type: "string" } },
-        estimated_duration: { type: "number" },
-        difficulty_level: { type: "string", enum: ["beginner", "intermediate", "advanced"] },
-        blocks: { 
-          type: "array", 
-          items: { 
-            type: "object",
-            properties: {
-              name: { type: "string" },
-              exercises: { 
-                type: "array",
-                items: {
-                  type: "object", 
-                  properties: {
-                    exercise_id: { type: "string" },
-                    exercise_name: { type: "string" },
-                    volume: { type: "string" },
-                    rest: { type: "string" }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    workout_to_add: {
-      type: "object",
-      properties: {
-        title: { type: "string" },
-        date: { type: "string" },
-        type: { type: "string" },
-        duration_minutes: { type: "number" },
-        exercises: { type: "array" }
-      }
-    },
-    navigation_help: {
-      type: "object",
-      properties: {
-        page_to_visit: { type: "string" },
-        instructions: { type: "string" },
-        specific_feature: { type: "string" }
-      }
-    },
-    response: {
-      type: "string",
-      description: "Conversational response to the user"
-    }
-  },
-  required: ["action", "response"]
-};
 
 export default function FloatingAIAssistant() {
   const [isOpen, setIsOpen] = useState(false);
@@ -277,67 +181,15 @@ export default function FloatingAIAssistant() {
       Provide helpful, concise responses since this is a floating window.`;
       
       const result = await InvokeLLM({
-        prompt,
-        response_json_schema: planningSchema
+        prompt
+        // Remove schema - let backend handle all logic
       });
 
+      // Just display the message from the backend
       let assistantResponse = result.response || "I understand, but I'm not sure how to help with that specific request.";
 
-      // Handle different actions
-      if (result.action === "create_goal" && result.goal_to_create) {
-        try {
-          // Transform field names to match backend API
-          const goalData = {
-            ...result.goal_to_create,
-            difficultyLevel: result.goal_to_create.difficulty_level,
-            estimatedWeeks: result.goal_to_create.estimated_weeks
-          };
-          // Remove the underscore versions and fields not in backend
-          delete goalData.difficulty_level;
-          delete goalData.estimated_weeks;
-          delete goalData.icon;
-          delete goalData.prerequisites;
-          
-          await Goal.create(goalData);
-          assistantResponse += `\n\n✅ **Goal Created!** "${result.goal_to_create.name}" is ready on your Goals page.`;
-        } catch (error) {
-          console.error("Error creating goal:", error);
-          assistantResponse += "\n\n❌ I had trouble creating that goal. Please try the main Chat tab for complex requests.";
-        }
-      }
-
-      if (result.action === "create_plan" && result.plan_to_create) {
-        try {
-          await Plan.create({
-            ...result.plan_to_create,
-            progress_metrics: {
-              total_workouts: result.plan_to_create.linked_workouts?.length || 0,
-              completed_workouts: 0,
-              completion_percentage: 0,
-              current_week: 1,
-              streak_days: 0
-            }
-          });
-          assistantResponse += `\n\n✅ **Plan Created!** "${result.plan_to_create.name}" is ready on your Plans page.`;
-        } catch (error) {
-          console.error("Error creating plan:", error);
-          assistantResponse += "\n\n❌ I had trouble creating that plan. Please try the main Chat tab for complex requests.";
-        }
-      }
-
-      if (result.action === "create_predefined_workout" && result.predefined_workout_to_create) {
-        try {
-          await PredefinedWorkout.create(result.predefined_workout_to_create);
-          assistantResponse += `\n\n✅ **Workout Created!** "${result.predefined_workout_to_create.name}" is ready on your Workouts page.`;
-        } catch (error) {
-          console.error("Error creating workout:", error);
-          assistantResponse += "\n\n❌ I had trouble creating that workout. Please try the main Chat tab for complex requests.";
-        }
-      }
-
-      if (result.navigation_help) {
-        assistantResponse += `\n\n🧭 **Navigation**: ${result.navigation_help.instructions}`;
-      }
+      // All action handling is done in the backend
+      // Frontend just displays the response
 
       setMessages(prev => [...prev, { role: "assistant", content: assistantResponse }]);
 

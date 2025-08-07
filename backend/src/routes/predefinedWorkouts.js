@@ -29,7 +29,10 @@ router.get('/', optionalAuth, async (req, res) => {
       // Non-authenticated users only see common workouts
       workouts = await PredefinedWorkout.find({ isCommon: true })
         .populate('createdBy', 'name')
-        .populate('exercises.exerciseId', 'name muscles equipment')
+        .populate({
+          path: 'exercises.exerciseId',
+          select: 'name muscles equipment description difficulty'
+        })
         .lean();
     }
 
@@ -91,15 +94,47 @@ router.get('/', optionalAuth, async (req, res) => {
     const paginatedWorkouts = filteredWorkouts.slice(skip, skip + parseInt(limit));
     const total = filteredWorkouts.length;
 
-    res.json({
-      workouts: paginatedWorkouts,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit))
-      }
+    // Transform workouts to match frontend expected format
+    const transformedWorkouts = paginatedWorkouts.map(workout => {
+      // Transform exercises to include populated data
+      const transformedExercises = (workout.exercises || []).map(ex => ({
+        id: ex.exerciseId?._id || ex.exerciseId,
+        exercise_name: ex.exerciseId?.name || ex.exerciseName || 'Unknown Exercise',
+        name: ex.exerciseId?.name || ex.exerciseName || 'Unknown Exercise',
+        muscles: ex.exerciseId?.muscles || [],
+        equipment: ex.exerciseId?.equipment || [],
+        discipline: ex.exerciseId?.discipline || [],
+        strain: ex.exerciseId?.strain || {},
+        description: ex.exerciseId?.description || '',
+        sets: ex.sets || [],
+        order: ex.order,
+        notes: ex.notes,
+        volume: ex.sets && ex.sets.length > 0 ? 
+          `${ex.sets.length}x${ex.sets[0].reps || ex.sets[0].time || 10}` : '3x10',
+        rest: ex.sets && ex.sets[0] ? `${ex.sets[0].restSeconds || 60}s` : '60s',
+        // Include the full exercise object if populated
+        exercise: ex.exerciseId
+      }));
+
+      return {
+        id: workout._id,
+        name: workout.title,
+        goal: workout.description,
+        difficulty_level: workout.difficulty,
+        duration_minutes: workout.durationMinutes,
+        primary_disciplines: workout.targetMuscles,
+        blocks: transformedExercises.length > 0 ? [{
+          name: "Main Block",
+          exercises: transformedExercises
+        }] : [],
+        // Keep original fields for backward compatibility
+        ...workout,
+        exercises: transformedExercises
+      };
     });
+
+    // Return just the array for compatibility with the frontend SDK
+    res.json(transformedWorkouts);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -67,3 +67,23 @@ yarn-error.log*
 # Local data (for development)
 localStorage.json
 *.backup
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+poetry.lock
+
+# AI Service logs
+ai-service.log
+ai-coach.log

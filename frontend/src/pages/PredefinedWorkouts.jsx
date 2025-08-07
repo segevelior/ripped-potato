@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { PredefinedWorkout } from "@/api/entities";
-import { Eye, Edit, Copy, Trash2, Clock, Target, ChevronDown, ChevronUp } from "lucide-react";
-import WorkoutDetailModal from "@/components/WorkoutDetailModal";
+import { PredefinedWorkout, Exercise } from "@/api/entities";
+import { Eye, Edit, Copy, Trash2, Clock, Target, ChevronDown, ChevronUp, Plus } from "lucide-react";
+import WorkoutDetailModal from "@/components/predefined/WorkoutDetailModal";
+import CreateWorkoutModal from "@/components/predefined/CreateWorkoutModal";
 
 export default function PredefinedWorkouts() {
   const [predefinedWorkouts, setPredefinedWorkouts] = useState([]);
+  const [exercises, setExercises] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   
   useEffect(() => {
     loadData();
@@ -16,11 +19,16 @@ export default function PredefinedWorkouts() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const workoutData = await PredefinedWorkout.list();
+      const [workoutData, exerciseData] = await Promise.all([
+        PredefinedWorkout.list(),
+        Exercise.list()
+      ]);
       setPredefinedWorkouts(workoutData || []);
+      setExercises(exerciseData || []);
     } catch (error) {
-      console.error("Error loading predefined workouts:", error);
+      console.error("Error loading data:", error);
       setPredefinedWorkouts([]);
+      setExercises([]);
     }
     setIsLoading(false);
   };
@@ -78,6 +86,24 @@ export default function PredefinedWorkouts() {
     }
   };
 
+  const handleCreate = async (newWorkout) => {
+    try {
+      await PredefinedWorkout.create(newWorkout);
+      await loadData();
+      setShowCreateModal(false);
+      alert("Workout created successfully!");
+    } catch (error) {
+      console.error("Error creating workout:", error);
+      alert("Error creating workout. Please try again.");
+    }
+  };
+
+  const handleApplyToCalendar = (workout, date) => {
+    // TODO: Implement apply to calendar functionality
+    console.log("Apply workout to calendar:", workout, date);
+    alert(`Workout "${workout.name}" will be added to your calendar on ${date}`);
+  };
+
   const getDifficultyColor = (level) => {
     switch (level) {
       case 'beginner': return 'bg-green-500';
@@ -112,11 +138,20 @@ export default function PredefinedWorkouts() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Predefined Workouts</h1>
-        <p className="text-lg text-gray-600">
-          Found {predefinedWorkouts.length} workouts
-        </p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Predefined Workouts</h1>
+          <p className="text-lg text-gray-600">
+            Browse and manage workout templates
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors"
+        >
+          <Plus className="w-5 h-5" />
+          Create Workout
+        </button>
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -211,8 +246,19 @@ export default function PredefinedWorkouts() {
       {showDetailModal && selectedWorkout && (
         <WorkoutDetailModal
           workout={selectedWorkout}
+          exercises={exercises}
           onClose={() => setShowDetailModal(false)}
-          onSave={handleSave}
+          onApply={handleApplyToCalendar}
+          onDuplicate={handleDuplicate}
+        />
+      )}
+
+      {/* Create Workout Modal */}
+      {showCreateModal && (
+        <CreateWorkoutModal
+          exercises={exercises}
+          onClose={() => setShowCreateModal(false)}
+          onSave={handleCreate}
         />
       )}
     </div>

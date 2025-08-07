@@ -12,7 +12,10 @@
     "seed": "node src/utils/seedDatabase.js",
     "seed:prod": "NODE_ENV=production node src/utils/seedDatabase.js",
     "install:prod": "npm ci --only=production",
-    "build": "echo 'Build completed at:' && date"
+    "build": "echo 'Build completed at:' && date",
+    "validate:predefined-workouts": "node scripts/validate-predefined-workouts.js",
+    "migrate:predefined-workouts": "node scripts/migrate-predefined-workouts.js",
+    "seed:predefined-workouts": "node scripts/seed-predefined-workouts.js"
   },
   "dependencies": {
     "axios": "^1.11.0",

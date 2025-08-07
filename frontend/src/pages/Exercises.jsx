@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from "react";
 import { Exercise } from "@/api/entities";
-import { Plus, Search, Filter, Edit, Trash2, Dumbbell, Target, Zap, Star } from "lucide-react";
+import { Plus, Search, Filter, Edit, Trash2, Dumbbell, Target, Zap, Star, Eye } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import ExerciseBadges from "@/components/exercise/ExerciseBadges";
 import ExerciseFilters from "@/components/exercise/ExerciseFilters";
 import CustomizeExerciseModal from "@/components/exercise/CustomizeExerciseModal";
+import ExerciseDetailModal from "@/components/exercise/ExerciseDetailModal";
 
 const intensityColors = {
   low: "bg-green-100 text-green-800",
@@ -32,6 +33,7 @@ export default function Exercises() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
   const [customizeExercise, setCustomizeExercise] = useState(null);
+  const [viewExercise, setViewExercise] = useState(null);
 
   useEffect(() => {
     loadExercises();
@@ -284,10 +286,19 @@ export default function Exercises() {
                   <ExerciseBadges exercise={exercise} />
                 </div>
               </div>
-              <div className="flex gap-1 mb-4">
+              
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 mb-4">
+                <button
+                  onClick={() => setViewExercise(exercise)}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors text-sm font-medium"
+                >
+                  <Eye className="w-4 h-4" />
+                  View
+                </button>
                 <button
                   onClick={() => handleEditExercise(exercise)}
-                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  className="flex items-center justify-center p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
                   title={exercise.isCommon && !exercise.isModified ? "Customize exercise" : "Edit exercise"}
                 >
                   <Edit className="w-4 h-4" />
@@ -295,7 +306,7 @@ export default function Exercises() {
                 {exercise.isModified && (
                   <button
                     onClick={() => handleRemoveCustomization(exercise)}
-                    className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                    className="flex items-center justify-center p-2 bg-gray-100 hover:bg-orange-100 text-gray-700 hover:text-orange-600 rounded-lg transition-colors"
                     title="Remove customization"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -306,7 +317,7 @@ export default function Exercises() {
                 {!exercise.isCommon && (
                   <button
                     onClick={() => handleDeleteExercise(exercise)}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="flex items-center justify-center p-2 bg-gray-100 hover:bg-red-100 text-gray-700 hover:text-red-600 rounded-lg transition-colors"
                     title="Delete exercise"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -420,6 +431,16 @@ export default function Exercises() {
           isOpen={!!customizeExercise}
           onClose={() => setCustomizeExercise(null)}
           onSave={handleCustomizeSave}
+        />
+      )}
+
+      {/* Exercise Detail Modal */}
+      {viewExercise && (
+        <ExerciseDetailModal
+          exercise={viewExercise}
+          onClose={() => setViewExercise(null)}
+          onEdit={handleEditExercise}
+          onToggleFavorite={handleToggleFavorite}
         />
       )}
     </div>
