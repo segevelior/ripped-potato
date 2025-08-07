@@ -27,11 +27,17 @@ const PlanCard = ({ plan, onEdit, onDelete, onToggleStatus, goals, workouts }) =
   };
 
   const getNextWorkout = () => {
-    if (!plan.linked_workouts) return null;
-    const upcoming = plan.linked_workouts
-      .filter(w => !w.is_completed && w.scheduled_date)
-      .sort((a, b) => new Date(a.scheduled_date) - new Date(b.scheduled_date));
-    return upcoming[0];
+    if (!plan.linked_workouts || !Array.isArray(plan.linked_workouts)) return null;
+    
+    try {
+      const upcoming = plan.linked_workouts
+        .filter(w => !w.is_completed && w.scheduled_date)
+        .sort((a, b) => new Date(a.scheduled_date) - new Date(b.scheduled_date));
+      return upcoming[0];
+    } catch (error) {
+      console.warn('Error processing linked workouts:', error);
+      return null;
+    }
   };
 
   const getProgress = () => {
@@ -44,16 +50,26 @@ const PlanCard = ({ plan, onEdit, onDelete, onToggleStatus, goals, workouts }) =
   };
 
   const getDaysInfo = () => {
-    const start = parseISO(plan.start_date);
-    const end = parseISO(plan.end_date);
-    const now = new Date();
+    // Check if dates are valid before parsing
+    if (!plan.start_date || !plan.end_date) {
+      return { label: 'Duration', value: 'Not set' };
+    }
     
-    if (isBefore(now, start)) {
-      return { label: 'Starts in', value: `${differenceInDays(start, now)} days` };
-    } else if (isAfter(now, end)) {
-      return { label: 'Ended', value: `${differenceInDays(now, end)} days ago` };
-    } else {
-      return { label: 'Day', value: `${differenceInDays(now, start) + 1} of ${differenceInDays(end, start) + 1}` };
+    try {
+      const start = parseISO(plan.start_date);
+      const end = parseISO(plan.end_date);
+      const now = new Date();
+      
+      if (isBefore(now, start)) {
+        return { label: 'Starts in', value: `${differenceInDays(start, now)} days` };
+      } else if (isAfter(now, end)) {
+        return { label: 'Ended', value: `${differenceInDays(now, end)} days ago` };
+      } else {
+        return { label: 'Day', value: `${differenceInDays(now, start) + 1} of ${differenceInDays(end, start) + 1}` };
+      }
+    } catch (error) {
+      console.warn('Error parsing plan dates:', error);
+      return { label: 'Duration', value: 'Invalid dates' };
     }
   };
 
@@ -134,11 +150,18 @@ const PlanCard = ({ plan, onEdit, onDelete, onToggleStatus, goals, workouts }) =
         )}
 
         {/* Next Workout */}
-        {nextWorkout && (
+        {nextWorkout && nextWorkout.scheduled_date && (
           <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
             <div className="text-xs text-blue-600 font-medium mb-1">Next Workout</div>
             <div className="text-sm text-blue-800">
-              {format(parseISO(nextWorkout.scheduled_date), 'EEEE, MMM d')}
+              {(() => {
+                try {
+                  return format(parseISO(nextWorkout.scheduled_date), 'EEEE, MMM d');
+                } catch (error) {
+                  console.warn('Error formatting workout date:', error);
+                  return 'Date not available';
+                }
+              })()}
             </div>
           </div>
         )}
