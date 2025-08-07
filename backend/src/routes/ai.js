@@ -34,7 +34,7 @@ const parseAIResponse = (content) => {
 async function callPythonAIService(prompt, req, schema = null) {
   try {
     // Use built-in fetch (Node 18+) or fall back to https module
-    const url = `${AI_SERVICE_URL}/api/v1/ai/chat/`;
+    const url = `${AI_SERVICE_URL}/api/v1/chat/`;
     const body = JSON.stringify({
       message: prompt,
       context: {
@@ -43,8 +43,8 @@ async function callPythonAIService(prompt, req, schema = null) {
       }
     });
     
-    // Use native https module for the request
-    const https = require('http'); // Use http for localhost
+    // Use native https module for the request  
+    const https = require('https'); // Use https for production
     const urlParts = new URL(url);
     
     return new Promise((resolve, reject) => {
@@ -388,11 +388,11 @@ router.get('/status', async (req, res) => {
   // Check if Python service is available
   if (AI_PROVIDER === 'python') {
     try {
-      const http = require('http');
-      const urlParts = new URL(`${AI_SERVICE_URL}/health/`);
+      const https = require('https');
+      const urlParts = new URL(`${AI_SERVICE_URL}/health`);
       
       await new Promise((resolve, reject) => {
-        http.get({
+        https.get({
           hostname: urlParts.hostname,
           port: urlParts.port,
           path: urlParts.pathname
@@ -442,7 +442,7 @@ router.post('/pending/confirm', authMiddleware, async (req, res) => {
       action
     });
     
-    const https = require('http'); // Use http for localhost
+    const https = require('https'); // Use https for production
     const urlParts = new URL(url);
     
     const response = await new Promise((resolve, reject) => {
