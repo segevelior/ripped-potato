@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { User, Workout, PredefinedWorkout, Goal, ProgressionPath, UserGoalProgress, Plan, TrainingPlan, UserTrainingPattern } from "@/api/entities";
 import { InvokeLLM } from "@/api/integrations";
-import { Bot, Send, RotateCcw, MessageCircle, Sparkles, Loader2, Calendar, TrendingUp, AlertCircle, FileText, Target, Dumbbell } from "lucide-react";
+import { Bot, Send, RotateCcw, MessageCircle, Sparkles, Loader2, Calendar, TrendingUp, AlertCircle, FileText, Target, Dumbbell, Upload, Paperclip, Image, File, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { format, startOfWeek, endOfWeek, isAfter, isBefore, parseISO, differenceInDays } from "date-fns";
 
@@ -118,7 +118,10 @@ export default function Chat() {
     preferred_disciplines: [],
     limitations_or_preferences: ""
   });
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [isDragOver, setIsDragOver] = useState(false);
   const chatEndRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -465,14 +468,28 @@ export default function Chat() {
 
         {/* Input Area */}
         <form onSubmit={handleSendMessage} className="p-6 border-t bg-gray-50">
-          <div className="flex gap-3">
-            <input
-              type="text"
+          <div className="flex gap-3 items-end">
+            <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={isRateLimited ? `Rate limited - wait ${rateLimitCooldown}s` : "Ask me anything about training, or say 'I want to learn a handstand'..."}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage(e);
+                }
+              }}
+              placeholder={isRateLimited ? `Rate limited - wait ${rateLimitCooldown}s` : "Ask me anything about training... (Shift+Enter for new line)"}
               disabled={isThinking || isRateLimited}
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              rows={1}
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed resize-none min-h-[48px] max-h-[200px]"
+              style={{
+                height: 'auto',
+                overflowY: input.includes('\n') || input.length > 80 ? 'auto' : 'hidden'
+              }}
+              onInput={(e) => {
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+              }}
             />
             <button 
               type="submit" 

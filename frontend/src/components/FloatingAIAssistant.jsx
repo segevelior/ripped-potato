@@ -301,14 +301,28 @@ export default function FloatingAIAssistant() {
 
           {/* Input Form */}
           <form onSubmit={handleSendMessage} className="p-3 border-t bg-white flex-shrink-0">
-            <div className="flex gap-2">
-              <input
-                type="text"
+            <div className="flex gap-2 items-end">
+              <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Quick question..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage(e);
+                  }
+                }}
+                placeholder="Quick question... (Shift+Enter for new line)"
                 disabled={isThinking}
-                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+                rows={1}
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 resize-none min-h-[40px] max-h-[120px]"
+                style={{
+                  height: 'auto',
+                  overflowY: input.includes('\n') || input.length > 60 ? 'auto' : 'hidden'
+                }}
+                onInput={(e) => {
+                  e.target.style.height = 'auto';
+                  e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                }}
               />
               <button 
                 type="submit" 
