@@ -1,5 +1,5 @@
 # SynergyFit Production Deployment Memory
-# Last Updated: 2025-08-04
+# Last Updated: 2025-08-08
 # Status: Production Deployed with AI & Google OAuth Integration ✅
 
 ## PROJECT OVERVIEW
@@ -227,15 +227,25 @@ VITE_API_URL=https://ripped-potato-api.onrender.com npm run dev
 git push origin main
 ```
 
+## DEV DEBUG CONFIG (Cursor/VS Code)
+
+- Added debug configs in `.vscode/launch.json` and tasks in `.vscode/tasks.json`:
+  - "Dev: Frontend + Backend + AI Coach" compound: starts Vite (frontend on http://localhost:5173), backend with nodemon + inspector (port 9229), and Python AI Coach (Uvicorn on 8001)
+  - Individual configs: "Frontend: Launch Chrome to Vite", "Frontend: Vite (Node)", "Backend: Attach (starts nodemon)", "Backend: Server (Node)", "AI Coach: Uvicorn (Python)"
+- For frontend dev, create `frontend/.env.local` with:
+  - `VITE_API_URL=http://localhost:5001`
+- For backend dev `.env` (in `backend/`): set `MONGODB_URI`, `ALLOWED_ORIGINS=http://localhost:5173`, `AI_PROVIDER=python`, `AI_SERVICE_URL=http://localhost:8001`
+
 ## CURRENT ISSUES
 
 1. **Google OAuth**: Getting "route not found" when clicking Google sign-in
    - Routes are defined but may need session middleware configuration
    - Check if all OAuth environment variables are set in Render
 
-2. **AI Assistant**: Can read but not modify data yet
-   - Need to implement action handlers for creating exercises/goals
-   - Consider adding more granular permissions
+2. **AI Assistant**: Immediate edit tools enabled
+   - AI can now update Goals and Plans directly (no confirmation required)
+   - New tools: update_goal, update_plan, add_plan_workout, remove_plan_workout
+   - Weekly workouts can be added/removed per plan week
 
 ## GIT BRANCHES
 

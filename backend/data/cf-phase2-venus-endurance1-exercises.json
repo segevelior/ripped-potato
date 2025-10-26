@@ -1,0 +1,512 @@
+[
+    {
+      "name": "Blood Flow",
+      "description": "General warm-up exercise to increase blood circulation throughout the body",
+      "muscles": ["full_body"],
+      "secondaryMuscles": [],
+      "discipline": ["warm_up", "mobility"],
+      "equipment": [],
+      "difficulty": "beginner",
+      "instructions": [
+        "Perform light movements to increase blood circulation",
+        "Focus on full body activation",
+        "Prepare muscles for upcoming workout"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "1-2 minutes"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Scapula Warm Up 2",
+      "description": "Targeted warm-up focusing on scapular mobility and activation",
+      "muscles": ["shoulders", "upper_back"],
+      "secondaryMuscles": ["traps"],
+      "discipline": ["mobility", "warm_up"],
+      "equipment": [],
+      "difficulty": "beginner",
+      "instructions": [
+        "Perform scapular retractions and protractions",
+        "Focus on controlled movements",
+        "Activate shoulder blade muscles"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "2-3 sets of 10-15 reps"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Band Shoulder Warm Up 1",
+      "description": "Shoulder warm-up using resistance bands to increase stability and mobility",
+      "muscles": ["shoulders"],
+      "secondaryMuscles": ["rotator_cuff"],
+      "discipline": ["warm_up", "mobility"],
+      "equipment": ["resistance_band"],
+      "difficulty": "beginner",
+      "instructions": [
+        "Use resistance band for shoulder activation",
+        "Perform various shoulder movements",
+        "Focus on stability and mobility"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "light",
+        "durationType": "reps",
+        "typicalVolume": "2-3 sets of 10-15 reps"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Skin the Cat",
+      "description": "Advanced mobility exercise focusing on shoulder flexibility and strength",
+      "muscles": ["shoulders", "lats"],
+      "secondaryMuscles": ["core", "biceps"],
+      "discipline": ["calisthenics", "mobility"],
+      "equipment": ["pull_up_bar", "rings"],
+      "difficulty": "advanced",
+      "instructions": [
+        "Hang from bar or rings",
+        "Lift legs and rotate backward through arms",
+        "Control the movement throughout",
+        "Add pause on each position as indicated"
+      ],
+      "strain": {
+        "intensity": "high",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "3-5 reps x 30-60 sec"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "German Hang Pull Outs + Hold",
+      "description": "Advanced shoulder strengthening exercise with isometric hold component",
+      "muscles": ["shoulders", "chest"],
+      "secondaryMuscles": ["lats", "biceps"],
+      "discipline": ["calisthenics", "strength"],
+      "equipment": ["pull_up_bar", "rings"],
+      "difficulty": "advanced",
+      "instructions": [
+        "Enter German hang position",
+        "Pull out to inverted hang",
+        "Hold for specified time",
+        "Control the movement with feet assisted if needed"
+      ],
+      "strain": {
+        "intensity": "high",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "4-8 reps + 10 sec hold x 30-60 sec"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Pull-Ups + Top Hold",
+      "description": "Standard pull-ups with isometric hold at the top position",
+      "muscles": ["lats", "biceps"],
+      "secondaryMuscles": ["middle_back", "rear_delts"],
+      "discipline": ["strength", "calisthenics"],
+      "equipment": ["pull_up_bar"],
+      "difficulty": "intermediate",
+      "instructions": [
+        "Perform standard pull-up",
+        "Hold at top position for 5-10 seconds",
+        "Lower with control",
+        "Add weight for increased difficulty"
+      ],
+      "strain": {
+        "intensity": "moderate",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "8-12 reps + 5-10 sec hold"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Regular Dips",
+      "description": "Standard parallel bar dips targeting chest and triceps",
+      "muscles": ["chest", "triceps"],
+      "secondaryMuscles": ["front_delts"],
+      "discipline": ["strength", "calisthenics"],
+      "equipment": ["dip_bars", "parallel_bars"],
+      "difficulty": "intermediate",
+      "instructions": [
+        "Start in support position on parallel bars",
+        "Lower body by bending elbows to 90 degrees",
+        "Push back up to starting position",
+        "Add weight for increased resistance"
+      ],
+      "strain": {
+        "intensity": "moderate",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "12-15 reps x 3-4 sets"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Alternating Pistol Squats",
+      "description": "Single-leg squat performed alternating between legs",
+      "muscles": ["quads", "glutes"],
+      "secondaryMuscles": ["hamstrings", "calves", "core"],
+      "discipline": ["strength", "mobility", "balance"],
+      "equipment": [],
+      "difficulty": "advanced",
+      "instructions": [
+        "Stand on one leg with other extended forward",
+        "Lower into single-leg squat",
+        "Push back up to standing",
+        "Alternate legs each rep",
+        "Use partial range of motion if needed"
+      ],
+      "strain": {
+        "intensity": "high",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "6-12 reps per leg"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Seated Forward Fold",
+      "description": "Flexibility exercise targeting hamstrings and lumbar spine",
+      "muscles": ["hamstrings", "lower_back"],
+      "secondaryMuscles": ["calves"],
+      "discipline": ["flexibility", "mobility"],
+      "equipment": [],
+      "difficulty": "beginner",
+      "instructions": [
+        "Sit with legs extended",
+        "Hinge forward from hips",
+        "Reach toward toes",
+        "Hold position as indicated"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "Hold for time"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Low Squat",
+      "description": "Deep squat hold for hip mobility, dorsiflexion, and lumbar spine flexibility",
+      "muscles": ["quads", "glutes", "hip_flexors"],
+      "secondaryMuscles": ["calves", "lower_back"],
+      "discipline": ["mobility", "flexibility"],
+      "equipment": [],
+      "difficulty": "beginner",
+      "instructions": [
+        "Lower into deep squat position",
+        "Keep heels on ground if possible",
+        "Maintain upright torso",
+        "Hold for specified duration"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "Hold for time"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Reverse Flies on Rings",
+      "description": "Rear deltoid and upper back exercise performed on gymnastics rings",
+      "muscles": ["rear_delts", "rhomboids"],
+      "secondaryMuscles": ["middle_back", "traps"],
+      "discipline": ["strength", "calisthenics"],
+      "equipment": ["rings"],
+      "difficulty": "intermediate",
+      "instructions": [
+        "Lean back holding rings",
+        "Arms extended forward",
+        "Pull rings apart in fly motion",
+        "Control the movement",
+        "Increase or decrease body angle for difficulty"
+      ],
+      "strain": {
+        "intensity": "moderate",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "8-12 reps"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Alternating Archer Push Ups",
+      "description": "Advanced push-up variation with emphasis on unilateral strength",
+      "muscles": ["chest", "triceps"],
+      "secondaryMuscles": ["shoulders", "core"],
+      "discipline": ["strength", "calisthenics"],
+      "equipment": [],
+      "difficulty": "advanced",
+      "instructions": [
+        "Start in wide push-up position",
+        "Lower toward one hand while other arm stays straight",
+        "Push back up",
+        "Alternate sides each rep",
+        "Perform on knees for easier variation"
+      ],
+      "strain": {
+        "intensity": "high",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "6-12 reps"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Wall Walks",
+      "description": "Full body exercise progressing from plank to handstand position against wall",
+      "muscles": ["shoulders", "core"],
+      "secondaryMuscles": ["chest", "triceps", "upper_back"],
+      "discipline": ["strength", "calisthenics"],
+      "equipment": ["wall"],
+      "difficulty": "intermediate",
+      "instructions": [
+        "Start in push-up position with feet against wall",
+        "Walk feet up wall while walking hands toward wall",
+        "Get as close to wall as possible",
+        "Walk back down to starting position",
+        "Add pause at top or bottom as indicated"
+      ],
+      "strain": {
+        "intensity": "moderate",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "3-6 reps"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "BW Hamstring Curls",
+      "description": "Bodyweight hamstring curl exercise focusing on knee flexion",
+      "muscles": ["hamstrings"],
+      "secondaryMuscles": ["glutes", "calves"],
+      "discipline": ["strength", "calisthenics"],
+      "equipment": ["slider", "towel"],
+      "difficulty": "intermediate",
+      "instructions": [
+        "Lie on back with heels on sliders",
+        "Lift hips into bridge position",
+        "Slide heels toward glutes",
+        "Control the movement back to start",
+        "Can be unilateral for increased difficulty"
+      ],
+      "strain": {
+        "intensity": "moderate",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "12-15 reps"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Hero Pose",
+      "description": "Quadriceps and hip flexor flexibility exercise with plantar flexion emphasis",
+      "muscles": ["quads", "hip_flexors"],
+      "secondaryMuscles": ["ankles", "shins"],
+      "discipline": ["flexibility", "mobility"],
+      "equipment": [],
+      "difficulty": "beginner",
+      "instructions": [
+        "Kneel and sit back between feet",
+        "Keep tops of feet flat on ground",
+        "Maintain upright posture",
+        "Hold for specified duration"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "Hold for time"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Laying Butterfly",
+      "description": "Hip opening stretch targeting inner thighs and hip flexibility",
+      "muscles": ["hip_adductors", "hip_flexors"],
+      "secondaryMuscles": ["glutes"],
+      "discipline": ["flexibility", "mobility"],
+      "equipment": [],
+      "difficulty": "beginner",
+      "instructions": [
+        "Lie on back with soles of feet together",
+        "Let knees fall open to sides",
+        "Relax into the stretch",
+        "Can use middle split transferability variation"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "Hold for time"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Hollow Body Hold",
+      "description": "Core stabilization exercise maintaining hollow body position",
+      "muscles": ["abs", "core"],
+      "secondaryMuscles": ["hip_flexors"],
+      "discipline": ["strength", "calisthenics"],
+      "equipment": [],
+      "difficulty": "intermediate",
+      "instructions": [
+        "Lie on back and press lower back to ground",
+        "Lift shoulders and legs off ground",
+        "Arms extended overhead or at sides",
+        "Maintain hollow position for time"
+      ],
+      "strain": {
+        "intensity": "moderate",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "15-30 sec x 3-4 sets"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Lower Body Stretch",
+      "description": "Comprehensive lower body stretching routine",
+      "muscles": ["hamstrings", "quads", "glutes", "calves"],
+      "secondaryMuscles": ["hip_flexors", "hip_adductors"],
+      "discipline": ["flexibility", "mobility"],
+      "equipment": [],
+      "difficulty": "beginner",
+      "instructions": [
+        "Perform various lower body stretches",
+        "Choose between Seated Forward Fold, Pancake, or Seated Butterfly",
+        "Hold each position for specified time",
+        "Focus on breathing and relaxation"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "Hold for time"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Seated Pike Compressions + Hold",
+      "description": "Core and hip flexor strengthening with compression focus",
+      "muscles": ["abs", "hip_flexors"],
+      "secondaryMuscles": ["quads"],
+      "discipline": ["strength", "flexibility"],
+      "equipment": [],
+      "difficulty": "intermediate",
+      "instructions": [
+        "Sit with legs extended",
+        "Lift legs toward chest maintaining straight legs",
+        "Hold compressed position",
+        "Lower with control"
+      ],
+      "strain": {
+        "intensity": "moderate",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "12 + 12 sec hold x 3-4 sets"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Wall Slides",
+      "description": "Shoulder stability and mobility exercise performed against wall",
+      "muscles": ["shoulders", "upper_back"],
+      "secondaryMuscles": ["rotator_cuff", "traps"],
+      "discipline": ["mobility", "corrective"],
+      "equipment": ["wall"],
+      "difficulty": "beginner",
+      "instructions": [
+        "Stand with back against wall",
+        "Arms in 90-degree position against wall",
+        "Slide arms up and down maintaining contact",
+        "Keep lower back pressed to wall",
+        "Can add bottom hold for increased difficulty"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "2-3 sets x 8-12 reps"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Assisted Shoulder Stretch",
+      "description": "Shoulder flexibility exercise targeting chest and anterior deltoids",
+      "muscles": ["shoulders", "chest"],
+      "secondaryMuscles": ["biceps"],
+      "discipline": ["flexibility", "mobility"],
+      "equipment": ["wall", "doorway"],
+      "difficulty": "beginner",
+      "instructions": [
+        "Place hand on wall or doorway",
+        "Turn body away from anchored arm",
+        "Feel stretch in chest and shoulder",
+        "Increase shoulder ER mobility"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "Hold for time each side"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Active Hang",
+      "description": "Dead hang with active shoulder engagement",
+      "muscles": ["lats", "shoulders"],
+      "secondaryMuscles": ["forearms", "core"],
+      "discipline": ["strength", "calisthenics"],
+      "equipment": ["pull_up_bar"],
+      "difficulty": "beginner",
+      "instructions": [
+        "Hang from bar with arms fully extended",
+        "Engage shoulders by pulling them down and back",
+        "Maintain active shoulder position",
+        "90% max effort for single arm variation",
+        "Assist with small elevation if needed"
+      ],
+      "strain": {
+        "intensity": "moderate",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "90% max effort x 2-3 sets"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Low Squat Hold",
+      "description": "Isometric deep squat position for counter movement training",
+      "muscles": ["quads", "glutes"],
+      "secondaryMuscles": ["calves", "core"],
+      "discipline": ["strength", "mobility"],
+      "equipment": [],
+      "difficulty": "beginner",
+      "instructions": [
+        "Lower into deep squat position",
+        "Maintain position for specified time",
+        "Keep chest up and heels down",
+        "Focus on counter movement pattern"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "Hold for time"
+      },
+      "isCommon": true
+    }
+]

@@ -14,7 +14,6 @@
     "install:prod": "npm ci --only=production"
   },
   "dependencies": {
-    "@base44/sdk": "file:../mock-sdk",
     "@hello-pangea/dnd": "^18.0.1",
     "@hookform/resolvers": "^4.1.2",
     "@radix-ui/react-accordion": "^1.2.3",
