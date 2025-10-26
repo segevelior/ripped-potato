@@ -1,0 +1,455 @@
+[
+    {
+      "name": "Body Heat",
+      "description": "Full body warm-up exercise to raise core temperature and prepare for workout",
+      "muscles": ["full_body"],
+      "secondaryMuscles": [],
+      "discipline": ["warm_up", "cardio"],
+      "equipment": [],
+      "difficulty": "beginner",
+      "instructions": [
+        "Perform dynamic movements to increase body temperature",
+        "Include various movement patterns",
+        "Gradually increase intensity",
+        "Focus on full body activation"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "2-3 minutes"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Body Heat Warm Up 1",
+      "description": "Structured warm-up routine to prepare the body for training",
+      "muscles": ["full_body"],
+      "secondaryMuscles": [],
+      "discipline": ["warm_up", "mobility"],
+      "equipment": [],
+      "difficulty": "beginner",
+      "instructions": [
+        "Follow specific warm-up sequence",
+        "Include dynamic stretches",
+        "Activate major muscle groups",
+        "Prepare joints for movement"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "3-5 minutes"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Scapula Warm Up 1",
+      "description": "Targeted warm-up for scapular mobility and shoulder blade activation",
+      "muscles": ["shoulders", "upper_back"],
+      "secondaryMuscles": ["traps", "rhomboids"],
+      "discipline": ["warm_up", "mobility"],
+      "equipment": [],
+      "difficulty": "beginner",
+      "instructions": [
+        "Perform scapular circles and retractions",
+        "Focus on shoulder blade movement",
+        "Include protraction and retraction",
+        "Activate surrounding musculature"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "2-3 sets of 10-15 reps"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Bodyweight Rows (Low Intensity)",
+      "description": "Horizontal pulling exercise at lower intensity for warm-up or endurance",
+      "muscles": ["lats", "middle_back"],
+      "secondaryMuscles": ["biceps", "rear_delts"],
+      "discipline": ["strength", "calisthenics"],
+      "equipment": ["bar", "rings", "TRX"],
+      "difficulty": "beginner",
+      "instructions": [
+        "Set up at an angle that allows for lower intensity",
+        "Pull chest toward bar or rings",
+        "Control the movement throughout",
+        "Increase or decrease body angle for difficulty adjustment"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "6-12 reps x 30-60 sec"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Pull Over to Negative Muscle Up",
+      "description": "Advanced pulling exercise transitioning from pull over to controlled negative muscle up",
+      "muscles": ["lats", "chest", "triceps"],
+      "secondaryMuscles": ["shoulders", "core"],
+      "discipline": ["calisthenics", "strength"],
+      "equipment": ["pull_up_bar", "rings"],
+      "difficulty": "advanced",
+      "instructions": [
+        "Start with pull over motion",
+        "Transition to top of muscle up position",
+        "Perform controlled negative descent",
+        "Add momentum to split the 2 movements"
+      ],
+      "strain": {
+        "intensity": "high",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "4-8 reps x 3-5 sets"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Pancake Stretch",
+      "description": "Hip and hamstring flexibility exercise in wide-legged seated position",
+      "muscles": ["hamstrings", "hip_adductors"],
+      "secondaryMuscles": ["lower_back", "glutes"],
+      "discipline": ["flexibility", "mobility"],
+      "equipment": [],
+      "difficulty": "intermediate",
+      "instructions": [
+        "Sit with legs spread wide",
+        "Hinge forward from hips",
+        "Reach forward between legs",
+        "Maintain straight spine",
+        "Can be used as pull over facilitator"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "Hold for 30-60 seconds"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Frenchie Chin-Ups",
+      "description": "Pull-up variation with isometric holds at multiple positions",
+      "muscles": ["lats", "biceps"],
+      "secondaryMuscles": ["middle_back", "forearms"],
+      "discipline": ["strength", "calisthenics"],
+      "equipment": ["pull_up_bar"],
+      "difficulty": "advanced",
+      "instructions": [
+        "Pull up to top position, hold 5 seconds",
+        "Lower to 90 degrees, hold 5 seconds",
+        "Lower to 135 degrees, hold 5 seconds",
+        "Lower to full hang",
+        "That's one rep"
+      ],
+      "strain": {
+        "intensity": "high",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "2-5 reps"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Diamond to Regular Push-Ups",
+      "description": "Push-up variation transitioning between diamond and regular hand positions",
+      "muscles": ["chest", "triceps"],
+      "secondaryMuscles": ["shoulders", "core"],
+      "discipline": ["strength", "calisthenics"],
+      "equipment": [],
+      "difficulty": "intermediate",
+      "instructions": [
+        "Start in diamond push-up position",
+        "Perform specified number of diamond push-ups",
+        "Transition to regular push-up position",
+        "Complete remaining reps with regular form",
+        "Add weight for increased difficulty"
+      ],
+      "strain": {
+        "intensity": "moderate",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "10-20 each variation"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Prisoner/Bodyweight Jumping Squat",
+      "description": "Explosive lower body exercise with hands behind head",
+      "muscles": ["quads", "glutes"],
+      "secondaryMuscles": ["calves", "hamstrings", "core"],
+      "discipline": ["power", "calisthenics"],
+      "equipment": [],
+      "difficulty": "intermediate",
+      "instructions": [
+        "Place hands behind head in prisoner position",
+        "Lower into squat",
+        "Explode upward into jump",
+        "Land softly and repeat",
+        "Progress to knees to chest variation"
+      ],
+      "strain": {
+        "intensity": "moderate",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "45 seconds"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Explosive Bodyweight Rows",
+      "description": "Dynamic horizontal pulling with explosive concentric phase",
+      "muscles": ["lats", "middle_back"],
+      "secondaryMuscles": ["biceps", "rear_delts", "core"],
+      "discipline": ["power", "calisthenics"],
+      "equipment": ["bar", "rings", "TRX"],
+      "difficulty": "intermediate",
+      "instructions": [
+        "Set up for bodyweight row",
+        "Pull explosively toward bar",
+        "Control the eccentric phase",
+        "Add weight for increased difficulty",
+        "Decrease lever for easier variation"
+      ],
+      "strain": {
+        "intensity": "moderate",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "10-15 reps"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Pike Push-Ups",
+      "description": "Shoulder-focused push-up variation in pike position",
+      "muscles": ["shoulders", "triceps"],
+      "secondaryMuscles": ["upper_chest", "core"],
+      "discipline": ["strength", "calisthenics"],
+      "equipment": [],
+      "difficulty": "intermediate",
+      "instructions": [
+        "Start in pike position with hips high",
+        "Lower head toward ground",
+        "Push back to starting position",
+        "Elevate feet for increased difficulty"
+      ],
+      "strain": {
+        "intensity": "moderate",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "8-15 reps"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Glute Bridges",
+      "description": "Hip extension exercise targeting glutes and hamstrings",
+      "muscles": ["glutes", "hamstrings"],
+      "secondaryMuscles": ["lower_back", "core"],
+      "discipline": ["strength", "corrective"],
+      "equipment": [],
+      "difficulty": "beginner",
+      "instructions": [
+        "Lie on back with knees bent",
+        "Drive through heels to lift hips",
+        "Squeeze glutes at top",
+        "Lower with control",
+        "Progress to single leg variation"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "reps",
+        "typicalVolume": "15 reps"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Russian Twists",
+      "description": "Rotational core exercise for obliques and abs",
+      "muscles": ["obliques", "abs"],
+      "secondaryMuscles": ["hip_flexors"],
+      "discipline": ["strength", "core"],
+      "equipment": ["medicine_ball", "weight_plate"],
+      "difficulty": "intermediate",
+      "instructions": [
+        "Sit with knees bent, feet elevated",
+        "Lean back to create V-shape with torso and thighs",
+        "Rotate torso side to side",
+        "Touch ground on each side if possible",
+        "Add weight for increased difficulty"
+      ],
+      "strain": {
+        "intensity": "moderate",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "45 seconds"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Side Plank On Arms",
+      "description": "Lateral core stabilization exercise performed on extended arm",
+      "muscles": ["obliques", "core"],
+      "secondaryMuscles": ["shoulders", "hip_abductors"],
+      "discipline": ["strength", "stability"],
+      "equipment": [],
+      "difficulty": "intermediate",
+      "instructions": [
+        "Support body on one extended arm",
+        "Stack feet or stagger for stability",
+        "Maintain straight line from head to feet",
+        "Hold position for time",
+        "Can add leg raise or arm raise variations"
+      ],
+      "strain": {
+        "intensity": "moderate",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "30 sec each side"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Butterfly Forward Fold",
+      "description": "Hip opening stretch combined with forward fold",
+      "muscles": ["hip_adductors", "lower_back"],
+      "secondaryMuscles": ["hamstrings", "glutes"],
+      "discipline": ["flexibility", "mobility"],
+      "equipment": [],
+      "difficulty": "beginner",
+      "instructions": [
+        "Sit with soles of feet together",
+        "Let knees fall to sides",
+        "Fold forward from hips",
+        "Reach toward feet or floor",
+        "Focus on hip and spine flexibility"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "Hold for time"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Laying Butterfly",
+      "description": "Supine hip opening stretch for inner thighs and hip flexibility",
+      "muscles": ["hip_adductors", "hip_flexors"],
+      "secondaryMuscles": ["glutes"],
+      "discipline": ["flexibility", "mobility"],
+      "equipment": [],
+      "difficulty": "beginner",
+      "instructions": [
+        "Lie on back with soles of feet together",
+        "Let knees fall open to sides",
+        "Relax into the stretch",
+        "Can use for middle split transferability"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "Hold for time"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Frog Pose",
+      "description": "Deep hip opening stretch targeting adductors and hip flexibility",
+      "muscles": ["hip_adductors", "hip_flexors"],
+      "secondaryMuscles": ["glutes"],
+      "discipline": ["flexibility", "mobility"],
+      "equipment": [],
+      "difficulty": "intermediate",
+      "instructions": [
+        "Start on hands and knees",
+        "Spread knees wide, keeping them bent at 90 degrees",
+        "Lower to forearms if possible",
+        "Rock forward and back gently",
+        "Hold position for time"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "Hold for time"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Face Pulls",
+      "description": "Rear deltoid and upper back exercise focusing on shoulder health",
+      "muscles": ["rear_delts", "rhomboids"],
+      "secondaryMuscles": ["middle_traps", "rotator_cuff"],
+      "discipline": ["strength", "corrective"],
+      "equipment": ["cable_machine", "resistance_band"],
+      "difficulty": "beginner",
+      "instructions": [
+        "Pull rope or band toward face",
+        "Separate hands at face level",
+        "Focus on rear delt contraction",
+        "Control the eccentric phase",
+        "Increase resistance as needed"
+      ],
+      "strain": {
+        "intensity": "moderate",
+        "load": "light",
+        "durationType": "reps",
+        "typicalVolume": "8-15 reps x 2-3 sets"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Wall Assisted Shoulder Flexion Stretch",
+      "description": "Shoulder flexibility exercise using wall support for overhead movement",
+      "muscles": ["shoulders", "lats"],
+      "secondaryMuscles": ["chest", "triceps"],
+      "discipline": ["flexibility", "mobility"],
+      "equipment": ["wall"],
+      "difficulty": "beginner",
+      "instructions": [
+        "Place hands on wall overhead",
+        "Walk feet back and lower chest",
+        "Push chest toward floor",
+        "Feel stretch in shoulders and lats",
+        "For more effective overhead movement"
+      ],
+      "strain": {
+        "intensity": "low",
+        "load": "bodyweight",
+        "durationType": "time",
+        "typicalVolume": "Hold for 30-60 seconds"
+      },
+      "isCommon": true
+    },
+    {
+      "name": "Cuban Rotations",
+      "description": "Shoulder external rotation exercise for rotator cuff strength",
+      "muscles": ["rotator_cuff", "rear_delts"],
+      "secondaryMuscles": ["middle_traps"],
+      "discipline": ["strength", "corrective"],
+      "equipment": ["dumbbells", "resistance_band"],
+      "difficulty": "intermediate",
+      "instructions": [
+        "Start with elbows at 90 degrees",
+        "Rotate shoulders externally",
+        "Press weight overhead optional",
+        "Control the movement",
+        "Use minimal rest between sides"
+      ],
+      "strain": {
+        "intensity": "moderate",
+        "load": "light",
+        "durationType": "reps",
+        "typicalVolume": "8-15 reps each side x 2-3 sets"
+      },
+      "isCommon": true
+    }
+]
