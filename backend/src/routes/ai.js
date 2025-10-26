@@ -374,6 +374,89 @@ router.post('/check-form', authMiddleware, aiRateLimit, async (req, res) => {
   }
 });
 
+// Streaming chat endpoint - proxies to Python AI Coach service
+router.post('/stream', authMiddleware, aiRateLimit, async (req, res) => {
+  try {
+    const { message } = req.body;
+    
+    if (!message) {
+      return res.status(400).json({
+        success: false,
+        message: 'Message is required'
+      });
+    }
+
+    // Check if Python service is configured
+    if (AI_PROVIDER !== 'python') {
+      // Fallback to regular chat for non-Python providers
+      return router.handle(Object.assign(req, {
+        url: '/chat',
+        body: { prompt: message }
+      }), res);
+    }
+
+    // Set up SSE headers
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no'
+    });
+
+    // Proxy to Python AI Coach streaming endpoint
+    const http = require('http');
+    const urlParts = new URL(`${AI_SERVICE_URL}/api/v1/chat/stream`);
+    
+    const options = {
+      hostname: urlParts.hostname,
+      port: urlParts.port,
+      path: urlParts.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': req.headers.authorization,
+        'x-stream': 'true'
+      }
+    };
+
+    const proxyReq = http.request(options, (proxyRes) => {
+      // Pipe the streaming response directly to the client
+      proxyRes.on('data', (chunk) => {
+        res.write(chunk);
+      });
+
+      proxyRes.on('end', () => {
+        res.end();
+      });
+
+      proxyRes.on('error', (error) => {
+        console.error('Proxy response error:', error);
+        res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+        res.end();
+      });
+    });
+
+    proxyReq.on('error', (error) => {
+      console.error('Proxy request error:', error);
+      res.write(`data: ${JSON.stringify({ type: 'error', message: 'Failed to connect to AI service' })}\n\n`);
+      res.end();
+    });
+
+    // Send the request body
+    proxyReq.write(JSON.stringify({ message }));
+    proxyReq.end();
+
+  } catch (error) {
+    console.error('Streaming error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to start streaming'
+      });
+    }
+  }
+});
+
 // Status endpoint to check AI provider
 router.get('/status', async (req, res) => {
   const status = {
