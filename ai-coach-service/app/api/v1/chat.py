@@ -116,3 +116,7 @@ async def simple_chat(
     except Exception as e:
         logger.error(f"OpenAI API error: {e}")
         raise HTTPException(status_code=500, detail="Failed to process chat request")
+
+
+# Alias for the streaming fallback
+handle_chat = simple_chat

@@ -7,7 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import redis.asyncio as redis
 
 from app.config import get_settings, Settings
-from app.api.v1 import health, chat
+from app.api.v1 import health, chat, chat_stream
 
 logger = structlog.get_logger()
 
@@ -75,6 +75,7 @@ async def root():
 # Include routers
 app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["chat"])
+app.include_router(chat_stream.router, prefix="/api/v1/chat", tags=["chat-streaming"])
 
 
 @app.exception_handler(Exception)
