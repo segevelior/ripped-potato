@@ -87,3 +87,7 @@ poetry.lock
 # AI Service logs
 ai-service.log
 ai-coach.log
+
+# Redis dump files
+dump.rdb
+*.rdb
