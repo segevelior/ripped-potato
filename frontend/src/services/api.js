@@ -24,7 +24,9 @@ class APIService {
   async request(endpoint, options = {}) {
     try {
       const url = `${this.baseURL}/api/v1${endpoint}`;
-      console.log(`API Request: ${options.method || 'GET'} ${url}`);
+      if (import.meta.env.DEV) {
+        console.log(`API Request: ${options.method || 'GET'} ${url}`);
+      }
 
       const response = await fetch(url, {
         ...options,
