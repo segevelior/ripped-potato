@@ -14,8 +14,10 @@ export const shouldUseRealAPI = () => {
   return API_MODE === 'real';
 };
 
-// Log current mode on initialization
-console.log(`🔄 API Mode: ${API_MODE.toUpperCase()} (${shouldUseMockAPI() ? 'Using localStorage' : 'Using MongoDB'})`);
+// Log current mode only in development
+if (import.meta.env.DEV) {
+  console.log(`🔄 API Mode: ${API_MODE.toUpperCase()} (${shouldUseMockAPI() ? 'Using localStorage' : 'Using MongoDB'})`);
+}
 
 export default {
   API_MODE,

@@ -4,4 +4,7 @@
 // Import MongoDB entities (real API)
 export * from './mongodb-entities';
 
-console.log('🚀 Now using MongoDB backend directly!');
+// Log only in development
+if (import.meta.env.DEV) {
+  console.log('🚀 Now using MongoDB backend directly!');
+}
