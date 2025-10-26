@@ -1,7 +1,11 @@
+/**
+ * MINIMAL POC - Chat with Streaming and Reasoning
+ * Shows AI's thinking process as it works through requests
+ */
+
 import React, { useState, useEffect, useRef } from "react";
 import { User } from "@/api/entities";
-import { InvokeLLM } from "@/api/integrations";
-import { Bot, Send, RotateCcw, MessageCircle, Sparkles, Loader2, Zap } from "lucide-react";
+import { Bot, Send, Loader2, Zap } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useStreamingChat } from "@/hooks/useStreamingChat";
 
