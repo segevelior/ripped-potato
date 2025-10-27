@@ -19,7 +19,7 @@ export default function ChatWithStreaming() {
   const messagesEndRef = useRef(null);
 
   // Streaming hook
-  const { isStreaming, streamingMessage, activeTools, sendStreamingMessage } = useStreamingChat();
+  const { isStreaming, streamingMessage, activeTools, completedTools, sendStreamingMessage } = useStreamingChat();
 
   useEffect(() => {
     const loadUser = async () => {
@@ -237,33 +237,22 @@ I'll walk you through my reasoning as I work on your request!`
           </div>
         ))}
 
-        {/* Tool Execution Display */}
+        {/* Tool Execution Display - Centered and minimal like Claude/ChatGPT */}
         {activeTools.length > 0 && (
-          <div className="flex justify-start">
-            <div className="flex gap-3 max-w-[70%]">
-              <div className="flex-shrink-0 mt-1">
-                <div className="bg-gray-400 p-2 rounded-lg">
-                  <Zap className="h-5 w-5 text-white" />
-                </div>
+          <div className="flex justify-center my-6">
+            {activeTools.map((tool, idx) => (
+              <div
+                key={`${tool.tool}-${idx}`}
+                className="inline-flex items-center gap-2.5 text-gray-400 text-xs px-4 py-2 bg-gray-50/50 rounded-full"
+              >
+                {tool.status === 'running' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
+                ) : tool.status === 'complete' ? (
+                  <span className="text-green-500 text-sm">✓</span>
+                ) : null}
+                <span className="font-medium">{tool.description}</span>
               </div>
-              <div className="space-y-2">
-                {activeTools.map((tool, idx) => (
-                  <div
-                    key={`${tool.tool}-${idx}`}
-                    className="flex items-center gap-2 text-gray-600 text-sm bg-gray-50 rounded-lg px-3 py-2 border"
-                  >
-                    {tool.status === 'running' ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                    ) : tool.status === 'complete' ? (
-                      <span className="text-green-500">✓</span>
-                    ) : (
-                      <span className="text-red-500">✗</span>
-                    )}
-                    <span className="italic">{tool.description}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
         )}
 

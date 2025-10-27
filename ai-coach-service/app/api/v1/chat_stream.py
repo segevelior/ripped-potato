@@ -196,8 +196,8 @@ For example:
                             "content": json.dumps(result)
                         })
 
-                        # Send tool completion event
-                        yield f"data: {json.dumps({'type': 'tool_complete', 'tool': function_name, 'success': result.get('success', False)})}\n\n"
+                        # Send tool completion event with the result message
+                        yield f"data: {json.dumps({'type': 'tool_complete', 'tool': function_name, 'success': result.get('success', False), 'message': result.get('message', '')})}\n\n"
 
                     # Now get the final response from OpenAI with tool results
                     logger.info("🤖 Getting final response after tool execution...")

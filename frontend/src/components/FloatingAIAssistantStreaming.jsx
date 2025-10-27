@@ -26,7 +26,7 @@ export default function FloatingAIAssistantStreaming() {
   const chatEndRef = useRef(null);
 
   // Streaming hook
-  const { isStreaming, streamingMessage, activeTools, sendStreamingMessage } = useStreamingChat();
+  const { isStreaming, streamingMessage, activeTools, completedTools, sendStreamingMessage } = useStreamingChat();
 
   useEffect(() => {
     const loadUser = async () => {
@@ -318,22 +318,20 @@ Provide a helpful, concise response.`;
               </div>
             ))}
 
-            {/* Tool Execution Display */}
+            {/* Tool Execution Display - Centered and minimal like Claude/ChatGPT */}
             {activeTools.length > 0 && (
-              <div className="space-y-2">
+              <div className="flex justify-center my-4">
                 {activeTools.map((tool, idx) => (
                   <div
                     key={`${tool.tool}-${idx}`}
-                    className="flex items-center gap-2 text-gray-500 text-sm bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2"
+                    className="inline-flex items-center gap-2 text-gray-400 dark:text-gray-500 text-xs px-3 py-1.5 bg-gray-50 dark:bg-gray-800/50 rounded-full"
                   >
                     {tool.status === 'running' ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                      <Loader2 className="h-3 w-3 animate-spin" />
                     ) : tool.status === 'complete' ? (
-                      <div className="h-4 w-4 text-green-500">✓</div>
-                    ) : (
-                      <div className="h-4 w-4 text-red-500">✗</div>
-                    )}
-                    <span className="italic">{tool.description}</span>
+                      <span className="text-green-500">✓</span>
+                    ) : null}
+                    <span className="font-medium">{tool.description}</span>
                   </div>
                 ))}
               </div>

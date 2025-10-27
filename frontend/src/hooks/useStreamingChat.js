@@ -14,12 +14,14 @@ export function useStreamingChat() {
   const [streamingMessage, setStreamingMessage] = useState('');
   const [reasoningSteps, setReasoningSteps] = useState([]);
   const [activeTools, setActiveTools] = useState([]); // Track currently executing tools
+  const [completedTools, setCompletedTools] = useState([]); // Track completed tools with their messages
 
   const sendStreamingMessage = useCallback(async (message, authToken) => {
     setIsStreaming(true);
     setStreamingMessage('');
     setReasoningSteps([]);
     setActiveTools([]);
+    setCompletedTools([]);
 
     try {
       // Call the Node.js backend which will proxy to Python AI Coach service
@@ -71,23 +73,30 @@ export function useStreamingChat() {
                     status: 'running'
                   }]);
                 } else if (event.type === 'tool_complete') {
-                  // Mark tool as complete
+                  // Mark tool as complete and store the message
                   setActiveTools(prev => prev.map(t =>
                     t.tool === event.tool
                       ? { ...t, status: event.success ? 'complete' : 'error' }
                       : t
                   ));
-                  // Clear tools after a short delay
-                  setTimeout(() => {
-                    setActiveTools(prev => prev.filter(t => t.tool !== event.tool));
-                  }, 2000);
+
+                  // Store completed tool info
+                  if (event.message) {
+                    setCompletedTools(prev => [...prev, {
+                      tool: event.tool,
+                      message: event.message,
+                      success: event.success
+                    }]);
+                  }
+
+                  // Keep tools visible - don't remove them
+                  // They serve as visual dividers showing what was executed
                 } else if (event.type === 'reasoning') {
                   // Track reasoning steps separately if needed
                   setReasoningSteps(prev => [...prev, event.content]);
                 } else if (event.type === 'complete') {
                   setIsStreaming(false);
-                  // Clear all tools when streaming completes
-                  setTimeout(() => setActiveTools([]), 1000);
+                  // Don't clear tools - they stay visible as part of the conversation history
                 } else if (event.type === 'error') {
                   console.error('[useStreamingChat] Stream error:', event.message);
                   setIsStreaming(false);
@@ -113,6 +122,7 @@ export function useStreamingChat() {
     streamingMessage,
     reasoningSteps,
     activeTools,
+    completedTools,
     sendStreamingMessage
   };
 }
