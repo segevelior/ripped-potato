@@ -8,7 +8,9 @@ import { User } from "@/api/entities";
 import { InvokeLLM } from "@/api/integrations";
 import { Bot, X, Send, MessageCircle, Loader2, Minimize2, Maximize2, Zap } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
 import { useStreamingChat } from "@/hooks/useStreamingChat";
+import { ToolExecutionMarker } from "@/components/ToolExecutionMarker";
 
 export default function FloatingAIAssistantStreaming() {
   const [isOpen, setIsOpen] = useState(false);
@@ -308,34 +310,41 @@ Provide a helpful, concise response.`;
                 >
                   {msg.role === "assistant" && msg.isStreaming ? (
                     <div>
-                      <ReactMarkdown>{streamingMessage || "..."}</ReactMarkdown>
+                      <ReactMarkdown
+                        rehypePlugins={[rehypeRaw]}
+                        components={{
+                          'tool-executing': ({ children }) => (
+                            <ToolExecutionMarker isComplete={false}>{children}</ToolExecutionMarker>
+                          ),
+                          'tool-complete': ({ children }) => (
+                            <ToolExecutionMarker isComplete={true}>{children}</ToolExecutionMarker>
+                          ),
+                        }}
+                      >
+                        {streamingMessage || "..."}
+                      </ReactMarkdown>
                       {isStreaming && <span className="inline-block animate-pulse">▊</span>}
                     </div>
                   ) : (
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    <ReactMarkdown
+                      rehypePlugins={[rehypeRaw]}
+                      components={{
+                        'tool-executing': ({ children }) => (
+                          <ToolExecutionMarker isComplete={false}>{children}</ToolExecutionMarker>
+                        ),
+                        'tool-complete': ({ children }) => (
+                          <ToolExecutionMarker isComplete={true}>{children}</ToolExecutionMarker>
+                        ),
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
                   )}
                 </div>
               </div>
             ))}
 
-            {/* Tool Execution Display - Centered and minimal like Claude/ChatGPT */}
-            {activeTools.length > 0 && (
-              <div className="flex justify-center my-4">
-                {activeTools.map((tool, idx) => (
-                  <div
-                    key={`${tool.tool}-${idx}`}
-                    className="inline-flex items-center gap-2 text-gray-400 dark:text-gray-500 text-xs px-3 py-1.5 bg-gray-50 dark:bg-gray-800/50 rounded-full"
-                  >
-                    {tool.status === 'running' ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : tool.status === 'complete' ? (
-                      <span className="text-green-500">✓</span>
-                    ) : null}
-                    <span className="font-medium">{tool.description}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* Tool execution is now inline within the message using custom HTML tags */}
             {isThinking && (
               <div className="text-left">
                 <div className="inline-flex items-center gap-2 bg-gray-100 dark:bg-gray-800 p-3 rounded-lg">

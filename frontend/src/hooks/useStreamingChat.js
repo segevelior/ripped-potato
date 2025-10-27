@@ -66,31 +66,30 @@ export function useStreamingChat() {
                   accumulatedMessage += event.content || '';
                   setStreamingMessage(accumulatedMessage);
                 } else if (event.type === 'tool_start') {
-                  // Add tool to active tools list
+                  // Inject tool marker into the message stream
+                  accumulatedMessage += `\n\n<tool-executing>${event.description}</tool-executing>\n\n`;
+                  setStreamingMessage(accumulatedMessage);
+
+                  // Also track in activeTools for the UI component
                   setActiveTools(prev => [...prev, {
                     tool: event.tool,
                     description: event.description,
                     status: 'running'
                   }]);
                 } else if (event.type === 'tool_complete') {
-                  // Mark tool as complete and store the message
+                  // Update the tool marker in the message to show completion
+                  accumulatedMessage = accumulatedMessage.replace(
+                    `<tool-executing>${activeTools.find(t => t.tool === event.tool)?.description}</tool-executing>`,
+                    `<tool-complete>${activeTools.find(t => t.tool === event.tool)?.description}</tool-complete>`
+                  );
+                  setStreamingMessage(accumulatedMessage);
+
+                  // Mark tool as complete
                   setActiveTools(prev => prev.map(t =>
                     t.tool === event.tool
                       ? { ...t, status: event.success ? 'complete' : 'error' }
                       : t
                   ));
-
-                  // Store completed tool info
-                  if (event.message) {
-                    setCompletedTools(prev => [...prev, {
-                      tool: event.tool,
-                      message: event.message,
-                      success: event.success
-                    }]);
-                  }
-
-                  // Keep tools visible - don't remove them
-                  // They serve as visual dividers showing what was executed
                 } else if (event.type === 'reasoning') {
                   // Track reasoning steps separately if needed
                   setReasoningSteps(prev => [...prev, event.content]);

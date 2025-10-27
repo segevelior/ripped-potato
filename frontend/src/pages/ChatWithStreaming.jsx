@@ -7,7 +7,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { User } from "@/api/entities";
 import { Bot, Send, Loader2, Zap, RotateCcw, Sparkles, MessageCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
 import { useStreamingChat } from "@/hooks/useStreamingChat";
+import { ToolExecutionMarker } from "@/components/ToolExecutionMarker";
 
 export default function ChatWithStreaming() {
   const [messages, setMessages] = useState([]);
@@ -215,14 +217,38 @@ I'll walk you through my reasoning as I work on your request!`
               >
                 {message.role === "assistant" && message.isStreaming ? (
                   <div className="prose prose-sm max-w-none">
-                    <ReactMarkdown>{streamingMessage || "..."}</ReactMarkdown>
+                    <ReactMarkdown
+                      rehypePlugins={[rehypeRaw]}
+                      components={{
+                        'tool-executing': ({ children }) => (
+                          <ToolExecutionMarker isComplete={false}>{children}</ToolExecutionMarker>
+                        ),
+                        'tool-complete': ({ children }) => (
+                          <ToolExecutionMarker isComplete={true}>{children}</ToolExecutionMarker>
+                        ),
+                      }}
+                    >
+                      {streamingMessage || "..."}
+                    </ReactMarkdown>
                     {isStreaming && (
                       <span className="inline-block w-2 h-4 bg-blue-600 animate-pulse ml-1" />
                     )}
                   </div>
                 ) : (
                   <div className={`${message.role === "assistant" ? "prose prose-sm max-w-none" : ""}`}>
-                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                    <ReactMarkdown
+                      rehypePlugins={[rehypeRaw]}
+                      components={{
+                        'tool-executing': ({ children }) => (
+                          <ToolExecutionMarker isComplete={false}>{children}</ToolExecutionMarker>
+                        ),
+                        'tool-complete': ({ children }) => (
+                          <ToolExecutionMarker isComplete={true}>{children}</ToolExecutionMarker>
+                        ),
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
                   </div>
                 )}
               </div>
@@ -237,24 +263,7 @@ I'll walk you through my reasoning as I work on your request!`
           </div>
         ))}
 
-        {/* Tool Execution Display - Centered and minimal like Claude/ChatGPT */}
-        {activeTools.length > 0 && (
-          <div className="flex justify-center my-6">
-            {activeTools.map((tool, idx) => (
-              <div
-                key={`${tool.tool}-${idx}`}
-                className="inline-flex items-center gap-2.5 text-gray-400 text-xs px-4 py-2 bg-gray-50/50 rounded-full"
-              >
-                {tool.status === 'running' ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
-                ) : tool.status === 'complete' ? (
-                  <span className="text-green-500 text-sm">✓</span>
-                ) : null}
-                <span className="font-medium">{tool.description}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Tool execution is now inline within the message using custom HTML tags */}
 
         {isThinking && (
           <div className="flex justify-start">
