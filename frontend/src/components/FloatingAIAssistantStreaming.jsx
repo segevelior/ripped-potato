@@ -8,7 +8,9 @@ import { User } from "@/api/entities";
 import { InvokeLLM } from "@/api/integrations";
 import { Bot, X, Send, MessageCircle, Loader2, Minimize2, Maximize2, Zap } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
 import { useStreamingChat } from "@/hooks/useStreamingChat";
+import { ToolExecutionMarker } from "@/components/ToolExecutionMarker";
 
 export default function FloatingAIAssistantStreaming() {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,7 +28,7 @@ export default function FloatingAIAssistantStreaming() {
   const chatEndRef = useRef(null);
 
   // Streaming hook
-  const { isStreaming, streamingMessage, sendStreamingMessage } = useStreamingChat();
+  const { isStreaming, streamingMessage, activeTools, completedTools, sendStreamingMessage } = useStreamingChat();
 
   useEffect(() => {
     const loadUser = async () => {
@@ -308,15 +310,41 @@ Provide a helpful, concise response.`;
                 >
                   {msg.role === "assistant" && msg.isStreaming ? (
                     <div>
-                      <ReactMarkdown>{streamingMessage || "..."}</ReactMarkdown>
+                      <ReactMarkdown
+                        rehypePlugins={[rehypeRaw]}
+                        components={{
+                          'tool-executing': ({ children }) => (
+                            <ToolExecutionMarker isComplete={false}>{children}</ToolExecutionMarker>
+                          ),
+                          'tool-complete': ({ children }) => (
+                            <ToolExecutionMarker isComplete={true}>{children}</ToolExecutionMarker>
+                          ),
+                        }}
+                      >
+                        {streamingMessage || "..."}
+                      </ReactMarkdown>
                       {isStreaming && <span className="inline-block animate-pulse">▊</span>}
                     </div>
                   ) : (
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    <ReactMarkdown
+                      rehypePlugins={[rehypeRaw]}
+                      components={{
+                        'tool-executing': ({ children }) => (
+                          <ToolExecutionMarker isComplete={false}>{children}</ToolExecutionMarker>
+                        ),
+                        'tool-complete': ({ children }) => (
+                          <ToolExecutionMarker isComplete={true}>{children}</ToolExecutionMarker>
+                        ),
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
                   )}
                 </div>
               </div>
             ))}
+
+            {/* Tool execution is now inline within the message using custom HTML tags */}
             {isThinking && (
               <div className="text-left">
                 <div className="inline-flex items-center gap-2 bg-gray-100 dark:bg-gray-800 p-3 rounded-lg">

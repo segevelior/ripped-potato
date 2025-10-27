@@ -1,6 +1,6 @@
 """
-Minimal streaming chat endpoint with reasoning support for POC
-Shows AI's intermediate thinking steps as it processes requests
+Streaming chat endpoint with tool calling support
+Shows AI's intermediate thinking steps and tool executions as it processes requests
 """
 
 from fastapi import APIRouter, Depends, Request
@@ -14,6 +14,8 @@ import asyncio
 from app.config import get_settings
 from app.models.schemas import ChatRequest
 from app.middleware.auth import get_current_user
+from app.core.agents.orchestrator import AgentOrchestrator
+from app.core.agents.data_reader import DataReaderAgent
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -22,57 +24,61 @@ logger = structlog.get_logger()
 async def generate_stream_with_reasoning(
     message: str,
     user_context: Dict[str, Any],
-    settings: Any
+    settings: Any,
+    orchestrator: AgentOrchestrator,
+    data_reader: DataReaderAgent
 ) -> AsyncGenerator[str, None]:
     """
-    Generate streaming response with reasoning steps shown to user.
-    The AI naturally shows its thinking process through the prompt.
+    Generate streaming response with tool calling and reasoning steps shown to user.
+    The AI can use tools to interact with the database while streaming.
     """
     logger.info(f"📝 generate_stream_with_reasoning called with message: {message[:50]}...")
     client = AsyncOpenAI(api_key=settings.openai_api_key)
 
-    # System prompt that encourages step-by-step reasoning
-    system_prompt = """You are an AI fitness coach assistant. Help users with workouts, exercises, and fitness goals.
+    user_id = user_context.get("user_id")
 
-IMPORTANT: When responding to requests, show your thinking process naturally by:
-1. First stating what you're going to do
-2. Then describing each step as you work through it  
-3. Finally providing the complete answer
+    # Read user data for context (same as non-streaming)
+    logger.info(f"Processing request for user {user_id}")
+    data_context = await data_reader.process(message, user_context)
 
-For example, if asked to create a workout, say things like:
-- "Let me create a 15-minute core workout for you..."
-- "I'll start by selecting appropriate exercises..."
-- "Adding rest intervals between sets..."
-- "Here's your complete workout:"
+    # Build context string
+    context_str = f"""User has:
+- {len(data_context.get('exercises', []))} exercises
+- {len(data_context.get('workouts', []))} workouts
+- {len(data_context.get('goals', []))} goals"""
 
-If asked about exercises, show your process:
-- "Let me check what exercises would work best..."
-- "I found some great options for your fitness level..."
-- "Here are my recommendations:"
+    # System prompt (same as orchestrator but with streaming guidance)
+    system_prompt = """You are an expert AI fitness coach helping users manage their fitness journey.
 
-Be conversational and show your work process naturally."""
+When users ask to add exercises (like "add muscle ups to my exercises"), use add_exercise.
+When they want to create workouts or goals, use create_workout or create_goal.
+When they want to update an existing goal, use update_goal.
+When they want to update a plan's details (name, status, start date, schedule), use update_plan.
+When they want to add or remove weekly workouts in a plan, use add_plan_workout or remove_plan_workout.
 
-    # Add user context if available
-    if user_context:
-        context_str = f"\n\nUser Context:"
-        context_str += f"\n- User ID: {user_context.get('user_id')}"
-        if user_context.get('username'):
-            context_str += f"\n- Name: {user_context.get('username')}"
-        if user_context.get('fitness_level'):
-            context_str += f"\n- Fitness Level: {user_context['fitness_level']}"
-        system_prompt += context_str
+IMPORTANT: Show your thinking process naturally as you work:
+- Before calling a tool, explain what you're about to do
+- After getting results, explain what happened
+- Be conversational and guide users through your process
+
+For example:
+- "Let me create that workout for you..."
+- "I'm adding these exercises to your predefined workouts..."
+- "Great! I've successfully added the workout to your library."""
 
     messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": message}
+        {"role": "user", "content": f"{context_str}\n\nUser: {message}"}
     ]
 
     try:
-        # Create streaming completion
-        logger.info(f"🤖 Calling OpenAI API with model: {settings.openai_model}")
+        # Create streaming completion WITH TOOLS
+        logger.info(f"🤖 Calling OpenAI API with model: {settings.openai_model} and {len(orchestrator.get_tools())} tools")
         stream = await client.chat.completions.create(
             model=settings.openai_model,
             messages=messages,
+            tools=orchestrator.get_tools(),  # CRITICAL: Add tools for function calling
+            tool_choice="auto",
             temperature=0.7,
             max_tokens=1500,
             stream=True
@@ -80,6 +86,8 @@ Be conversational and show your work process naturally."""
 
         logger.info("✅ OpenAI stream created successfully, starting to stream tokens...")
         token_count = 0
+        tool_calls_data = {}  # Accumulate tool call chunks by index
+
         # Stream tokens as SSE events
         async for chunk in stream:
             token_count += 1
@@ -95,7 +103,7 @@ Be conversational and show your work process naturally."""
 
             delta = choice.delta
 
-            # Log what's in the delta
+            # Stream content tokens
             if delta.content:
                 logger.debug(f"Token #{token_count}: '{delta.content}'")
                 token = delta.content
@@ -106,27 +114,133 @@ Be conversational and show your work process naturally."""
                 if token in ['.', '!', '?'] and len(token) == 1:
                     await asyncio.sleep(0.05)
 
-            # Log tool calls if present
+            # Accumulate tool call chunks
             if delta.tool_calls:
-                logger.debug(f"Tool call detected in chunk #{token_count}: {delta.tool_calls}")
-                for tool_call in delta.tool_calls:
-                    logger.debug(f"  - Tool: {tool_call.function.name if tool_call.function else 'unknown'}")
-                    logger.debug(f"  - Arguments: {tool_call.function.arguments if tool_call.function else 'none'}")
+                logger.info(f"🔧 Tool call chunk detected in chunk #{token_count}")
+                for tool_call_chunk in delta.tool_calls:
+                    index = tool_call_chunk.index
+                    if index not in tool_calls_data:
+                        tool_calls_data[index] = {
+                            "id": "",
+                            "function": {"name": "", "arguments": ""}
+                        }
 
-            # Log function calls if present
-            if hasattr(delta, 'function_call') and delta.function_call:
-                logger.debug(f"Function call in chunk #{token_count}: {delta.function_call}")
+                    # Accumulate tool call data
+                    if tool_call_chunk.id:
+                        tool_calls_data[index]["id"] = tool_call_chunk.id
+                    if tool_call_chunk.function:
+                        if tool_call_chunk.function.name:
+                            tool_calls_data[index]["function"]["name"] += tool_call_chunk.function.name
+                        if tool_call_chunk.function.arguments:
+                            tool_calls_data[index]["function"]["arguments"] += tool_call_chunk.function.arguments
 
-            # Log role changes
-            if delta.role:
-                logger.debug(f"Role change in chunk #{token_count}: {delta.role}")
-
-            # Log finish reason when present
+            # Check for finish reason
             if choice.finish_reason:
                 logger.info(f"🏁 Finish reason: {choice.finish_reason}")
 
+                # If finish reason is tool_calls, execute them and continue
+                if choice.finish_reason == "tool_calls" and tool_calls_data:
+                    logger.info(f"🔧 Executing {len(tool_calls_data)} tool calls...")
+
+                    # Send a message to user that we're executing tools
+                    newline_event = json.dumps({'type': 'token', 'content': '\n\n'})
+                    yield f"data: {newline_event}\n\n"
+
+                    # Execute each tool call
+                    tool_results = []
+                    for index in sorted(tool_calls_data.keys()):
+                        tool_data = tool_calls_data[index]
+                        function_name = tool_data["function"]["name"]
+                        function_args = json.loads(tool_data["function"]["arguments"])
+
+                        logger.info(f"🔧 Executing {function_name} with args: {function_args}")
+
+                        # Map tool names to user-friendly descriptions
+                        tool_descriptions = {
+                            "add_exercise": f"Adding {function_args.get('name', 'exercise')} to your library",
+                            "create_workout": f"Creating {function_args.get('name', 'workout')}",
+                            "create_goal": f"Setting up {function_args.get('name', 'fitness goal')}",
+                            "update_goal": "Updating your fitness goal",
+                            "update_plan": "Updating your training plan",
+                            "add_plan_workout": f"Adding workout to week {function_args.get('weekNumber', '')}",
+                            "remove_plan_workout": f"Removing workout from week {function_args.get('weekNumber', '')}"
+                        }
+
+                        # Send tool execution start event
+                        tool_display_name = tool_descriptions.get(function_name, f"Processing {function_name}")
+                        yield f"data: {json.dumps({'type': 'tool_start', 'tool': function_name, 'description': tool_display_name})}\n\n"
+
+                        # Execute using orchestrator's methods
+                        if function_name == "add_exercise":
+                            result = await orchestrator._add_exercise(user_id, function_args)
+                        elif function_name == "create_workout":
+                            result = await orchestrator._create_workout(user_id, function_args)
+                        elif function_name == "create_goal":
+                            result = await orchestrator._create_goal(user_id, function_args)
+                        elif function_name == "update_goal":
+                            result = await orchestrator._update_goal(user_id, function_args)
+                        elif function_name == "update_plan":
+                            result = await orchestrator._update_plan(user_id, function_args)
+                        elif function_name == "add_plan_workout":
+                            result = await orchestrator._add_plan_workout(user_id, function_args)
+                        elif function_name == "remove_plan_workout":
+                            result = await orchestrator._remove_plan_workout(user_id, function_args)
+                        else:
+                            result = {"error": f"Unknown function: {function_name}"}
+
+                        logger.info(f"✅ Tool {function_name} result: {result}")
+
+                        tool_results.append({
+                            "tool_call_id": tool_data["id"],
+                            "role": "tool",
+                            "content": json.dumps(result)
+                        })
+
+                        # Send tool completion event with the result message
+                        yield f"data: {json.dumps({'type': 'tool_complete', 'tool': function_name, 'success': result.get('success', False), 'message': result.get('message', '')})}\n\n"
+
+                    # Now get the final response from OpenAI with tool results
+                    logger.info("🤖 Getting final response after tool execution...")
+
+                    # Build message history with tool results
+                    messages.append({
+                        "role": "assistant",
+                        "tool_calls": [
+                            {
+                                "id": tool_calls_data[i]["id"],
+                                "type": "function",
+                                "function": {
+                                    "name": tool_calls_data[i]["function"]["name"],
+                                    "arguments": tool_calls_data[i]["function"]["arguments"]
+                                }
+                            }
+                            for i in sorted(tool_calls_data.keys())
+                        ]
+                    })
+
+                    for tool_result in tool_results:
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_result["tool_call_id"],
+                            "content": tool_result["content"]
+                        })
+
+                    # Stream the final response
+                    final_stream = await client.chat.completions.create(
+                        model=settings.openai_model,
+                        messages=messages,
+                        temperature=0.7,
+                        max_tokens=500,
+                        stream=True
+                    )
+
+                    async for final_chunk in final_stream:
+                        final_choice = final_chunk.choices[0] if final_chunk.choices else None
+                        if final_choice and final_choice.delta.content:
+                            yield f"data: {json.dumps({'type': 'token', 'content': final_choice.delta.content})}\n\n"
+
         # Send completion event
-        logger.info(f"✅ Stream completed successfully. Total tokens: {token_count}")
+        logger.info(f"✅ Stream completed successfully. Total chunks: {token_count}")
         yield f"data: {json.dumps({'type': 'complete'})}\n\n"
 
     except Exception as e:
@@ -141,10 +255,10 @@ async def chat_stream(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ) -> StreamingResponse:
     """
-    Minimal streaming chat endpoint for POC.
+    Streaming chat endpoint with tool calling support.
     Returns Server-Sent Events (SSE) with token-by-token streaming.
 
-    The AI shows its reasoning process naturally through the response.
+    The AI can use tools to interact with the database while showing its reasoning process.
 
     Headers:
         x-stream: "true" (default) for streaming, "false" for non-streaming
@@ -168,17 +282,31 @@ async def chat_stream(
 
     settings = get_settings()
 
+    # Get database and Redis connections
+    from app.main import db, redis_client
+
+    # Initialize orchestrator and data reader (same as non-streaming endpoint)
+    orchestrator = AgentOrchestrator(db, redis_client)
+    data_reader = DataReaderAgent(db)
+
     # Prepare user context
     user_context = {
         "user_id": current_user["user_id"],
         "email": current_user.get("email"),
-        "username": current_user.get("username")
+        "username": current_user.get("username"),
+        "schema": request.context.get("schema") if request.context else None
     }
 
     logger.info(f"✅ Starting stream generation for user {current_user['user_id']}")
 
-    # Generate streaming response
-    stream_generator = generate_stream_with_reasoning(request.message, user_context, settings)
+    # Generate streaming response with tools
+    stream_generator = generate_stream_with_reasoning(
+        request.message,
+        user_context,
+        settings,
+        orchestrator,
+        data_reader
+    )
 
     return StreamingResponse(
         stream_generator,
