@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { User } from "@/api/entities";
-import { Bot, Send, Loader2, Zap } from "lucide-react";
+import { Bot, Send, Loader2, Zap, RotateCcw, Sparkles, MessageCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useStreamingChat } from "@/hooks/useStreamingChat";
 
@@ -30,7 +30,6 @@ export default function ChatWithStreaming() {
         // Get auth token
         const token = localStorage.getItem('authToken');
         setAuthToken(token);
-        console.log('[ChatWithStreaming] Auth token loaded:', token ? 'YES' : 'NO');
 
         // Load chat history
         const savedMessages = localStorage.getItem('chatHistory');
@@ -64,9 +63,13 @@ I'll walk you through my reasoning as I work on your request!`
     }
   }, [messages]);
 
+  // Auto-scroll to bottom when messages change or streaming updates
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingMessage]);
+    // Use instant scroll during streaming to avoid jumpy behavior
+    // Use smooth scroll when not streaming for better UX
+    const behavior = isStreaming ? "instant" : "smooth";
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  }, [messages, streamingMessage, isStreaming]);
 
   // Update messages when streaming completes
   useEffect(() => {
@@ -97,14 +100,8 @@ I'll walk you through my reasoning as I work on your request!`
     const currentInput = input;
     setInput("");
 
-    console.log('[ChatWithStreaming] handleSendMessage called');
-    console.log('[ChatWithStreaming] useStreaming:', useStreaming);
-    console.log('[ChatWithStreaming] authToken exists:', !!authToken);
-    console.log('[ChatWithStreaming] Condition check (useStreaming && authToken):', useStreaming && authToken);
-
     if (useStreaming && authToken) {
       // Streaming mode - show reasoning steps
-      console.log('[ChatWithStreaming] ✅ Using STREAMING mode - calling /api/v1/ai/stream');
       setMessages(prev => [...prev, { role: "assistant", content: "", isStreaming: true }]);
 
       try {
@@ -118,8 +115,6 @@ I'll walk you through my reasoning as I work on your request!`
       }
     } else {
       // Non-streaming mode
-      console.log('[ChatWithStreaming] ❌ Using NON-STREAMING fallback - calling InvokeLLM');
-      console.log('[ChatWithStreaming] Reason: useStreaming=' + useStreaming + ', authToken=' + !!authToken);
       setIsThinking(true);
 
       try {

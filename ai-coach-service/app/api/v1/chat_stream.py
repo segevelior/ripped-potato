@@ -83,14 +83,47 @@ Be conversational and show your work process naturally."""
         # Stream tokens as SSE events
         async for chunk in stream:
             token_count += 1
-            if chunk.choices[0].delta.content:
-                token = chunk.choices[0].delta.content
+
+            # Log the entire chunk for debugging
+            logger.debug(f"Chunk #{token_count}: {chunk}")
+
+            # Check for different types of content in the chunk
+            choice = chunk.choices[0] if chunk.choices else None
+            if not choice:
+                logger.warning(f"Chunk #{token_count} has no choices")
+                continue
+
+            delta = choice.delta
+
+            # Log what's in the delta
+            if delta.content:
+                logger.debug(f"Token #{token_count}: '{delta.content}'")
+                token = delta.content
                 # Format as Server-Sent Event
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
                 # Optional: Small delay for more natural feel on punctuation
                 if token in ['.', '!', '?'] and len(token) == 1:
                     await asyncio.sleep(0.05)
+
+            # Log tool calls if present
+            if delta.tool_calls:
+                logger.debug(f"Tool call detected in chunk #{token_count}: {delta.tool_calls}")
+                for tool_call in delta.tool_calls:
+                    logger.debug(f"  - Tool: {tool_call.function.name if tool_call.function else 'unknown'}")
+                    logger.debug(f"  - Arguments: {tool_call.function.arguments if tool_call.function else 'none'}")
+
+            # Log function calls if present
+            if hasattr(delta, 'function_call') and delta.function_call:
+                logger.debug(f"Function call in chunk #{token_count}: {delta.function_call}")
+
+            # Log role changes
+            if delta.role:
+                logger.debug(f"Role change in chunk #{token_count}: {delta.role}")
+
+            # Log finish reason when present
+            if choice.finish_reason:
+                logger.info(f"🏁 Finish reason: {choice.finish_reason}")
 
         # Send completion event
         logger.info(f"✅ Stream completed successfully. Total tokens: {token_count}")
