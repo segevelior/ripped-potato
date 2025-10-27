@@ -170,6 +170,27 @@ JWT_SECRET_KEY=<same-as-nodejs-backend>
 4. Should see Accept/Reject buttons for the proposed workout
 5. Click Accept to create the workout via Node.js API
 
+## RECENT IMPLEMENTATIONS
+
+### Streaming & Reasoning POC (2025-10-26)
+- **Branch**: feature/streaming-reasoning-poc  
+- **Status**: Minimal POC implemented ✅
+- **What was added**:
+  1. **Python AI Coach Service**: `chat_stream.py` endpoint with SSE streaming
+  2. **Reasoning via Prompt**: System prompt encourages step-by-step thinking ("Let me check...", "I'll create...", etc.)
+  3. **Node.js Proxy**: `/api/v1/ai/stream` endpoint proxies to Python service
+  4. **Frontend Hook**: `useStreamingChat.js` handles SSE events and reasoning steps
+  5. **UI Components**: Both FloatingAIAssistantStreaming and ChatWithStreaming support toggle
+- **How it works**:
+  - AI naturally shows its thinking process through prompting
+  - Tokens stream in real-time via Server-Sent Events
+  - Both chat tab and floating window support streaming mode
+  - Can toggle between streaming/non-streaming modes
+- **To test**:
+  1. Start Python AI Coach: `cd ai-coach-service && poetry run uvicorn app.main:app --reload --port 8001`
+  2. Set `AI_PROVIDER=python` in Node.js backend
+  3. Try: "Create a 15 minute core workout" to see reasoning steps
+
 ## PENDING TASKS
 
 ### High Priority:

@@ -404,9 +404,10 @@ router.post('/stream', authMiddleware, aiRateLimit, async (req, res) => {
     });
 
     // Proxy to Python AI Coach streaming endpoint
-    const http = require('http');
     const urlParts = new URL(`${AI_SERVICE_URL}/api/v1/chat/stream`);
-    
+    const isHttps = urlParts.protocol === 'https:';
+    const http = require(isHttps ? 'https' : 'http');
+
     const options = {
       hostname: urlParts.hostname,
       port: urlParts.port,
