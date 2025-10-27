@@ -28,6 +28,7 @@ async def generate_stream_with_reasoning(
     Generate streaming response with reasoning steps shown to user.
     The AI naturally shows its thinking process through the prompt.
     """
+    logger.info(f"📝 generate_stream_with_reasoning called with message: {message[:50]}...")
     client = AsyncOpenAI(api_key=settings.openai_api_key)
 
     # System prompt that encourages step-by-step reasoning
@@ -68,6 +69,7 @@ Be conversational and show your work process naturally."""
 
     try:
         # Create streaming completion
+        logger.info(f"🤖 Calling OpenAI API with model: {settings.openai_model}")
         stream = await client.chat.completions.create(
             model=settings.openai_model,
             messages=messages,
@@ -76,8 +78,11 @@ Be conversational and show your work process naturally."""
             stream=True
         )
 
+        logger.info("✅ OpenAI stream created successfully, starting to stream tokens...")
+        token_count = 0
         # Stream tokens as SSE events
         async for chunk in stream:
+            token_count += 1
             if chunk.choices[0].delta.content:
                 token = chunk.choices[0].delta.content
                 # Format as Server-Sent Event
@@ -88,10 +93,11 @@ Be conversational and show your work process naturally."""
                     await asyncio.sleep(0.05)
 
         # Send completion event
+        logger.info(f"✅ Stream completed successfully. Total tokens: {token_count}")
         yield f"data: {json.dumps({'type': 'complete'})}\n\n"
 
     except Exception as e:
-        logger.error(f"Streaming error: {e}", exc_info=True)
+        logger.error(f"❌ Streaming error: {e}", exc_info=True)
         yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
 
@@ -104,18 +110,26 @@ async def chat_stream(
     """
     Minimal streaming chat endpoint for POC.
     Returns Server-Sent Events (SSE) with token-by-token streaming.
-    
+
     The AI shows its reasoning process naturally through the response.
 
     Headers:
         x-stream: "true" (default) for streaming, "false" for non-streaming
     """
+    logger.info("=" * 60)
+    logger.info("🚀 STREAMING ENDPOINT CALLED")
+    logger.info(f"User: {current_user.get('user_id')}")
+    logger.info(f"Message: {request.message}")
+    logger.info(f"Headers: {dict(http_request.headers)}")
+    logger.info("=" * 60)
 
     # Check if streaming is requested (default to true for this endpoint)
     stream_header = http_request.headers.get("x-stream", "true").lower() == "true"
+    logger.info(f"Streaming enabled: {stream_header}")
 
     if not stream_header:
         # Fallback to non-streaming if explicitly disabled
+        logger.info("Falling back to non-streaming mode")
         from app.api.v1.chat import handle_chat
         return await handle_chat(request, current_user)
 
@@ -128,7 +142,7 @@ async def chat_stream(
         "username": current_user.get("username")
     }
 
-    logger.info(f"Streaming request from user {current_user['user_id']}: {request.message[:50]}...")
+    logger.info(f"✅ Starting stream generation for user {current_user['user_id']}")
 
     # Generate streaming response
     stream_generator = generate_stream_with_reasoning(request.message, user_context, settings)
