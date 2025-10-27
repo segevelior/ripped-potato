@@ -26,7 +26,7 @@ export default function FloatingAIAssistantStreaming() {
   const chatEndRef = useRef(null);
 
   // Streaming hook
-  const { isStreaming, streamingMessage, sendStreamingMessage } = useStreamingChat();
+  const { isStreaming, streamingMessage, activeTools, sendStreamingMessage } = useStreamingChat();
 
   useEffect(() => {
     const loadUser = async () => {
@@ -317,6 +317,27 @@ Provide a helpful, concise response.`;
                 </div>
               </div>
             ))}
+
+            {/* Tool Execution Display */}
+            {activeTools.length > 0 && (
+              <div className="space-y-2">
+                {activeTools.map((tool, idx) => (
+                  <div
+                    key={`${tool.tool}-${idx}`}
+                    className="flex items-center gap-2 text-gray-500 text-sm bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2"
+                  >
+                    {tool.status === 'running' ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                    ) : tool.status === 'complete' ? (
+                      <div className="h-4 w-4 text-green-500">✓</div>
+                    ) : (
+                      <div className="h-4 w-4 text-red-500">✗</div>
+                    )}
+                    <span className="italic">{tool.description}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {isThinking && (
               <div className="text-left">
                 <div className="inline-flex items-center gap-2 bg-gray-100 dark:bg-gray-800 p-3 rounded-lg">

@@ -13,11 +13,13 @@ export function useStreamingChat() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState('');
   const [reasoningSteps, setReasoningSteps] = useState([]);
+  const [activeTools, setActiveTools] = useState([]); // Track currently executing tools
 
   const sendStreamingMessage = useCallback(async (message, authToken) => {
     setIsStreaming(true);
     setStreamingMessage('');
     setReasoningSteps([]);
+    setActiveTools([]);
 
     try {
       // Call the Node.js backend which will proxy to Python AI Coach service
@@ -61,11 +63,31 @@ export function useStreamingChat() {
                 if (event.type === 'token') {
                   accumulatedMessage += event.content || '';
                   setStreamingMessage(accumulatedMessage);
+                } else if (event.type === 'tool_start') {
+                  // Add tool to active tools list
+                  setActiveTools(prev => [...prev, {
+                    tool: event.tool,
+                    description: event.description,
+                    status: 'running'
+                  }]);
+                } else if (event.type === 'tool_complete') {
+                  // Mark tool as complete
+                  setActiveTools(prev => prev.map(t =>
+                    t.tool === event.tool
+                      ? { ...t, status: event.success ? 'complete' : 'error' }
+                      : t
+                  ));
+                  // Clear tools after a short delay
+                  setTimeout(() => {
+                    setActiveTools(prev => prev.filter(t => t.tool !== event.tool));
+                  }, 2000);
                 } else if (event.type === 'reasoning') {
                   // Track reasoning steps separately if needed
                   setReasoningSteps(prev => [...prev, event.content]);
                 } else if (event.type === 'complete') {
                   setIsStreaming(false);
+                  // Clear all tools when streaming completes
+                  setTimeout(() => setActiveTools([]), 1000);
                 } else if (event.type === 'error') {
                   console.error('[useStreamingChat] Stream error:', event.message);
                   setIsStreaming(false);
@@ -90,6 +112,7 @@ export function useStreamingChat() {
     isStreaming,
     streamingMessage,
     reasoningSteps,
+    activeTools,
     sendStreamingMessage
   };
 }
