@@ -22,7 +22,7 @@ import Plans from "./Plans";
 
 import CreatePlan from "./CreatePlan";
 
-import Chat from "./Chat";
+import Chat from "./ChatWithStreaming";
 
 import Documentation from "./Documentation";
 
