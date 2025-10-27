@@ -77,7 +77,7 @@ class APIService {
       this.updateToken(null);
       return Promise.resolve();
     },
-    me: () => this.request('/auth/me')
+    me: () => this.request('/auth/profile')
   };
 
   // Exercise endpoints
