@@ -37,7 +37,6 @@ export default function FloatingAIAssistantStreaming() {
         // Get auth token from localStorage
         const token = localStorage.getItem('authToken');
         setAuthToken(token);
-        console.log('[FloatingAIAssistantStreaming] Auth token loaded:', token ? 'YES' : 'NO');
 
         // Load floating chat history
         const savedMessages = localStorage.getItem('floatingChatHistory');
@@ -78,9 +77,13 @@ export default function FloatingAIAssistantStreaming() {
     }
   }, [messages]);
 
+  // Auto-scroll to bottom when messages change or streaming updates
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingMessage]);
+    // Use instant scroll during streaming to avoid jumpy behavior
+    // Use smooth scroll when not streaming for better UX
+    const behavior = isStreaming ? "instant" : "smooth";
+    chatEndRef.current?.scrollIntoView({ behavior });
+  }, [messages, streamingMessage, isStreaming]);
 
   // Update messages when streaming completes
   useEffect(() => {
@@ -169,14 +172,8 @@ export default function FloatingAIAssistantStreaming() {
     const currentInput = input;
     setInput("");
 
-    console.log('[FloatingAIAssistantStreaming] handleSendMessage called');
-    console.log('[FloatingAIAssistantStreaming] useStreaming:', useStreaming);
-    console.log('[FloatingAIAssistantStreaming] authToken exists:', !!authToken);
-    console.log('[FloatingAIAssistantStreaming] Condition check (useStreaming && authToken):', useStreaming && authToken);
-
     if (useStreaming && authToken) {
       // Streaming mode
-      console.log('[FloatingAIAssistantStreaming] ✅ Using STREAMING mode - calling /api/v1/ai/stream');
       setMessages(prev => [...prev, { role: "assistant", content: "", isStreaming: true }]);
 
       try {
@@ -191,8 +188,6 @@ export default function FloatingAIAssistantStreaming() {
       }
     } else {
       // Non-streaming mode (fallback)
-      console.log('[FloatingAIAssistantStreaming] ❌ Using NON-STREAMING fallback - calling InvokeLLM');
-      console.log('[FloatingAIAssistantStreaming] Reason: useStreaming=' + useStreaming + ', authToken=' + !!authToken);
       setIsThinking(true);
 
       try {

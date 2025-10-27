@@ -15,10 +15,6 @@ export function useStreamingChat() {
   const [reasoningSteps, setReasoningSteps] = useState([]);
 
   const sendStreamingMessage = useCallback(async (message, authToken) => {
-    console.log('[useStreamingChat] sendStreamingMessage called');
-    console.log('[useStreamingChat] API_BASE_URL:', API_BASE_URL);
-    console.log('[useStreamingChat] Calling:', `${API_BASE_URL}/api/v1/ai/stream`);
-
     setIsStreaming(true);
     setStreamingMessage('');
     setReasoningSteps([]);
@@ -36,6 +32,8 @@ export function useStreamingChat() {
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[useStreamingChat] Response not ok:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -45,7 +43,10 @@ export function useStreamingChat() {
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+
+        if (done) {
+          break;
+        }
 
         const chunk = decoder.decode(value, { stream: true });
         const lines = chunk.split('\n');
@@ -66,11 +67,11 @@ export function useStreamingChat() {
                 } else if (event.type === 'complete') {
                   setIsStreaming(false);
                 } else if (event.type === 'error') {
-                  console.error('Stream error:', event.message);
+                  console.error('[useStreamingChat] Stream error:', event.message);
                   setIsStreaming(false);
                 }
               } catch (e) {
-                console.error('Error parsing SSE event:', e);
+                console.error('[useStreamingChat] Error parsing SSE event:', e, 'Raw data:', eventData);
               }
             }
           }

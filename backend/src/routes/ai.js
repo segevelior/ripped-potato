@@ -406,13 +406,27 @@ router.post('/stream', authMiddleware, aiRateLimit, async (req, res) => {
 
     console.log('[STREAMING] Using Python AI Coach streaming endpoint');
 
-    // Set up SSE headers
-    res.writeHead(200, {
+    // Set up SSE headers with CORS
+    const origin = req.headers.origin;
+    const headers = {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no'
-    });
+      'X-Accel-Buffering': 'no',
+      'Content-Encoding': 'none', // Disable compression for streaming
+      'Transfer-Encoding': 'chunked' // Enable chunked transfer encoding
+    };
+
+    // Add CORS headers if origin is present
+    if (origin) {
+      headers['Access-Control-Allow-Origin'] = origin;
+      headers['Access-Control-Allow-Credentials'] = 'true';
+    }
+
+    // Set status and headers
+    res.writeHead(200, headers);
+    // Flush headers immediately to establish the streaming connection
+    res.flushHeaders();
 
     // Proxy to Python AI Coach streaming endpoint
     const urlParts = new URL(`${AI_SERVICE_URL}/api/v1/chat/stream`);
@@ -431,16 +445,9 @@ router.post('/stream', authMiddleware, aiRateLimit, async (req, res) => {
       }
     };
 
-    console.log('[STREAMING] Proxy request options:', JSON.stringify(options, null, 2));
-    console.log('[STREAMING] Sending message to AI Coach:', message);
-
     const proxyReq = http.request(options, (proxyRes) => {
-      console.log('[STREAMING] Received response from AI Coach, status:', proxyRes.statusCode);
-      console.log('[STREAMING] Response headers:', proxyRes.headers);
-
       // Pipe the streaming response directly to the client
       proxyRes.on('data', (chunk) => {
-        console.log('[STREAMING] Received chunk from AI Coach, length:', chunk.length);
         res.write(chunk);
       });
 
@@ -465,10 +472,8 @@ router.post('/stream', authMiddleware, aiRateLimit, async (req, res) => {
 
     // Send the request body
     const requestBody = JSON.stringify({ message });
-    console.log('[STREAMING] Sending request body:', requestBody);
     proxyReq.write(requestBody);
     proxyReq.end();
-    console.log('[STREAMING] Request sent to AI Coach service');
 
   } catch (error) {
     console.error('Streaming error:', error);
