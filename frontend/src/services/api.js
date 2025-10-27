@@ -95,8 +95,16 @@ class APIService {
     delete: (id) => this.request(`/exercises/${id}`, {
       method: 'DELETE'
     }),
-    favorite: (id) => this.request(`/exercises/${id}/favorite`, {
-      method: 'PUT'
+    toggleFavorite: (id, isFavorite) => this.request(`/exercises/${id}/favorite`, {
+      method: 'PUT',
+      body: JSON.stringify({ isFavorite })
+    }),
+    customize: (id, modifications) => this.request(`/exercises/${id}/modifications`, {
+      method: 'PUT',
+      body: JSON.stringify(modifications)
+    }),
+    removeCustomization: (id) => this.request(`/exercises/${id}/modifications`, {
+      method: 'DELETE'
     })
   };
 
