@@ -82,7 +82,12 @@ class APIService {
 
   // Exercise endpoints
   exercises = {
-    list: () => this.request('/exercises'),
+    list: async () => {
+      const response = await this.request('/exercises');
+      // Backend returns { exercises: [...], pagination: {...} }
+      // Extract just the exercises array
+      return response.exercises || response;
+    },
     get: (id) => this.request(`/exercises/${id}`),
     create: (data) => this.request('/exercises', {
       method: 'POST',
@@ -110,7 +115,11 @@ class APIService {
 
   // Workout endpoints
   workouts = {
-    list: () => this.request('/workouts'),
+    list: async () => {
+      const response = await this.request('/workouts');
+      // Backend returns { workouts: [...], pagination: {...} }
+      return response.workouts || response;
+    },
     get: (id) => this.request(`/workouts/${id}`),
     create: (data) => this.request('/workouts', {
       method: 'POST',
@@ -128,7 +137,11 @@ class APIService {
 
   // Goal endpoints
   goals = {
-    list: () => this.request('/goals'),
+    list: async () => {
+      const response = await this.request('/goals');
+      // Backend returns { goals: [...], pagination: {...} }
+      return response.goals || response;
+    },
     get: (id) => this.request(`/goals/${id}`),
     create: (data) => this.request('/goals', {
       method: 'POST',
@@ -243,7 +256,11 @@ class APIService {
     }),
     byCategory: (category) => this.request(`/disciplines/category/${category}`),
     search: (term) => this.request(`/disciplines/search/${term}`),
-    exercises: (id) => this.request(`/disciplines/${id}/exercises`)
+    exercises: async (id) => {
+      const response = await this.request(`/disciplines/${id}/exercises`);
+      // Backend returns { exercises: [...], pagination: {...} }
+      return response.exercises || response;
+    }
   };
 
   // WorkoutType endpoints
@@ -268,7 +285,11 @@ class APIService {
 
   // ExternalActivity endpoints
   externalActivities = {
-    list: () => this.request('/external-activities'),
+    list: async () => {
+      const response = await this.request('/external-activities');
+      // Backend returns { activities: [...], pagination: {...} }
+      return response.activities || response;
+    },
     get: (id) => this.request(`/external-activities/${id}`),
     create: (data) => this.request('/external-activities', {
       method: 'POST',
