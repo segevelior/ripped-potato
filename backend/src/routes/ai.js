@@ -12,6 +12,12 @@ const openai = new OpenAI({
 const AI_PROVIDER = process.env.AI_PROVIDER || 'openai'; // 'python' or 'openai'
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8001';
 
+// Log configuration on module load
+console.log('==============================================');
+console.log('[AI CONFIG] AI_PROVIDER:', AI_PROVIDER);
+console.log('[AI CONFIG] AI_SERVICE_URL:', AI_SERVICE_URL);
+console.log('==============================================');
+
 // Rate limiting for AI endpoints
 const aiRateLimit = require('express-rate-limit')({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -387,13 +393,18 @@ router.post('/stream', authMiddleware, aiRateLimit, async (req, res) => {
     }
 
     // Check if Python service is configured
+    console.log(`[STREAMING] AI_PROVIDER="${AI_PROVIDER}", AI_SERVICE_URL="${AI_SERVICE_URL}"`);
+
     if (AI_PROVIDER !== 'python') {
+      console.log('[STREAMING] Falling back to non-streaming chat - AI_PROVIDER is not "python"');
       // Fallback to regular chat for non-Python providers
       return router.handle(Object.assign(req, {
         url: '/chat',
         body: { prompt: message }
       }), res);
     }
+
+    console.log('[STREAMING] Using Python AI Coach streaming endpoint');
 
     // Set up SSE headers
     res.writeHead(200, {
