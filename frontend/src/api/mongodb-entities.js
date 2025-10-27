@@ -35,7 +35,10 @@ export const Exercise = {
       const list = await Exercise.list();
       return list.find(e => e.id === id || e._id === id);
     }
-  }
+  },
+  toggleFavorite: async (id, isFavorite) => apiService.exercises.toggleFavorite(id, isFavorite),
+  customize: async (id, modifications) => apiService.exercises.customize(id, modifications),
+  removeCustomization: async (id) => apiService.exercises.removeCustomization(id)
 };
 
 // Workout entity
