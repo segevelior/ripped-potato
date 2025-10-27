@@ -431,32 +431,44 @@ router.post('/stream', authMiddleware, aiRateLimit, async (req, res) => {
       }
     };
 
+    console.log('[STREAMING] Proxy request options:', JSON.stringify(options, null, 2));
+    console.log('[STREAMING] Sending message to AI Coach:', message);
+
     const proxyReq = http.request(options, (proxyRes) => {
+      console.log('[STREAMING] Received response from AI Coach, status:', proxyRes.statusCode);
+      console.log('[STREAMING] Response headers:', proxyRes.headers);
+
       // Pipe the streaming response directly to the client
       proxyRes.on('data', (chunk) => {
+        console.log('[STREAMING] Received chunk from AI Coach, length:', chunk.length);
         res.write(chunk);
       });
 
       proxyRes.on('end', () => {
+        console.log('[STREAMING] Stream ended from AI Coach');
         res.end();
       });
 
       proxyRes.on('error', (error) => {
-        console.error('Proxy response error:', error);
+        console.error('[STREAMING] Proxy response error:', error);
         res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
         res.end();
       });
     });
 
     proxyReq.on('error', (error) => {
-      console.error('Proxy request error:', error);
+      console.error('[STREAMING] Proxy request error:', error);
+      console.error('[STREAMING] Error details:', error.code, error.message);
       res.write(`data: ${JSON.stringify({ type: 'error', message: 'Failed to connect to AI service' })}\n\n`);
       res.end();
     });
 
     // Send the request body
-    proxyReq.write(JSON.stringify({ message }));
+    const requestBody = JSON.stringify({ message });
+    console.log('[STREAMING] Sending request body:', requestBody);
+    proxyReq.write(requestBody);
     proxyReq.end();
+    console.log('[STREAMING] Request sent to AI Coach service');
 
   } catch (error) {
     console.error('Streaming error:', error);
