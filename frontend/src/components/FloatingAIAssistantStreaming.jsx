@@ -35,8 +35,9 @@ export default function FloatingAIAssistantStreaming() {
         setUser(userData);
 
         // Get auth token from localStorage
-        const token = localStorage.getItem('auth_token');
+        const token = localStorage.getItem('authToken');
         setAuthToken(token);
+        console.log('[FloatingAIAssistantStreaming] Auth token loaded:', token ? 'YES' : 'NO');
 
         // Load floating chat history
         const savedMessages = localStorage.getItem('floatingChatHistory');
@@ -168,15 +169,21 @@ export default function FloatingAIAssistantStreaming() {
     const currentInput = input;
     setInput("");
 
+    console.log('[FloatingAIAssistantStreaming] handleSendMessage called');
+    console.log('[FloatingAIAssistantStreaming] useStreaming:', useStreaming);
+    console.log('[FloatingAIAssistantStreaming] authToken exists:', !!authToken);
+    console.log('[FloatingAIAssistantStreaming] Condition check (useStreaming && authToken):', useStreaming && authToken);
+
     if (useStreaming && authToken) {
       // Streaming mode
+      console.log('[FloatingAIAssistantStreaming] ✅ Using STREAMING mode - calling /api/v1/ai/stream');
       setMessages(prev => [...prev, { role: "assistant", content: "", isStreaming: true }]);
 
       try {
         const finalMessage = await sendStreamingMessage(currentInput, authToken);
         // Message will be updated via useEffect when streaming completes
       } catch (error) {
-        console.error("Streaming error:", error);
+        console.error("[FloatingAIAssistantStreaming] Streaming error:", error);
         setMessages(prev => [...prev, {
           role: "assistant",
           content: "Sorry, there was an error with streaming. Please try again."
@@ -184,6 +191,8 @@ export default function FloatingAIAssistantStreaming() {
       }
     } else {
       // Non-streaming mode (fallback)
+      console.log('[FloatingAIAssistantStreaming] ❌ Using NON-STREAMING fallback - calling InvokeLLM');
+      console.log('[FloatingAIAssistantStreaming] Reason: useStreaming=' + useStreaming + ', authToken=' + !!authToken);
       setIsThinking(true);
 
       try {

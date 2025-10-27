@@ -28,8 +28,9 @@ export default function ChatWithStreaming() {
         setUser(userData);
 
         // Get auth token
-        const token = localStorage.getItem('auth_token');
+        const token = localStorage.getItem('authToken');
         setAuthToken(token);
+        console.log('[ChatWithStreaming] Auth token loaded:', token ? 'YES' : 'NO');
 
         // Load chat history
         const savedMessages = localStorage.getItem('chatHistory');
@@ -96,14 +97,20 @@ I'll walk you through my reasoning as I work on your request!`
     const currentInput = input;
     setInput("");
 
+    console.log('[ChatWithStreaming] handleSendMessage called');
+    console.log('[ChatWithStreaming] useStreaming:', useStreaming);
+    console.log('[ChatWithStreaming] authToken exists:', !!authToken);
+    console.log('[ChatWithStreaming] Condition check (useStreaming && authToken):', useStreaming && authToken);
+
     if (useStreaming && authToken) {
       // Streaming mode - show reasoning steps
+      console.log('[ChatWithStreaming] ✅ Using STREAMING mode - calling /api/v1/ai/stream');
       setMessages(prev => [...prev, { role: "assistant", content: "", isStreaming: true }]);
 
       try {
         await sendStreamingMessage(currentInput, authToken);
       } catch (error) {
-        console.error("Streaming error:", error);
+        console.error("[ChatWithStreaming] Streaming error:", error);
         setMessages(prev => [...prev, {
           role: "assistant",
           content: "Sorry, there was an error with streaming. Please try again."
@@ -111,6 +118,8 @@ I'll walk you through my reasoning as I work on your request!`
       }
     } else {
       // Non-streaming mode
+      console.log('[ChatWithStreaming] ❌ Using NON-STREAMING fallback - calling InvokeLLM');
+      console.log('[ChatWithStreaming] Reason: useStreaming=' + useStreaming + ', authToken=' + !!authToken);
       setIsThinking(true);
 
       try {

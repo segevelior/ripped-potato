@@ -15,6 +15,10 @@ export function useStreamingChat() {
   const [reasoningSteps, setReasoningSteps] = useState([]);
 
   const sendStreamingMessage = useCallback(async (message, authToken) => {
+    console.log('[useStreamingChat] sendStreamingMessage called');
+    console.log('[useStreamingChat] API_BASE_URL:', API_BASE_URL);
+    console.log('[useStreamingChat] Calling:', `${API_BASE_URL}/api/v1/ai/stream`);
+
     setIsStreaming(true);
     setStreamingMessage('');
     setReasoningSteps([]);
