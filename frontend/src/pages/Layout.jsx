@@ -138,6 +138,7 @@ export default function Layout({ children }) {
               <Link to={createPageUrl("Chat")} className="p-2 text-gray-600 hover:text-purple-600 transition-colors">
                 <Bot className="w-5 h-5" />
               </Link>
+              <SidebarTrigger className="md:hidden" />
             </div>
           </header>
 
