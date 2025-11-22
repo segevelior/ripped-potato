@@ -236,7 +236,7 @@ Provide a helpful, concise response.`;
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full p-4 shadow-lg hover:scale-110 transition-transform z-50"
+        className="hidden md:block fixed bottom-6 right-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full p-4 shadow-lg hover:scale-110 transition-transform z-50"
       >
         <MessageCircle className="h-6 w-6" />
       </button>
@@ -245,9 +245,8 @@ Provide a helpful, concise response.`;
 
   return (
     <div
-      className={`fixed bg-white dark:bg-gray-900 rounded-lg shadow-2xl z-50 transition-all ${
-        isMinimized ? 'h-14' : 'h-[600px]'
-      } w-[400px]`}
+      className={`hidden md:block fixed bg-white dark:bg-gray-900 rounded-lg shadow-2xl z-50 transition-all ${isMinimized ? 'h-14' : 'h-[600px]'
+        } w-[400px]`}
       style={{ left: `${position.x}px`, top: `${position.y}px` }}
     >
       {/* Header */}
@@ -295,18 +294,16 @@ Provide a helpful, concise response.`;
             {messages.map((msg, idx) => (
               <div
                 key={idx}
-                className={`${
-                  msg.role === "user"
+                className={`${msg.role === "user"
                     ? "text-right"
                     : "text-left"
-                }`}
+                  }`}
               >
                 <div
-                  className={`inline-block p-3 rounded-lg max-w-[85%] ${
-                    msg.role === "user"
+                  className={`inline-block p-3 rounded-lg max-w-[85%] ${msg.role === "user"
                       ? "bg-blue-600 text-white"
                       : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  }`}
+                    }`}
                 >
                   {msg.role === "assistant" && msg.isStreaming ? (
                     <div>
