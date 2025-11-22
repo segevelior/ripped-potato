@@ -75,7 +75,7 @@ export default function Exercises() {
     try {
       const currentlyFavorited = exercise.userMetadata?.isFavorite || false;
       const newFavoriteStatus = !currentlyFavorited;
-      
+
       await Exercise.toggleFavorite(exercise.id, newFavoriteStatus);
       loadExercises();
     } catch (error) {
@@ -87,7 +87,7 @@ export default function Exercises() {
     if (!confirm("Remove all customizations and revert to the original exercise?")) {
       return;
     }
-    
+
     try {
       await Exercise.removeCustomization(exercise.id);
       loadExercises();
@@ -103,11 +103,11 @@ export default function Exercises() {
       alert("Common exercises cannot be deleted. You can customize them instead.");
       return;
     }
-    
+
     if (!confirm(`Are you sure you want to delete "${exercise.name}"? This action cannot be undone.`)) {
       return;
     }
-    
+
     try {
       await Exercise.delete(exercise.id);
       loadExercises();
@@ -120,17 +120,17 @@ export default function Exercises() {
 
   const filteredExercises = exercises.filter(exercise => {
     const matchesSearch = exercise.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (exercise.description || "").toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesDiscipline = disciplineFilter === "all" || 
-                             (exercise.discipline || []).includes(disciplineFilter);
-    
-    const matchesMuscle = muscleFilter === "all" || 
-                         (exercise.muscles || []).includes(muscleFilter);
-    
-    const matchesIntensity = intensityFilter === "all" || 
-                            exercise.strain?.intensity === intensityFilter;
-    
+      (exercise.description || "").toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesDiscipline = disciplineFilter === "all" ||
+      (exercise.discipline || []).includes(disciplineFilter);
+
+    const matchesMuscle = muscleFilter === "all" ||
+      (exercise.muscles || []).includes(muscleFilter);
+
+    const matchesIntensity = intensityFilter === "all" ||
+      exercise.strain?.intensity === intensityFilter;
+
     // Type filter logic
     let matchesType = true;
     if (typeFilter === "common") {
@@ -142,7 +142,7 @@ export default function Exercises() {
     } else if (typeFilter === "favorites") {
       matchesType = exercise.userMetadata?.isFavorite;
     }
-    
+
     return matchesSearch && matchesDiscipline && matchesMuscle && matchesIntensity && matchesType;
   });
 
@@ -191,7 +191,7 @@ export default function Exercises() {
 
       {/* Type Filters */}
       <div className="flex justify-center">
-        <ExerciseFilters 
+        <ExerciseFilters
           activeFilter={typeFilter}
           onFilterChange={setTypeFilter}
           counts={filterCounts}
@@ -213,8 +213,8 @@ export default function Exercises() {
               />
             </div>
           </div>
-          
-          <div className="flex gap-3">
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <select
               value={disciplineFilter}
               onChange={(e) => setDisciplineFilter(e.target.value)}
@@ -273,11 +273,10 @@ export default function Exercises() {
                     </h3>
                     <button
                       onClick={() => handleToggleFavorite(exercise)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        exercise.userMetadata?.isFavorite 
-                          ? 'text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50' 
+                      className={`p-2 rounded-lg transition-colors ${exercise.userMetadata?.isFavorite
+                          ? 'text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50'
                           : 'text-gray-400 hover:text-yellow-500 hover:bg-yellow-50'
-                      }`}
+                        }`}
                       title="Toggle favorite"
                     >
                       <Star className="w-4 h-4" fill={exercise.userMetadata?.isFavorite ? 'currentColor' : 'none'} />
@@ -286,7 +285,7 @@ export default function Exercises() {
                   <ExerciseBadges exercise={exercise} />
                 </div>
               </div>
-              
+
               {/* Action Buttons */}
               <div className="flex items-center gap-2 mb-4">
                 <button
@@ -377,7 +376,7 @@ export default function Exercises() {
                       </span>
                     )}
                   </div>
-                  
+
                   <div className="text-xs text-gray-600 space-y-1">
                     {exercise.strain.duration_type && (
                       <div>Measured by: <strong>{exercise.strain.duration_type}</strong></div>

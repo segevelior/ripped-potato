@@ -1,0 +1,375 @@
+[
+    {
+        "name": "Body Heat Warm Up",
+        "description": "General full-body warm-up to increase body temperature.",
+        "muscles": [
+            "full_body"
+        ],
+        "secondaryMuscles": [],
+        "discipline": [
+            "warm_up"
+        ],
+        "equipment": [],
+        "difficulty": "beginner",
+        "instructions": [
+            "Perform general movements to raise body temperature."
+        ],
+        "strain": {
+            "intensity": "low",
+            "load": "bodyweight",
+            "durationType": "time",
+            "typicalVolume": "3-5 mins"
+        },
+        "isCommon": true
+    },
+    {
+        "name": "Band Straight Arm Lat Pull Down",
+        "description": "Lat activation exercise using a resistance band.",
+        "muscles": [
+            "lats"
+        ],
+        "secondaryMuscles": [
+            "shoulders",
+            "triceps"
+        ],
+        "discipline": [
+            "warm_up",
+            "strength"
+        ],
+        "equipment": [
+            "resistance_band"
+        ],
+        "difficulty": "beginner",
+        "instructions": [
+            "Attach band high, keep arms straight, pull down to hips."
+        ],
+        "strain": {
+            "intensity": "low",
+            "load": "light",
+            "durationType": "reps",
+            "typicalVolume": "10-15 reps"
+        },
+        "isCommon": true
+    },
+    {
+        "name": "Explosive Pull ups",
+        "description": "Pull-ups performed with maximum speed and power.",
+        "muscles": [
+            "lats",
+            "biceps"
+        ],
+        "secondaryMuscles": [
+            "core"
+        ],
+        "discipline": [
+            "calisthenics",
+            "strength"
+        ],
+        "equipment": [
+            "pull_up_bar"
+        ],
+        "difficulty": "advanced",
+        "instructions": [
+            "Pull up explosively, aiming to get chest or waist to bar."
+        ],
+        "strain": {
+            "intensity": "high",
+            "load": "bodyweight",
+            "durationType": "reps",
+            "typicalVolume": "3-6 reps"
+        },
+        "isCommon": true
+    },
+    {
+        "name": "Explosive Straight Bar Dips",
+        "description": "Dips on a straight bar performed explosively.",
+        "muscles": [
+            "chest",
+            "triceps"
+        ],
+        "secondaryMuscles": [
+            "shoulders"
+        ],
+        "discipline": [
+            "calisthenics",
+            "strength"
+        ],
+        "equipment": [
+            "pull_up_bar"
+        ],
+        "difficulty": "advanced",
+        "instructions": [
+            "Lower down to chest, push up explosively."
+        ],
+        "strain": {
+            "intensity": "high",
+            "load": "bodyweight",
+            "durationType": "reps",
+            "typicalVolume": "4-8 reps"
+        },
+        "isCommon": true
+    },
+    {
+        "name": "Hanging L-Sit Hold",
+        "description": "Isometric core hold while hanging from a bar.",
+        "muscles": [
+            "abs",
+            "hip_flexors"
+        ],
+        "secondaryMuscles": [
+            "lats",
+            "forearms"
+        ],
+        "discipline": [
+            "calisthenics",
+            "core"
+        ],
+        "equipment": [
+            "pull_up_bar"
+        ],
+        "difficulty": "intermediate",
+        "instructions": [
+            "Hang from bar, lift legs to L position, hold."
+        ],
+        "strain": {
+            "intensity": "moderate",
+            "load": "bodyweight",
+            "durationType": "time",
+            "typicalVolume": "15-20 sec"
+        },
+        "isCommon": true
+    },
+    {
+        "name": "Deep Pike Push Ups",
+        "description": "Shoulder press variation using bodyweight with increased range of motion.",
+        "muscles": [
+            "shoulders",
+            "triceps"
+        ],
+        "secondaryMuscles": [
+            "upper_back"
+        ],
+        "discipline": [
+            "calisthenics",
+            "strength"
+        ],
+        "equipment": [
+            "parallettes",
+            "blocks"
+        ],
+        "difficulty": "intermediate",
+        "instructions": [
+            "Pike position, hands elevated, lower head below hands."
+        ],
+        "strain": {
+            "intensity": "high",
+            "load": "bodyweight",
+            "durationType": "reps",
+            "typicalVolume": "6-8 reps"
+        },
+        "isCommon": true
+    },
+    {
+        "name": "Bodyweight Rows Supinate Grip",
+        "description": "Horizontal pulling exercise with underhand grip.",
+        "muscles": [
+            "lats",
+            "biceps"
+        ],
+        "secondaryMuscles": [
+            "rear_delts"
+        ],
+        "discipline": [
+            "calisthenics",
+            "strength"
+        ],
+        "equipment": [
+            "rings",
+            "bar"
+        ],
+        "difficulty": "beginner",
+        "instructions": [
+            "Hang under bar/rings, palms facing you, pull chest to bar."
+        ],
+        "strain": {
+            "intensity": "moderate",
+            "load": "bodyweight",
+            "durationType": "reps",
+            "typicalVolume": "6-12 reps"
+        },
+        "isCommon": true
+    },
+    {
+        "name": "Floor Elbow Victorian Hold",
+        "description": "Advanced isometric hold for rear delts and triceps.",
+        "muscles": [
+            "rear_delts",
+            "triceps"
+        ],
+        "secondaryMuscles": [
+            "lats"
+        ],
+        "discipline": [
+            "calisthenics",
+            "strength"
+        ],
+        "equipment": [],
+        "difficulty": "advanced",
+        "instructions": [
+            "Lie on back, elbows on floor, lift hips and back off floor."
+        ],
+        "strain": {
+            "intensity": "max",
+            "load": "bodyweight",
+            "durationType": "time",
+            "typicalVolume": "15-30 sec"
+        },
+        "isCommon": true
+    },
+    {
+        "name": "Reverse Hyperextension",
+        "description": "Posterior chain exercise focusing on glutes and lower back.",
+        "muscles": [
+            "glutes",
+            "lower_back"
+        ],
+        "secondaryMuscles": [
+            "hamstrings"
+        ],
+        "discipline": [
+            "strength",
+            "mobility"
+        ],
+        "equipment": [
+            "bench",
+            "machine"
+        ],
+        "difficulty": "intermediate",
+        "instructions": [
+            "Lie face down on bench, legs hanging, lift legs up."
+        ],
+        "strain": {
+            "intensity": "moderate",
+            "load": "bodyweight",
+            "durationType": "reps",
+            "typicalVolume": "8-12 reps"
+        },
+        "isCommon": true
+    },
+    {
+        "name": "Toes To Bar",
+        "description": "Dynamic core exercise lifting toes to touch the bar.",
+        "muscles": [
+            "abs",
+            "hip_flexors"
+        ],
+        "secondaryMuscles": [
+            "lats"
+        ],
+        "discipline": [
+            "calisthenics",
+            "core"
+        ],
+        "equipment": [
+            "pull_up_bar"
+        ],
+        "difficulty": "intermediate",
+        "instructions": [
+            "Hang from bar, lift legs until toes touch bar."
+        ],
+        "strain": {
+            "intensity": "high",
+            "load": "bodyweight",
+            "durationType": "reps",
+            "typicalVolume": "6-10 reps"
+        },
+        "isCommon": true
+    },
+    {
+        "name": "L-Sit Hold on Parallettes",
+        "description": "Isometric L-Sit performed on parallettes.",
+        "muscles": [
+            "abs",
+            "hip_flexors"
+        ],
+        "secondaryMuscles": [
+            "triceps",
+            "shoulders"
+        ],
+        "discipline": [
+            "calisthenics",
+            "core"
+        ],
+        "equipment": [
+            "parallettes"
+        ],
+        "difficulty": "intermediate",
+        "instructions": [
+            "Support on parallettes, lift legs to L position, hold."
+        ],
+        "strain": {
+            "intensity": "moderate",
+            "load": "bodyweight",
+            "durationType": "time",
+            "typicalVolume": "15-20 sec"
+        },
+        "isCommon": true
+    },
+    {
+        "name": "Prone Y Raises",
+        "description": "Lower trap and shoulder stability exercise.",
+        "muscles": [
+            "lower_traps",
+            "shoulders"
+        ],
+        "secondaryMuscles": [
+            "upper_back"
+        ],
+        "discipline": [
+            "mobility",
+            "strength"
+        ],
+        "equipment": [],
+        "difficulty": "beginner",
+        "instructions": [
+            "Lie face down, arms in Y shape, lift arms."
+        ],
+        "strain": {
+            "intensity": "low",
+            "load": "bodyweight",
+            "durationType": "reps",
+            "typicalVolume": "12-15 reps"
+        },
+        "isCommon": true
+    },
+    {
+        "name": "German Hang",
+        "description": "Shoulder extension mobility and strength hold.",
+        "muscles": [
+            "shoulders",
+            "chest"
+        ],
+        "secondaryMuscles": [
+            "biceps"
+        ],
+        "discipline": [
+            "calisthenics",
+            "mobility"
+        ],
+        "equipment": [
+            "rings",
+            "pull_up_bar"
+        ],
+        "difficulty": "intermediate",
+        "instructions": [
+            "Hang from bar/rings, rotate backwards into skin the cat position, lower down."
+        ],
+        "strain": {
+            "intensity": "moderate",
+            "load": "bodyweight",
+            "durationType": "time",
+            "typicalVolume": "15-30 sec"
+        },
+        "isCommon": true
+    }
+]

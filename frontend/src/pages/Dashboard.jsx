@@ -39,7 +39,7 @@ const ActiveGoalCard = ({ goal, progress, onGoalClick, onResignGoal }) => {
             </span>
           </div>
         </div>
-        
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="p-1 rounded-full hover:bg-gray-100 transition-colors opacity-0 group-hover:opacity-100">
@@ -51,7 +51,7 @@ const ActiveGoalCard = ({ goal, progress, onGoalClick, onResignGoal }) => {
               <Target className="w-4 h-4 mr-2" />
               View Progress
             </DropdownMenuItem>
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={() => onResignGoal(progress)}
               className="text-red-600"
             >
@@ -69,7 +69,7 @@ const ActiveGoalCard = ({ goal, progress, onGoalClick, onResignGoal }) => {
             <span className="text-gray-600">Current Level:</span>
             <span className="font-bold text-blue-600">Level {progress.current_level}</span>
           </div>
-          
+
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-600">Training for:</span>
             <span className="font-medium text-gray-700">{getDaysSinceStart()} days</span>
@@ -79,7 +79,7 @@ const ActiveGoalCard = ({ goal, progress, onGoalClick, onResignGoal }) => {
         {/* Progress Bar */}
         <div className="mb-3">
           <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-300"
               style={{ width: `${getProgressPercentage()}%` }}
             />
@@ -117,7 +117,7 @@ const ActivePlanCard = ({ plan, onPlanClick }) => {
   const nextWorkout = getNextWorkout();
 
   return (
-    <div 
+    <div
       className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
       onClick={() => onPlanClick(plan)}
     >
@@ -139,7 +139,7 @@ const ActivePlanCard = ({ plan, onPlanClick }) => {
       {/* Progress Bar */}
       <div className="mb-3">
         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div 
+          <div
             className="h-full bg-gradient-to-r from-green-500 to-blue-600 rounded-full transition-all duration-300"
             style={{ width: `${progress.percentage}%` }}
           />
@@ -184,15 +184,15 @@ export default function Dashboard() {
     }
     setIsLoading(false);
   };
-  
+
   const upcomingWorkouts = workouts
     .filter(w => isValid(parseISO(w.date)) && isAfter(parseISO(w.date), addDays(new Date(), -1)))
-    .sort((a,b) => new Date(a.date) - new Date(b.date))
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
     .slice(0, 5);
 
   const completedWorkoutsThisWeek = workouts.filter(w => {
-      const date = parseISO(w.date);
-      return isValid(date) && date >= startOfWeek(new Date(), {weekStartsOn: 1});
+    const date = parseISO(w.date);
+    return isValid(date) && date >= startOfWeek(new Date(), { weekStartsOn: 1 });
   }).length;
 
   const completedGoals = goals.filter(g => g.completed_date).length;
@@ -210,7 +210,7 @@ export default function Dashboard() {
 
   const handleResignGoal = async (progress) => {
     if (!confirm(`Are you sure you want to resign from "${progress.goal_name}"? Your progress will be deleted.`)) return;
-    
+
     try {
       await UserGoalProgress.delete(progress.id);
       await loadData();
@@ -240,30 +240,28 @@ export default function Dashboard() {
       {/* Header with View Toggle */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-lg text-gray-600">Your training progress and active plans.</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Dashboard</h1>
+          <p className="text-base md:text-lg text-gray-600">Your training progress and active plans.</p>
         </div>
         <div className="flex items-center gap-3">
           {/* View Toggle */}
           <div className="flex items-center bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => setView('overview')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                view === 'overview' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-              }`}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${view === 'overview' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                }`}
             >
               Overview
             </button>
             <button
               onClick={() => setView('plan')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                view === 'plan' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-              }`}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${view === 'plan' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                }`}
             >
               Plan View
             </button>
           </div>
-          
+
           <Link to={createPageUrl("TrainNow")}>
             <button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-lg">
               <Play className="w-5 h-5" />
@@ -276,171 +274,171 @@ export default function Dashboard() {
       {view === 'overview' ? (
         <>
           {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-                <div className="flex items-center gap-3">
-                    <div className="p-3 bg-blue-100 rounded-lg"><Activity className="w-6 h-6 text-blue-600" /></div>
-                    <div>
-                        <p className="text-3xl font-bold text-gray-900">{completedWorkoutsThisWeek}</p>
-                        <p className="text-sm text-gray-600">Workouts this week</p>
-                    </div>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-100 rounded-lg"><Activity className="w-6 h-6 text-blue-600" /></div>
+                <div>
+                  <p className="text-3xl font-bold text-gray-900">{completedWorkoutsThisWeek}</p>
+                  <p className="text-sm text-gray-600">Workouts this week</p>
                 </div>
+              </div>
             </div>
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-                <div className="flex items-center gap-3">
-                    <div className="p-3 bg-purple-100 rounded-lg"><Target className="w-6 h-6 text-purple-600" /></div>
-                    <div>
-                        <p className="text-3xl font-bold text-gray-900">{activeGoals.length}</p>
-                        <p className="text-sm text-gray-600">Active Goals</p>
-                    </div>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-purple-100 rounded-lg"><Target className="w-6 h-6 text-purple-600" /></div>
+                <div>
+                  <p className="text-3xl font-bold text-gray-900">{activeGoals.length}</p>
+                  <p className="text-sm text-gray-600">Active Goals</p>
                 </div>
+              </div>
             </div>
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-                <div className="flex items-center gap-3">
-                    <div className="p-3 bg-green-100 rounded-lg"><FileText className="w-6 h-6 text-green-600" /></div>
-                    <div>
-                        <p className="text-3xl font-bold text-gray-900">{activePlans.length}</p>
-                        <p className="text-sm text-gray-600">Active Plans</p>
-                    </div>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-green-100 rounded-lg"><FileText className="w-6 h-6 text-green-600" /></div>
+                <div>
+                  <p className="text-3xl font-bold text-gray-900">{activePlans.length}</p>
+                  <p className="text-sm text-gray-600">Active Plans</p>
                 </div>
+              </div>
             </div>
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-                <div className="flex items-center gap-3">
-                    <div className="p-3 bg-yellow-100 rounded-lg"><Trophy className="w-6 h-6 text-yellow-600" /></div>
-                    <div>
-                        <p className="text-3xl font-bold text-gray-900">{completedGoals}</p>
-                        <p className="text-sm text-gray-600">Goals Completed</p>
-                    </div>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-yellow-100 rounded-lg"><Trophy className="w-6 h-6 text-yellow-600" /></div>
+                <div>
+                  <p className="text-3xl font-bold text-gray-900">{completedGoals}</p>
+                  <p className="text-sm text-gray-600">Goals Completed</p>
                 </div>
+              </div>
             </div>
           </div>
-          
+
           <div className="grid lg:grid-cols-3 gap-6">
             {/* Left Column: Upcoming & Goals */}
             <div className="lg:col-span-2 space-y-6">
-                {/* Upcoming Workouts */}
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-                    <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                        <Calendar className="w-5 h-5 text-gray-500" />
-                        Upcoming Workouts
-                    </h2>
-                    {upcomingWorkouts.length > 0 ? (
-                        <div className="space-y-3">
-                            {upcomingWorkouts.map(workout => (
-                                <Link to={createPageUrl(`LiveWorkout?id=${workout.id}`)} key={workout.id} className="block p-4 rounded-lg hover:bg-gray-50 border border-gray-200 transition-colors">
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <p className="font-bold text-lg">{workout.title}</p>
-                                            <p className="text-sm text-gray-500">{format(parseISO(workout.date), "EEEE, MMMM d")}</p>
-                                        </div>
-                                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                                            <span><Clock className="w-4 h-4 inline mr-1" />{workout.duration_minutes} min</span>
-                                            <span><Target className="w-4 h-4 inline mr-1" />{workout.exercises?.length || 0} exercises</span>
-                                            <ChevronRight className="w-5 h-5 text-gray-400" />
-                                        </div>
-                                    </div>
-                                </Link>
-                            ))}
+              {/* Upcoming Workouts */}
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-gray-500" />
+                  Upcoming Workouts
+                </h2>
+                {upcomingWorkouts.length > 0 ? (
+                  <div className="space-y-3">
+                    {upcomingWorkouts.map(workout => (
+                      <Link to={createPageUrl(`LiveWorkout?id=${workout.id}`)} key={workout.id} className="block p-4 rounded-lg hover:bg-gray-50 border border-gray-200 transition-colors">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="font-bold text-lg">{workout.title}</p>
+                            <p className="text-sm text-gray-500">{format(parseISO(workout.date), "EEEE, MMMM d")}</p>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <span><Clock className="w-4 h-4 inline mr-1" />{workout.duration_minutes} min</span>
+                            <span><Target className="w-4 h-4 inline mr-1" />{workout.exercises?.length || 0} exercises</span>
+                            <ChevronRight className="w-5 h-5 text-gray-400" />
+                          </div>
                         </div>
-                    ) : (
-                        <div className="text-center py-8 text-gray-500">
-                            <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                            <p>No upcoming workouts scheduled.</p>
-                            <Link to={createPageUrl("TrainNow")}>
-                                <button className="mt-3 text-blue-600 font-semibold">Plan a workout</button>
-                            </Link>
-                        </div>
-                    )}
-                </div>
-                
-                {/* Body Region Chart */}
-                <BodyRegionChart workouts={workouts} activities={[]} />
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No upcoming workouts scheduled.</p>
+                    <Link to={createPageUrl("TrainNow")}>
+                      <button className="mt-3 text-blue-600 font-semibold">Plan a workout</button>
+                    </Link>
+                  </div>
+                )}
+              </div>
 
-                {/* Weekly Optimization - NEW */}
-                <WeeklyOptimization />
+              {/* Body Region Chart */}
+              <BodyRegionChart workouts={workouts} activities={[]} />
+
+              {/* Weekly Optimization - NEW */}
+              <WeeklyOptimization />
             </div>
 
             {/* Right Column: Active Goals & Plans */}
             <div className="space-y-6">
-                {/* Active Plans */}
-                {activePlans.length > 0 && (
-                    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold flex items-center gap-2">
-                                <FileText className="w-5 h-5 text-gray-500" />
-                                Active Plans
-                            </h2>
-                            <Link to={createPageUrl("Plans")}>
-                                <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                                    View All
-                                </button>
-                            </Link>
-                        </div>
-                        <div className="space-y-4">
-                            {activePlans.slice(0, 2).map(plan => (
-                                <ActivePlanCard
-                                    key={plan.id}
-                                    plan={plan}
-                                    onPlanClick={handlePlanClick}
-                                />
-                            ))}
-                            {activePlans.length > 2 && (
-                                <div className="text-center pt-2">
-                                    <Link to={createPageUrl("Plans")}>
-                                        <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                                            +{activePlans.length - 2} more plans
-                                        </button>
-                                    </Link>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* Active Goals */}
+              {/* Active Plans */}
+              {activePlans.length > 0 && (
                 <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-bold flex items-center gap-2">
-                            <Target className="w-5 h-5 text-gray-500" />
-                            Active Goals
-                        </h2>
-                        <Link to={createPageUrl("Goals")}>
-                            <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                                View All
-                            </button>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-gray-500" />
+                      Active Plans
+                    </h2>
+                    <Link to={createPageUrl("Plans")}>
+                      <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                        View All
+                      </button>
+                    </Link>
+                  </div>
+                  <div className="space-y-4">
+                    {activePlans.slice(0, 2).map(plan => (
+                      <ActivePlanCard
+                        key={plan.id}
+                        plan={plan}
+                        onPlanClick={handlePlanClick}
+                      />
+                    ))}
+                    {activePlans.length > 2 && (
+                      <div className="text-center pt-2">
+                        <Link to={createPageUrl("Plans")}>
+                          <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                            +{activePlans.length - 2} more plans
+                          </button>
                         </Link>
-                    </div>
-                    {activeGoals.length > 0 ? (
-                        <div className="space-y-4">
-                            {activeGoals.slice(0, 3).map(progress => (
-                                <ActiveGoalCard
-                                    key={progress.id}
-                                    goal={{ id: progress.goal_id, name: progress.goal_name, category: 'skill' }}
-                                    progress={progress}
-                                    onGoalClick={handleGoalClick}
-                                    onResignGoal={handleResignGoal}
-                                />
-                            ))}
-                            {activeGoals.length > 3 && (
-                                <div className="text-center pt-2">
-                                    <Link to={createPageUrl("Goals")}>
-                                        <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                                            +{activeGoals.length - 3} more goals
-                                        </button>
-                                    </Link>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="text-center py-8 text-gray-500">
-                            <Target className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                            <p>No active goals yet.</p>
-                            <Link to={createPageUrl("Goals")}>
-                                <button className="mt-3 text-blue-600 font-semibold">Explore Goals</button>
-                            </Link>
-                        </div>
+                      </div>
                     )}
+                  </div>
                 </div>
+              )}
+
+              {/* Active Goals */}
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold flex items-center gap-2">
+                    <Target className="w-5 h-5 text-gray-500" />
+                    Active Goals
+                  </h2>
+                  <Link to={createPageUrl("Goals")}>
+                    <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                      View All
+                    </button>
+                  </Link>
+                </div>
+                {activeGoals.length > 0 ? (
+                  <div className="space-y-4">
+                    {activeGoals.slice(0, 3).map(progress => (
+                      <ActiveGoalCard
+                        key={progress.id}
+                        goal={{ id: progress.goal_id, name: progress.goal_name, category: 'skill' }}
+                        progress={progress}
+                        onGoalClick={handleGoalClick}
+                        onResignGoal={handleResignGoal}
+                      />
+                    ))}
+                    {activeGoals.length > 3 && (
+                      <div className="text-center pt-2">
+                        <Link to={createPageUrl("Goals")}>
+                          <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                            +{activeGoals.length - 3} more goals
+                          </button>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Target className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No active goals yet.</p>
+                    <Link to={createPageUrl("Goals")}>
+                      <button className="mt-3 text-blue-600 font-semibold">Explore Goals</button>
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </>
@@ -493,7 +491,7 @@ export default function Dashboard() {
               <Calendar className="w-6 h-6 text-blue-600" />
               This Week's Schedule
             </h2>
-            
+
             {upcomingWorkouts.length > 0 ? (
               <div className="grid gap-4">
                 {upcomingWorkouts.map(workout => (
