@@ -57,6 +57,20 @@ const navigationItems = [
   },
 ];
 
+// Simple throttle utility
+const throttle = (func, limit) => {
+  let inThrottle;
+  return function () {
+    const args = arguments;
+    const context = this;
+    if (!inThrottle) {
+      func.apply(context, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  }
+};
+
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -65,7 +79,7 @@ export default function Layout({ children }) {
   const mainContentRef = useRef(null);
 
   useEffect(() => {
-    const handleScroll = () => {
+    const handleScroll = throttle(() => {
       if (!mainContentRef.current) return;
 
       const currentScrollY = mainContentRef.current.scrollTop;
@@ -79,7 +93,7 @@ export default function Layout({ children }) {
       }
 
       lastScrollY.current = currentScrollY;
-    };
+    }, 100);
 
     const mainElement = mainContentRef.current;
     if (mainElement) {

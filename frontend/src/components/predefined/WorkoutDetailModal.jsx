@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, Clock, Target, Calendar, Copy, ChevronDown, ChevronUp, Dumbbell, Zap, Users, Timer } from "lucide-react";
 
 const intensityColors = {
@@ -15,6 +15,20 @@ const disciplineIcons = {
   cycling: Users,
   mobility: Timer,
   calisthenics: Users
+};
+
+// Simple throttle utility
+const throttle = (func, limit) => {
+  let inThrottle;
+  return function () {
+    const args = arguments;
+    const context = this;
+    if (!inThrottle) {
+      func.apply(context, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  }
 };
 
 export default function WorkoutDetailModal({ workout, exercises, onClose, onApply, onDuplicate }) {
@@ -39,24 +53,40 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
 
   const totalExercises = workout.blocks.reduce((sum, block) => sum + block.exercises.length, 0);
 
-  const handleScroll = (e) => {
+  // Throttled scroll handler
+  const handleScroll = useCallback(throttle((e) => {
     const scrollTop = e.target.scrollTop;
     setIsHeaderCollapsed(scrollTop > 50);
-  };
+  }, 100), []);
+
+  // Handle ESC key to close
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center md:p-4 z-[100]">
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center md:p-4 z-[100]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
       <div className="bg-white md:rounded-2xl shadow-2xl w-full max-w-5xl h-full md:h-auto md:max-h-[90vh] flex flex-col overflow-hidden relative">
         {/* Header */}
         <div
           className={`
             bg-white border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 shrink-0 transition-all duration-300 ease-in-out z-10
-            ${isHeaderCollapsed ? 'py-2 px-4' : 'p-4 md:p-6'}
+            ${isHeaderCollapsed ? 'py-3 px-4' : 'p-4 md:p-6'}
           `}
         >
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <h2
+                id="modal-title"
                 className={`
                   font-bold text-gray-900 leading-tight transition-all duration-300
                   ${isHeaderCollapsed ? 'text-lg mb-0' : 'text-xl md:text-3xl mb-2'}
@@ -89,8 +119,8 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
                     <span className="font-medium">{totalExercises} exercises</span>
                   </div>
                   <div className={`px-2 py-0.5 rounded-full text-xs font-medium ${workout.difficulty_level === 'beginner' ? 'bg-green-100 text-green-800' :
-                    workout.difficulty_level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
+                      workout.difficulty_level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
                     }`}>
                     {workout.difficulty_level}
                   </div>
@@ -111,7 +141,11 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
               </div>
             </div>
 
-            <button onClick={onClose} className="p-2 -mr-2 rounded-xl hover:bg-white/50 transition-colors shrink-0">
+            <button
+              onClick={onClose}
+              className="p-2 -mr-2 rounded-xl hover:bg-white/50 transition-colors shrink-0"
+              aria-label="Close modal"
+            >
               <X className="w-6 h-6 text-gray-500" />
             </button>
           </div>
@@ -132,6 +166,7 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
                   <button
                     onClick={() => toggleBlock(blockIndex)}
                     className="w-full p-4 md:p-5 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
+                    aria-expanded={isExpanded}
                   >
                     <div className="min-w-0 flex-1 mr-4">
                       <h3 className="font-bold text-lg md:text-xl text-gray-900 mb-1 truncate">
@@ -270,7 +305,7 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
         </div>
 
         {/* Sticky Footer Actions */}
-        <div className="p-4 md:p-6 border-t border-gray-100 bg-white shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-6 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+        <div className="p-4 md:p-6 border-t border-gray-100 bg-white/90 backdrop-blur-md shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-6 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-4">
             <div className="flex-1">
               <label className="block text-xs md:text-sm font-semibold mb-1.5 text-gray-700">
