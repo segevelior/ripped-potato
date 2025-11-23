@@ -99,6 +99,14 @@ predefinedWorkoutSchema.virtual('totalExercises').get(function () {
   return this.blocks.reduce((sum, block) => sum + block.exercises.length, 0);
 });
 
+// Static method to search workouts
+predefinedWorkoutSchema.statics.search = function (term) {
+  return this.find(
+    { $text: { $search: term } },
+    { score: { $meta: "textScore" } }
+  ).sort({ score: { $meta: "textScore" } });
+};
+
 // Virtual for estimated calories (rough calculation)
 predefinedWorkoutSchema.virtual('estimatedCalories').get(function () {
   const baseCaloriesPerMinute = 6; // Default for strength training
