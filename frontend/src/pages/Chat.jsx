@@ -1,9 +1,23 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { User, Workout, PredefinedWorkout, Goal, ProgressionPath, UserGoalProgress, Plan, TrainingPlan, UserTrainingPattern } from "@/api/entities";
 import { InvokeLLM } from "@/api/integrations";
-import { Bot, Send, RotateCcw, MessageCircle, Sparkles, Loader2, Calendar, TrendingUp, AlertCircle, FileText, Target, Dumbbell, Upload, Paperclip, Image, File, X } from "lucide-react";
+import { Bot, Send, RotateCcw, MessageCircle, Sparkles, Loader2, Calendar, TrendingUp, AlertCircle, FileText, Target, Dumbbell, Upload, Paperclip, Image, File, X, Menu, ChevronDown } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { format, startOfWeek, endOfWeek, isAfter, isBefore, parseISO, differenceInDays } from "date-fns";
+
+// Simple throttle utility
+const throttle = (func, limit) => {
+  let inThrottle;
+  return function () {
+    const args = arguments;
+    const context = this;
+    if (!inThrottle) {
+      func.apply(context, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  }
+};
 
 // Enhanced schema that actually works for creating goals and plans
 const planningSchema = {
@@ -106,7 +120,6 @@ export default function Chat() {
   const [isThinking, setIsThinking] = useState(false);
   const [user, setUser] = useState(null);
   const [currentPlan, setCurrentPlan] = useState(null);
-  const [disciplines, setDisciplines] = useState([]);
   const [predefinedWorkouts, setPredefinedWorkouts] = useState([]);
   const [goals, setGoals] = useState([]);
   const [debugInfo, setDebugInfo] = useState(null);
@@ -118,10 +131,10 @@ export default function Chat() {
     preferred_disciplines: [],
     limitations_or_preferences: ""
   });
-  const [attachedFiles, setAttachedFiles] = useState([]);
-  const [isDragOver, setIsDragOver] = useState(false);
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  const [showContextInfo, setShowContextInfo] = useState(false);
   const chatEndRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const chatContainerRef = useRef(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -192,6 +205,12 @@ export default function Chat() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Throttled scroll handler for collapsible header
+  const handleScroll = useCallback(throttle((e) => {
+    const scrollTop = e.target.scrollTop;
+    setIsHeaderCollapsed(scrollTop > 100);
+  }, 100), []);
 
   const getCurrentPageContext = () => {
     const currentPath = window.location.pathname;
@@ -387,61 +406,99 @@ export default function Chat() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <Bot className="w-8 h-8 text-purple-600" />
-            AI Coach
-          </h1>
-          <p className="text-lg text-gray-600 mt-1">
-            Your intelligent fitness assistant - I can create goals, build plans, and guide you through the app.
-          </p>
+    <div className="flex flex-col h-full md:max-w-4xl md:mx-auto md:p-6 md:space-y-6">
+      {/* Collapsible Header */}
+      <div
+        className={`
+          bg-gradient-to-r from-purple-50 to-blue-50 border-b shrink-0 transition-all duration-300 ease-in-out sticky top-0 z-10 md:static md:rounded-xl md:border
+          ${isHeaderCollapsed ? 'py-2 px-4' : 'p-4 md:p-6'}
+        `}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+            <Bot className={`${isHeaderCollapsed ? 'w-6 h-6' : 'w-7 h-7 md:w-8 md:h-8'} text-purple-600 shrink-0 transition-all duration-300`} />
+            <div className="flex-1 min-w-0">
+              <h1 className={`font-bold text-gray-900 transition-all duration-300 ${isHeaderCollapsed ? 'text-base md:text-lg' : 'text-xl md:text-3xl'}`}>
+                AI Coach
+              </h1>
+              <div className={`transition-all duration-300 overflow-hidden ${isHeaderCollapsed ? 'h-0 opacity-0' : 'h-auto opacity-100'}`}>
+                <p className="text-xs md:text-lg text-gray-600 mt-0.5 md:mt-1 line-clamp-1 md:line-clamp-none">
+                  Your intelligent fitness assistant
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setShowContextInfo(!showContextInfo)}
+              className="md:hidden p-2 text-gray-600 hover:text-gray-800 rounded-lg hover:bg-white/50 transition-colors"
+              aria-label="Toggle context info"
+            >
+              <ChevronDown className={`w-5 h-5 transition-transform ${showContextInfo ? 'rotate-180' : ''}`} />
+            </button>
+            <button
+              onClick={clearHistory}
+              className="hidden md:flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Clear History
+            </button>
+            <button
+              onClick={clearHistory}
+              className="md:hidden p-2 text-gray-600 hover:text-gray-800 rounded-lg hover:bg-white/50 transition-colors"
+              aria-label="Clear history"
+            >
+              <RotateCcw className="w-5 h-5" />
+            </button>
+          </div>
         </div>
-        <button 
-          onClick={clearHistory}
-          className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+
+        {/* Context Info - Collapsible on mobile, always visible on desktop */}
+        <div className={`transition-all duration-300 md:block ${showContextInfo || !isHeaderCollapsed ? 'mt-3 md:mt-4' : 'hidden'}`}>
+          <div className="bg-white/60 backdrop-blur-sm rounded-lg p-3 md:p-4 border border-blue-200/50">
+            <h3 className="font-semibold text-blue-900 mb-2 text-sm md:text-base flex items-center gap-1">
+              <Sparkles className="w-4 h-4" />
+              What I Can Do
+            </h3>
+            <div className="grid md:grid-cols-2 gap-2 md:gap-4 text-xs md:text-sm text-blue-800">
+              <div>
+                <p className="line-clamp-1"><strong>Page:</strong> {getCurrentPageContext().page_description}</p>
+              </div>
+              <div>
+                <p className="line-clamp-1"><strong>Goals:</strong> {userMemory.primary_goals.join(', ') || 'Learning...'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Chat Interface - Full height on mobile, fixed height on desktop */}
+      <div className="flex-1 flex flex-col bg-white md:rounded-xl md:shadow-sm md:border md:border-gray-200 overflow-hidden md:h-[600px]">
+        <div
+          ref={chatContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 p-3 md:p-6 overflow-y-auto space-y-3 md:space-y-4 scroll-smooth"
         >
-          <RotateCcw className="w-4 h-4" />
-          Clear History
-        </button>
-      </div>
-
-      {/* Current Context Display */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-900 mb-2">🧠 What I Can See & Do</h3>
-        <div className="grid md:grid-cols-2 gap-4 text-sm text-blue-800">
-          <div>
-            <p><strong>Current Page:</strong> {getCurrentPageContext().page_description}</p>
-            <p><strong>Available Actions:</strong> {getCurrentPageContext().available_actions.join(', ')}</p>
-          </div>
-          <div>
-            <p><strong>Your Goals:</strong> {userMemory.primary_goals.join(', ') || 'Learning...'}</p>
-            <p><strong>Active Plan:</strong> {currentPlan?.name || 'None'}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Chat Interface */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-[600px]">
-        <div className="flex-1 p-6 overflow-y-auto space-y-4">
           {messages.map((msg, index) => (
-            <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-              {msg.role === 'assistant' && <Bot className="w-6 h-6 text-purple-500 flex-shrink-0 mt-1" />}
-              <div className={`max-w-2xl p-4 rounded-xl ${
-                msg.role === 'user' 
-                  ? 'bg-blue-500 text-white ml-12' 
-                  : 'bg-gray-100 mr-12'
+            <div key={index} className={`flex items-start gap-2 md:gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+              {msg.role === 'assistant' && <Bot className="w-5 h-5 md:w-6 md:h-6 text-purple-500 flex-shrink-0 mt-1" />}
+              <div className={`max-w-[85%] md:max-w-2xl p-3 md:p-4 rounded-xl ${
+                msg.role === 'user'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100'
               }`}>
-                <div className="prose prose-sm max-w-none">
+                <div className="prose prose-sm max-w-none text-sm md:text-base">
                   <ReactMarkdown
                     components={{
                       a: ({href, children}) => (
-                        <a href={href} className="text-blue-600 hover:underline font-medium">
+                        <a href={href} className={msg.role === 'user' ? 'text-blue-100 hover:underline font-medium' : 'text-blue-600 hover:underline font-medium'}>
                           {children}
                         </a>
-                      )
+                      ),
+                      p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
+                      ul: ({children}) => <ul className="mb-2 last:mb-0 pl-4">{children}</ul>,
+                      ol: ({children}) => <ol className="mb-2 last:mb-0 pl-4">{children}</ol>,
                     }}
                   >
                     {msg.content}
@@ -452,23 +509,23 @@ export default function Chat() {
           ))}
           
           {isThinking && (
-            <div className="flex items-center gap-3">
-              <Bot className="w-6 h-6 text-purple-500" />
-              <div className="bg-gray-100 p-4 rounded-xl">
+            <div className="flex items-center gap-2 md:gap-3">
+              <Bot className="w-5 h-5 md:w-6 md:h-6 text-purple-500" />
+              <div className="bg-gray-100 p-3 md:p-4 rounded-xl">
                 <div className="flex items-center gap-2">
-                  <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
-                  <span className="text-gray-600">Thinking...</span>
+                  <Loader2 className="w-4 h-4 md:w-5 md:h-5 text-gray-400 animate-spin" />
+                  <span className="text-gray-600 text-sm md:text-base">Thinking...</span>
                 </div>
               </div>
             </div>
           )}
-          
+
           <div ref={chatEndRef}></div>
         </div>
 
-        {/* Input Area */}
-        <form onSubmit={handleSendMessage} className="p-6 border-t bg-gray-50">
-          <div className="flex gap-3 items-end">
+        {/* Input Area - Sticky footer on mobile */}
+        <form onSubmit={handleSendMessage} className="p-3 md:p-6 border-t bg-gray-50/90 backdrop-blur-md shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-6">
+          <div className="flex gap-2 md:gap-3 items-end">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -478,68 +535,77 @@ export default function Chat() {
                   handleSendMessage(e);
                 }
               }}
-              placeholder={isRateLimited ? `Rate limited - wait ${rateLimitCooldown}s` : "Ask me anything about training... (Shift+Enter for new line)"}
+              placeholder={isRateLimited ? `Wait ${rateLimitCooldown}s...` : "Ask me anything..."}
               disabled={isThinking || isRateLimited}
               rows={1}
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed resize-none min-h-[48px] max-h-[200px]"
+              className="flex-1 px-3 py-2 md:px-4 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed resize-none min-h-[40px] md:min-h-[48px] max-h-[120px] md:max-h-[200px] text-sm md:text-base"
               style={{
                 height: 'auto',
                 overflowY: input.includes('\n') || input.length > 80 ? 'auto' : 'hidden'
               }}
               onInput={(e) => {
                 e.target.style.height = 'auto';
-                e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                e.target.style.height = Math.min(e.target.scrollHeight, window.innerWidth < 768 ? 120 : 200) + 'px';
               }}
             />
-            <button 
-              type="submit" 
-              disabled={isThinking || isRateLimited || !input.trim()} 
-              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            <button
+              type="submit"
+              disabled={isThinking || isRateLimited || !input.trim()}
+              className="px-4 py-2 md:px-6 md:py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 md:gap-2 shrink-0"
             >
-              {isThinking ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-              Send
+              {isThinking ? (
+                <>
+                  <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
+                  <span className="hidden md:inline">Send</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 md:w-5 md:h-5" />
+                  <span className="hidden sm:inline">Send</span>
+                </>
+              )}
             </button>
           </div>
-          
-          {/* Quick Actions */}
-          <div className="flex flex-wrap gap-2 mt-3">
-            <button 
-              type="button" 
+
+          {/* Quick Actions - Horizontal scroll on mobile */}
+          <div className="flex gap-2 mt-2 md:mt-3 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
+            <button
+              type="button"
               onClick={() => setInput("I want to learn a handstand")}
-              className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+              className="px-2.5 py-1 text-xs md:text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors whitespace-nowrap shrink-0"
             >
               🤸 Learn a skill
             </button>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => setInput("Create a 8-week strength plan")}
-              className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+              className="px-2.5 py-1 text-xs md:text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors whitespace-nowrap shrink-0"
             >
               📋 Build a plan
             </button>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => setInput("How do I use the calendar?")}
-              className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+              className="px-2.5 py-1 text-xs md:text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors whitespace-nowrap shrink-0"
             >
-              🧭 Navigate the app
+              🧭 Navigate
             </button>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => setInput("What should I train today?")}
-              className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+              className="px-2.5 py-1 text-xs md:text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors whitespace-nowrap shrink-0"
             >
-              💪 Get workout advice
+              💪 Workout advice
             </button>
           </div>
         </form>
       </div>
 
-      {/* Debug Panel */}
+      {/* Debug Panel - Hidden on mobile by default */}
       {debugInfo && (
-        <details className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <details className="hidden md:block bg-gray-50 border border-gray-200 rounded-lg p-4">
           <summary className="cursor-pointer font-medium text-gray-700">Debug Info</summary>
-          <pre className="mt-2 text-xs text-gray-600 overflow-auto">
+          <pre className="mt-2 text-xs text-gray-600 overflow-auto max-h-60">
             {JSON.stringify(debugInfo, null, 2)}
           </pre>
         </details>
