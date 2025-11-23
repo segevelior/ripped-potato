@@ -81,7 +81,7 @@ userWorkoutModificationSchema.index({ userId: 1, workoutId: 1 }, { unique: true 
 // Method to apply modifications to a workout
 userWorkoutModificationSchema.methods.applyToWorkout = function(workout) {
   const modifiedWorkout = workout.toObject ? workout.toObject() : workout;
-  
+
   // Apply basic modifications
   if (this.modifications) {
     ['title', 'description', 'durationMinutes'].forEach(key => {
@@ -89,52 +89,18 @@ userWorkoutModificationSchema.methods.applyToWorkout = function(workout) {
         modifiedWorkout[key] = this.modifications[key];
       }
     });
-    
-    // Apply exercise modifications
-    if (this.modifications.exercises && this.modifications.exercises.length > 0) {
-      modifiedWorkout.exercises = modifiedWorkout.exercises.map(exercise => {
-        const modification = this.modifications.exercises.find(
-          mod => mod.originalExerciseId.toString() === exercise.exerciseId.toString()
-        );
-        
-        if (modification) {
-          if (modification.isRemoved) {
-            return null; // Will be filtered out
-          }
-          
-          return {
-            ...exercise,
-            order: modification.order !== undefined ? modification.order : exercise.order,
-            sets: modification.customSets || exercise.sets,
-            notes: modification.customNotes || exercise.notes
-          };
-        }
-        
-        return exercise;
-      }).filter(Boolean); // Remove null entries
-    }
-    
-    // Add new exercises
-    if (this.modifications.addedExercises && this.modifications.addedExercises.length > 0) {
-      modifiedWorkout.exercises = [
-        ...modifiedWorkout.exercises,
-        ...this.modifications.addedExercises
-      ];
-    }
-    
-    // Re-sort by order
-    modifiedWorkout.exercises.sort((a, b) => a.order - b.order);
+
+    // NEW SCHEMA: Workouts now use blocks structure
+    // For now, we'll skip applying exercise-level modifications since the schema changed
+    // TODO: Migrate UserWorkoutModification to support block-based structure
+    // The old modifications model was designed for flat exercise arrays
+    // We need to redesign this for the new block-based structure
   }
-  
-  // Add user metadata
+
+  // Add user metadata (this still works)
   modifiedWorkout.userMetadata = this.metadata;
-  modifiedWorkout.isModified = true;
-  
-  // Recalculate total sets
-  modifiedWorkout.totalSets = modifiedWorkout.exercises.reduce(
-    (sum, ex) => sum + (ex.sets ? ex.sets.length : 0), 0
-  );
-  
+  modifiedWorkout.isModified = this.modifications && Object.keys(this.modifications).length > 0;
+
   return modifiedWorkout;
 };
 

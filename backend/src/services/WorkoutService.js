@@ -13,7 +13,7 @@ class WorkoutService {
         { createdBy: userId }
       ]
     })
-    .populate('exercises.exerciseId', 'name muscles')
+    .populate('blocks.exercises.exercise_id', 'name muscles')
     .lean();
     
     // Get all user modifications
@@ -41,7 +41,7 @@ class WorkoutService {
    */
   static async getWorkoutForUser(workoutId, userId) {
     const workout = await PredefinedWorkout.findById(workoutId)
-      .populate('exercises.exerciseId', 'name muscles')
+      .populate('blocks.exercises.exercise_id', 'name muscles')
       .lean();
     
     if (!workout) {
