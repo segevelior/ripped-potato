@@ -83,7 +83,7 @@ router.get('/search/:term', async (req, res) => {
 
     const workouts = await PredefinedWorkout.search(term)
       .populate('createdBy', 'name')
-      .populate('exercises.exerciseId', 'name muscles')
+      .populate('blocks.exercises.exercise_id', 'name muscles')
       .limit(parseInt(limit));
 
     res.json(workouts);
@@ -185,7 +185,7 @@ router.put('/:id', auth, async (req, res) => {
       await workout.save();
 
       await workout.populate('createdBy', 'name');
-      await workout.populate('exercises.exerciseId', 'name muscles equipment');
+      await workout.populate('blocks.exercises.exercise_id', 'name muscles equipment');
 
       res.json(workout);
     } else if (workout.isCommon || workout.createdBy?.toString() !== req.user.id) {
