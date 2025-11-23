@@ -1,6 +1,6 @@
 
 
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot } from "lucide-react"; // Added Bot
@@ -57,9 +57,55 @@ const navigationItems = [
   },
 ];
 
+// Simple throttle utility
+const throttle = (func, limit) => {
+  let inThrottle;
+  return function () {
+    const args = arguments;
+    const context = this;
+    if (!inThrottle) {
+      func.apply(context, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  }
+};
+
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isNavVisible, setIsNavVisible] = useState(true);
+  const lastScrollY = useRef(0);
+  const mainContentRef = useRef(null);
+
+  useEffect(() => {
+    const handleScroll = throttle(() => {
+      if (!mainContentRef.current) return;
+
+      const currentScrollY = mainContentRef.current.scrollTop;
+
+      if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
+        // Scrolling down & past threshold
+        setIsNavVisible(false);
+      } else {
+        // Scrolling up
+        setIsNavVisible(true);
+      }
+
+      lastScrollY.current = currentScrollY;
+    }, 100);
+
+    const mainElement = mainContentRef.current;
+    if (mainElement) {
+      mainElement.addEventListener('scroll', handleScroll, { passive: true });
+    }
+
+    return () => {
+      if (mainElement) {
+        mainElement.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, []);
 
   return (
     <SidebarProvider>
@@ -143,13 +189,21 @@ export default function Layout({ children }) {
           </header>
 
           {/* Main Content Area */}
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-24 md:pb-8 scroll-smooth">
+          <main
+            ref={mainContentRef}
+            className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-24 md:pb-8 scroll-smooth"
+          >
             <Outlet />
           </main>
 
           {/* Mobile Bottom Navigation */}
-          <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)] z-50">
-            <div className="flex items-center justify-around h-16 px-2">
+          <nav
+            className={`
+              md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-gray-200 pb-[env(safe-area-inset-bottom)] z-50 transition-transform duration-300 ease-in-out
+              ${isNavVisible ? 'translate-y-0' : 'translate-y-full'}
+            `}
+          >
+            <div className="flex items-center justify-around h-14 px-2">
               {[
                 navigationItems.find(i => i.title === "Goals"),
                 navigationItems.find(i => i.title === "Plans"),
@@ -161,10 +215,10 @@ export default function Layout({ children }) {
                   <Link
                     key={index}
                     to={item.url}
-                    className={`flex flex-col items-center justify-center min-w-[64px] h-full gap-1 px-1 ${isActive ? 'text-purple-600' : 'text-gray-500'
+                    className={`flex flex-col items-center justify-center min-w-[64px] h-full gap-0.5 px-1 ${isActive ? 'text-purple-600' : 'text-gray-500'
                       }`}
                   >
-                    <item.icon className={`w-6 h-6 ${isActive ? 'fill-current' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
+                    <item.icon className={`w-5 h-5 ${isActive ? 'fill-current' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
                     <span className="text-[10px] font-medium whitespace-nowrap">
                       {item.title === "Predefined Workouts" ? "Workouts" : item.title}
                     </span>
