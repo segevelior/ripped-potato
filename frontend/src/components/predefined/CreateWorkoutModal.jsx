@@ -181,23 +181,32 @@ export default function CreateWorkoutModal({ exercises, onClose, onSave }) {
     onSave(workout);
   };
 
+  const getTotalExercises = () => {
+    return workout.blocks.reduce((sum, block) => sum + block.exercises.length, 0);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-end md:items-center justify-center p-0 md:p-4 z-[100]">
+      <div className="bg-white w-full h-[90vh] md:h-[85vh] md:max-w-2xl md:rounded-[40px] rounded-t-[40px] flex flex-col overflow-hidden border border-gray-100 shadow-2xl relative">
 
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Create New Workout</h2>
-            <p className="text-sm text-gray-500">Design your perfect session</p>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+          <button onClick={onClose} className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
             <X className="w-6 h-6 text-gray-400 hover:text-gray-600" />
+          </button>
+
+          <h2 className="text-lg font-bold text-gray-900">Create Workout</h2>
+
+          <button
+            onClick={handleSaveClick}
+            className="text-[#FE755D] font-bold text-sm hover:text-[#E56A54] transition-colors"
+          >
+            Save
           </button>
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 pb-10">
 
           {/* Workout Info */}
           <div className="space-y-6">
@@ -423,23 +432,6 @@ export default function CreateWorkoutModal({ exercises, onClose, onSave }) {
               Add New Block
             </button>
           </div>
-        </div>
-
-        {/* Footer Actions */}
-        <div className="p-6 border-t border-gray-100 bg-white flex justify-end gap-3 z-10">
-          <button
-            onClick={onClose}
-            className="px-6 py-3 text-gray-600 font-bold hover:bg-gray-50 rounded-xl transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSaveClick}
-            className="px-8 py-3 bg-[#FE755D] hover:bg-[#E56A54] text-white rounded-xl font-bold shadow-lg shadow-[#FE755D]/20 transition-all transform active:scale-95 flex items-center gap-2"
-          >
-            <Save className="w-5 h-5" />
-            Create Workout
-          </button>
         </div>
       </div>
     </div>
