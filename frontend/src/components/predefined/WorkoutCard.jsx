@@ -1,104 +1,126 @@
-import React from "react";
-import { Clock, Target, Calendar, Copy, Eye, ChevronRight, Edit, Trash2 } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { Clock, Bookmark, Star } from 'lucide-react';
+import { getDisciplineClass } from '@/styles/designTokens';
 
-export default function WorkoutCard({ workout, onView, onDuplicate, onApply, onEdit, onDelete }) {
-  const totalExercises = workout.blocks.reduce((sum, block) => sum + block.exercises.length, 0);
-  
-  const disciplineColors = {
-    strength: "#3b82f6",
-    climbing: "#f97316", 
-    running: "#10b981",
-    cycling: "#8b5cf6",
-    calisthenics: "#f59e0b",
-    mobility: "#06b6d4"
+// Placeholder images based on workout type
+const getWorkoutImage = (workout) => {
+  const discipline = workout.primary_disciplines?.[0]?.toLowerCase() || 'strength';
+
+  const imageMap = {
+    running: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=800&h=500&fit=crop',
+    cycling: 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=800&h=500&fit=crop',
+    strength: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=500&fit=crop',
+    climbing: 'https://images.unsplash.com/photo-1522163182402-834f871fd851?w=800&h=500&fit=crop',
+    hiit: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800&h=500&fit=crop',
+    cardio: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=500&fit=crop',
+    mobility: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=500&fit=crop',
+    calisthenics: 'https://images.unsplash.com/photo-1599058917212-d750089bc07e?w=800&h=500&fit=crop',
   };
 
-  const difficultyColors = {
-    beginner: "#22c55e",
-    intermediate: "#f59e0b",
-    advanced: "#ef4444"
+  return workout.image || imageMap[discipline] || imageMap.strength;
+};
+
+export default function WorkoutCard({ workout, onView, onBookmark, isBookmarked: initialBookmarked }) {
+  const [bookmarked, setBookmarked] = useState(initialBookmarked || false);
+
+  useEffect(() => {
+    setBookmarked(initialBookmarked || false);
+  }, [initialBookmarked]);
+
+  const handleBookmarkClick = (e) => {
+    e.stopPropagation();
+    setBookmarked(!bookmarked);
+    if (onBookmark) {
+      onBookmark(workout, !bookmarked);
+    }
   };
+
+  const handleCardClick = () => {
+    if (onView) {
+      onView(workout);
+    }
+  };
+
+  const primaryDiscipline = workout.primary_disciplines?.[0] || 'Workout';
+  const rating = workout.ratings?.average || 0;
+  const ratingCount = workout.ratings?.count || 0;
 
   return (
-    <div className="apple-card overflow-hidden hover:shadow-lg transition-all duration-200">
-      <div className="p-6">
-        <div className="flex items-start justify-between mb-3">
-          <h3 className="font-bold text-lg leading-tight" style={{color: 'var(--text-primary)'}}>
-            {workout.name}
-          </h3>
-          <div 
-            className="px-2 py-1 rounded-full text-xs font-medium text-white"
-            style={{ backgroundColor: difficultyColors[workout.difficulty_level] || '#6b7280' }}
-          >
-            {workout.difficulty_level}
-          </div>
-        </div>
+    <div
+      onClick={handleCardClick}
+      className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group"
+    >
+      {/* Image Section */}
+      <div className="relative h-48 overflow-hidden">
+        <img
+          src={getWorkoutImage(workout)}
+          alt={workout.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        />
 
-        <p className="text-sm mb-4 line-clamp-3" style={{color: 'var(--text-secondary)'}}>
-          {workout.goal}
-        </p>
+        {/* Bookmark Button */}
+        <button
+          onClick={handleBookmarkClick}
+          className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md hover:bg-white transition-colors z-10"
+        >
+          <Bookmark
+            className={`w-5 h-5 ${bookmarked ? 'fill-accent text-accent' : 'text-gray-600'}`}
+          />
+        </button>
+      </div>
 
-        {/* Disciplines */}
-        <div className="flex flex-wrap gap-1 mb-4">
-          {(workout.primary_disciplines || []).map((discipline, index) => (
-            <span
-              key={index}
-              className="px-2 py-1 rounded text-xs font-medium text-white"
-              style={{ backgroundColor: disciplineColors[discipline] || '#6b7280' }}
-            >
-              {discipline}
-            </span>
-          ))}
-        </div>
+      {/* Content Section */}
+      <div className="p-5">
+        {/* Category Badge */}
+        {primaryDiscipline && (
+          <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold text-white mb-2 ${getDisciplineClass(primaryDiscipline)}`}>
+            {primaryDiscipline.charAt(0).toUpperCase() + primaryDiscipline.slice(1)}
+          </span>
+        )}
 
-        {/* Stats */}
-        <div className="flex items-center gap-4 mb-4 text-sm" style={{color: 'var(--text-secondary)'}}>
-          <div className="flex items-center gap-1">
-            <Clock className="w-4 h-4" />
-            <span>{workout.estimated_duration || 60}min</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Target className="w-4 h-4" />
-            <span>{workout.blocks.length} blocks</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span>{totalExercises} exercises</span>
-          </div>
-        </div>
+        {/* Workout Name */}
+        <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-accent transition-colors">
+          {workout.name}
+        </h3>
 
-        {/* Action Buttons */}
-        <div className="flex gap-2">
-          <button
-            onClick={onView}
-            className="apple-button-secondary flex-1 flex items-center justify-center gap-2 text-sm"
-          >
-            <Eye className="w-4 h-4" />
-            View
-          </button>
-          <button
-            onClick={() => onEdit(workout)}
-            className="apple-button-secondary flex items-center justify-center gap-2 px-3"
-          >
-            <Edit className="w-4 h-4" />
-          </button>
-          <button
-            onClick={onDuplicate}
-            className="apple-button-secondary flex items-center justify-center gap-2 px-3"
-          >
-            <Copy className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => onDelete(workout)}
-            className="apple-button-secondary flex items-center justify-center gap-2 px-3 text-red-600 hover:bg-red-50"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => onApply(new Date().toISOString().split('T')[0])}
-            className="apple-button-primary flex items-center justify-center gap-2 px-3"
-          >
-            <Calendar className="w-4 h-4" />
-          </button>
+        {/* Rating */}
+        {rating > 0 && (
+          <div className="flex items-center gap-1 mb-3">
+            {[...Array(5)].map((_, i) => (
+              <Star
+                key={i}
+                className={`w-4 h-4 ${i < Math.floor(rating)
+                    ? 'fill-yellow-400 text-yellow-400'
+                    : 'text-gray-300'
+                  }`}
+              />
+            ))}
+            {ratingCount > 0 && (
+              <span className="text-sm text-gray-500 ml-1">({ratingCount})</span>
+            )}
+          </div>
+        )}
+
+        {/* Metadata Row */}
+        <div className="flex items-center gap-4 text-sm text-gray-500">
+          {/* Duration */}
+          {workout.estimated_duration && (
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-4 h-4" />
+              <span className="font-medium">{workout.estimated_duration} min</span>
+            </div>
+          )}
+
+          {/* Difficulty */}
+          {workout.difficulty_level && (
+            <div className="flex items-center gap-1.5">
+              <div className={`w-2 h-2 rounded-full ${workout.difficulty_level.toLowerCase() === 'beginner' ? 'bg-green-500' :
+                  workout.difficulty_level.toLowerCase() === 'intermediate' ? 'bg-orange-500' :
+                    'bg-red-500'
+                }`} />
+              <span className="font-medium capitalize">{workout.difficulty_level}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

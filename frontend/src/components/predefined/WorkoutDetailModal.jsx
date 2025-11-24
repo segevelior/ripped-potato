@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { X, Clock, Target, Calendar, Copy, ChevronDown, ChevronUp, Dumbbell, Zap, Users, Timer } from "lucide-react";
+import { X, Clock, Target, Calendar, Copy, ChevronDown, ChevronUp, Dumbbell, Zap, Users, Timer, Star, Bookmark } from "lucide-react";
 
 const intensityColors = {
   low: "bg-green-100 text-green-800",
@@ -15,6 +15,24 @@ const disciplineIcons = {
   cycling: Users,
   mobility: Timer,
   calisthenics: Users
+};
+
+// Placeholder images based on workout type (same as WorkoutCard)
+const getWorkoutImage = (workout) => {
+  const discipline = workout.primary_disciplines?.[0]?.toLowerCase() || 'strength';
+
+  const imageMap = {
+    running: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=800&h=500&fit=crop',
+    cycling: 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=800&h=500&fit=crop',
+    strength: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=500&fit=crop',
+    climbing: 'https://images.unsplash.com/photo-1522163182402-834f871fd851?w=800&h=500&fit=crop',
+    hiit: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800&h=500&fit=crop',
+    cardio: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=500&fit=crop',
+    mobility: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=500&fit=crop',
+    calisthenics: 'https://images.unsplash.com/photo-1599058917212-d750089bc07e?w=800&h=500&fit=crop',
+  };
+
+  return workout.image || imageMap[discipline] || imageMap.strength;
 };
 
 // Simple throttle utility
@@ -38,7 +56,8 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
   const scrollContainerRef = useRef(null);
 
-  const hasImage = !!workout.image;
+  const workoutImage = getWorkoutImage(workout);
+  const hasImage = true; // Always show image now
 
   const toggleBlock = (blockIndex) => {
     const newExpanded = new Set(expandedBlocks);
@@ -135,26 +154,19 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
         </div>
 
         {/* Scrollable Container for Hero + Content */}
-        <div className="flex-1 overflow-y-auto scrollbar-hide">
-          {/* Hero Image Section - Only render if image exists */}
-          {hasImage && (
-            <div className="h-[350px] relative shrink-0">
-              <div className="absolute inset-0 bg-gray-900">
-                <div className="absolute inset-0 bg-gradient-to-b from-gray-800 to-gray-900 opacity-80" />
-                <img
-                  src={workout.image}
-                  alt="Workout cover"
-                  className="w-full h-full object-cover opacity-50 mix-blend-overlay"
-                />
-              </div>
-            </div>
-          )}
+        <div className="flex-1 overflow-y-auto no-scrollbar">
+          {/* Hero Image Section - Always show */}
+          <div className="h-[280px] relative shrink-0">
+            <img
+              src={workoutImage}
+              alt={workout.name}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
+          </div>
 
           {/* Content Card */}
-          <div className={`bg-white relative z-10 px-6 pb-32 min-h-full ${hasImage
-            ? 'rounded-t-[40px] -mt-10 pt-8'
-            : 'pt-4'
-            }`}>
+          <div className="bg-white relative z-10 px-6 pb-32 min-h-full rounded-t-[40px] -mt-10 pt-8">
 
             {/* Tag / Discipline */}
             <div className="flex items-center gap-2 mb-2">
@@ -281,8 +293,17 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
                             const uniqueExId = `${idx}-${exIdx}`;
                             const isExExpanded = expandedExercises.has(uniqueExId);
 
+                            const intensityBorderColors = {
+                              low: "border-green-500",
+                              moderate: "border-yellow-500",
+                              high: "border-orange-500",
+                              max: "border-red-500"
+                            };
+
                             return (
-                              <div key={exIdx} className={`border-b border-gray-50 last:border-0 ${exerciseDetails?.strain?.intensity ? intensityColors[exerciseDetails.strain.intensity].replace('text-', 'border-l-4 border-').split(' ')[0] : 'border-l-4 border-transparent'
+                              <div key={exIdx} className={`border-b border-gray-50 last:border-0 border-l-4 ${exerciseDetails?.strain?.intensity
+                                ? intensityBorderColors[exerciseDetails.strain.intensity] || 'border-transparent'
+                                : 'border-transparent'
                                 }`}>
                                 <div
                                   onClick={() => toggleExercise(uniqueExId)}
