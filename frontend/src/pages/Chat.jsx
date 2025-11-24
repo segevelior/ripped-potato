@@ -1,27 +1,13 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { User, Workout, PredefinedWorkout, Goal, ProgressionPath, UserGoalProgress, Plan, TrainingPlan, UserTrainingPattern } from "@/api/entities";
 import { InvokeLLM } from "@/api/integrations";
-import { Bot, Send, RotateCcw, MessageCircle, Sparkles, Loader2, Calendar, TrendingUp, AlertCircle, FileText, Target, Dumbbell, Upload, Paperclip, Image, File, X, Menu, ChevronDown } from "lucide-react";
+import { Bot, Send, RotateCcw, MessageCircle, Sparkles, Loader2, Calendar, TrendingUp, AlertCircle, FileText, Target, Dumbbell, Upload, Paperclip, Image, File, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { format, startOfWeek, endOfWeek, isAfter, isBefore, parseISO, differenceInDays } from "date-fns";
 
-// Simple throttle utility
-const throttle = (func, limit) => {
-  let inThrottle;
-  return function () {
-    const args = arguments;
-    const context = this;
-    if (!inThrottle) {
-      func.apply(context, args);
-      inThrottle = true;
-      setTimeout(() => inThrottle = false, limit);
-    }
-  }
-};
-
 // Enhanced schema that actually works for creating goals and plans
 const planningSchema = {
-  type: "object",  
+  type: "object",
   properties: {
     action: {
       type: "string",
@@ -46,7 +32,7 @@ const planningSchema = {
       }
     },
     plan_to_create: {
-      type: "object", 
+      type: "object",
       properties: {
         name: { type: "string" },
         description: { type: "string" },
@@ -65,16 +51,16 @@ const planningSchema = {
         primary_disciplines: { type: "array", items: { type: "string" } },
         estimated_duration: { type: "number" },
         difficulty_level: { type: "string", enum: ["beginner", "intermediate", "advanced"] },
-        blocks: { 
-          type: "array", 
-          items: { 
+        blocks: {
+          type: "array",
+          items: {
             type: "object",
             properties: {
               name: { type: "string" },
-              exercises: { 
+              exercises: {
                 type: "array",
                 items: {
-                  type: "object", 
+                  type: "object",
                   properties: {
                     exercise_id: { type: "string" },
                     exercise_name: { type: "string" },
@@ -120,6 +106,7 @@ export default function Chat() {
   const [isThinking, setIsThinking] = useState(false);
   const [user, setUser] = useState(null);
   const [currentPlan, setCurrentPlan] = useState(null);
+  const [disciplines, setDisciplines] = useState([]);
   const [predefinedWorkouts, setPredefinedWorkouts] = useState([]);
   const [goals, setGoals] = useState([]);
   const [debugInfo, setDebugInfo] = useState(null);
@@ -131,33 +118,33 @@ export default function Chat() {
     preferred_disciplines: [],
     limitations_or_preferences: ""
   });
-  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
-  const [showContextInfo, setShowContextInfo] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [isDragOver, setIsDragOver] = useState(false);
   const chatEndRef = useRef(null);
-  const chatContainerRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const loadData = async () => {
       try {
         const userData = await User.me();
         setUser(userData);
-        
+
         const [plansData, goalData, workoutData] = await Promise.all([
           TrainingPlan.filter({ is_active: true }),
           Goal.list(),
           PredefinedWorkout.list()
         ]);
-        
+
         if (plansData.length > 0) setCurrentPlan(plansData[0]);
         setGoals(goalData);
         setPredefinedWorkouts(workoutData);
-        
+
         // Load user memory from localStorage
         const savedMemory = localStorage.getItem('aiCoachMemory');
         if (savedMemory) {
           setUserMemory(JSON.parse(savedMemory));
         }
-        
+
         // Load conversation history
         const savedMessages = localStorage.getItem('aiCoachHistory');
         if (savedMessages) {
@@ -168,23 +155,23 @@ export default function Chat() {
             content: `Hi ${userData.full_name}! I'm your AI Coach. I can help you create goals, build training plans, suggest workouts, and navigate the app. Try saying something like "I want to learn a handstand" or "Show me how to create a plan."`
           }]);
         }
-        
+
       } catch (error) {
         console.error("Error loading data:", error);
       }
     };
-    
+
     loadData();
-    
+
     // Listen for external prompts
     const handleOpenChat = (event) => {
       if (event.detail?.prompt) {
         setInput(event.detail.prompt);
       }
     };
-    
+
     document.addEventListener('open-ai-chat', handleOpenChat);
-    
+
     return () => {
       document.removeEventListener('open-ai-chat', handleOpenChat);
     };
@@ -206,16 +193,10 @@ export default function Chat() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Throttled scroll handler for collapsible header
-  const handleScroll = useCallback(throttle((e) => {
-    const scrollTop = e.target.scrollTop;
-    setIsHeaderCollapsed(scrollTop > 100);
-  }, 100), []);
-
   const getCurrentPageContext = () => {
     const currentPath = window.location.pathname;
     const urlParams = new URLSearchParams(window.location.search);
-    
+
     let context = {
       current_page: currentPath,
       page_description: "",
@@ -261,7 +242,7 @@ export default function Chat() {
 
     try {
       const pageContext = getCurrentPageContext();
-      
+
       const contextSummary = `
         WEBSITE CONTEXT:
         Current page: ${pageContext.page_description}
@@ -304,7 +285,7 @@ export default function Chat() {
       User's message: "${currentInput}"
 
       Analyze what the user wants and take the appropriate action. If they want to build skills over time, create goals. If they want structured training, create plans. If they need navigation help, provide specific instructions.`;
-      
+
       const result = await InvokeLLM({
         prompt,
         response_json_schema: planningSchema
@@ -318,7 +299,7 @@ export default function Chat() {
         try {
           const newGoal = await Goal.create(result.goal_to_create);
           assistantResponse += `\n\n✅ **Goal Created!** I've created "${result.goal_to_create.name}" for you. You can view it on the [Goals page](/Goals) and start tracking your progress.`;
-          
+
           // Update user memory
           setUserMemory(prev => ({
             ...prev,
@@ -371,14 +352,14 @@ export default function Chat() {
     } catch (error) {
       console.error("❌ Error with AI Coach:", error);
       setDebugInfo({ error: error.message });
-      
+
       let errorMessage = "Sorry, I encountered an error. Please try again.";
-      
+
       if (error.response?.status === 429 || error.message?.includes('429')) {
         errorMessage = "I'm receiving too many requests right now. Please wait a moment and try again.";
         setIsRateLimited(true);
         setRateLimitCooldown(30);
-        
+
         const timer = setInterval(() => {
           setRateLimitCooldown(prev => {
             if (prev <= 1) {
@@ -390,7 +371,7 @@ export default function Chat() {
           });
         }, 1000);
       }
-      
+
       setMessages(prev => [...prev, { role: "assistant", content: errorMessage }]);
     } finally {
       setIsThinking(false);
@@ -399,122 +380,100 @@ export default function Chat() {
 
   const clearHistory = () => {
     setMessages([{
-      role: "assistant", 
+      role: "assistant",
       content: "History cleared! How can I help you with your training today?"
     }]);
     localStorage.removeItem('aiCoachHistory');
   };
 
   return (
-    <div className="flex flex-col h-full md:max-w-4xl md:mx-auto md:p-6 md:space-y-6">
-      {/* Collapsible Header */}
-      <div
-        className={`
-          bg-gradient-to-r from-purple-50 to-blue-50 border-b shrink-0 transition-all duration-300 ease-in-out sticky top-0 z-10 md:static md:rounded-xl md:border
-          ${isHeaderCollapsed ? 'py-2 px-4' : 'p-4 md:p-6'}
-        `}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-            <Bot className={`${isHeaderCollapsed ? 'w-6 h-6' : 'w-7 h-7 md:w-8 md:h-8'} text-purple-600 shrink-0 transition-all duration-300`} />
-            <div className="flex-1 min-w-0">
-              <h1 className={`font-bold text-gray-900 transition-all duration-300 ${isHeaderCollapsed ? 'text-base md:text-lg' : 'text-xl md:text-3xl'}`}>
-                AI Coach
-              </h1>
-              <div className={`transition-all duration-300 overflow-hidden ${isHeaderCollapsed ? 'h-0 opacity-0' : 'h-auto opacity-100'}`}>
-                <p className="text-xs md:text-lg text-gray-600 mt-0.5 md:mt-1 line-clamp-1 md:line-clamp-none">
-                  Your intelligent fitness assistant
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => setShowContextInfo(!showContextInfo)}
-              className="md:hidden p-2 text-gray-600 hover:text-gray-800 rounded-lg hover:bg-white/50 transition-colors"
-              aria-label="Toggle context info"
-            >
-              <ChevronDown className={`w-5 h-5 transition-transform ${showContextInfo ? 'rotate-180' : ''}`} />
-            </button>
-            <button
-              onClick={clearHistory}
-              className="hidden md:flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Clear History
-            </button>
-            <button
-              onClick={clearHistory}
-              className="md:hidden p-2 text-gray-600 hover:text-gray-800 rounded-lg hover:bg-white/50 transition-colors"
-              aria-label="Clear history"
-            >
-              <RotateCcw className="w-5 h-5" />
-            </button>
-          </div>
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <Bot className="w-8 h-8 text-indigo-600" />
+            AI Coach
+          </h1>
+          <p className="text-lg text-gray-600 mt-1">
+            Your intelligent fitness assistant - I can create goals, build plans, and guide you through the app.
+          </p>
         </div>
+        <button
+          onClick={clearHistory}
+          className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+        >
+          <RotateCcw className="w-4 h-4" />
+          Clear History
+        </button>
+      </div>
 
-        {/* Context Info - Collapsible on mobile, always visible on desktop */}
-        <div className={`transition-all duration-300 md:block ${showContextInfo || !isHeaderCollapsed ? 'mt-3 md:mt-4' : 'hidden'}`}>
-          <div className="bg-white/60 backdrop-blur-sm rounded-lg p-3 md:p-4 border border-blue-200/50">
-            <h3 className="font-semibold text-blue-900 mb-2 text-sm md:text-base flex items-center gap-1">
-              <Sparkles className="w-4 h-4" />
-              What I Can Do
-            </h3>
-            <div className="grid md:grid-cols-2 gap-2 md:gap-4 text-xs md:text-sm text-blue-800">
-              <div>
-                <p className="line-clamp-1"><strong>Page:</strong> {getCurrentPageContext().page_description}</p>
-              </div>
-              <div>
-                <p className="line-clamp-1"><strong>Goals:</strong> {userMemory.primary_goals.join(', ') || 'Learning...'}</p>
-              </div>
-            </div>
+      {/* Current Context Display */}
+      <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5">
+        <h3 className="font-bold text-indigo-900 mb-2 flex items-center gap-2">
+          <Sparkles className="w-4 h-4" />
+          What I Can See & Do
+        </h3>
+        <div className="grid md:grid-cols-2 gap-4 text-sm text-indigo-800">
+          <div>
+            <p><strong className="font-semibold">Current Page:</strong> {getCurrentPageContext().page_description}</p>
+            <p><strong className="font-semibold">Available Actions:</strong> {getCurrentPageContext().available_actions.join(', ')}</p>
+          </div>
+          <div>
+            <p><strong className="font-semibold">Your Goals:</strong> {userMemory.primary_goals.join(', ') || 'Learning...'}</p>
+            <p><strong className="font-semibold">Active Plan:</strong> {currentPlan?.name || 'None'}</p>
           </div>
         </div>
       </div>
 
-      {/* Chat Interface - Full height on mobile, fixed height on desktop */}
-      <div className="flex-1 flex flex-col bg-white md:rounded-xl md:shadow-sm md:border md:border-gray-200 overflow-hidden md:h-[600px]">
-        <div
-          ref={chatContainerRef}
-          onScroll={handleScroll}
-          className="flex-1 p-3 md:p-6 overflow-y-auto space-y-3 md:space-y-4 scroll-smooth"
-        >
+      {/* Chat Interface */}
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-200 flex flex-col h-[600px] overflow-hidden">
+        <div className="flex-1 p-6 overflow-y-auto space-y-6">
           {messages.map((msg, index) => (
-            <div key={index} className={`flex items-start gap-2 md:gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-              {msg.role === 'assistant' && <Bot className="w-5 h-5 md:w-6 md:h-6 text-purple-500 flex-shrink-0 mt-1" />}
-              <div className={`max-w-[85%] md:max-w-2xl p-3 md:p-4 rounded-xl ${
-                msg.role === 'user'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100'
-              }`}>
-                <div className="prose prose-sm max-w-none text-sm md:text-base">
+            <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+              {msg.role === 'assistant' && (
+                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                  <Bot className="w-6 h-6 text-indigo-600" />
+                </div>
+              )}
+              <div className={`max-w-2xl p-5 rounded-2xl ${msg.role === 'user'
+                  ? 'bg-coral-brand text-white ml-12 rounded-tr-none'
+                  : 'bg-gray-100 text-gray-900 mr-12 rounded-tl-none'
+                }`}>
+                <div className={`prose prose-sm max-w-none ${msg.role === 'user' ? 'prose-invert' : ''}`}>
                   <ReactMarkdown
                     components={{
-                      a: ({href, children}) => (
-                        <a href={href} className={msg.role === 'user' ? 'text-blue-100 hover:underline font-medium' : 'text-blue-600 hover:underline font-medium'}>
+                      a: ({ href, children }) => (
+                        <a href={href} className={`${msg.role === 'user' ? 'text-white underline' : 'text-indigo-600 hover:text-indigo-700'} font-bold`}>
                           {children}
                         </a>
                       ),
-                      p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
-                      ul: ({children}) => <ul className="mb-2 last:mb-0 pl-4">{children}</ul>,
-                      ol: ({children}) => <ol className="mb-2 last:mb-0 pl-4">{children}</ol>,
+                      p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
+                      li: ({ children }) => <li className="leading-relaxed">{children}</li>
                     }}
                   >
                     {msg.content}
                   </ReactMarkdown>
                 </div>
               </div>
+              {msg.role === 'user' && (
+                <div className="w-10 h-10 rounded-full bg-coral-100 flex items-center justify-center flex-shrink-0">
+                  <span className="font-bold text-coral-brand">ME</span>
+                </div>
+              )}
             </div>
           ))}
-          
+
           {isThinking && (
-            <div className="flex items-center gap-2 md:gap-3">
-              <Bot className="w-5 h-5 md:w-6 md:h-6 text-purple-500" />
-              <div className="bg-gray-100 p-3 md:p-4 rounded-xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                <Bot className="w-6 h-6 text-indigo-600" />
+              </div>
+              <div className="bg-gray-100 p-4 rounded-2xl rounded-tl-none">
                 <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 md:w-5 md:h-5 text-gray-400 animate-spin" />
-                  <span className="text-gray-600 text-sm md:text-base">Thinking...</span>
+                  <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                  <span className="text-gray-600 font-medium">Thinking...</span>
                 </div>
               </div>
             </div>
@@ -523,9 +482,9 @@ export default function Chat() {
           <div ref={chatEndRef}></div>
         </div>
 
-        {/* Input Area - Sticky footer on mobile */}
-        <form onSubmit={handleSendMessage} className="p-3 md:p-6 border-t bg-gray-50/90 backdrop-blur-md shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-6">
-          <div className="flex gap-2 md:gap-3 items-end">
+        {/* Input Area */}
+        <form onSubmit={handleSendMessage} className="p-6 border-t border-gray-100 bg-gray-50">
+          <div className="flex gap-3 items-end">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -535,77 +494,68 @@ export default function Chat() {
                   handleSendMessage(e);
                 }
               }}
-              placeholder={isRateLimited ? `Wait ${rateLimitCooldown}s...` : "Ask me anything..."}
+              placeholder={isRateLimited ? `Rate limited - wait ${rateLimitCooldown}s` : "Ask me anything about training... (Shift+Enter for new line)"}
               disabled={isThinking || isRateLimited}
               rows={1}
-              className="flex-1 px-3 py-2 md:px-4 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed resize-none min-h-[40px] md:min-h-[48px] max-h-[120px] md:max-h-[200px] text-sm md:text-base"
+              className="flex-1 px-5 py-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed resize-none min-h-[56px] max-h-[200px] shadow-sm text-base"
               style={{
                 height: 'auto',
                 overflowY: input.includes('\n') || input.length > 80 ? 'auto' : 'hidden'
               }}
               onInput={(e) => {
                 e.target.style.height = 'auto';
-                e.target.style.height = Math.min(e.target.scrollHeight, window.innerWidth < 768 ? 120 : 200) + 'px';
+                e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
               }}
             />
             <button
               type="submit"
               disabled={isThinking || isRateLimited || !input.trim()}
-              className="px-4 py-2 md:px-6 md:py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 md:gap-2 shrink-0"
+              className="px-6 py-4 bg-gray-900 text-white rounded-2xl hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-bold shadow-lg shadow-gray-900/10"
             >
-              {isThinking ? (
-                <>
-                  <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
-                  <span className="hidden md:inline">Send</span>
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 md:w-5 md:h-5" />
-                  <span className="hidden sm:inline">Send</span>
-                </>
-              )}
+              {isThinking ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+              Send
             </button>
           </div>
 
-          {/* Quick Actions - Horizontal scroll on mobile */}
-          <div className="flex gap-2 mt-2 md:mt-3 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
+          {/* Quick Actions */}
+          <div className="flex flex-wrap gap-2 mt-4">
             <button
               type="button"
               onClick={() => setInput("I want to learn a handstand")}
-              className="px-2.5 py-1 text-xs md:text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors whitespace-nowrap shrink-0"
+              className="px-4 py-2 text-sm bg-white border border-gray-200 text-gray-600 rounded-full hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all font-medium shadow-sm"
             >
               🤸 Learn a skill
             </button>
             <button
               type="button"
               onClick={() => setInput("Create a 8-week strength plan")}
-              className="px-2.5 py-1 text-xs md:text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors whitespace-nowrap shrink-0"
+              className="px-4 py-2 text-sm bg-white border border-gray-200 text-gray-600 rounded-full hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all font-medium shadow-sm"
             >
               📋 Build a plan
             </button>
             <button
               type="button"
               onClick={() => setInput("How do I use the calendar?")}
-              className="px-2.5 py-1 text-xs md:text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors whitespace-nowrap shrink-0"
+              className="px-4 py-2 text-sm bg-white border border-gray-200 text-gray-600 rounded-full hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all font-medium shadow-sm"
             >
-              🧭 Navigate
+              🧭 Navigate the app
             </button>
             <button
               type="button"
               onClick={() => setInput("What should I train today?")}
-              className="px-2.5 py-1 text-xs md:text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors whitespace-nowrap shrink-0"
+              className="px-4 py-2 text-sm bg-white border border-gray-200 text-gray-600 rounded-full hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all font-medium shadow-sm"
             >
-              💪 Workout advice
+              💪 Get workout advice
             </button>
           </div>
         </form>
       </div>
 
-      {/* Debug Panel - Hidden on mobile by default */}
+      {/* Debug Panel */}
       {debugInfo && (
-        <details className="hidden md:block bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <details className="bg-gray-50 border border-gray-200 rounded-xl p-4">
           <summary className="cursor-pointer font-medium text-gray-700">Debug Info</summary>
-          <pre className="mt-2 text-xs text-gray-600 overflow-auto max-h-60">
+          <pre className="mt-2 text-xs text-gray-600 overflow-auto">
             {JSON.stringify(debugInfo, null, 2)}
           </pre>
         </details>

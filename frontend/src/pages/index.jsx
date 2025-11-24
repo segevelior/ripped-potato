@@ -30,6 +30,8 @@ import Auth from "./Auth";
 
 import AuthCallback from "./AuthCallback";
 
+import Onboarding from "./Onboarding";
+
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 
 const PAGES = {
@@ -97,6 +99,7 @@ function PagesContent() {
     
     return (
         <Routes>
+            <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route element={<Layout currentPageName={currentPage} />}>

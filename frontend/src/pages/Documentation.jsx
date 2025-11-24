@@ -8,7 +8,7 @@ export default function Documentation() {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            SynergyFit Documentation
+            Torii Documentation
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Comprehensive guide to the AI-powered personal training platform
@@ -41,7 +41,7 @@ export default function Documentation() {
             <Target className="w-8 h-8 text-purple-600" />
             Features Overview
           </h2>
-          
+
           <div className="grid md:grid-cols-2 gap-8">
             <div className="bg-white p-6 rounded-xl shadow">
               <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -103,7 +103,7 @@ export default function Documentation() {
             <Code className="w-8 h-8 text-blue-600" />
             Technical Architecture
           </h2>
-          
+
           <div className="bg-white p-8 rounded-xl shadow">
             <div className="grid md:grid-cols-2 gap-8">
               <div>
@@ -117,7 +117,7 @@ export default function Documentation() {
                   <li><strong>Recharts:</strong> Data visualization charts</li>
                 </ul>
               </div>
-              
+
               <div>
                 <h3 className="text-xl font-semibold mb-4">Backend Integration</h3>
                 <ul className="space-y-2 text-gray-600">
@@ -130,11 +130,11 @@ export default function Documentation() {
                 </ul>
               </div>
             </div>
-            
+
             <div className="mt-8 p-6 bg-gray-50 rounded-lg">
               <h3 className="text-lg font-semibold mb-3">Project Structure</h3>
               <pre className="text-sm text-gray-700 overflow-x-auto">
-{`components/
+                {`components/
 ├── dashboard/          # Dashboard widgets and charts
 ├── calendar/           # Calendar and scheduling UI
 ├── exercise/           # Exercise-related components
@@ -165,7 +165,7 @@ Layout.js               # App navigation and layout`}
             <Database className="w-8 h-8 text-green-600" />
             Data Models
           </h2>
-          
+
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl shadow">
               <h3 className="text-xl font-semibold mb-4">Core Entities</h3>
@@ -179,7 +179,7 @@ Layout.js               # App navigation and layout`}
                     <li>• Total strain and muscle group distribution</li>
                   </ul>
                 </div>
-                
+
                 <div>
                   <h4 className="font-semibold text-blue-600 mb-2">Goal</h4>
                   <ul className="text-sm text-gray-600 space-y-1">
@@ -189,7 +189,7 @@ Layout.js               # App navigation and layout`}
                     <li>• Progress tracking integration</li>
                   </ul>
                 </div>
-                
+
                 <div>
                   <h4 className="font-semibold text-green-600 mb-2">Plan</h4>
                   <ul className="text-sm text-gray-600 space-y-1">
@@ -199,7 +199,7 @@ Layout.js               # App navigation and layout`}
                     <li>• AI optimization insights</li>
                   </ul>
                 </div>
-                
+
                 <div>
                   <h4 className="font-semibold text-orange-600 mb-2">Exercise</h4>
                   <ul className="text-sm text-gray-600 space-y-1">
@@ -220,7 +220,7 @@ Layout.js               # App navigation and layout`}
             <Bot className="w-8 h-8 text-orange-600" />
             AI Coach Implementation
           </h2>
-          
+
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl shadow">
               <h3 className="text-xl font-semibold mb-4">Context Awareness System</h3>
@@ -295,7 +295,7 @@ Layout.js               # App navigation and layout`}
         {/* Usage Guide */}
         <section className="mb-16">
           <h2 className="text-3xl font-bold text-gray-900 mb-6">Usage Guide</h2>
-          
+
           <div className="grid md:grid-cols-2 gap-8">
             <div className="bg-white p-6 rounded-xl shadow">
               <h3 className="text-xl font-semibold mb-4">Getting Started</h3>
@@ -350,7 +350,7 @@ Layout.js               # App navigation and layout`}
         {/* Advanced Features */}
         <section className="mb-16">
           <h2 className="text-3xl font-bold text-gray-900 mb-6">Advanced Features</h2>
-          
+
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl shadow">
               <h3 className="text-xl font-semibold mb-4">Pattern Learning Engine</h3>
@@ -397,7 +397,7 @@ Layout.js               # App navigation and layout`}
         {/* Footer */}
         <div className="text-center pt-12 border-t border-gray-200">
           <p className="text-gray-600">
-            <strong>SynergyFit</strong> - Your AI-powered journey to better fitness starts here. 🚀
+            <strong>Torii</strong> - Your AI-powered journey to better fitness starts here. 🚀
           </p>
         </div>
       </div>
