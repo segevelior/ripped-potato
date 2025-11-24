@@ -1,5 +1,71 @@
-import React, { useState } from "react";
-import { X, Plus, Trash2, GripVertical, Search, Clock, Target, Dumbbell } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { X, Plus, Trash2, GripVertical, Search, Clock, Activity, Dumbbell, ChevronDown, ChevronUp, Save } from "lucide-react";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+
+// Inline Search Component for "Spotlight" feel
+const BlockSearch = ({ allExercises, onSelect }) => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredExercises = searchTerm
+    ? allExercises.filter(ex => ex.name.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 5)
+    : [];
+
+  return (
+    <div ref={wrapperRef} className="relative w-full">
+      <div className="relative group">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-[#FE755D] transition-colors" />
+        <input
+          type="text"
+          placeholder="Type to add exercise..."
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setIsOpen(true);
+          }}
+          onFocus={() => setIsOpen(true)}
+          className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-[#FE755D]/20 focus:bg-white transition-all font-medium"
+        />
+      </div>
+
+      {isOpen && searchTerm && (
+        <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-20">
+          {filteredExercises.length > 0 ? (
+            filteredExercises.map(ex => (
+              <button
+                key={ex.id}
+                onClick={() => {
+                  onSelect(ex);
+                  setSearchTerm("");
+                  setIsOpen(false);
+                }}
+                className="w-full text-left px-4 py-3 hover:bg-[#FE755D]/5 flex items-center justify-between group transition-colors"
+              >
+                <span className="font-bold text-gray-900 group-hover:text-[#FE755D]">{ex.name}</span>
+                <span className="text-xs text-gray-400 capitalize bg-gray-50 px-2 py-1 rounded-md group-hover:bg-white">
+                  {(ex.discipline || []).join(', ')}
+                </span>
+              </button>
+            ))
+          ) : (
+            <div className="p-4 text-center text-gray-400 text-sm">No exercises found</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function CreateWorkoutModal({ exercises, onClose, onSave }) {
   const [workout, setWorkout] = useState({
@@ -16,87 +82,98 @@ export default function CreateWorkoutModal({ exercises, onClose, onSave }) {
     ]
   });
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedBlockIndex, setSelectedBlockIndex] = useState(0);
+  // Track expanded exercise for "Compact Row" logic
+  // Format: `${blockIndex}-${exerciseIndex}` or null
+  const [expandedExercise, setExpandedExercise] = useState(null);
 
   const disciplines = ["strength", "cardio", "hiit", "flexibility", "calisthenics", "climbing", "running", "cycling", "mobility"];
   const difficulties = ["beginner", "intermediate", "advanced"];
 
-  const filteredExercises = exercises.filter(ex => 
-    ex.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (ex.muscles || []).some(m => m.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-
-  const handleAddExercise = (exercise) => {
-    const newBlocks = [...workout.blocks];
-    newBlocks[selectedBlockIndex].exercises.push({
-      exercise_id: exercise.id,
-      exercise_name: exercise.name,
-      volume: "3x10",
-      rest: "60s",
-      notes: ""
-    });
-    setWorkout({ ...workout, blocks: newBlocks });
-    setSearchTerm("");
-  };
-
-  const handleRemoveExercise = (blockIndex, exerciseIndex) => {
-    const newBlocks = [...workout.blocks];
-    newBlocks[blockIndex].exercises.splice(exerciseIndex, 1);
-    setWorkout({ ...workout, blocks: newBlocks });
-  };
-
   const handleAddBlock = () => {
-    setWorkout({
-      ...workout,
-      blocks: [...workout.blocks, {
-        name: `Block ${workout.blocks.length + 1}`,
-        exercises: []
-      }]
-    });
+    setWorkout(prev => ({
+      ...prev,
+      blocks: [...prev.blocks, { name: `Block ${prev.blocks.length + 1}`, exercises: [] }]
+    }));
   };
 
   const handleRemoveBlock = (index) => {
-    if (workout.blocks.length > 1) {
-      const newBlocks = workout.blocks.filter((_, i) => i !== index);
-      setWorkout({ ...workout, blocks: newBlocks });
-      if (selectedBlockIndex >= newBlocks.length) {
-        setSelectedBlockIndex(newBlocks.length - 1);
-      }
+    if (workout.blocks.length <= 1) {
+      alert("You must have at least one block.");
+      return;
     }
+    const newBlocks = workout.blocks.filter((_, i) => i !== index);
+    setWorkout(prev => ({ ...prev, blocks: newBlocks }));
   };
 
-  const updateBlock = (index, field, value) => {
+  const handleBlockChange = (index, field, value) => {
     const newBlocks = [...workout.blocks];
-    newBlocks[index] = { ...newBlocks[index], [field]: value };
-    setWorkout({ ...workout, blocks: newBlocks });
+    newBlocks[index][field] = value;
+    setWorkout(prev => ({ ...prev, blocks: newBlocks }));
+  };
+
+  const handleSelectExercise = (blockIndex, exercise) => {
+    const newBlocks = [...workout.blocks];
+    const newExercise = {
+      exercise_id: exercise.id,
+      exercise_name: exercise.name,
+      volume: "3x8",
+      rest: "60s",
+      notes: ""
+    };
+    newBlocks[blockIndex].exercises.push(newExercise);
+    setWorkout(prev => ({ ...prev, blocks: newBlocks }));
+
+    // Auto-expand the new exercise
+    setExpandedExercise(`${blockIndex}-${newBlocks[blockIndex].exercises.length - 1}`);
+  };
+
+  const removeExercise = (blockIndex, exerciseIndex) => {
+    const newBlocks = [...workout.blocks];
+    newBlocks[blockIndex].exercises.splice(exerciseIndex, 1);
+    setWorkout(prev => ({ ...prev, blocks: newBlocks }));
+    if (expandedExercise === `${blockIndex}-${exerciseIndex}`) {
+      setExpandedExercise(null);
+    }
   };
 
   const updateExercise = (blockIndex, exerciseIndex, field, value) => {
     const newBlocks = [...workout.blocks];
-    newBlocks[blockIndex].exercises[exerciseIndex] = {
-      ...newBlocks[blockIndex].exercises[exerciseIndex],
-      [field]: value
-    };
-    setWorkout({ ...workout, blocks: newBlocks });
+    newBlocks[blockIndex].exercises[exerciseIndex][field] = value;
+    setWorkout(prev => ({ ...prev, blocks: newBlocks }));
+  };
+
+  const toggleExpand = (blockIndex, exerciseIndex) => {
+    const id = `${blockIndex}-${exerciseIndex}`;
+    setExpandedExercise(expandedExercise === id ? null : id);
   };
 
   const toggleDiscipline = (discipline) => {
-    const disciplines = workout.primary_disciplines || [];
-    if (disciplines.includes(discipline)) {
-      setWorkout({
-        ...workout,
-        primary_disciplines: disciplines.filter(d => d !== discipline)
-      });
+    const currentDisciplines = workout.primary_disciplines || [];
+    if (currentDisciplines.includes(discipline)) {
+      setWorkout(prev => ({
+        ...prev,
+        primary_disciplines: currentDisciplines.filter(d => d !== discipline)
+      }));
     } else {
-      setWorkout({
-        ...workout,
-        primary_disciplines: [...disciplines, discipline]
-      });
+      setWorkout(prev => ({
+        ...prev,
+        primary_disciplines: [...currentDisciplines, discipline]
+      }));
     }
   };
 
-  const handleSave = () => {
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+    const { source, destination } = result;
+
+    const newBlocks = [...workout.blocks];
+    const [reorderedItem] = newBlocks.splice(source.index, 1);
+    newBlocks.splice(destination.index, 0, reorderedItem);
+
+    setWorkout(prev => ({ ...prev, blocks: newBlocks }));
+  };
+
+  const handleSaveClick = () => {
     if (!workout.name || workout.blocks.every(b => b.exercises.length === 0)) {
       alert("Please provide a workout name and add at least one exercise");
       return;
@@ -104,56 +181,46 @@ export default function CreateWorkoutModal({ exercises, onClose, onSave }) {
     onSave(workout);
   };
 
-  const getTotalExercises = () => {
-    return workout.blocks.reduce((sum, block) => sum + block.exercises.length, 0);
-  };
-
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex overflow-hidden">
-        {/* Left Panel - Workout Details */}
-        <div className="flex-1 flex flex-col">
-          {/* Header */}
-          <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-900">Create New Workout</h2>
-              <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/50 transition-colors">
-                <X className="w-6 h-6 text-gray-500" />
-              </button>
-            </div>
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100">
+
+        {/* Header */}
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Create New Workout</h2>
+            <p className="text-sm text-gray-500">Design your perfect session</p>
           </div>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+            <X className="w-6 h-6 text-gray-400 hover:text-gray-600" />
+          </button>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
 
           {/* Workout Info */}
-          <div className="p-6 space-y-4 overflow-y-auto">
+          <div className="space-y-6">
             <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-700">Workout Name</label>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Workout Name</label>
               <input
                 type="text"
                 value={workout.name}
                 onChange={(e) => setWorkout({ ...workout, name: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full text-3xl font-bold text-gray-900 placeholder-gray-300 border-none p-0 focus:ring-0 bg-transparent"
                 placeholder="e.g., Upper Body Strength"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-700">Description / Goal</label>
-              <textarea
-                value={workout.goal}
-                onChange={(e) => setWorkout({ ...workout, goal: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows="2"
-                placeholder="e.g., Build upper body strength with compound movements"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">Difficulty</label>
+            <div className="flex flex-wrap gap-4">
+              <div className="flex-1 min-w-[140px]">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-500 mb-2">
+                  <Activity className="w-4 h-4" /> Difficulty
+                </label>
                 <select
                   value={workout.difficulty_level}
                   onChange={(e) => setWorkout({ ...workout, difficulty_level: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-gray-50 border-none rounded-xl py-2.5 px-4 font-semibold text-gray-900 focus:ring-2 focus:ring-[#FE755D]/20 appearance-none cursor-pointer"
                 >
                   {difficulties.map(diff => (
                     <option key={diff} value={diff}>
@@ -163,216 +230,216 @@ export default function CreateWorkoutModal({ exercises, onClose, onSave }) {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">Duration (minutes)</label>
-                <input
-                  type="number"
-                  value={workout.duration_minutes}
-                  onChange={(e) => setWorkout({ ...workout, duration_minutes: parseInt(e.target.value) || 0 })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  min="5"
-                  max="180"
-                />
+              <div className="flex-1 min-w-[140px]">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-500 mb-2">
+                  <Clock className="w-4 h-4" /> Duration
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={workout.duration_minutes}
+                    onChange={(e) => setWorkout({ ...workout, duration_minutes: parseInt(e.target.value) || 0 })}
+                    className="w-full bg-gray-50 border-none rounded-xl py-2.5 px-4 font-semibold text-gray-900 focus:ring-2 focus:ring-[#FE755D]/20"
+                    min="5"
+                    max="180"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">min</span>
+                </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-700">Primary Disciplines</label>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Primary Disciplines</label>
               <div className="flex flex-wrap gap-2">
                 {disciplines.map(discipline => (
                   <button
                     key={discipline}
                     onClick={() => toggleDiscipline(discipline)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                      (workout.primary_disciplines || []).includes(discipline)
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${(workout.primary_disciplines || []).includes(discipline)
+                      ? 'bg-[#FE755D] text-white shadow-lg shadow-[#FE755D]/20'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                      }`}
                   >
-                    {discipline}
+                    {discipline.charAt(0).toUpperCase() + discipline.slice(1)}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Workout Blocks */}
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-sm font-semibold text-gray-700">Workout Blocks</label>
-                <button
-                  onClick={handleAddBlock}
-                  className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Block
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {workout.blocks.map((block, blockIndex) => (
-                  <div
-                    key={blockIndex}
-                    className={`border rounded-lg p-4 transition-colors cursor-pointer ${
-                      selectedBlockIndex === blockIndex
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    onClick={() => setSelectedBlockIndex(blockIndex)}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <input
-                        type="text"
-                        value={block.name}
-                        onChange={(e) => updateBlock(blockIndex, 'name', e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="font-medium text-gray-900 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none px-1"
-                      />
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500">
-                          {block.exercises.length} exercises
-                        </span>
-                        {workout.blocks.length > 1 && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveBlock(blockIndex);
-                            }}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Block Exercises */}
-                    <div className="space-y-2 mt-3">
-                      {block.exercises.map((exercise, exerciseIndex) => (
-                        <div key={exerciseIndex} className="bg-white rounded-lg p-3 border border-gray-200">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="font-medium text-gray-900">{exercise.exercise_name}</div>
-                              <div className="flex gap-3 mt-2">
-                                <input
-                                  type="text"
-                                  value={exercise.volume}
-                                  onChange={(e) => updateExercise(blockIndex, exerciseIndex, 'volume', e.target.value)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="text-sm px-2 py-1 bg-gray-50 border border-gray-200 rounded w-20"
-                                  placeholder="3x10"
-                                />
-                                <input
-                                  type="text"
-                                  value={exercise.rest}
-                                  onChange={(e) => updateExercise(blockIndex, exerciseIndex, 'rest', e.target.value)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="text-sm px-2 py-1 bg-gray-50 border border-gray-200 rounded w-16"
-                                  placeholder="60s"
-                                />
-                                <input
-                                  type="text"
-                                  value={exercise.notes}
-                                  onChange={(e) => updateExercise(blockIndex, exerciseIndex, 'notes', e.target.value)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="text-sm px-2 py-1 bg-gray-50 border border-gray-200 rounded flex-1"
-                                  placeholder="Notes..."
-                                />
-                              </div>
-                            </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveExercise(blockIndex, exerciseIndex);
-                              }}
-                              className="text-red-500 hover:text-red-700 ml-2"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Description / Goal</label>
+              <textarea
+                value={workout.goal}
+                onChange={(e) => setWorkout({ ...workout, goal: e.target.value })}
+                className="w-full bg-gray-50 border-none rounded-xl p-4 text-gray-700 focus:ring-2 focus:ring-[#FE755D]/20 resize-none h-24"
+                placeholder="e.g., Build upper body strength with compound movements"
+              />
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="p-6 border-t border-gray-100 bg-white">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                <span className="font-medium">{getTotalExercises()}</span> total exercises in{" "}
-                <span className="font-medium">{workout.blocks.length}</span> blocks
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={onClose}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                >
-                  Create Workout
-                </button>
-              </div>
+          {/* Blocks Section */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between px-2">
+              <h2 className="text-xl font-bold text-gray-900">Workout Blocks</h2>
+              <span className="text-sm text-gray-500 font-medium">{workout.blocks.length} Blocks</span>
             </div>
+
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <Droppable droppableId="modal-blocks">
+                {(provided) => (
+                  <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-6">
+                    {workout.blocks.map((block, index) => (
+                      <Draggable key={index} draggableId={`modal-block-${index}`} index={index}>
+                        {(provided) => (
+                          <div ref={provided.innerRef} {...provided.draggableProps} className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden group">
+                            {/* Block Header */}
+                            <div className="p-4 bg-gray-50/50 border-b border-gray-100 flex items-center gap-3">
+                              <div {...provided.dragHandleProps} className="cursor-grab text-gray-400 hover:text-gray-600 p-1">
+                                <GripVertical className="w-5 h-5" />
+                              </div>
+                              <input
+                                type="text"
+                                value={block.name}
+                                onChange={e => handleBlockChange(index, 'name', e.target.value)}
+                                className="flex-1 bg-transparent border-none font-bold text-lg text-gray-900 focus:ring-0 p-0"
+                              />
+                              <button
+                                onClick={() => handleRemoveBlock(index)}
+                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </div>
+
+                            {/* Exercises List */}
+                            <div className="p-4 space-y-2">
+                              {block.exercises.length === 0 ? (
+                                <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-2xl mb-4">
+                                  <p className="text-gray-400 text-sm">No exercises yet. Use the search below to add one.</p>
+                                </div>
+                              ) : (
+                                block.exercises.map((ex, exIndex) => {
+                                  const isExpanded = expandedExercise === `${index}-${exIndex}`;
+                                  return (
+                                    <div
+                                      key={exIndex}
+                                      className={`rounded-2xl transition-all border ${isExpanded ? 'bg-gray-50 border-[#FE755D]/20 shadow-sm' : 'bg-white border-transparent hover:border-gray-200'}`}
+                                    >
+                                      {/* Compact Row Header */}
+                                      <div
+                                        onClick={() => toggleExpand(index, exIndex)}
+                                        className="p-4 flex items-center justify-between cursor-pointer"
+                                      >
+                                        <div className="flex items-center gap-3 flex-1">
+                                          <div className={`p-2 rounded-lg ${isExpanded ? 'bg-[#FE755D] text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                            <Dumbbell className="w-4 h-4" />
+                                          </div>
+                                          <div>
+                                            <h4 className="font-bold text-gray-900">{ex.exercise_name}</h4>
+                                            {!isExpanded && (
+                                              <p className="text-sm text-gray-500">{ex.volume || 'Set volume'} • {ex.rest || 'Set rest'}</p>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              removeExercise(index, exIndex);
+                                            }}
+                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </button>
+                                          {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                                        </div>
+                                      </div>
+
+                                      {/* Expanded Details */}
+                                      {isExpanded && (
+                                        <div className="px-4 pb-4 pt-0 space-y-3 animate-accordion-down">
+                                          <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                              <label className="text-xs font-semibold text-gray-400 uppercase mb-1 block">Volume</label>
+                                              <input
+                                                type="text"
+                                                placeholder="3x8"
+                                                value={ex.volume}
+                                                onChange={(e) => updateExercise(index, exIndex, 'volume', e.target.value)}
+                                                className="w-full bg-white border-none rounded-lg text-sm py-2 px-3 font-medium text-gray-700 focus:ring-2 focus:ring-[#FE755D]/20 shadow-sm"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="text-xs font-semibold text-gray-400 uppercase mb-1 block">Rest</label>
+                                              <input
+                                                type="text"
+                                                placeholder="60s"
+                                                value={ex.rest}
+                                                onChange={(e) => updateExercise(index, exIndex, 'rest', e.target.value)}
+                                                className="w-full bg-white border-none rounded-lg text-sm py-2 px-3 font-medium text-gray-700 focus:ring-2 focus:ring-[#FE755D]/20 shadow-sm"
+                                              />
+                                            </div>
+                                          </div>
+                                          <div>
+                                            <label className="text-xs font-semibold text-gray-400 uppercase mb-1 block">Notes</label>
+                                            <input
+                                              type="text"
+                                              placeholder="Add notes..."
+                                              value={ex.notes}
+                                              onChange={(e) => updateExercise(index, exIndex, 'notes', e.target.value)}
+                                              className="w-full bg-white border-none rounded-lg text-sm py-2 px-3 text-gray-600 placeholder-gray-400 focus:ring-2 focus:ring-[#FE755D]/20 shadow-sm"
+                                            />
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
+
+                            {/* Spotlight Search Footer */}
+                            <div className="p-4 border-t border-gray-100 bg-gray-50/30">
+                              <BlockSearch
+                                allExercises={exercises}
+                                onSelect={(ex) => handleSelectExercise(index, ex)}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
+
+            <button
+              onClick={handleAddBlock}
+              className="w-full py-6 rounded-3xl border-2 border-dashed border-gray-200 text-gray-400 font-bold text-lg hover:border-[#FE755D] hover:text-[#FE755D] hover:bg-[#FE755D]/5 transition-all flex items-center justify-center gap-2 group"
+            >
+              <Plus className="w-6 h-6 group-hover:scale-110 transition-transform" />
+              Add New Block
+            </button>
           </div>
         </div>
 
-        {/* Right Panel - Exercise Selector */}
-        <div className="w-96 bg-gray-50 border-l border-gray-200 flex flex-col">
-          <div className="p-4 border-b border-gray-200 bg-white">
-            <h3 className="font-semibold text-gray-900 mb-3">Add Exercises</h3>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search exercises..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div className="mt-2 text-sm text-gray-600">
-              Adding to: <span className="font-medium">{workout.blocks[selectedBlockIndex]?.name}</span>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="space-y-2">
-              {filteredExercises.slice(0, 50).map(exercise => (
-                <div
-                  key={exercise.id}
-                  className="bg-white rounded-lg p-3 border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer"
-                  onClick={() => handleAddExercise(exercise)}
-                >
-                  <div className="font-medium text-gray-900">{exercise.name}</div>
-                  {exercise.muscles && exercise.muscles.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {exercise.muscles.slice(0, 3).map((muscle, i) => (
-                        <span key={i} className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">
-                          {muscle}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {exercise.equipment && exercise.equipment.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {exercise.equipment.slice(0, 2).map((eq, i) => (
-                        <span key={i} className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">
-                          {eq}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* Footer Actions */}
+        <div className="p-6 border-t border-gray-100 bg-white flex justify-end gap-3 z-10">
+          <button
+            onClick={onClose}
+            className="px-6 py-3 text-gray-600 font-bold hover:bg-gray-50 rounded-xl transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSaveClick}
+            className="px-8 py-3 bg-[#FE755D] hover:bg-[#E56A54] text-white rounded-xl font-bold shadow-lg shadow-[#FE755D]/20 transition-all transform active:scale-95 flex items-center gap-2"
+          >
+            <Save className="w-5 h-5" />
+            Create Workout
+          </button>
         </div>
       </div>
     </div>

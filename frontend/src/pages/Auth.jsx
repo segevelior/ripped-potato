@@ -164,23 +164,7 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      {/* Mobile Status Bar */}
-      <div className="flex justify-between items-center px-6 pt-3 pb-2">
-        <span className="text-base font-semibold text-gray-900">9:41</span>
-        <div className="flex gap-1.5 items-center">
-          <svg className="w-4 h-4 text-gray-900" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-          </svg>
-          <svg className="w-4 h-4 text-gray-900" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M17.778 8.222c-4.296-4.296-11.26-4.296-15.556 0A1 1 0 01.808 6.808c5.076-5.077 13.308-5.077 18.384 0a1 1 0 01-1.414 1.414zM14.95 11.05a7 7 0 00-9.9 0 1 1 0 01-1.414-1.414 9 9 0 0112.728 0 1 1 0 01-1.414 1.414zM12.12 13.88a3 3 0 00-4.242 0 1 1 0 01-1.415-1.415 5 5 0 017.072 0 1 1 0 01-1.415 1.415zM9 16a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
-          </svg>
-          <svg className="w-6 h-3 text-gray-900" fill="currentColor" viewBox="0 0 24 12">
-            <rect x="18" y="0" width="5" height="12" rx="1.5" fill="currentColor" />
-            <rect x="0" y="2" width="15" height="8" rx="1.5" fill="currentColor" />
-            <path d="M16 4h1v4h-1z" fill="currentColor" opacity="0.4" />
-          </svg>
-        </div>
-      </div>
+
 
       {/* Back Button */}
       <div className="px-4 pt-2 pb-6">
@@ -221,7 +205,7 @@ export default function Auth() {
                   <input
                     type="email"
                     value={signInData.email}
-                    onChange={(e) => setSignInData({...signInData, email: e.target.value})}
+                    onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
                     className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-base bg-gray-50"
                     placeholder="Your email"
                     disabled={isLoading}
@@ -239,7 +223,7 @@ export default function Auth() {
                   <input
                     type={showPassword ? "text" : "password"}
                     value={signInData.password}
-                    onChange={(e) => setSignInData({...signInData, password: e.target.value})}
+                    onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
                     className="w-full pl-12 pr-14 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-base bg-gray-50"
                     placeholder="Your password"
                     disabled={isLoading}
@@ -261,7 +245,7 @@ export default function Auth() {
                   <input
                     type="checkbox"
                     checked={signInData.rememberMe}
-                    onChange={(e) => setSignInData({...signInData, rememberMe: e.target.checked})}
+                    onChange={(e) => setSignInData({ ...signInData, rememberMe: e.target.checked })}
                     className="w-5 h-5 text-orange-500 bg-orange-500 border-orange-500 rounded focus:ring-orange-500 checked:bg-orange-500"
                     style={{
                       accentColor: '#FF6B52'
@@ -316,7 +300,7 @@ export default function Auth() {
                   <input
                     type="email"
                     value={signUpData.email}
-                    onChange={(e) => setSignUpData({...signUpData, email: e.target.value})}
+                    onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
                     className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-base bg-gray-50"
                     placeholder="kevinjulio@gmail.com"
                     disabled={isLoading}
@@ -337,7 +321,7 @@ export default function Auth() {
                   <input
                     type="tel"
                     value={signUpData.phoneNumber}
-                    onChange={(e) => setSignUpData({...signUpData, phoneNumber: e.target.value})}
+                    onChange={(e) => setSignUpData({ ...signUpData, phoneNumber: e.target.value })}
                     className="w-full pl-24 pr-4 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-base bg-gray-50"
                     placeholder="111-222-3344"
                     disabled={isLoading}
@@ -355,7 +339,7 @@ export default function Auth() {
                   <input
                     type={showPassword ? "text" : "password"}
                     value={signUpData.password}
-                    onChange={(e) => setSignUpData({...signUpData, password: e.target.value})}
+                    onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
                     className="w-full pl-12 pr-14 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-base bg-gray-50"
                     placeholder="Your password"
                     disabled={isLoading}
@@ -377,7 +361,7 @@ export default function Auth() {
                   <input
                     type="checkbox"
                     checked={signUpData.rememberMe}
-                    onChange={(e) => setSignUpData({...signUpData, rememberMe: e.target.checked})}
+                    onChange={(e) => setSignUpData({ ...signUpData, rememberMe: e.target.checked })}
                     className="w-5 h-5 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
                     style={{
                       accentColor: '#FF6B52'
@@ -433,19 +417,16 @@ export default function Auth() {
           className="w-full flex items-center justify-center gap-3 px-6 py-4 border border-gray-200 rounded-2xl hover:bg-gray-50 focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium text-base"
         >
           <svg className="w-6 h-6" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
           </svg>
           Sign up with google
         </button>
       </div>
 
-      {/* Bottom Indicator */}
-      <div className="flex justify-center pb-2">
-        <div className="w-32 h-1 bg-gray-900 rounded-full" />
-      </div>
+
     </div>
   );
 }
