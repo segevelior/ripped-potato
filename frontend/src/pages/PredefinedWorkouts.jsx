@@ -11,7 +11,7 @@ export default function PredefinedWorkouts() {
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  
+
   useEffect(() => {
     loadData();
   }, []);
@@ -63,7 +63,7 @@ export default function PredefinedWorkouts() {
     if (!confirm(`Are you sure you want to delete "${workout.name}"?`)) {
       return;
     }
-    
+
     try {
       await PredefinedWorkout.delete(workout.id);
       await loadData();
@@ -147,7 +147,7 @@ export default function PredefinedWorkouts() {
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors"
+          className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-colors shadow-lg shadow-gray-900/10"
         >
           <Plus className="w-5 h-5" />
           Create Workout
@@ -156,25 +156,25 @@ export default function PredefinedWorkouts() {
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {predefinedWorkouts.map((workout) => {
-          const totalExercises = workout.blocks?.reduce((sum, block) => 
+          const totalExercises = workout.blocks?.reduce((sum, block) =>
             sum + (block.exercises?.length || 0), 0) || 0;
-          
+
           return (
-            <div key={workout.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all">
+            <div key={workout.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all group">
               <div className="p-6">
                 <div className="flex items-start justify-between mb-3">
-                  <h3 className="font-bold text-xl text-gray-900 leading-tight">
+                  <h3 className="font-bold text-xl text-gray-900 leading-tight group-hover:text-coral-brand transition-colors">
                     {workout.name || 'Unnamed Workout'}
                   </h3>
                   {workout.difficulty_level && (
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium text-white ${getDifficultyColor(workout.difficulty_level)}`}>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold text-white uppercase tracking-wide ${getDifficultyColor(workout.difficulty_level)}`}>
                       {workout.difficulty_level}
                     </span>
                   )}
                 </div>
 
                 {workout.goal && (
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                  <p className="text-sm text-gray-500 mb-4 line-clamp-2 font-medium">
                     {workout.goal}
                   </p>
                 )}
@@ -184,7 +184,7 @@ export default function PredefinedWorkouts() {
                     {workout.primary_disciplines.map((discipline, index) => (
                       <span
                         key={index}
-                        className={`px-2 py-1 rounded text-xs font-medium text-white ${getDisciplineColor(discipline)}`}
+                        className={`px-2 py-1 rounded-lg text-xs font-medium text-white ${getDisciplineColor(discipline)}`}
                       >
                         {discipline}
                       </span>
@@ -192,45 +192,45 @@ export default function PredefinedWorkouts() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-4 mb-4 text-sm text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    <span>{workout.duration_minutes || 60}min</span>
+                <div className="flex items-center gap-4 mb-6 text-sm text-gray-500 bg-gray-50 p-3 rounded-xl">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-gray-400" />
+                    <span className="font-medium">{workout.duration_minutes || 60}m</span>
                   </div>
                   {workout.blocks && (
-                    <div className="flex items-center gap-1">
-                      <Target className="w-4 h-4" />
-                      <span>{workout.blocks.length} blocks</span>
+                    <div className="flex items-center gap-1.5">
+                      <Target className="w-4 h-4 text-gray-400" />
+                      <span className="font-medium">{workout.blocks.length} blocks</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-1">
-                    <span>{totalExercises} exercises</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-medium">{totalExercises} exercises</span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleView(workout)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors text-sm font-medium"
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-900 text-white hover:bg-gray-800 rounded-xl transition-colors text-sm font-semibold"
                   >
                     <Eye className="w-4 h-4" />
                     View
                   </button>
                   <button
                     onClick={() => handleEdit(workout)}
-                    className="flex items-center justify-center p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                    className="flex items-center justify-center p-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDuplicate(workout)}
-                    className="flex items-center justify-center p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                    className="flex items-center justify-center p-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors"
                   >
                     <Copy className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(workout)}
-                    className="flex items-center justify-center p-2 bg-gray-100 hover:bg-red-100 text-gray-700 hover:text-red-600 rounded-lg transition-colors"
+                    className="flex items-center justify-center p-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

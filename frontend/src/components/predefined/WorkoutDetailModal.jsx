@@ -34,8 +34,11 @@ const throttle = (func, limit) => {
 export default function WorkoutDetailModal({ workout, exercises, onClose, onApply, onDuplicate }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [expandedBlocks, setExpandedBlocks] = useState(new Set([0])); // First block expanded by default
+  const [expandedExercises, setExpandedExercises] = useState(new Set());
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
   const scrollContainerRef = useRef(null);
+
+  const hasImage = !!workout.image;
 
   const toggleBlock = (blockIndex) => {
     const newExpanded = new Set(expandedBlocks);
@@ -47,11 +50,21 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
     setExpandedBlocks(newExpanded);
   };
 
+  const toggleExercise = (exerciseId) => {
+    const newExpanded = new Set(expandedExercises);
+    if (newExpanded.has(exerciseId)) {
+      newExpanded.delete(exerciseId);
+    } else {
+      newExpanded.add(exerciseId);
+    }
+    setExpandedExercises(newExpanded);
+  };
+
   const getExerciseDetails = (exerciseId) => {
     return exercises.find(ex => ex.id === exerciseId);
   };
 
-  const totalExercises = workout.blocks.reduce((sum, block) => sum + block.exercises.length, 0);
+  const totalExercises = (workout.blocks || []).reduce((sum, block) => sum + block.exercises.length, 0);
 
   // Throttled scroll handler
   const handleScroll = useCallback(throttle((e) => {
@@ -68,274 +81,305 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
     return () => window.removeEventListener('keydown', handleEsc);
   }, [onClose]);
 
+  const getDifficultyColor = (level) => {
+    switch (level?.toLowerCase()) {
+      case 'beginner': return 'bg-green-500 text-white';
+      case 'intermediate': return 'bg-orange-500 text-white';
+      case 'advanced': return 'bg-red-500 text-white';
+      default: return 'bg-gray-500 text-white';
+    }
+  };
+
+  const getDisciplineColor = (discipline) => {
+    const colors = {
+      strength: 'bg-blue-500',
+      climbing: 'bg-orange-600',
+      running: 'bg-green-500',
+      cycling: 'bg-purple-500',
+      calisthenics: 'bg-yellow-500',
+      mobility: 'bg-cyan-500',
+      cardio: 'bg-pink-500',
+      hiit: 'bg-red-500'
+    };
+    return colors[discipline?.toLowerCase()] || 'bg-gray-500';
+  };
+
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center md:p-4 z-[100]"
+      className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-end md:items-center justify-center z-[100]"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="modal-title"
     >
-      <div className="bg-white md:rounded-2xl shadow-2xl w-full max-w-5xl h-full md:h-auto md:max-h-[90vh] flex flex-col overflow-hidden relative">
-        {/* Header */}
-        <div
-          className={`
-            bg-white border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 shrink-0 transition-all duration-300 ease-in-out z-10
-            ${isHeaderCollapsed ? 'py-3 px-4' : 'p-4 md:p-6'}
-          `}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <h2
-                id="modal-title"
-                className={`
-                  font-bold text-gray-900 leading-tight transition-all duration-300
-                  ${isHeaderCollapsed ? 'text-lg mb-0' : 'text-xl md:text-3xl mb-2'}
-                `}
-              >
-                {workout.name}
-              </h2>
+      <div className="bg-white w-full h-full md:h-[85vh] md:max-w-md md:rounded-[40px] rounded-none flex flex-col overflow-hidden relative shadow-2xl">
 
-              <div
-                className={`
-                  transition-all duration-300 overflow-hidden
-                  ${isHeaderCollapsed ? 'h-0 opacity-0' : 'h-auto opacity-100'}
-                `}
-              >
-                <p className="text-sm md:text-lg text-gray-700 mb-3 leading-relaxed line-clamp-3 md:line-clamp-none">
-                  {workout.goal}
-                </p>
+        {/* Top Navigation */}
+        <div className={`flex justify-between items-center p-2 z-50 ${hasImage
+          ? 'absolute top-0 left-0 right-0 pointer-events-none'
+          : 'relative bg-white border-b border-gray-50'
+          }`}>
+          <button
+            onClick={onClose}
+            className={`w-10 h-10 rounded-xl backdrop-blur-md flex items-center justify-center transition-colors pointer-events-auto ${hasImage
+              ? 'bg-black/10 text-white hover:bg-black/20'
+              : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+              }`}
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <button className={`w-10 h-10 rounded-xl backdrop-blur-md flex items-center justify-center transition-colors pointer-events-auto ${hasImage
+            ? 'bg-black/10 text-white hover:bg-black/20'
+            : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+            }`}>
+            <Copy className="w-5 h-5" onClick={() => onDuplicate(workout)} />
+          </button>
+        </div>
 
-                <div className="flex flex-wrap items-center gap-3 md:gap-6 text-xs md:text-sm text-gray-600">
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="w-4 h-4" />
-                    <span className="font-medium">{workout.estimated_duration || 60}m</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Target className="w-4 h-4" />
-                    <span className="font-medium">{workout.blocks.length} blocks</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Dumbbell className="w-4 h-4" />
-                    <span className="font-medium">{totalExercises} exercises</span>
-                  </div>
-                  <div className={`px-2 py-0.5 rounded-full text-xs font-medium ${workout.difficulty_level === 'beginner' ? 'bg-green-100 text-green-800' :
-                      workout.difficulty_level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                    }`}>
-                    {workout.difficulty_level}
-                  </div>
+        {/* Scrollable Container for Hero + Content */}
+        <div className="flex-1 overflow-y-auto scrollbar-hide">
+          {/* Hero Image Section - Only render if image exists */}
+          {hasImage && (
+            <div className="h-[350px] relative shrink-0">
+              <div className="absolute inset-0 bg-gray-900">
+                <div className="absolute inset-0 bg-gradient-to-b from-gray-800 to-gray-900 opacity-80" />
+                <img
+                  src={workout.image}
+                  alt="Workout cover"
+                  className="w-full h-full object-cover opacity-50 mix-blend-overlay"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Content Card */}
+          <div className={`bg-white relative z-10 px-6 pb-32 min-h-full ${hasImage
+            ? 'rounded-t-[40px] -mt-10 pt-8'
+            : 'pt-4'
+            }`}>
+
+            {/* Tag / Discipline */}
+            <div className="flex items-center gap-2 mb-2">
+              {workout.primary_disciplines?.[0] && (
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-white ${getDisciplineColor(workout.primary_disciplines[0])}`}>
+                  {workout.primary_disciplines[0]}
+                </span>
+              )}
+              {!workout.primary_disciplines?.[0] && (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-coral-brand" />
+                  <span className="text-coral-brand font-bold text-xs uppercase tracking-wider">WORKOUT TEMPLATE</span>
+                </>
+              )}
+            </div>
+
+            {/* Title */}
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 leading-tight">
+              {workout.name}
+            </h2>
+
+            {/* Metadata Row */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getDifficultyColor(workout.difficulty_level).replace('text-white', 'bg-opacity-10 text-current')}`}>
+                  {/* Using the background color of the difficulty but with low opacity for the icon container */}
+                  <Target className={`w-5 h-5 ${getDifficultyColor(workout.difficulty_level).split(' ')[0].replace('bg-', 'text-')}`} />
                 </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Difficulty</p>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${getDifficultyColor(workout.difficulty_level)}`}>
+                    {workout.difficulty_level || 'General'}
+                  </span>
+                </div>
+              </div>
 
-                {/* Discipline Tags */}
-                <div className="flex flex-wrap gap-1.5 mt-3">
-                  {(workout.primary_disciplines || []).map((discipline, index) => {
-                    const IconComponent = disciplineIcons[discipline] || Dumbbell;
-                    return (
-                      <span key={index} className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
-                        <IconComponent className="w-3 h-3" />
-                        {discipline.charAt(0).toUpperCase() + discipline.slice(1)}
-                      </span>
-                    );
-                  })}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden">
+                  {/* Placeholder Avatar */}
+                  <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-500 text-xs">AI</div>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Coached by</p>
+                  <p className="text-sm font-bold text-gray-900">Torii Coach</p>
                 </div>
               </div>
             </div>
 
-            <button
-              onClick={onClose}
-              className="p-2 -mr-2 rounded-xl hover:bg-white/50 transition-colors shrink-0"
-              aria-label="Close modal"
-            >
-              <X className="w-6 h-6 text-gray-500" />
-            </button>
-          </div>
-        </div>
+            {/* About Section */}
+            <div className="mb-8">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">About</h3>
+              <p className="text-gray-500 text-sm leading-relaxed">
+                {workout.goal || "A comprehensive workout designed to improve your fitness levels through structured exercises."}
+              </p>
+            </div>
 
-        {/* Workout Blocks */}
-        <div
-          ref={scrollContainerRef}
-          onScroll={handleScroll}
-          className="flex-1 p-4 md:p-6 overflow-y-auto bg-gray-50 scroll-smooth"
-        >
-          <div className="space-y-3 md:space-y-4 pb-4">
-            {workout.blocks.map((block, blockIndex) => {
-              const isExpanded = expandedBlocks.has(blockIndex);
+            {/* Stats Grid */}
+            <div className="grid grid-cols-3 gap-4 mb-8 bg-coral-50 rounded-2xl p-4">
+              <div className="text-center">
+                <div className="w-8 h-8 mx-auto mb-2 text-coral-brand">
+                  <Dumbbell className="w-full h-full" />
+                </div>
+                <p className="text-xs font-bold text-gray-900 mb-0.5">
+                  {workout.primary_disciplines?.[0] || 'Strength'}
+                </p>
+                <p className="text-[10px] text-gray-500">Activity</p>
+              </div>
+              <div className="text-center border-l border-coral-100">
+                <div className="w-8 h-8 mx-auto mb-2 text-coral-brand">
+                  <Clock className="w-full h-full" />
+                </div>
+                <p className="text-xs font-bold text-gray-900 mb-0.5">
+                  {workout.estimated_duration || 60}m
+                </p>
+                <p className="text-[10px] text-gray-500">Duration</p>
+              </div>
+              <div className="text-center border-l border-coral-100">
+                <div className="w-8 h-8 mx-auto mb-2 text-coral-brand">
+                  <Zap className="w-full h-full" />
+                </div>
+                <p className="text-xs font-bold text-gray-900 mb-0.5">
+                  {totalExercises}
+                </p>
+                <p className="text-[10px] text-gray-500">Exercises</p>
+              </div>
+            </div>
 
-              return (
-                <div key={blockIndex} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  <button
-                    onClick={() => toggleBlock(blockIndex)}
-                    className="w-full p-4 md:p-5 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
-                    aria-expanded={isExpanded}
-                  >
-                    <div className="min-w-0 flex-1 mr-4">
-                      <h3 className="font-bold text-lg md:text-xl text-gray-900 mb-1 truncate">
-                        {block.name}
-                      </h3>
-                      <div className="flex items-center gap-3 text-xs md:text-sm text-gray-600">
-                        {block.duration && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 md:w-4 md:h-4" />
-                            {block.duration}
-                          </span>
+            {/* How to Prepare / Blocks Preview */}
+            <div className="mb-8">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Workout Blocks</h3>
+              <div className="space-y-4">
+                {(workout.blocks || []).map((block, idx) => {
+                  const isExpanded = expandedBlocks.has(idx);
+                  return (
+                    <div key={idx} className="border border-gray-100 rounded-2xl overflow-hidden">
+                      <button
+                        onClick={() => toggleBlock(idx)}
+                        className="w-full flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-white border border-coral-100 flex items-center justify-center shrink-0 text-coral-brand font-bold text-xs shadow-sm">
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-gray-900">{block.name}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{block.exercises.length} exercises</p>
+                        </div>
+                        {isExpanded ? (
+                          <ChevronUp className="w-5 h-5 text-gray-400" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-gray-400" />
                         )}
-                        <span className="flex items-center gap-1">
-                          <Target className="w-3 h-3 md:w-4 md:h-4" />
-                          {block.exercises.length} exercises
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="hidden md:inline px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                        {isExpanded ? 'Collapse' : 'Expand'}
-                      </span>
-                      {isExpanded ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
-                    </div>
-                  </button>
+                      </button>
 
-                  {isExpanded && (
-                    <div className="px-4 pb-4 md:px-5 md:pb-5">
-                      {block.instructions && (
-                        <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                          <p className="text-blue-800 text-xs md:text-sm leading-relaxed">
-                            <strong>Instructions:</strong> {block.instructions}
-                          </p>
+                      {isExpanded && (
+                        <div className="p-4 bg-white space-y-3">
+                          {block.instructions && (
+                            <div className="p-3 bg-blue-50 text-blue-800 text-xs rounded-xl mb-3 leading-relaxed">
+                              <span className="font-bold">Instructions:</span> {block.instructions}
+                            </div>
+                          )}
+
+                          {block.exercises.map((exercise, exIdx) => {
+                            const exerciseDetails = getExerciseDetails(exercise.exercise_id);
+                            const uniqueExId = `${idx}-${exIdx}`;
+                            const isExExpanded = expandedExercises.has(uniqueExId);
+
+                            return (
+                              <div key={exIdx} className={`border-b border-gray-50 last:border-0 ${exerciseDetails?.strain?.intensity ? intensityColors[exerciseDetails.strain.intensity].replace('text-', 'border-l-4 border-').split(' ')[0] : 'border-l-4 border-transparent'
+                                }`}>
+                                <div
+                                  onClick={() => toggleExercise(uniqueExId)}
+                                  className="flex items-start justify-between py-2 cursor-pointer hover:bg-gray-50 transition-colors rounded-r-lg px-2 pl-3"
+                                >
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-sm font-bold text-gray-900">{exercise.exercise_name}</p>
+                                      {isExExpanded ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
+                                    </div>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {exerciseDetails?.muscles && (
+                                        <p className="text-[10px] text-gray-500 capitalize">
+                                          {exerciseDetails.muscles.slice(0, 2).join(', ')}
+                                        </p>
+                                      )}
+                                      {exerciseDetails?.strain?.intensity && (
+                                        <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${intensityColors[exerciseDetails.strain.intensity]}`}>
+                                          {exerciseDetails.strain.intensity}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {exercise.notes && (
+                                      <p className="text-[10px] text-yellow-600 mt-1 bg-yellow-50 inline-block px-1.5 py-0.5 rounded">
+                                        {exercise.notes}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="text-right shrink-0 ml-4">
+                                    <div className="text-xs font-bold text-gray-900 bg-gray-100 px-2 py-1 rounded-lg">
+                                      {exercise.volume || '3x8'}
+                                    </div>
+                                    {exercise.rest && (
+                                      <p className="text-[10px] text-gray-400 mt-1 flex items-center justify-end gap-1">
+                                        <Timer className="w-3 h-3" />
+                                        {exercise.rest}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {isExExpanded && exerciseDetails && (
+                                  <div className="px-2 pb-3 pt-1 pl-4">
+                                    <div className="bg-gray-50 rounded-xl p-3 text-xs space-y-2">
+                                      {exerciseDetails.muscles && (
+                                        <div>
+                                          <span className="font-bold text-gray-700">Muscles:</span>
+                                          <p className="text-gray-600 capitalize">{exerciseDetails.muscles.join(', ')}</p>
+                                        </div>
+                                      )}
+                                      {exerciseDetails.equipment && (
+                                        <div>
+                                          <span className="font-bold text-gray-700">Equipment:</span>
+                                          <p className="text-gray-600 capitalize">{exerciseDetails.equipment.join(', ')}</p>
+                                        </div>
+                                      )}
+                                      {exerciseDetails.description && (
+                                        <div>
+                                          <span className="font-bold text-gray-700">Description:</span>
+                                          <p className="text-gray-600 leading-relaxed">{exerciseDetails.description}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
-
-                      <div className="space-y-2 md:space-y-3">
-                        {block.exercises.map((exercise, exerciseIndex) => {
-                          const exerciseDetails = getExerciseDetails(exercise.exercise_id);
-
-                          return (
-                            <div key={exerciseIndex} className="bg-gray-50 rounded-lg p-3 md:p-4 hover:bg-gray-100 transition-colors">
-                              <div className="flex items-start justify-between mb-2">
-                                <h4 className="font-bold text-sm md:text-lg text-gray-900 leading-tight pr-2">
-                                  {exercise.exercise_name}
-                                </h4>
-                                <div className="text-right shrink-0">
-                                  <div className="font-bold text-blue-600 text-sm md:text-lg">
-                                    {exercise.volume || '3x8'}
-                                  </div>
-                                  {exercise.rest && (
-                                    <div className="text-xs text-gray-500">
-                                      Rest: {exercise.rest}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Exercise Schema Data */}
-                              {exerciseDetails && (
-                                <div className="mb-2">
-                                  <div className="flex flex-wrap gap-1.5 mb-2">
-                                    {/* Disciplines */}
-                                    {(exerciseDetails.discipline || []).map((disc, i) => (
-                                      <span key={i} className="px-1.5 py-0.5 bg-blue-100 text-blue-800 text-[10px] md:text-xs rounded-full">
-                                        {disc}
-                                      </span>
-                                    ))}
-
-                                    {/* Muscles */}
-                                    {(exerciseDetails.muscles || []).slice(0, 3).map((muscle, i) => (
-                                      <span key={i} className="px-1.5 py-0.5 bg-green-100 text-green-800 text-[10px] md:text-xs rounded-full">
-                                        {muscle}
-                                      </span>
-                                    ))}
-
-                                    {/* Equipment */}
-                                    {(exerciseDetails.equipment || []).slice(0, 2).map((eq, i) => (
-                                      <span key={i} className="px-1.5 py-0.5 bg-purple-100 text-purple-800 text-[10px] md:text-xs rounded-full">
-                                        {eq}
-                                      </span>
-                                    ))}
-
-                                    {/* Intensity */}
-                                    {exerciseDetails.strain?.intensity && (
-                                      <span className={`px-1.5 py-0.5 text-[10px] md:text-xs rounded-full ${intensityColors[exerciseDetails.strain.intensity]}`}>
-                                        {exerciseDetails.strain.intensity}
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  {/* Load and Duration Type */}
-                                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] md:text-xs text-gray-600">
-                                    {exerciseDetails.strain?.load && (
-                                      <span>Load: <strong>{exerciseDetails.strain.load}</strong></span>
-                                    )}
-                                    {exerciseDetails.strain?.duration_type && (
-                                      <span>Type: <strong>{exerciseDetails.strain.duration_type}</strong></span>
-                                    )}
-                                    {exerciseDetails.strain?.typical_volume && (
-                                      <span>Typical: <strong>{exerciseDetails.strain.typical_volume}</strong></span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Exercise Notes */}
-                              {exercise.notes && (
-                                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                  <p className="text-yellow-800 text-xs md:text-sm">
-                                    <strong>Notes:</strong> {exercise.notes}
-                                  </p>
-                                </div>
-                              )}
-
-                              {/* Exercise Description */}
-                              {exerciseDetails?.description && (
-                                <div className="mt-1.5 text-xs md:text-sm text-gray-600 italic line-clamp-2">
-                                  {exerciseDetails.description}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            </div>
+
           </div>
         </div>
 
         {/* Sticky Footer Actions */}
-        <div className="p-4 md:p-6 border-t border-gray-100 bg-white/90 backdrop-blur-md shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-6 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-4">
-            <div className="flex-1">
-              <label className="block text-xs md:text-sm font-semibold mb-1.5 text-gray-700">
-                Apply to Calendar Date:
-              </label>
+        <div className="absolute bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100 z-50">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl">
+              <Calendar className="w-5 h-5 text-gray-500 ml-2" />
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                className="bg-transparent border-none text-sm font-medium text-gray-900 focus:ring-0 w-full"
               />
             </div>
-
-            <div className="flex gap-2 md:gap-3">
-              <button
-                onClick={() => onDuplicate(workout)}
-                className="flex-1 md:flex-none px-4 py-2.5 md:px-6 md:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center justify-center gap-2 text-sm md:text-base"
-              >
-                <Copy className="w-4 h-4" />
-                <span className="md:inline">Duplicate</span>
-              </button>
-
-              <button
-                onClick={() => onApply(workout, selectedDate)}
-                className="flex-[2] md:flex-none px-4 py-2.5 md:px-6 md:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2 text-sm md:text-base"
-              >
-                <Calendar className="w-4 h-4" />
-                Apply to Calendar
-              </button>
-            </div>
+            <button
+              onClick={() => onApply(workout, selectedDate)}
+              className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold text-base hover:bg-gray-800 transition-colors shadow-xl shadow-gray-900/10"
+            >
+              Apply to Calendar
+            </button>
           </div>
         </div>
       </div>
