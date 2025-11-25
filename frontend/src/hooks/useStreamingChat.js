@@ -16,12 +16,14 @@ export function useStreamingChat() {
   const [activeTools, setActiveTools] = useState([]); // Track currently executing tools
   const [completedTools, setCompletedTools] = useState([]); // Track completed tools with their messages
 
-  const sendStreamingMessage = useCallback(async (message, authToken) => {
+  const sendStreamingMessage = useCallback(async (message, authToken, conversationId = null) => {
     setIsStreaming(true);
     setStreamingMessage('');
     setReasoningSteps([]);
     setActiveTools([]);
     setCompletedTools([]);
+
+    let returnedConversationId = null;
 
     try {
       // Call the Node.js backend which will proxy to Python AI Coach service
@@ -32,7 +34,10 @@ export function useStreamingChat() {
           'Authorization': `Bearer ${authToken}`,
           'x-stream': 'true'
         },
-        body: JSON.stringify({ message })
+        body: JSON.stringify({
+          message,
+          conversation_id: conversationId
+        })
       });
 
       if (!response.ok) {
@@ -94,11 +99,11 @@ export function useStreamingChat() {
                   // Track reasoning steps separately if needed
                   setReasoningSteps(prev => [...prev, event.content]);
                 } else if (event.type === 'complete') {
-                  setIsStreaming(false);
-                  // Don't clear tools - they stay visible as part of the conversation history
+                  // Capture the conversation ID for return
+                  returnedConversationId = event.conversation_id;
+                  console.log('[useStreamingChat] Stream complete, conversation_id:', returnedConversationId);
                 } else if (event.type === 'error') {
                   console.error('[useStreamingChat] Stream error:', event.message);
-                  setIsStreaming(false);
                 }
               } catch (e) {
                 console.error('[useStreamingChat] Error parsing SSE event:', e, 'Raw data:', eventData);
@@ -108,13 +113,15 @@ export function useStreamingChat() {
         }
       }
 
-      return accumulatedMessage;
+      // Stream finished
+      setIsStreaming(false);
+      return returnedConversationId;
     } catch (error) {
       console.error('Streaming error:', error);
       setIsStreaming(false);
       throw error;
     }
-  }, []);
+  }, [activeTools]);
 
   return {
     isStreaming,

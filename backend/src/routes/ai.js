@@ -470,8 +470,11 @@ router.post('/stream', authMiddleware, aiRateLimit, async (req, res) => {
       res.end();
     });
 
-    // Send the request body
-    const requestBody = JSON.stringify({ message });
+    // Send the request body - include conversation_id for message continuity
+    const requestBody = JSON.stringify({
+      message,
+      conversation_id: req.body.conversation_id || null
+    });
     proxyReq.write(requestBody);
     proxyReq.end();
 

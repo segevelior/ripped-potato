@@ -1,16 +1,20 @@
 const PredefinedWorkout = require('../models/PredefinedWorkout');
 const UserWorkoutModification = require('../models/UserWorkoutModification');
+const mongoose = require('mongoose');
 
 class WorkoutService {
   /**
    * Get all predefined workouts for a user, including their modifications
    */
   static async getWorkoutsForUser(userId) {
+    // Convert userId to ObjectId to match how workouts are stored
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
     // Get all workouts (common and user's private)
     const workouts = await PredefinedWorkout.find({
       $or: [
         { isCommon: true },
-        { createdBy: userId }
+        { createdBy: userObjectId }
       ]
     })
     .populate('blocks.exercises.exercise_id', 'name muscles')
@@ -40,16 +44,19 @@ class WorkoutService {
    * Get a single workout for a user with modifications applied
    */
   static async getWorkoutForUser(workoutId, userId) {
+    // Convert userId to ObjectId for comparison
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
     const workout = await PredefinedWorkout.findById(workoutId)
       .populate('blocks.exercises.exercise_id', 'name muscles')
       .lean();
-    
+
     if (!workout) {
       return null;
     }
-    
+
     // Check if user has access to this workout
-    if (!workout.isCommon && workout.createdBy?.toString() !== userId.toString()) {
+    if (!workout.isCommon && workout.createdBy?.toString() !== userObjectId.toString()) {
       return null;
     }
     

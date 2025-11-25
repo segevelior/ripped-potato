@@ -10,12 +10,14 @@ import json
 import structlog
 from openai import AsyncOpenAI
 import asyncio
+import time
 
 from app.config import get_settings
 from app.models.schemas import ChatRequest
 from app.middleware.auth import get_current_user
 from app.core.agents.orchestrator import AgentOrchestrator
 from app.core.agents.data_reader import DataReaderAgent
+from app.services.conversation_service import ConversationService
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -26,13 +28,18 @@ async def generate_stream_with_reasoning(
     user_context: Dict[str, Any],
     settings: Any,
     orchestrator: AgentOrchestrator,
-    data_reader: DataReaderAgent
+    data_reader: DataReaderAgent,
+    conversation_service: ConversationService,
+    conversation_id: str,
+    conversation_history: list = None
 ) -> AsyncGenerator[str, None]:
     """
     Generate streaming response with tool calling and reasoning steps shown to user.
     The AI can use tools to interact with the database while streaming.
+    Saves messages to conversation history.
     """
     logger.info(f"📝 generate_stream_with_reasoning called with message: {message[:50]}...")
+    start_time = time.time()
     client = AsyncOpenAI(api_key=settings.openai_api_key)
 
     user_id = user_context.get("user_id")
@@ -71,10 +78,27 @@ For example:
 - "I found a similar exercise called X - is that what you meant?"
 - "Great! I've successfully added the workout to your library."""
 
+    # Build messages array with conversation history
     messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": f"{context_str}\n\nUser: {message}"}
     ]
+
+    # Add conversation history if available (excluding the current message which we'll add separately)
+    if conversation_history:
+        for hist_msg in conversation_history:
+            role = "user" if hist_msg.get("role") == "human" else "assistant"
+            messages.append({
+                "role": role,
+                "content": hist_msg.get("content", "")
+            })
+        # Add current message without context prefix (history provides context)
+        messages.append({"role": "user", "content": message})
+    else:
+        # First message - include context
+        messages.append({"role": "user", "content": f"{context_str}\n\nUser: {message}"})
+
+    # Track the full response for saving to conversation
+    full_response = []
 
     try:
         # Create streaming completion WITH TOOLS
@@ -112,6 +136,7 @@ For example:
             if delta.content:
                 logger.debug(f"Token #{token_count}: '{delta.content}'")
                 token = delta.content
+                full_response.append(token)  # Capture for saving
                 # Format as Server-Sent Event
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
@@ -241,11 +266,26 @@ For example:
                     async for final_chunk in final_stream:
                         final_choice = final_chunk.choices[0] if final_chunk.choices else None
                         if final_choice and final_choice.delta.content:
+                            full_response.append(final_choice.delta.content)  # Capture for saving
                             yield f"data: {json.dumps({'type': 'token', 'content': final_choice.delta.content})}\n\n"
 
-        # Send completion event
+        # Calculate response time
+        response_time_ms = int((time.time() - start_time) * 1000)
+
+        # Save AI response to conversation
+        final_response_text = "".join(full_response)
+        if final_response_text:
+            await conversation_service.add_message(
+                conversation_id=conversation_id,
+                role="ai",
+                content=final_response_text,
+                response_time_ms=response_time_ms
+            )
+            logger.info(f"💾 Saved AI response to conversation {conversation_id}")
+
+        # Send completion event with conversation_id
         logger.info(f"✅ Stream completed successfully. Total chunks: {token_count}")
-        yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+        yield f"data: {json.dumps({'type': 'complete', 'conversation_id': conversation_id})}\n\n"
 
     except Exception as e:
         logger.error(f"❌ Streaming error: {e}", exc_info=True)
@@ -289,19 +329,57 @@ async def chat_stream(
     # Get database and Redis connections
     from app.main import db, redis_client
 
-    # Initialize orchestrator and data reader (same as non-streaming endpoint)
+    # Initialize orchestrator, data reader, and conversation service
     orchestrator = AgentOrchestrator(db, redis_client)
     data_reader = DataReaderAgent(db)
+    conversation_service = ConversationService(db)
+
+    user_id = current_user["user_id"]
+
+    # Get or create conversation and retrieve history
+    conversation_id = request.conversation_id
+    conversation_history = []
+
+    if conversation_id:
+        # Verify conversation exists and belongs to user
+        existing = await conversation_service.get_conversation(conversation_id, user_id)
+        if not existing:
+            # Create new if not found
+            result = await conversation_service.create_conversation(
+                user_id=user_id,
+                initial_message=request.message
+            )
+            conversation_id = result["conversation_id"]
+        else:
+            # Get existing conversation history for context
+            conversation_history = existing.get("messages", [])
+            logger.info(f"📚 Loaded {len(conversation_history)} previous messages for context")
+
+            # Add human message to existing conversation
+            await conversation_service.add_message(
+                conversation_id=conversation_id,
+                role="human",
+                content=request.message
+            )
+    else:
+        # Create new conversation with initial message
+        result = await conversation_service.create_conversation(
+            user_id=user_id,
+            initial_message=request.message
+        )
+        conversation_id = result["conversation_id"]
+
+    logger.info(f"💬 Using conversation {conversation_id} for user {user_id}")
 
     # Prepare user context
     user_context = {
-        "user_id": current_user["user_id"],
+        "user_id": user_id,
         "email": current_user.get("email"),
         "username": current_user.get("username"),
         "schema": request.context.get("schema") if request.context else None
     }
 
-    logger.info(f"✅ Starting stream generation for user {current_user['user_id']}")
+    logger.info(f"✅ Starting stream generation for user {user_id}")
 
     # Generate streaming response with tools
     stream_generator = generate_stream_with_reasoning(
@@ -309,7 +387,10 @@ async def chat_stream(
         user_context,
         settings,
         orchestrator,
-        data_reader
+        data_reader,
+        conversation_service,
+        conversation_id,
+        conversation_history
     )
 
     return StreamingResponse(
