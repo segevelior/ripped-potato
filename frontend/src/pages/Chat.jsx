@@ -391,17 +391,17 @@ export default function Chat() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <Bot className="w-8 h-8 text-indigo-600" />
+          <h1 className="text-3xl font-bold text-grey-900 flex items-center gap-3">
+            <Bot className="w-8 h-8 text-primary-500" />
             AI Coach
           </h1>
-          <p className="text-lg text-gray-600 mt-1">
+          <p className="text-lg text-grey-500 mt-1">
             Your intelligent fitness assistant - I can create goals, build plans, and guide you through the app.
           </p>
         </div>
         <button
           onClick={clearHistory}
-          className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+          className="flex items-center gap-2 px-4 py-2 text-grey-500 hover:text-grey-800 border border-grey-200 rounded-xl hover:bg-grey-50 transition-colors font-medium"
         >
           <RotateCcw className="w-4 h-4" />
           Clear History
@@ -409,12 +409,12 @@ export default function Chat() {
       </div>
 
       {/* Current Context Display */}
-      <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5">
-        <h3 className="font-bold text-indigo-900 mb-2 flex items-center gap-2">
+      <div className="bg-secondary-50 border border-secondary-100 rounded-2xl p-5">
+        <h3 className="font-bold text-secondary-900 mb-2 flex items-center gap-2">
           <Sparkles className="w-4 h-4" />
           What I Can See & Do
         </h3>
-        <div className="grid md:grid-cols-2 gap-4 text-sm text-indigo-800">
+        <div className="grid md:grid-cols-2 gap-4 text-sm text-secondary-800">
           <div>
             <p><strong className="font-semibold">Current Page:</strong> {getCurrentPageContext().page_description}</p>
             <p><strong className="font-semibold">Available Actions:</strong> {getCurrentPageContext().available_actions.join(', ')}</p>
@@ -427,24 +427,24 @@ export default function Chat() {
       </div>
 
       {/* Chat Interface */}
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-200 flex flex-col h-[600px] overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-sm border border-grey-100 flex flex-col h-[600px] overflow-hidden">
         <div className="flex-1 p-6 overflow-y-auto space-y-6">
           {messages.map((msg, index) => (
             <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
               {msg.role === 'assistant' && (
-                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                  <Bot className="w-6 h-6 text-indigo-600" />
+                <div className="w-10 h-10 rounded-full bg-grey-100 flex items-center justify-center flex-shrink-0">
+                  <Bot className="w-6 h-6 text-grey-700" />
                 </div>
               )}
               <div className={`max-w-2xl p-5 rounded-2xl ${msg.role === 'user'
-                  ? 'bg-coral-brand text-white ml-12 rounded-tr-none'
-                  : 'bg-gray-100 text-gray-900 mr-12 rounded-tl-none'
+                ? 'bg-primary-500 text-white ml-12 rounded-tr-none'
+                : 'bg-grey-100 text-grey-900 mr-12 rounded-tl-none'
                 }`}>
                 <div className={`prose prose-sm max-w-none ${msg.role === 'user' ? 'prose-invert' : ''}`}>
                   <ReactMarkdown
                     components={{
                       a: ({ href, children }) => (
-                        <a href={href} className={`${msg.role === 'user' ? 'text-white underline' : 'text-indigo-600 hover:text-indigo-700'} font-bold`}>
+                        <a href={href} className={`${msg.role === 'user' ? 'text-white underline' : 'text-primary-600 hover:text-primary-700'} font-bold`}>
                           {children}
                         </a>
                       ),
@@ -458,8 +458,8 @@ export default function Chat() {
                 </div>
               </div>
               {msg.role === 'user' && (
-                <div className="w-10 h-10 rounded-full bg-coral-100 flex items-center justify-center flex-shrink-0">
-                  <span className="font-bold text-coral-brand">ME</span>
+                <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+                  <span className="font-bold text-primary-600">ME</span>
                 </div>
               )}
             </div>
@@ -467,13 +467,13 @@ export default function Chat() {
 
           {isThinking && (
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                <Bot className="w-6 h-6 text-indigo-600" />
+              <div className="w-10 h-10 rounded-full bg-grey-100 flex items-center justify-center flex-shrink-0">
+                <Bot className="w-6 h-6 text-grey-700" />
               </div>
-              <div className="bg-gray-100 p-4 rounded-2xl rounded-tl-none">
+              <div className="bg-grey-100 p-4 rounded-2xl rounded-tl-none">
                 <div className="flex items-center gap-2">
-                  <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
-                  <span className="text-gray-600 font-medium">Thinking...</span>
+                  <Loader2 className="w-5 h-5 text-grey-400 animate-spin" />
+                  <span className="text-grey-600 font-medium">Thinking...</span>
                 </div>
               </div>
             </div>
@@ -483,7 +483,7 @@ export default function Chat() {
         </div>
 
         {/* Input Area */}
-        <form onSubmit={handleSendMessage} className="p-6 border-t border-gray-100 bg-gray-50">
+        <form onSubmit={handleSendMessage} className="p-6 border-t border-grey-100 bg-grey-50">
           <div className="flex gap-3 items-end">
             <textarea
               value={input}
@@ -497,7 +497,7 @@ export default function Chat() {
               placeholder={isRateLimited ? `Rate limited - wait ${rateLimitCooldown}s` : "Ask me anything about training... (Shift+Enter for new line)"}
               disabled={isThinking || isRateLimited}
               rows={1}
-              className="flex-1 px-5 py-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed resize-none min-h-[56px] max-h-[200px] shadow-sm text-base"
+              className="flex-1 px-5 py-4 border border-grey-200 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-grey-100 disabled:cursor-not-allowed resize-none min-h-[56px] max-h-[200px] shadow-sm text-base"
               style={{
                 height: 'auto',
                 overflowY: input.includes('\n') || input.length > 80 ? 'auto' : 'hidden'
@@ -510,7 +510,7 @@ export default function Chat() {
             <button
               type="submit"
               disabled={isThinking || isRateLimited || !input.trim()}
-              className="px-6 py-4 bg-gray-900 text-white rounded-2xl hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-bold shadow-lg shadow-gray-900/10"
+              className="px-6 py-4 bg-primary-500 text-white rounded-2xl hover:bg-primary-600 disabled:bg-grey-300 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-bold shadow-lg shadow-primary-500/20"
             >
               {isThinking ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
               Send
@@ -522,28 +522,28 @@ export default function Chat() {
             <button
               type="button"
               onClick={() => setInput("I want to learn a handstand")}
-              className="px-4 py-2 text-sm bg-white border border-gray-200 text-gray-600 rounded-full hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all font-medium shadow-sm"
+              className="px-4 py-2 text-sm bg-white border border-grey-200 text-grey-600 rounded-full hover:bg-primary-50 hover:text-primary-600 hover:border-primary-200 transition-all font-medium shadow-sm"
             >
               🤸 Learn a skill
             </button>
             <button
               type="button"
               onClick={() => setInput("Create a 8-week strength plan")}
-              className="px-4 py-2 text-sm bg-white border border-gray-200 text-gray-600 rounded-full hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all font-medium shadow-sm"
+              className="px-4 py-2 text-sm bg-white border border-grey-200 text-grey-600 rounded-full hover:bg-primary-50 hover:text-primary-600 hover:border-primary-200 transition-all font-medium shadow-sm"
             >
               📋 Build a plan
             </button>
             <button
               type="button"
               onClick={() => setInput("How do I use the calendar?")}
-              className="px-4 py-2 text-sm bg-white border border-gray-200 text-gray-600 rounded-full hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all font-medium shadow-sm"
+              className="px-4 py-2 text-sm bg-white border border-grey-200 text-grey-600 rounded-full hover:bg-primary-50 hover:text-primary-600 hover:border-primary-200 transition-all font-medium shadow-sm"
             >
               🧭 Navigate the app
             </button>
             <button
               type="button"
               onClick={() => setInput("What should I train today?")}
-              className="px-4 py-2 text-sm bg-white border border-gray-200 text-gray-600 rounded-full hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all font-medium shadow-sm"
+              className="px-4 py-2 text-sm bg-white border border-grey-200 text-grey-600 rounded-full hover:bg-primary-50 hover:text-primary-600 hover:border-primary-200 transition-all font-medium shadow-sm"
             >
               💪 Get workout advice
             </button>
@@ -553,9 +553,9 @@ export default function Chat() {
 
       {/* Debug Panel */}
       {debugInfo && (
-        <details className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-          <summary className="cursor-pointer font-medium text-gray-700">Debug Info</summary>
-          <pre className="mt-2 text-xs text-gray-600 overflow-auto">
+        <details className="bg-grey-50 border border-grey-200 rounded-xl p-4">
+          <summary className="cursor-pointer font-medium text-grey-700">Debug Info</summary>
+          <pre className="mt-2 text-xs text-grey-600 overflow-auto">
             {JSON.stringify(debugInfo, null, 2)}
           </pre>
         </details>

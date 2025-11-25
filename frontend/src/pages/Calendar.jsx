@@ -25,7 +25,7 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
   const handleEditWorkout = (workout) => {
     if (!workout || !workout.date) return;
     const workoutDate = parseISO(workout.date);
-    if(isValid(workoutDate)) {
+    if (isValid(workoutDate)) {
       setEditingWorkout(workout);
       setSelectedDate(workoutDate);
       setShowWorkoutModal(true);
@@ -88,7 +88,7 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
   };
 
   const getWorkoutPlanInfo = (workout) => {
-    const plan = activePlans.find(plan => 
+    const plan = activePlans.find(plan =>
       plan.linked_workouts?.some(pw => pw.workout_id === workout.id)
     );
     return plan ? { id: plan.id, name: plan.name, color: getPlanColor(plan.id) } : null;
@@ -143,39 +143,38 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
   };
 
   const dates = getDateRange();
-  
+
   if (view === 'day') {
     const { actual } = getDayData(currentDate);
     const isCurrentDay = isToday(currentDate);
-    
+
     return (
       <>
-        <div className="apple-card p-6">
+        <div className="bg-white rounded-3xl shadow-sm border border-grey-100 p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold" style={{color: 'var(--text-primary)'}}>
+            <h2 className="text-xl font-bold text-grey-900">
               {getViewTitle()}
             </h2>
             <div className="flex items-center gap-2">
-              <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-gray-100">
-                <ChevronLeft className="w-5 h-5" style={{color: 'var(--text-secondary)'}}/>
+              <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-grey-100">
+                <ChevronLeft className="w-5 h-5 text-grey-500" />
               </button>
-              <button onClick={() => navigate(1)} className="p-2 rounded-lg hover:bg-gray-100">
-                <ChevronRight className="w-5 h-5" style={{color: 'var(--text-secondary)'}}/>
+              <button onClick={() => navigate(1)} className="p-2 rounded-lg hover:bg-grey-100">
+                <ChevronRight className="w-5 h-5 text-grey-500" />
               </button>
             </div>
           </div>
 
-          <div 
-            className={`p-6 rounded-xl border-2 min-h-[400px] ${
-              isCurrentDay ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
-            } ${hoveredDate && hoveredDate.getTime() === currentDate.getTime() ? 'border-purple-400 bg-purple-50' : ''}`}
+          <div
+            className={`p-6 rounded-xl border-2 min-h-[400px] ${isCurrentDay ? 'bg-primary-50 border-primary-100' : 'bg-grey-50 border-grey-200'
+              } ${hoveredDate && hoveredDate.getTime() === currentDate.getTime() ? 'border-secondary-400 bg-secondary-50' : ''}`}
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, currentDate)}
             onDragEnter={() => setHoveredDate(currentDate)}
             onDragLeave={() => setHoveredDate(null)}
           >
             <div className="flex justify-between items-center mb-4">
-              <h3 className={`text-lg font-semibold ${isCurrentDay ? 'text-red-600' : 'text-gray-900'}`}>
+              <h3 className={`text-lg font-semibold ${isCurrentDay ? 'text-primary-500' : 'text-grey-900'}`}>
                 {format(currentDate, 'EEEE, MMMM d')}
                 {isCurrentDay && <span className="ml-2 text-sm font-normal">(Today)</span>}
               </h3>
@@ -191,13 +190,13 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
               {actual.length > 0 ? actual.map((workout, idx) => {
                 const planInfo = getWorkoutPlanInfo(workout);
                 const isProgression = isProgressionWorkout(workout, planInfo);
-                
+
                 return (
                   <div key={idx} className="group relative">
-                    <div 
+                    <div
                       draggable
                       onDragStart={(e) => handleDragStart(e, workout)}
-                      className="p-4 rounded-lg text-sm bg-white border cursor-move hover:shadow-md transition-all border-blue-200 group-hover:border-blue-400"
+                      className="p-4 rounded-lg text-sm bg-white border cursor-move hover:shadow-md transition-all border-secondary-200 group-hover:border-secondary-400"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleEditWorkout(workout);
@@ -205,7 +204,7 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <p className="font-bold text-lg mb-1" style={{color: 'var(--text-primary)'}}>
+                          <p className="font-bold text-lg mb-1 text-grey-900">
                             {workout.title}
                             {isProgression && (
                               <span className="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
@@ -216,9 +215,9 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
                           {planInfo && (
                             <div className="flex items-center gap-2 mb-2">
                               <div className={`w-3 h-3 rounded-full ${planInfo.color}`}></div>
-                              <Link 
-                                to={createPageUrl(`Plans`)} 
-                                className="text-sm text-purple-600 hover:underline font-medium"
+                              <Link
+                                to={createPageUrl(`Plans`)}
+                                className="text-sm text-secondary-600 hover:underline font-medium"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 {planInfo.name}
@@ -227,7 +226,7 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
                           )}
                         </div>
                       </div>
-                      
+
                       <p className="text-sm opacity-75 mb-2">
                         {workout.exercises?.length || 0} exercises • {workout.duration_minutes}min
                       </p>
@@ -247,14 +246,14 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
                         e.stopPropagation();
                         onDeleteWorkout(workout.id);
                       }}
-                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white text-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-primary-500 text-white text-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       ×
                     </button>
                   </div>
                 );
               }) : (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-grey-500">
                   <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
                   <p>No workouts scheduled for this day</p>
                   <button
@@ -286,24 +285,24 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
 
   if (view === 'week') {
     const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    
+
     return (
       <>
-        <div className="apple-card p-6">
+        <div className="bg-white rounded-3xl shadow-sm border border-grey-100 p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold" style={{color: 'var(--text-primary)'}}>
+            <h2 className="text-xl font-bold text-grey-900">
               {getViewTitle()}
             </h2>
             <div className="flex items-center gap-2">
-              <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-gray-100">
-                <ChevronLeft className="w-5 h-5" style={{color: 'var(--text-secondary)'}}/>
+              <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-grey-100">
+                <ChevronLeft className="w-5 h-5 text-grey-500" />
               </button>
-              <button onClick={() => navigate(1)} className="p-2 rounded-lg hover:bg-gray-100">
-                <ChevronRight className="w-5 h-5" style={{color: 'var(--text-secondary)'}}/>
+              <button onClick={() => navigate(1)} className="p-2 rounded-lg hover:bg-grey-100">
+                <ChevronRight className="w-5 h-5 text-grey-500" />
               </button>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-7 gap-2">
             {dates.map((day, index) => {
               const { actual } = getDayData(day);
@@ -313,24 +312,21 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
               return (
                 <div key={index} className="space-y-2">
                   <div className="text-center">
-                    <div className="text-xs font-medium" style={{color: 'var(--text-secondary)'}}>
+                    <div className="text-xs font-medium text-grey-500">
                       {weekDays[index]}
                     </div>
-                    <div 
-                      className={`text-lg font-bold p-2 rounded-full w-10 h-10 mx-auto flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors ${
-                        isCurrentDay ? 'bg-red-500 text-white' : ''
-                      }`}
-                      style={isCurrentDay ? {} : {color: 'var(--text-primary)'}}
+                    <div
+                      className={`text-lg font-bold p-2 rounded-full w-10 h-10 mx-auto flex items-center justify-center cursor-pointer hover:bg-grey-100 transition-colors ${isCurrentDay ? 'bg-primary-500 text-white' : 'text-grey-900'
+                        }`}
                       onClick={() => handleDateClick(day)}
                     >
                       {format(day, 'd')}
                     </div>
                   </div>
 
-                  <div 
-                    className={`bg-gray-50 rounded-lg p-2 min-h-[120px] cursor-pointer hover:bg-gray-100 transition-colors ${
-                      isCurrentDay ? 'ring-2 ring-red-300' : ''
-                    } ${isDragTarget ? 'ring-2 ring-purple-400 bg-purple-50' : ''}`}
+                  <div
+                    className={`bg-grey-50 rounded-lg p-2 min-h-[120px] cursor-pointer hover:bg-grey-100 transition-colors ${isCurrentDay ? 'ring-2 ring-primary-100' : ''
+                      } ${isDragTarget ? 'ring-2 ring-secondary-400 bg-secondary-50' : ''}`}
                     onClick={() => handleDateClick(day)}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, day)}
@@ -341,13 +337,13 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
                       {actual.slice(0, 2).map((workout, idx) => {
                         const planInfo = getWorkoutPlanInfo(workout);
                         const isProgression = isProgressionWorkout(workout, planInfo);
-                        
+
                         return (
                           <div key={idx} className="group relative">
-                            <div 
+                            <div
                               draggable
                               onDragStart={(e) => handleDragStart(e, workout)}
-                              className="p-2 rounded bg-white border cursor-move hover:shadow-sm border-blue-200 text-xs"
+                              className="p-2 rounded bg-white border cursor-move hover:shadow-sm border-secondary-200 text-xs"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleEditWorkout(workout);
@@ -355,7 +351,7 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
                             >
                               <div className="flex items-center gap-1 mb-1">
                                 {planInfo && <div className={`w-2 h-2 rounded-full ${planInfo.color}`}></div>}
-                                <p className="font-bold truncate flex-1" style={{color: 'var(--text-primary)'}}>
+                                <p className="font-bold truncate flex-1 text-grey-900">
                                   {workout.title}
                                 </p>
                                 {isProgression && <span className="text-green-600">📈</span>}
@@ -364,7 +360,7 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
                                 {workout.exercises?.length || 0} exercises
                               </p>
                               {planInfo && (
-                                <p className="text-xs text-purple-600 truncate mt-1">
+                                <p className="text-xs text-secondary-600 truncate mt-1">
                                   {planInfo.name}
                                 </p>
                               )}
@@ -374,7 +370,7 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
                                 e.stopPropagation();
                                 onDeleteWorkout(workout.id);
                               }}
-                              className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="absolute -top-1 -right-1 w-4 h-4 bg-primary-500 text-white text-xs rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               ×
                             </button>
@@ -382,7 +378,7 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
                         );
                       })}
                       {actual.length > 2 && (
-                        <div className="text-xs text-gray-500 text-center">
+                        <div className="text-xs text-grey-500 text-center">
                           +{actual.length - 2} more
                         </div>
                       )}
@@ -392,7 +388,7 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
               );
             })}
           </div>
-        </div>
+        </div >
 
         {showWorkoutModal && (
           <WorkoutSelectionModal
@@ -404,7 +400,8 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
             editingWorkout={editingWorkout}
             onApplyWorkout={handleApplyWorkout}
           />
-        )}
+        )
+        }
       </>
     );
   }
@@ -414,24 +411,24 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
 
   return (
     <>
-      <div className="apple-card p-6">
+      <div className="bg-white rounded-3xl shadow-sm border border-grey-100 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold" style={{color: 'var(--text-primary)'}}>
+          <h2 className="text-xl font-bold text-grey-900">
             {getViewTitle()}
           </h2>
           <div className="flex items-center gap-2">
-            <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-gray-100">
-              <ChevronLeft className="w-5 h-5" style={{color: 'var(--text-secondary)'}}/>
+            <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-grey-100">
+              <ChevronLeft className="w-5 h-5 text-grey-500" />
             </button>
-            <button onClick={() => navigate(1)} className="p-2 rounded-lg hover:bg-gray-100">
-              <ChevronRight className="w-5 h-5" style={{color: 'var(--text-secondary)'}}/>
+            <button onClick={() => navigate(1)} className="p-2 rounded-lg hover:bg-grey-100">
+              <ChevronRight className="w-5 h-5 text-grey-500" />
             </button>
           </div>
         </div>
-        
-        <div className="grid grid-cols-7 gap-px" style={{backgroundColor: 'var(--separator)'}}>
+
+        <div className="grid grid-cols-7 gap-px bg-grey-200 border border-grey-200 rounded-lg overflow-hidden">
           {weekDays.map(day => (
-            <div key={day} className="py-2 text-center text-xs font-bold" style={{color: 'var(--text-secondary)', backgroundColor: 'var(--card-background)'}}>
+            <div key={day} className="py-2 text-center text-xs font-bold text-grey-500 bg-white">
               {day}
             </div>
           ))}
@@ -440,39 +437,37 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
             const isCurrentMonth = day.getMonth() === currentDate.getMonth();
             const isCurrentDay = isToday(day);
             const isDragTarget = hoveredDate && hoveredDate.getTime() === day.getTime();
-            
+
             return (
-              <div 
-                key={i} 
-                className={`p-2 min-h-[120px] cursor-pointer hover:bg-gray-50 transition-colors ${
-                  isCurrentMonth ? (isCurrentDay ? 'bg-red-50 border-2 border-red-200' : 'bg-white') : 'bg-gray-50'
-                } ${isDragTarget ? 'bg-purple-50 border-2 border-purple-300' : ''}`}
+              <div
+                key={i}
+                className={`p-2 min-h-[120px] cursor-pointer hover:bg-grey-50 transition-colors ${isCurrentMonth ? (isCurrentDay ? 'bg-primary-50 border-2 border-primary-100' : 'bg-white') : 'bg-grey-50'
+                  } ${isDragTarget ? 'bg-secondary-50 border-2 border-secondary-300' : ''}`}
                 onClick={() => handleDateClick(day)}
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, day)}
                 onDragEnter={() => setHoveredDate(day)}
                 onDragLeave={() => setHoveredDate(null)}
               >
-                <span className={`text-sm font-medium ${
-                  isCurrentMonth ? 
-                    (isCurrentDay ? 'text-red-600 font-bold' : 'text-gray-900') : 
-                    'text-gray-400'
-                }`}>
+                <span className={`text-sm font-medium ${isCurrentMonth ?
+                  (isCurrentDay ? 'text-primary-500 font-bold' : 'text-grey-900') :
+                  'text-grey-400'
+                  }`}>
                   {format(day, 'd')}
                   {isCurrentDay && <span className="text-xs ml-1">(Today)</span>}
                 </span>
-                
+
                 <div className="mt-1 space-y-1">
                   {actual.slice(0, 3).map((workout, idx) => {
                     const planInfo = getWorkoutPlanInfo(workout);
                     const isProgression = isProgressionWorkout(workout, planInfo);
-                    
+
                     return (
                       <div key={idx} className="group relative">
-                        <div 
+                        <div
                           draggable
                           onDragStart={(e) => handleDragStart(e, workout)}
-                          className="p-2 rounded-lg text-xs bg-white border cursor-move hover:shadow-sm border-blue-200"
+                          className="p-2 rounded-lg text-xs bg-white border cursor-move hover:shadow-sm border-secondary-200"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleEditWorkout(workout);
@@ -480,7 +475,7 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
                         >
                           <div className="flex items-center gap-1 mb-1">
                             {planInfo && <div className={`w-2 h-2 rounded-full ${planInfo.color}`}></div>}
-                            <p className="font-bold truncate text-xs flex-1" style={{color: 'var(--text-primary)'}}>
+                            <p className="font-bold truncate text-xs flex-1 text-grey-900">
                               {workout.title}
                               {isProgression && <span className="ml-1 text-green-600">📈</span>}
                             </p>
@@ -489,7 +484,7 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
                             {workout.exercises?.length || 0} exercises • {workout.duration_minutes}min
                           </p>
                           {planInfo && (
-                            <p className="text-xs text-purple-600 truncate">
+                            <p className="text-xs text-secondary-600 truncate">
                               {planInfo.name}
                             </p>
                           )}
@@ -509,7 +504,7 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
                             e.stopPropagation();
                             onDeleteWorkout(workout.id);
                           }}
-                          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute -top-1 -right-1 w-5 h-5 bg-primary-500 text-white text-xs rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           ×
                         </button>
@@ -517,7 +512,7 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
                     );
                   })}
                   {actual.length > 3 && (
-                    <div className="text-xs text-gray-500 text-center">
+                    <div className="text-xs text-grey-500 text-center">
                       +{actual.length - 3} more
                     </div>
                   )}
@@ -565,33 +560,33 @@ export default function CalendarPage() {
         Discipline.list(),
         Workout.list("-date", 100)
       ]);
-      
+
       setActivePlans(plans || []);
       if (trainingPlans && trainingPlans.length > 0) setCurrentPlan(trainingPlans[0]);
       setDisciplines(disciplineData || []);
-      
+
       // Filter out invalid/placeholder workouts and add plan info
-      const validWorkouts = (workoutData || []).filter(workout => 
-        workout.exercises && 
-        workout.exercises.length > 0 && 
-        workout.title && 
+      const validWorkouts = (workoutData || []).filter(workout =>
+        workout.exercises &&
+        workout.exercises.length > 0 &&
+        workout.title &&
         workout.title.trim() !== "" &&
         workout.title !== "Strength Session" &&
         !workout.title.includes("Planned")
       ).map(workout => {
         // Check if this workout is linked to any active plan
-        const linkedPlan = plans.find(plan => 
-          plan.linked_workouts?.some(pw => 
+        const linkedPlan = plans.find(plan =>
+          plan.linked_workouts?.some(pw =>
             pw.workout_id === workout.id && pw.workout_type === 'scheduled'
           )
         );
-        
+
         return {
           ...workout,
           linkedPlan: linkedPlan ? { id: linkedPlan.id, name: linkedPlan.name } : null
         };
       });
-      
+
       setWorkouts(validWorkouts);
     } catch (error) {
       console.error("Error loading calendar data:", error);
@@ -620,15 +615,15 @@ export default function CalendarPage() {
 
   const handleDeleteWorkout = async (workoutId) => {
     if (!confirm("Are you sure you want to delete this workout?")) return;
-    
+
     try {
       await Workout.delete(workoutId);
-      
+
       // Also remove from any linked plans
       for (const plan of activePlans) {
         if (plan.linked_workouts?.some(pw => pw.workout_id === workoutId)) {
           const updatedWorkouts = plan.linked_workouts.filter(pw => pw.workout_id !== workoutId);
-          await Plan.update(plan.id, { 
+          await Plan.update(plan.id, {
             linked_workouts: updatedWorkouts,
             progress_metrics: {
               ...plan.progress_metrics,
@@ -637,7 +632,7 @@ export default function CalendarPage() {
           });
         }
       }
-      
+
       loadData(); // Refresh the calendar
     } catch (error) {
       console.error("Error deleting workout:", error);
@@ -648,21 +643,21 @@ export default function CalendarPage() {
   const handleRescheduleWorkout = async (workoutId, newDate) => {
     try {
       await Workout.update(workoutId, { date: newDate });
-      
+
       // Also update the plan if this workout is linked to a plan
       const workout = workouts.find(w => w.id === workoutId);
       if (workout?.linkedPlan) {
         const plan = activePlans.find(p => p.id === workout.linkedPlan.id);
         if (plan) {
-          const updatedWorkouts = plan.linked_workouts.map(pw => 
-            pw.workout_id === workoutId 
+          const updatedWorkouts = plan.linked_workouts.map(pw =>
+            pw.workout_id === workoutId
               ? { ...pw, scheduled_date: newDate }
               : pw
           );
           await Plan.update(plan.id, { linked_workouts: updatedWorkouts });
         }
       }
-      
+
       loadData();
     } catch (error) {
       console.error("Error rescheduling workout:", error);
@@ -676,84 +671,57 @@ export default function CalendarPage() {
   const openAICoach = (prompt) => {
     document.dispatchEvent(new CustomEvent('open-ai-chat', { detail: { prompt } }));
   }
-  
+
   if (isLoading) {
     return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded-lg"></div></div>;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold" style={{color: 'var(--text-primary)'}}>Calendar</h1>
-          <p className="text-lg" style={{color: 'var(--text-secondary)'}}>
-            Your training schedule with full workout details.
-          </p>
-          {activePlans.length > 0 && (
-            <div className="flex items-center gap-2 mt-2">
-              <FileText className="w-4 h-4 text-purple-600" />
-              <span className="text-sm text-purple-600 font-medium">
-                {activePlans.length} active plan{activePlans.length !== 1 ? 's' : ''}
-              </span>
-            </div>
-          )}
+      {/* Figma-style Header */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-grey-100">
+        <div className="flex items-center bg-grey-100 p-1.5 rounded-xl">
+          {['Day', 'Week', 'Month'].map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v.toLowerCase())}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${view === v.toLowerCase()
+                ? 'bg-white text-grey-900 shadow-sm'
+                : 'text-grey-500 hover:text-grey-900'
+                }`}
+            >
+              {v === 'Day' && <CalendarDays className="w-4 h-4" />}
+              {v === 'Week' && <CalendarRange className="w-4 h-4" />}
+              {v === 'Month' && <Calendar className="w-4 h-4" />}
+              {v}
+            </button>
+          ))}
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* View Selector */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setView('day')}
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
-                view === 'day' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <Calendar className="w-4 h-4" />
-              Day
-            </button>
-            <button
-              onClick={() => setView('week')}
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
-                view === 'week' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <CalendarDays className="w-4 h-4" />
-              Week
-            </button>
-            <button
-              onClick={() => setView('month')}
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
-                view === 'month' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <CalendarRange className="w-4 h-4" />
-              Month
-            </button>
-          </div>
-
-          {/* Today Button */}
+        <div className="flex items-center gap-6">
           <button
             onClick={goToToday}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+            className="px-8 py-2.5 bg-primary-500 text-white rounded-full font-bold hover:bg-primary-400 transition-colors shadow-sm text-sm"
           >
             Today
           </button>
 
-          <Link to={createPageUrl("Plans")}>
-            <button className="apple-button-secondary flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Plans
-            </button>
+          <Link to={createPageUrl("Plans")} className="flex items-center gap-2 text-grey-900 font-bold hover:text-grey-700 text-sm">
+            <FileText className="w-5 h-5" />
+            Plans
           </Link>
 
-          <button onClick={() => openAICoach('I want to create a new plan.')} className="apple-button-secondary flex items-center gap-2">
-            <Plus className="w-4 h-4" />
+          <button
+            onClick={() => openAICoach('I want to create a new plan.')}
+            className="flex items-center gap-2 text-grey-900 font-bold hover:text-grey-700 text-sm"
+          >
+            <Plus className="w-5 h-5" />
             Plan with AI
           </button>
         </div>
       </div>
 
-      <CalendarView 
+      <CalendarView
         workouts={workouts}
         activePlans={activePlans}
         view={view}
@@ -766,16 +734,16 @@ export default function CalendarPage() {
       />
 
       {workouts.length === 0 && !isLoading && (
-        <div className="apple-card p-12 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-            <Calendar className="w-8 h-8" style={{color: 'var(--text-secondary)'}} />
+        <div className="bg-white rounded-3xl shadow-sm border border-grey-100 p-12 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 bg-grey-100 rounded-full flex items-center justify-center">
+            <Calendar className="w-8 h-8 text-grey-500" />
           </div>
-          <h3 className="text-xl font-semibold mb-2" style={{color: 'var(--text-primary)'}}>No Workouts Scheduled</h3>
-          <p className="mb-6" style={{color: 'var(--text-secondary)'}}>
+          <h3 className="text-xl font-semibold mb-2 text-grey-900">No Workouts Scheduled</h3>
+          <p className="mb-6 text-grey-500">
             Click on any date to add a workout, or use the AI Coach to create a plan.
           </p>
-          <button onClick={() => openAICoach('Help me create a workout plan.')} className="apple-button-primary">Go to AI Coach</button>
-          
+          <button onClick={() => openAICoach('Help me create a workout plan.')} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors">Go to AI Coach</button>
+
           {/* Test button */}
         </div>
       )}
