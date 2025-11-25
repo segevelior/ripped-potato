@@ -1,5 +1,5 @@
 """
-Simplified Agent Orchestrator - Just OpenAI with function calling
+Enhanced Agent Orchestrator - OpenAI with comprehensive fitness tools
 """
 
 import json
@@ -8,7 +8,7 @@ from openai import AsyncOpenAI
 import structlog
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.config import get_settings
 from app.core.agents.data_reader import DataReaderAgent
@@ -17,8 +17,8 @@ logger = structlog.get_logger()
 
 
 class AgentOrchestrator:
-    """Simple orchestrator using OpenAI function calling"""
-    
+    """Enhanced orchestrator with comprehensive fitness management tools"""
+
     def __init__(self, db: AsyncIOMotorDatabase, redis_client=None):
         self.db = db
         self.settings = get_settings()
@@ -26,43 +26,78 @@ class AgentOrchestrator:
         self.data_reader = DataReaderAgent(db)
         
     def get_tools(self) -> List[Dict[str, Any]]:
-        """Define available tools for the LLM"""
+        """Define available tools for the LLM - comprehensive fitness management"""
         return [
+            # ==================== EXERCISE TOOLS ====================
             {
                 "type": "function",
                 "function": {
                     "name": "add_exercise",
-                    "description": "Add a new exercise to the user's exercise database",
+                    "description": "Add a new exercise to the user's personal exercise library. Use this when a user mentions they can do an exercise or wants to track a specific movement.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "name": {
                                 "type": "string",
-                                "description": "Exercise name (e.g., 'Muscle Ups', 'Dips', 'Pull-ups')"
+                                "description": "Exercise name (e.g., 'Muscle Ups', 'Weighted Dips', 'Archer Pull-ups')"
                             },
                             "muscles": {
                                 "type": "array",
                                 "items": {"type": "string"},
                                 "description": "Primary muscles worked (e.g., ['Chest', 'Triceps', 'Shoulders'])"
                             },
+                            "secondaryMuscles": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Secondary muscles involved (e.g., ['Core', 'Forearms'])"
+                            },
                             "discipline": {
                                 "type": "array",
                                 "items": {"type": "string"},
-                                "description": "Disciplines (e.g., ['Calisthenics', 'Strength Training'])"
+                                "description": "Training disciplines (e.g., ['Calisthenics', 'Strength Training', 'Powerlifting'])"
                             },
                             "difficulty": {
                                 "type": "string",
                                 "enum": ["beginner", "intermediate", "advanced"],
-                                "description": "Difficulty level"
+                                "description": "Difficulty level based on strength/skill requirements"
                             },
                             "equipment": {
                                 "type": "array",
                                 "items": {"type": "string"},
-                                "description": "Equipment needed (e.g., ['Pull-up Bar', 'Dip Bars'] or ['None'])"
+                                "description": "Equipment needed (e.g., ['Pull-up Bar', 'Dip Bars', 'Rings'] or [] for bodyweight)"
                             },
                             "description": {
                                 "type": "string",
-                                "description": "Description of the exercise"
+                                "description": "Brief description of the exercise and its benefits"
+                            },
+                            "instructions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Step-by-step instructions for proper form"
+                            },
+                            "strain": {
+                                "type": "object",
+                                "properties": {
+                                    "intensity": {
+                                        "type": "string",
+                                        "enum": ["low", "moderate", "high", "max"],
+                                        "description": "How demanding the exercise is"
+                                    },
+                                    "load": {
+                                        "type": "string",
+                                        "enum": ["bodyweight", "light", "moderate", "heavy"],
+                                        "description": "Typical loading pattern"
+                                    },
+                                    "durationType": {
+                                        "type": "string",
+                                        "enum": ["reps", "time", "distance"],
+                                        "description": "How the exercise is measured"
+                                    },
+                                    "typicalVolume": {
+                                        "type": "string",
+                                        "description": "Typical volume (e.g., '3x8', '30 seconds', '5x5')"
+                                    }
+                                }
                             }
                         },
                         "required": ["name", "muscles", "discipline", "difficulty"]
@@ -72,124 +107,454 @@ class AgentOrchestrator:
             {
                 "type": "function",
                 "function": {
-                    "name": "create_workout",
-                    "description": "Create a new workout plan. The system will automatically check for existing exercises and create any missing ones.",
+                    "name": "list_exercises",
+                    "description": "Search and list available exercises from the database. Use this to find specific exercises by name or filter by muscle group, discipline, or difficulty.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "name": {
                                 "type": "string",
-                                "description": "Workout name (e.g., 'Upper Body Strength', 'HIIT Cardio')"
+                                "description": "Search by exercise name (e.g., 'toes to bar', 'pull-up', 'muscle up')"
                             },
-                            "exercises": {
+                            "muscle": {
+                                "type": "string",
+                                "description": "Filter by muscle group (e.g., 'Chest', 'Back', 'Legs', 'Core')"
+                            },
+                            "discipline": {
+                                "type": "string",
+                                "description": "Filter by discipline (e.g., 'Calisthenics', 'Strength Training')"
+                            },
+                            "difficulty": {
+                                "type": "string",
+                                "enum": ["beginner", "intermediate", "advanced"],
+                                "description": "Filter by difficulty level"
+                            },
+                            "equipment": {
+                                "type": "string",
+                                "description": "Filter by required equipment"
+                            },
+                            "include_common": {
+                                "type": "boolean",
+                                "description": "Include common/public exercises (default: true)"
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "description": "Maximum number of results (default: 20)"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "grep_exercises",
+                    "description": "Fast pattern-matching search across ALL exercises available to the user (both common/public exercises and user's custom exercises). Use this to find exercises by name patterns, or check which exercises from a list exist. Supports regex patterns, fuzzy matching, and bulk searching. Returns matches sorted by relevance, plus similar exercises if no exact match found.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "patterns": {
                                 "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of search patterns (regex supported). Examples: ['pull.?up', 'dip', 'squat', 'hollow.*hold'] or exact names ['Pull-Ups', 'Dips']"
+                            },
+                            "output_mode": {
+                                "type": "string",
+                                "enum": ["matches", "missing", "both"],
+                                "description": "Output mode: 'matches' (only found), 'missing' (only not found), 'both' (default). Use 'both' to also get similar exercises when exact match not found."
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "description": "Max results per pattern (default: 5)"
+                            }
+                        },
+                        "required": ["patterns"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "grep_workouts",
+                    "description": "Fast pattern-matching search across ALL workout templates available to the user (both common/public and user's custom workouts). Use this to find workouts by name or goal patterns. Supports regex patterns and bulk searching.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "patterns": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of search patterns (regex supported). Examples: ['upper.*body', 'push', 'endurance']"
+                            },
+                            "search_fields": {
+                                "type": "array",
+                                "items": {"type": "string", "enum": ["name", "goal", "tags"]},
+                                "description": "Fields to search in (default: ['name', 'goal'])"
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "description": "Max results per pattern (default: 5)"
+                            }
+                        },
+                        "required": ["patterns"]
+                    }
+                }
+            },
+            # ==================== WORKOUT TEMPLATE TOOLS ====================
+            {
+                "type": "function",
+                "function": {
+                    "name": "create_workout_template",
+                    "description": "Create a reusable workout template (PredefinedWorkout) that can be used in training plans. Workouts are organized into blocks (Warm-up, Main Work, Finisher, etc.).",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Workout template name (e.g., 'Upper Body Push Day', 'Full Body Strength')"
+                            },
+                            "goal": {
+                                "type": "string",
+                                "description": "Primary goal of the workout (e.g., 'Build upper body pushing strength')"
+                            },
+                            "primary_disciplines": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Training disciplines (e.g., ['Calisthenics', 'Strength Training'])"
+                            },
+                            "estimated_duration": {
+                                "type": "integer",
+                                "description": "Estimated duration in minutes"
+                            },
+                            "difficulty_level": {
+                                "type": "string",
+                                "enum": ["beginner", "intermediate", "advanced"],
+                                "description": "Overall difficulty level"
+                            },
+                            "blocks": {
+                                "type": "array",
+                                "description": "Workout blocks (sections) containing exercises",
                                 "items": {
                                     "type": "object",
                                     "properties": {
                                         "name": {
                                             "type": "string",
-                                            "description": "Exercise name (e.g., 'Push-ups', 'Squats')"
+                                            "description": "Block name (e.g., 'Warm-up', 'Main Work', 'Finisher', 'Cool-down')"
                                         },
-                                        "sets": {
-                                            "type": "integer",
-                                            "description": "Number of sets (default: 3)"
-                                        },
-                                        "reps": {
-                                            "type": "integer",
-                                            "description": "Number of reps per set (default: 10)"
-                                        },
-                                        "weight": {
-                                            "type": "number",
-                                            "description": "Weight in kg (optional)"
-                                        },
-                                        "duration": {
-                                            "type": "integer",
-                                            "description": "Duration in seconds for time-based exercises (optional)"
-                                        },
-                                        "restTime": {
-                                            "type": "integer",
-                                            "description": "Rest time between sets in seconds (default: 60)"
-                                        },
-                                        "muscles": {
+                                        "exercises": {
                                             "type": "array",
-                                            "items": {"type": "string"},
-                                            "description": "Target muscles (used if exercise needs to be created)"
-                                        },
-                                        "equipment": {
-                                            "type": "array",
-                                            "items": {"type": "string"},
-                                            "description": "Required equipment (used if exercise needs to be created)"
-                                        },
-                                        "notes": {
-                                            "type": "string",
-                                            "description": "Additional notes or instructions"
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "exercise_name": {
+                                                        "type": "string",
+                                                        "description": "Name of the exercise"
+                                                    },
+                                                    "volume": {
+                                                        "type": "string",
+                                                        "description": "Sets x reps or time (e.g., '3x10', '4x8', '30s', 'AMRAP')"
+                                                    },
+                                                    "rest": {
+                                                        "type": "string",
+                                                        "description": "Rest period (e.g., '60s', '90-120s', '2-3 min')"
+                                                    },
+                                                    "notes": {
+                                                        "type": "string",
+                                                        "description": "Form cues or special instructions"
+                                                    }
+                                                },
+                                                "required": ["exercise_name", "volume"]
+                                            }
                                         }
                                     },
-                                    "required": ["name"]
-                                },
-                                "description": "List of exercises. System will match existing exercises by name or create new ones."
+                                    "required": ["name", "exercises"]
+                                }
                             },
-                            "duration": {
-                                "type": "integer",
-                                "description": "Estimated duration in minutes (default: 45)"
-                            },
-                            "description": {
-                                "type": "string",
-                                "description": "Workout description"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["strength", "cardio", "hiit", "flexibility", "mixed"],
-                                "description": "Type of workout (default: strength)"
+                            "tags": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Tags for categorization (e.g., ['push', 'upper-body', 'strength'])"
                             }
                         },
-                        "required": ["name", "exercises"]
+                        "required": ["name", "estimated_duration", "difficulty_level", "blocks"]
                     }
                 }
             },
             {
                 "type": "function",
                 "function": {
-                    "name": "create_goal",
-                    "description": "Create a fitness goal",
+                    "name": "list_workout_templates",
+                    "description": "List available workout templates (PredefinedWorkouts) that can be used in training plans.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "discipline": {
+                                "type": "string",
+                                "description": "Filter by discipline"
+                            },
+                            "difficulty_level": {
+                                "type": "string",
+                                "enum": ["beginner", "intermediate", "advanced"]
+                            },
+                            "include_common": {
+                                "type": "boolean",
+                                "description": "Include common/public templates (default: true)"
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "description": "Maximum results (default: 10)"
+                            }
+                        }
+                    }
+                }
+            },
+            # ==================== WORKOUT LOG TOOLS ====================
+            {
+                "type": "function",
+                "function": {
+                    "name": "log_workout",
+                    "description": "Log a completed or planned workout to the user's workout history. Use this to record actual training sessions with sets, reps, weights, and RPE.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "title": {
+                                "type": "string",
+                                "description": "Workout title (e.g., 'Morning Push Session', 'Leg Day')"
+                            },
+                            "date": {
+                                "type": "string",
+                                "description": "Workout date in ISO format (defaults to today)"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["strength", "cardio", "hybrid", "recovery", "hiit"],
+                                "description": "Type of workout"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["planned", "in_progress", "completed", "skipped"],
+                                "description": "Workout status (default: completed)"
+                            },
+                            "durationMinutes": {
+                                "type": "integer",
+                                "description": "Actual duration in minutes"
+                            },
+                            "exercises": {
+                                "type": "array",
+                                "description": "Exercises performed with actual results",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "exerciseName": {
+                                            "type": "string",
+                                            "description": "Name of the exercise"
+                                        },
+                                        "sets": {
+                                            "type": "array",
+                                            "description": "Individual sets performed",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "targetReps": {"type": "integer"},
+                                                    "actualReps": {"type": "integer"},
+                                                    "weight": {"type": "number", "description": "Weight in kg"},
+                                                    "time": {"type": "integer", "description": "Duration in seconds"},
+                                                    "rpe": {"type": "number", "description": "Rate of Perceived Exertion (1-10)"},
+                                                    "restSeconds": {"type": "integer"},
+                                                    "notes": {"type": "string"}
+                                                }
+                                            }
+                                        },
+                                        "notes": {"type": "string"}
+                                    },
+                                    "required": ["exerciseName", "sets"]
+                                }
+                            },
+                            "notes": {
+                                "type": "string",
+                                "description": "General workout notes"
+                            },
+                            "planId": {
+                                "type": "string",
+                                "description": "Link to training plan if this workout is part of a plan"
+                            }
+                        },
+                        "required": ["title", "type", "exercises"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_workout_history",
+                    "description": "Get the user's recent workout history to analyze progress and patterns.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "days": {
+                                "type": "integer",
+                                "description": "Number of days to look back (default: 30)"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["strength", "cardio", "hybrid", "recovery", "hiit"],
+                                "description": "Filter by workout type"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["planned", "in_progress", "completed", "skipped"],
+                                "description": "Filter by status"
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "description": "Maximum results (default: 10)"
+                            }
+                        }
+                    }
+                }
+            },
+            # ==================== TRAINING PLAN TOOLS ====================
+            {
+                "type": "function",
+                "function": {
+                    "name": "create_plan",
+                    "description": "Create a new multi-week training plan for the user. Plans contain weekly workout schedules that can reference workout templates or define custom workouts.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "name": {
                                 "type": "string",
-                                "description": "Goal name (e.g., 'Learn Handstand', 'Do 10 Pull-ups')"
+                                "description": "Plan name (e.g., '8-Week Strength Program', 'Beginner Calisthenics Journey')"
                             },
-                            "category": {
+                            "description": {
                                 "type": "string",
-                                "enum": ["skill", "performance", "endurance", "strength"],
-                                "description": "Goal category"
+                                "description": "Plan description and goals"
                             },
-                            "target": {
-                                "type": "number",
-                                "description": "Target value if applicable"
+                            "goalId": {
+                                "type": "string",
+                                "description": "Link to a fitness goal this plan supports"
+                            },
+                            "schedule": {
+                                "type": "object",
+                                "description": "Plan schedule configuration",
+                                "properties": {
+                                    "weeksTotal": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 52,
+                                        "description": "Total number of weeks"
+                                    },
+                                    "workoutsPerWeek": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 7,
+                                        "description": "Target workouts per week"
+                                    },
+                                    "restDays": {
+                                        "type": "array",
+                                        "items": {"type": "integer", "minimum": 0, "maximum": 6},
+                                        "description": "Preferred rest days (0=Sunday, 6=Saturday)"
+                                    },
+                                    "preferredWorkoutDays": {
+                                        "type": "array",
+                                        "items": {"type": "integer", "minimum": 0, "maximum": 6},
+                                        "description": "Preferred workout days"
+                                    }
+                                },
+                                "required": ["weeksTotal", "workoutsPerWeek"]
+                            },
+                            "weeks": {
+                                "type": "array",
+                                "description": "Weekly workout definitions",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "weekNumber": {"type": "integer", "minimum": 1},
+                                        "focus": {"type": "string", "description": "Weekly focus (e.g., 'Volume', 'Intensity', 'Deload')"},
+                                        "description": {"type": "string"},
+                                        "deloadWeek": {"type": "boolean", "description": "Is this a deload/recovery week?"},
+                                        "workouts": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "dayOfWeek": {"type": "integer", "minimum": 0, "maximum": 6},
+                                                    "workoutType": {"type": "string", "enum": ["predefined", "custom"]},
+                                                    "predefinedWorkoutId": {"type": "string"},
+                                                    "customWorkout": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "title": {"type": "string"},
+                                                            "type": {"type": "string", "enum": ["strength", "cardio", "hybrid", "recovery", "hiit"]},
+                                                            "durationMinutes": {"type": "integer"},
+                                                            "exercises": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                        "exerciseName": {"type": "string"},
+                                                                        "sets": {
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                    "reps": {"type": "integer"},
+                                                                                    "time": {"type": "integer"},
+                                                                                    "weight": {"type": "number"},
+                                                                                    "restSeconds": {"type": "integer"}
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "notes": {"type": "string"},
+                                                    "isOptional": {"type": "boolean"}
+                                                },
+                                                "required": ["dayOfWeek", "workoutType"]
+                                            }
+                                        }
+                                    },
+                                    "required": ["weekNumber"]
+                                }
+                            },
+                            "settings": {
+                                "type": "object",
+                                "properties": {
+                                    "autoAdvance": {"type": "boolean", "description": "Automatically advance to next week"},
+                                    "allowModifications": {"type": "boolean", "description": "Allow user to modify workouts"},
+                                    "sendReminders": {"type": "boolean"},
+                                    "difficultyAdjustment": {"type": "string", "enum": ["auto", "manual", "none"]}
+                                }
+                            },
+                            "tags": {
+                                "type": "array",
+                                "items": {"type": "string"}
                             }
                         },
-                        "required": ["name", "category"]
+                        "required": ["name", "schedule"]
                     }
                 }
             },
             {
                 "type": "function",
                 "function": {
-                    "name": "update_goal",
-                    "description": "Update an existing fitness goal for the current user",
+                    "name": "list_plans",
+                    "description": "List the user's training plans.",
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "goal_id": {"type": "string", "description": "The ID of the goal to update"},
-                            "name": {"type": "string"},
-                            "target": {"type": "number"},
-                            "current": {"type": "number"},
-                            "deadline": {"type": "string", "description": "ISO date string"},
-                            "description": {"type": "string"},
-                            "isActive": {"type": "boolean"}
-                        },
-                        "required": ["goal_id"]
+                            "status": {
+                                "type": "string",
+                                "enum": ["draft", "active", "paused", "completed", "abandoned"],
+                                "description": "Filter by status"
+                            },
+                            "include_templates": {
+                                "type": "boolean",
+                                "description": "Include plan templates (default: false)"
+                            }
+                        }
                     }
                 }
             },
@@ -197,7 +562,7 @@ class AgentOrchestrator:
                 "type": "function",
                 "function": {
                     "name": "update_plan",
-                    "description": "Update a training plan for the current user (top-level fields and schedule)",
+                    "description": "Update a training plan's details, schedule, or status.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -225,13 +590,13 @@ class AgentOrchestrator:
                 "type": "function",
                 "function": {
                     "name": "add_plan_workout",
-                    "description": "Add a weekly workout to a specific week of a plan",
+                    "description": "Add a workout to a specific week and day in a training plan.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "plan_id": {"type": "string"},
                             "weekNumber": {"type": "integer", "minimum": 1},
-                            "dayOfWeek": {"type": "integer", "minimum": 0, "maximum": 6},
+                            "dayOfWeek": {"type": "integer", "minimum": 0, "maximum": 6, "description": "0=Sunday, 6=Saturday"},
                             "workoutType": {"type": "string", "enum": ["predefined", "custom"]},
                             "predefinedWorkoutId": {"type": "string", "description": "Required if workoutType is 'predefined'"},
                             "customWorkout": {
@@ -245,7 +610,6 @@ class AgentOrchestrator:
                                         "items": {
                                             "type": "object",
                                             "properties": {
-                                                "exerciseId": {"type": "string"},
                                                 "exerciseName": {"type": "string"},
                                                 "sets": {
                                                     "type": "array",
@@ -275,16 +639,107 @@ class AgentOrchestrator:
                 "type": "function",
                 "function": {
                     "name": "remove_plan_workout",
-                    "description": "Remove a weekly workout from a specific week of a plan",
+                    "description": "Remove a workout from a specific week in a training plan.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "plan_id": {"type": "string"},
                             "weekNumber": {"type": "integer", "minimum": 1},
-                            "workoutIndex": {"type": "integer", "description": "Index of the workout to remove within the week's workouts array"},
-                            "weeklyWorkoutId": {"type": "string", "description": "Alternatively, the _id of the weekly workout subdocument"}
+                            "workoutIndex": {"type": "integer", "description": "Index of workout in the week's workouts array"},
+                            "weeklyWorkoutId": {"type": "string", "description": "Or the _id of the workout subdocument"}
                         },
                         "required": ["plan_id", "weekNumber"]
+                    }
+                }
+            },
+            # ==================== GOAL TOOLS ====================
+            {
+                "type": "function",
+                "function": {
+                    "name": "create_goal",
+                    "description": "Create a fitness goal for the user to track progress towards.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Goal name (e.g., 'Achieve 10 Pull-ups', 'Hold Handstand for 30s')"
+                            },
+                            "category": {
+                                "type": "string",
+                                "enum": ["skill", "performance", "endurance", "strength", "weight", "health"],
+                                "description": "Goal category"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Detailed description of the goal"
+                            },
+                            "targetMetrics": {
+                                "type": "object",
+                                "properties": {
+                                    "weight": {"type": "number", "description": "Target weight in kg"},
+                                    "reps": {"type": "integer", "description": "Target reps"},
+                                    "time": {"type": "integer", "description": "Target time in seconds"},
+                                    "distance": {"type": "number", "description": "Target distance in meters"}
+                                }
+                            },
+                            "difficulty": {
+                                "type": "string",
+                                "enum": ["beginner", "intermediate", "advanced", "expert"]
+                            },
+                            "deadline": {
+                                "type": "string",
+                                "description": "Target completion date (ISO format)"
+                            }
+                        },
+                        "required": ["name", "category"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "update_goal",
+                    "description": "Update an existing fitness goal.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "goal_id": {"type": "string", "description": "The ID of the goal to update"},
+                            "name": {"type": "string"},
+                            "description": {"type": "string"},
+                            "targetMetrics": {
+                                "type": "object",
+                                "properties": {
+                                    "weight": {"type": "number"},
+                                    "reps": {"type": "integer"},
+                                    "time": {"type": "integer"},
+                                    "distance": {"type": "number"}
+                                }
+                            },
+                            "deadline": {"type": "string"},
+                            "isActive": {"type": "boolean"}
+                        },
+                        "required": ["goal_id"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "list_goals",
+                    "description": "List the user's fitness goals.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "category": {
+                                "type": "string",
+                                "enum": ["skill", "performance", "endurance", "strength", "weight", "health"]
+                            },
+                            "isActive": {
+                                "type": "boolean",
+                                "description": "Filter by active status"
+                            }
+                        }
                     }
                 }
             }
@@ -292,34 +747,74 @@ class AgentOrchestrator:
     
     async def process_request(self, message: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Process user request with OpenAI function calling"""
-        
+
         user_id = user_context.get("user_id")
-        
+
         # Read user data for context
         logger.info(f"Processing request for user {user_id}")
         data_context = await self.data_reader.process(message, user_context)
-        
-        # Build context string
-        context_str = f"""User has:
-- {len(data_context.get('exercises', []))} exercises
-- {len(data_context.get('workouts', []))} workouts  
-- {len(data_context.get('goals', []))} goals"""
 
-        # System prompt
-        system_prompt = """You are an expert AI fitness coach helping users manage their fitness journey.
+        # Build context string with user profile
+        user_profile = data_context.get("user_profile", {})
+        context_str = f"""USER PROFILE:
+- Fitness Level: {user_profile.get('fitnessLevel', 'not set')}
+- Available Equipment: {', '.join(user_profile.get('equipment', [])) or 'not specified'}
+- Preferred Workout Duration: {user_profile.get('workoutDuration', 'not set')} minutes
+- Workout Days per Week: {len(user_profile.get('workoutDays', []))}
 
-When users ask to add exercises (like "add muscle ups to my exercises"), use add_exercise.
-When they want to create workouts or goals, use create_workout or create_goal.
-When they want to update an existing goal, use update_goal.
-When they want to update a plan's details (name, status, start date, schedule), use update_plan.
-When they want to add or remove weekly workouts in a plan, use add_plan_workout or remove_plan_workout.
-Be conversational and helpful. If a user says they can do an exercise, add it for them."""
+USER DATA:
+- {len(data_context.get('exercises', []))} exercises in library
+- {len(data_context.get('workouts', []))} recent workouts
+- {len(data_context.get('goals', []))} active goals
+- {len(data_context.get('plans', []))} training plans"""
+
+        # Enhanced system prompt
+        system_prompt = """You are an expert AI fitness coach helping users manage their personalized fitness journey. All data you create is personal to this specific user.
+
+TOOL USAGE GUIDELINES:
+
+**Grep Tools** (Fast pattern-matching search - USE THESE FIRST):
+- `grep_exercises`: ALWAYS use this BEFORE adding exercises. Search multiple exercise patterns at once to check what exists vs. what's missing. Returns matches and missing items.
+- `grep_workouts`: Search workout templates by name/goal patterns.
+
+**Exercises** (User's personal exercise library):
+- `add_exercise`: Add exercises the user can perform. IMPORTANT: Always use grep_exercises first to check if the exercise already exists!
+- `list_exercises`: Search available exercises by muscle, discipline, difficulty, or equipment.
+
+**Workout Templates** (Reusable workout designs):
+- `create_workout_template`: Create workout templates with blocks (Warm-up, Main Work, Finisher, etc.). These are saved to the user's library and can be reused in training plans.
+- `list_workout_templates`: Find existing workout templates.
+
+**Workout Logging** (Training history):
+- `log_workout`: Record completed or planned workouts with actual sets, reps, weights, and RPE. This is the user's training log.
+- `get_workout_history`: View past workouts to analyze progress.
+
+**Training Plans** (Multi-week programs):
+- `create_plan`: Create structured training plans with weekly schedules. Plans can use workout templates or define custom workouts inline.
+- `list_plans`: View user's existing plans.
+- `update_plan`: Modify plan details or status.
+- `add_plan_workout` / `remove_plan_workout`: Manage workouts within plan weeks.
+
+**Goals**:
+- `create_goal`: Set fitness goals with target metrics.
+- `update_goal`: Update goal progress or details.
+- `list_goals`: View user's goals.
+
+IMPORTANT PRINCIPLES:
+1. ALWAYS use grep_exercises BEFORE add_exercise to avoid duplicates!
+2. grep_exercises searches ALL available exercises (common + user's custom). When user asks "do I have X?" use output_mode="both" to find exact and similar matches.
+3. When importing from workout images, first grep all exercises to see what exists
+4. Everything CREATED is PERSONAL to this user (isCommon=false, createdBy=userId)
+5. When creating workouts/exercises, match user's fitness level and available equipment
+6. Use proper volume/intensity based on user's fitness level
+7. If user mentions they "can do" an exercise, check if it exists first, then add if missing
+8. Be conversational and encouraging while being precise with data"""
 
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"{context_str}\n\nUser: {message}"}
         ]
-        
+
         try:
             # Call OpenAI with function calling
             response = await self.client.chat.completions.create(
@@ -329,42 +824,27 @@ Be conversational and helpful. If a user says they can do an exercise, add it fo
                 tool_choice="auto",
                 temperature=0.7
             )
-            
+
             response_message = response.choices[0].message
-            
+
             # Handle tool calls
             if response_message.tool_calls:
                 tool_results = []
-                
+
                 for tool_call in response_message.tool_calls:
                     function_name = tool_call.function.name
                     function_args = json.loads(tool_call.function.arguments)
-                    
+
                     logger.info(f"Executing tool: {function_name}")
-                    
-                    # Execute the tool
-                    if function_name == "add_exercise":
-                        result = await self._add_exercise(user_id, function_args)
-                    elif function_name == "create_workout":
-                        result = await self._create_workout(user_id, function_args)
-                    elif function_name == "create_goal":
-                        result = await self._create_goal(user_id, function_args)
-                    elif function_name == "update_goal":
-                        result = await self._update_goal(user_id, function_args)
-                    elif function_name == "update_plan":
-                        result = await self._update_plan(user_id, function_args)
-                    elif function_name == "add_plan_workout":
-                        result = await self._add_plan_workout(user_id, function_args)
-                    elif function_name == "remove_plan_workout":
-                        result = await self._remove_plan_workout(user_id, function_args)
-                    else:
-                        result = {"error": f"Unknown function: {function_name}"}
-                    
+
+                    # Execute the tool - route to appropriate handler
+                    result = await self._execute_tool(user_id, function_name, function_args)
+
                     tool_results.append({
                         "tool_call_id": tool_call.id,
                         "result": result
                     })
-                
+
                 # Get final response with tool results
                 messages.append(response_message)
                 for tool_result in tool_results:
@@ -373,13 +853,13 @@ Be conversational and helpful. If a user says they can do an exercise, add it fo
                         "tool_call_id": tool_result["tool_call_id"],
                         "content": json.dumps(tool_result["result"])
                     })
-                
+
                 final_response = await self.client.chat.completions.create(
                     model="gpt-4-turbo-preview",
                     messages=messages,
                     temperature=0.7
                 )
-                
+
                 return {
                     "message": final_response.choices[0].message.content,
                     "type": "tool_execution",
@@ -392,244 +872,976 @@ Be conversational and helpful. If a user says they can do an exercise, add it fo
                     "type": "conversation",
                     "confidence": 0.9
                 }
-                
+
         except Exception as e:
             logger.error(f"Error in orchestrator: {e}")
-            # Fallback to simple response
             return {
                 "message": "I encountered an error. Please try again.",
                 "type": "error",
                 "confidence": 0.5
             }
+
+    async def _execute_tool(self, user_id: str, function_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Route tool calls to appropriate handlers"""
+        tool_handlers = {
+            # Exercise tools
+            "add_exercise": self._add_exercise,
+            "list_exercises": self._list_exercises,
+            "grep_exercises": self._grep_exercises,
+            "grep_workouts": self._grep_workouts,
+            # Workout template tools
+            "create_workout_template": self._create_workout_template,
+            "list_workout_templates": self._list_workout_templates,
+            # Workout log tools
+            "log_workout": self._log_workout,
+            "get_workout_history": self._get_workout_history,
+            # Plan tools
+            "create_plan": self._create_plan,
+            "list_plans": self._list_plans,
+            "update_plan": self._update_plan,
+            "add_plan_workout": self._add_plan_workout,
+            "remove_plan_workout": self._remove_plan_workout,
+            # Goal tools
+            "create_goal": self._create_goal,
+            "update_goal": self._update_goal,
+            "list_goals": self._list_goals,
+        }
+
+        handler = tool_handlers.get(function_name)
+        if handler:
+            return await handler(user_id, args)
+        else:
+            return {"error": f"Unknown function: {function_name}"}
     
+    # ==================== EXERCISE TOOL HANDLERS ====================
+
     async def _add_exercise(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Add an exercise to the database"""
+        """Add an exercise to the user's personal exercise library"""
         try:
+            # Build strain object with defaults
+            strain_input = args.get("strain", {})
+            strain = {
+                "intensity": strain_input.get("intensity", "moderate"),
+                "load": strain_input.get("load", "bodyweight"),
+                "durationType": strain_input.get("durationType", "reps"),
+                "typicalVolume": strain_input.get("typicalVolume", "3x10")
+            }
+
             exercise_data = {
                 "name": args["name"],
-                "description": args.get("description", f"{args['name']} exercise"),
+                "description": args.get("description", f"{args['name']} - a {args.get('difficulty', 'intermediate')} level exercise"),
                 "muscles": args.get("muscles", ["Full Body"]),
-                "secondaryMuscles": [],
+                "secondaryMuscles": args.get("secondaryMuscles", []),
                 "discipline": args.get("discipline", ["General Fitness"]),
-                "equipment": args.get("equipment", ["None"]),
+                "equipment": args.get("equipment", []),
                 "difficulty": args.get("difficulty", "intermediate"),
-                "instructions": [f"Perform {args['name']} with proper form"],
-                "strain": {
-                    "intensity": "medium",
-                    "durationType": "reps",
-                    "typicalVolume": "3x10"
-                },
+                "instructions": args.get("instructions", [f"Perform {args['name']} with proper form and control"]),
+                "strain": strain,
                 "isCommon": False,
                 "createdBy": ObjectId(user_id),
                 "createdAt": datetime.utcnow(),
-                "updatedAt": datetime.utcnow(),
-                "__v": 0
+                "updatedAt": datetime.utcnow()
             }
-            
+
             result = await self.db.exercises.insert_one(exercise_data)
-            
+
             if result.inserted_id:
                 logger.info(f"Added exercise {args['name']} for user {user_id}")
-                return {"success": True, "message": f"✅ Added {args['name']} to your exercises!"}
+                return {
+                    "success": True,
+                    "message": f"Added '{args['name']}' to your exercise library!",
+                    "exercise_id": str(result.inserted_id)
+                }
             else:
                 return {"success": False, "message": "Failed to add exercise"}
-                
+
         except Exception as e:
             logger.error(f"Error adding exercise: {e}")
             return {"success": False, "message": str(e)}
-    
-    async def _create_workout(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a workout with proper exercise references"""
+
+    async def _list_exercises(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """List exercises from the database with optional filters"""
         try:
-            # 1. First get all available exercises (just names and IDs for efficiency)
+            # Build the base ownership filter
+            include_common = args.get("include_common", True)
+            if include_common:
+                ownership_filter = {
+                    "$or": [
+                        {"isCommon": True},
+                        {"createdBy": ObjectId(user_id)}
+                    ]
+                }
+            else:
+                ownership_filter = {"createdBy": ObjectId(user_id)}
+
+            # Build additional filters
+            additional_filters: List[Dict[str, Any]] = []
+
+            # Name search (for finding specific exercises like "toes to bar")
+            if args.get("name"):
+                additional_filters.append({
+                    "name": {"$regex": args["name"], "$options": "i"}
+                })
+
+            # Muscle filter (search primary and secondary muscles)
+            if args.get("muscle"):
+                additional_filters.append({
+                    "$or": [
+                        {"muscles": {"$regex": args["muscle"], "$options": "i"}},
+                        {"secondaryMuscles": {"$regex": args["muscle"], "$options": "i"}}
+                    ]
+                })
+
+            # Discipline filter
+            if args.get("discipline"):
+                additional_filters.append({
+                    "discipline": {"$regex": args["discipline"], "$options": "i"}
+                })
+
+            # Difficulty filter
+            if args.get("difficulty"):
+                additional_filters.append({"difficulty": args["difficulty"]})
+
+            # Equipment filter
+            if args.get("equipment"):
+                additional_filters.append({
+                    "equipment": {"$regex": args["equipment"], "$options": "i"}
+                })
+
+            # Combine all filters with $and
+            if additional_filters:
+                query = {"$and": [ownership_filter] + additional_filters}
+            else:
+                query = ownership_filter
+
+            limit = args.get("limit", 20)
+
+            exercises = await self.db.exercises.find(
+                query,
+                {"name": 1, "muscles": 1, "difficulty": 1, "equipment": 1, "discipline": 1, "description": 1}
+            ).limit(limit).to_list(None)
+
+            # Format results
+            results = []
+            for ex in exercises:
+                results.append({
+                    "id": str(ex["_id"]),
+                    "name": ex["name"],
+                    "muscles": ex.get("muscles", []),
+                    "difficulty": ex.get("difficulty"),
+                    "equipment": ex.get("equipment", []),
+                    "discipline": ex.get("discipline", [])
+                })
+
+            return {
+                "success": True,
+                "count": len(results),
+                "exercises": results
+            }
+
+        except Exception as e:
+            logger.error(f"Error listing exercises: {e}")
+            return {"success": False, "message": str(e)}
+
+    async def _grep_exercises(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Fast pattern-matching search across exercises using regex.
+        Similar to ripgrep - searches all exercises and returns matches per pattern.
+        Also finds SIMILAR exercises when exact match fails (fuzzy matching).
+        """
+        try:
+            import re
+            patterns = args.get("patterns", [])
+            if not patterns:
+                return {"success": False, "message": "No search patterns provided"}
+
+            output_mode = args.get("output_mode", "both")
+            limit_per_pattern = args.get("limit", 5)
+
+            # Build ownership filter
+            include_common = args.get("include_common", True)
+            if include_common:
+                ownership_filter = {
+                    "$or": [
+                        {"isCommon": True},
+                        {"createdBy": ObjectId(user_id)}
+                    ]
+                }
+            else:
+                ownership_filter = {"createdBy": ObjectId(user_id)}
+
+            # Extract keywords from all patterns for broader search
+            all_keywords = set()
+            for pattern in patterns:
+                # Extract words (remove special chars, split)
+                words = re.findall(r'[a-zA-Z]+', pattern.lower())
+                # Filter out very short words and common words
+                stopwords = {'to', 'the', 'a', 'an', 'in', 'on', 'with', 'for', 'and', 'or'}
+                keywords = [w for w in words if len(w) > 2 and w not in stopwords]
+                all_keywords.update(keywords)
+
+            # Build broader search: match ANY keyword for fuzzy results
+            keyword_regex = "|".join(all_keywords) if all_keywords else "|".join(patterns)
+
+            query = {
+                "$and": [
+                    ownership_filter,
+                    {"name": {"$regex": keyword_regex, "$options": "i"}}
+                ]
+            }
+
+            # Fetch all potentially matching exercises (broader search)
+            exercises = await self.db.exercises.find(
+                query,
+                {"name": 1, "muscles": 1, "difficulty": 1, "discipline": 1, "equipment": 1, "description": 1, "_id": 1}
+            ).to_list(None)
+
+            # Build lookup with descriptions for user context
+            all_exercises = [
+                {
+                    "id": str(ex["_id"]),
+                    "name": ex["name"],
+                    "muscles": ex.get("muscles", []),
+                    "difficulty": ex.get("difficulty"),
+                    "discipline": ex.get("discipline", []),
+                    "equipment": ex.get("equipment", []),
+                    "description": ex.get("description", "")[:100]  # First 100 chars of description
+                }
+                for ex in exercises
+            ]
+
+            # Helper function to calculate similarity score
+            def similarity_score(pattern: str, exercise_name: str) -> float:
+                """Calculate how similar a pattern is to an exercise name"""
+                pattern_lower = pattern.lower()
+                name_lower = exercise_name.lower()
+
+                # Exact match
+                if pattern_lower == name_lower:
+                    return 1.0
+
+                # Pattern is substring of name or vice versa
+                if pattern_lower in name_lower or name_lower in pattern_lower:
+                    return 0.9
+
+                # Word overlap scoring
+                pattern_words = set(re.findall(r'[a-zA-Z]+', pattern_lower))
+                name_words = set(re.findall(r'[a-zA-Z]+', name_lower))
+
+                if not pattern_words or not name_words:
+                    return 0.0
+
+                # Calculate Jaccard-like similarity
+                intersection = len(pattern_words & name_words)
+                union = len(pattern_words | name_words)
+
+                if union == 0:
+                    return 0.0
+
+                base_score = intersection / union
+
+                # Boost if key words match (longer words are more significant)
+                key_matches = sum(1 for w in pattern_words if len(w) > 3 and w in name_words)
+                boost = key_matches * 0.15
+
+                return min(base_score + boost, 0.85)  # Cap at 0.85 for non-exact matches
+
+            # Match each pattern to its results
+            results_by_pattern = {}
+            similar_by_pattern = {}
+            matched_patterns = set()
+            missing_patterns = []
+
+            for pattern in patterns:
+                scored_matches = []
+                for ex in all_exercises:
+                    score = similarity_score(pattern, ex["name"])
+                    if score > 0:
+                        scored_matches.append((score, ex))
+
+                # Sort by score descending
+                scored_matches.sort(key=lambda x: x[0], reverse=True)
+
+                # Separate exact/high matches from similar matches
+                exact_matches = [ex for score, ex in scored_matches if score >= 0.85]
+                similar_matches = [
+                    {**ex, "similarity": f"{int(score * 100)}%"}
+                    for score, ex in scored_matches
+                    if 0.3 <= score < 0.85
+                ][:limit_per_pattern]
+
+                if exact_matches:
+                    results_by_pattern[pattern] = exact_matches[:limit_per_pattern]
+                    matched_patterns.add(pattern)
+                elif similar_matches:
+                    # No exact match but found similar exercises
+                    similar_by_pattern[pattern] = similar_matches
+                    missing_patterns.append(pattern)
+                else:
+                    missing_patterns.append(pattern)
+
+            # Build response based on output_mode
+            response: Dict[str, Any] = {
+                "success": True,
+                "total_patterns": len(patterns),
+                "patterns_matched": len(matched_patterns),
+                "patterns_missing": len(missing_patterns)
+            }
+
+            if output_mode in ("matches", "both"):
+                response["matches"] = results_by_pattern
+
+            if output_mode in ("missing", "both"):
+                response["missing"] = missing_patterns
+
+            # Add similar matches (always include if found)
+            if similar_by_pattern:
+                response["similar"] = similar_by_pattern
+                response["has_similar"] = True
+
+            # Summary for quick overview
+            response["summary"] = f"Found matches for {len(matched_patterns)}/{len(patterns)} patterns"
+            if similar_by_pattern:
+                response["summary"] += f". Found {len(similar_by_pattern)} similar exercise(s) that might be what you're looking for"
+            elif missing_patterns and len(missing_patterns) <= 10:
+                response["summary"] += f". Missing: {', '.join(missing_patterns[:5])}"
+                if len(missing_patterns) > 5:
+                    response["summary"] += f" (+{len(missing_patterns) - 5} more)"
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Error in grep_exercises: {e}")
+            return {"success": False, "message": str(e)}
+
+    async def _grep_workouts(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Fast pattern-matching search across workout templates using regex.
+        """
+        try:
+            patterns = args.get("patterns", [])
+            if not patterns:
+                return {"success": False, "message": "No search patterns provided"}
+
+            limit_per_pattern = args.get("limit", 5)
+            search_fields = args.get("search_fields", ["name", "goal"])
+
+            # Build ownership filter
+            include_common = args.get("include_common", True)
+            if include_common:
+                ownership_filter = {
+                    "$or": [
+                        {"isCommon": True},
+                        {"createdBy": ObjectId(user_id)}
+                    ]
+                }
+            else:
+                ownership_filter = {"createdBy": ObjectId(user_id)}
+
+            # Build combined regex pattern
+            combined_regex = "|".join(f"({p})" for p in patterns)
+
+            # Build field search conditions
+            field_conditions = []
+            if "name" in search_fields:
+                field_conditions.append({"name": {"$regex": combined_regex, "$options": "i"}})
+            if "goal" in search_fields:
+                field_conditions.append({"goal": {"$regex": combined_regex, "$options": "i"}})
+            if "tags" in search_fields:
+                field_conditions.append({"tags": {"$regex": combined_regex, "$options": "i"}})
+
+            query = {
+                "$and": [
+                    ownership_filter,
+                    {"$or": field_conditions} if field_conditions else {}
+                ]
+            }
+
+            # Fetch matching workouts
+            workouts = await self.db.predefinedworkouts.find(
+                query,
+                {"name": 1, "goal": 1, "difficulty_level": 1, "estimated_duration": 1, "tags": 1, "blocks": 1, "_id": 1}
+            ).to_list(None)
+
+            # Build lookup
+            all_workouts = [
+                {
+                    "id": str(w["_id"]),
+                    "name": w["name"],
+                    "goal": w.get("goal", ""),
+                    "difficulty": w.get("difficulty_level"),
+                    "duration": w.get("estimated_duration"),
+                    "tags": w.get("tags", []),
+                    "exercise_count": sum(len(b.get("exercises", [])) for b in w.get("blocks", []))
+                }
+                for w in workouts
+            ]
+
+            # Match each pattern
+            import re
+            results_by_pattern = {}
+            matched_patterns = set()
+            missing_patterns = []
+
+            for pattern in patterns:
+                try:
+                    regex = re.compile(pattern, re.IGNORECASE)
+                    matches = []
+                    for w in all_workouts:
+                        # Search in configured fields
+                        if ("name" in search_fields and regex.search(w["name"])) or \
+                           ("goal" in search_fields and regex.search(w["goal"])) or \
+                           ("tags" in search_fields and any(regex.search(t) for t in w["tags"])):
+                            matches.append(w)
+
+                    if matches:
+                        results_by_pattern[pattern] = matches[:limit_per_pattern]
+                        matched_patterns.add(pattern)
+                    else:
+                        missing_patterns.append(pattern)
+                except re.error:
+                    pattern_lower = pattern.lower()
+                    matches = [w for w in all_workouts if pattern_lower in w["name"].lower() or pattern_lower in w["goal"].lower()]
+                    if matches:
+                        results_by_pattern[pattern] = matches[:limit_per_pattern]
+                        matched_patterns.add(pattern)
+                    else:
+                        missing_patterns.append(pattern)
+
+            return {
+                "success": True,
+                "total_patterns": len(patterns),
+                "patterns_matched": len(matched_patterns),
+                "patterns_missing": len(missing_patterns),
+                "matches": results_by_pattern,
+                "missing": missing_patterns,
+                "summary": f"Found matches for {len(matched_patterns)}/{len(patterns)} patterns"
+            }
+
+        except Exception as e:
+            logger.error(f"Error in grep_workouts: {e}")
+            return {"success": False, "message": str(e)}
+
+    # ==================== WORKOUT TEMPLATE TOOL HANDLERS ====================
+
+    async def _create_workout_template(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a workout template (PredefinedWorkout) with blocks structure"""
+        try:
+            # Get existing exercises to link IDs
             existing_exercises = await self.db.exercises.find(
-                {},
+                {"$or": [{"isCommon": True}, {"createdBy": ObjectId(user_id)}]},
                 {"name": 1, "_id": 1}
             ).to_list(None)
-            
             exercise_map = {ex["name"].lower(): ex["_id"] for ex in existing_exercises}
-            logger.info(f"Found {len(exercise_map)} existing exercises")
-            
-            # 2. Process the exercises from the args
-            workout_exercises = []
-            exercises_to_add = []
-            
-            for i, exercise_info in enumerate(args.get("exercises", [])):
-                exercise_name = exercise_info.get("name") or exercise_info.get("exerciseName") or f"Exercise {i+1}"
-                exercise_name_lower = exercise_name.lower()
-                
-                # Check if exercise exists
-                if exercise_name_lower in exercise_map:
-                    exercise_id = exercise_map[exercise_name_lower]
-                    logger.info(f"Found existing exercise: {exercise_name}")
-                else:
-                    # Need to create this exercise
-                    logger.info(f"Need to create new exercise: {exercise_name}")
-                    exercises_to_add.append({
-                        "name": exercise_name,
-                        "muscles": exercise_info.get("muscles", ["Full Body"]),
-                        "equipment": exercise_info.get("equipment", []),
-                        "description": exercise_info.get("description", f"{exercise_name} exercise")
+
+            # Process blocks and link exercise IDs
+            blocks = []
+            for block in args.get("blocks", []):
+                block_exercises = []
+                for ex in block.get("exercises", []):
+                    exercise_name = ex.get("exercise_name", "")
+                    exercise_id = exercise_map.get(exercise_name.lower())
+
+                    block_exercises.append({
+                        "exercise_id": exercise_id,
+                        "exercise_name": exercise_name,
+                        "volume": ex.get("volume", "3x10"),
+                        "rest": ex.get("rest", "60s"),
+                        "notes": ex.get("notes", "")
                     })
-                    exercise_id = None  # Will be set after creation
-                
-                # Prepare exercise data for workout
-                workout_exercise = {
-                    "exerciseId": exercise_id,  # Will update after creating missing exercises
-                    "exerciseName": exercise_name,
-                    "sets": exercise_info.get("sets", 3),
-                    "reps": exercise_info.get("reps", 10),
-                    "weight": exercise_info.get("weight"),
-                    "duration": exercise_info.get("duration"),
-                    "restTime": exercise_info.get("restTime", 60),
-                    "notes": exercise_info.get("notes", "")
-                }
-                workout_exercises.append(workout_exercise)
-            
-            # 3. Add any missing exercises to the database
-            for ex_to_add in exercises_to_add:
-                exercise_data = {
-                    "name": ex_to_add["name"],
-                    "description": ex_to_add["description"],
-                    "muscles": ex_to_add["muscles"],
-                    "secondaryMuscles": [],
-                    "discipline": ["General Fitness"],
-                    "equipment": ex_to_add["equipment"],
-                    "difficulty": "intermediate",
-                    "instructions": [f"Perform {ex_to_add['name']} with proper form"],
-                    "strain": {
-                        "intensity": "medium",
-                        "durationType": "reps",
-                        "typicalVolume": "3x10"
-                    },
-                    "isCommon": False,
-                    "createdBy": ObjectId(user_id),
-                    "createdAt": datetime.utcnow(),
-                    "updatedAt": datetime.utcnow(),
-                    "__v": 0
-                }
-                
-                result = await self.db.exercises.insert_one(exercise_data)
-                if result.inserted_id:
-                    logger.info(f"Created new exercise: {ex_to_add['name']}")
-                    # Update the exercise_id in workout_exercises
-                    for workout_ex in workout_exercises:
-                        if workout_ex["exerciseName"].lower() == ex_to_add["name"].lower():
-                            workout_ex["exerciseId"] = result.inserted_id
-            
-            # 4. Create the workout with proper exercise references
-            # Transform exercises to match the schema
-            formatted_exercises = []
-            for i, workout_ex in enumerate(workout_exercises):
-                # Create sets array with proper structure
-                sets_array = []
-                num_sets = workout_ex.get("sets", 3)
-                reps = workout_ex.get("reps", 10)
-                rest_time = workout_ex.get("restTime", 60)
-                
-                for _ in range(num_sets):
-                    sets_array.append({
-                        "reps": reps,
-                        "restSeconds": rest_time
-                    })
-                
-                formatted_exercises.append({
-                    "exerciseId": workout_ex["exerciseId"],
-                    "exerciseName": workout_ex["exerciseName"],
-                    "order": i,
-                    "sets": sets_array,
-                    "notes": workout_ex.get("notes", f"Perform {workout_ex['exerciseName']} with controlled form")
+
+                blocks.append({
+                    "name": block.get("name", "Main Work"),
+                    "exercises": block_exercises
                 })
-            
-            # Determine target muscles from all exercises
-            target_muscles = set()
-            # Get muscles from new exercises
-            for ex_to_add in exercises_to_add:
-                target_muscles.update(ex_to_add.get("muscles", []))
-            # Get muscles from existing exercises (need to fetch them)
-            for workout_ex in workout_exercises:
-                if workout_ex.get("exerciseId"):
-                    # Could fetch exercise details here if needed
-                    pass
-            if not target_muscles:
-                target_muscles = ["Full Body"]
-            
+
             workout_data = {
-                "title": args["name"],  # Use 'title' instead of 'name'
-                "description": args.get("description", ""),
-                "type": args.get("type", "strength"),
-                "difficulty": "intermediate",  # Default difficulty
-                "durationMinutes": args.get("duration", 45),
-                "targetMuscles": list(target_muscles),
-                "equipment": [],  # Could be extracted from exercises
-                "exercises": formatted_exercises,
-                "isCommon": False,  # User-created workouts are not common
+                "name": args["name"],
+                "goal": args.get("goal", ""),
+                "primary_disciplines": args.get("primary_disciplines", []),
+                "estimated_duration": args.get("estimated_duration", 45),
+                "difficulty_level": args.get("difficulty_level", "intermediate"),
+                "blocks": blocks,
+                "tags": args.get("tags", []),
+                "isCommon": False,
                 "createdBy": ObjectId(user_id),
-                "tags": [],
                 "popularity": 0,
-                "ratings": {
-                    "average": 0,
-                    "count": 0
-                },
+                "ratings": {"average": 0, "count": 0},
                 "createdAt": datetime.utcnow(),
-                "updatedAt": datetime.utcnow(),
-                "__v": 0
+                "updatedAt": datetime.utcnow()
             }
-            
+
             result = await self.db.predefinedworkouts.insert_one(workout_data)
-            
+
             if result.inserted_id:
-                added_count = len(exercises_to_add)
-                if added_count > 0:
-                    return {
-                        "success": True, 
-                        "message": f"✅ Created workout '{args['name']}' with {len(formatted_exercises)} exercises! (Added {added_count} new exercises to your library)"
-                    }
-                else:
-                    return {
-                        "success": True,
-                        "message": f"✅ Created workout '{args['name']}' with {len(formatted_exercises)} exercises!"
-                    }
+                total_exercises = sum(len(b.get("exercises", [])) for b in blocks)
+                logger.info(f"Created workout template '{args['name']}' for user {user_id}")
+                return {
+                    "success": True,
+                    "message": f"Created workout template '{args['name']}' with {len(blocks)} blocks and {total_exercises} exercises!",
+                    "workout_id": str(result.inserted_id)
+                }
             else:
-                return {"success": False, "message": "Failed to create workout"}
-                
+                return {"success": False, "message": "Failed to create workout template"}
+
         except Exception as e:
-            logger.error(f"Error creating workout: {e}")
+            logger.error(f"Error creating workout template: {e}")
+            return {"success": False, "message": str(e)}
+
+    async def _list_workout_templates(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """List workout templates (PredefinedWorkouts)"""
+        try:
+            # Build the base ownership filter
+            include_common = args.get("include_common", True)
+            if include_common:
+                ownership_filter = {
+                    "$or": [
+                        {"isCommon": True},
+                        {"createdBy": ObjectId(user_id)}
+                    ]
+                }
+            else:
+                ownership_filter = {"createdBy": ObjectId(user_id)}
+
+            # Build additional filters
+            additional_filters: List[Dict[str, Any]] = []
+
+            if args.get("name"):
+                additional_filters.append({
+                    "name": {"$regex": args["name"], "$options": "i"}
+                })
+            if args.get("discipline"):
+                additional_filters.append({
+                    "primary_disciplines": {"$regex": args["discipline"], "$options": "i"}
+                })
+            if args.get("difficulty_level"):
+                additional_filters.append({"difficulty_level": args["difficulty_level"]})
+
+            # Combine all filters with $and
+            if additional_filters:
+                query = {"$and": [ownership_filter] + additional_filters}
+            else:
+                query = ownership_filter
+
+            limit = args.get("limit", 10)
+
+            workouts = await self.db.predefinedworkouts.find(
+                query,
+                {"name": 1, "goal": 1, "difficulty_level": 1, "estimated_duration": 1, "blocks": 1, "primary_disciplines": 1}
+            ).limit(limit).to_list(None)
+
+            results = []
+            for w in workouts:
+                total_exercises = sum(len(b.get("exercises", [])) for b in w.get("blocks", []))
+                results.append({
+                    "id": str(w["_id"]),
+                    "name": w["name"],
+                    "goal": w.get("goal", ""),
+                    "difficulty": w.get("difficulty_level"),
+                    "duration": w.get("estimated_duration"),
+                    "disciplines": w.get("primary_disciplines", []),
+                    "total_exercises": total_exercises
+                })
+
+            return {
+                "success": True,
+                "count": len(results),
+                "workouts": results
+            }
+
+        except Exception as e:
+            logger.error(f"Error listing workout templates: {e}")
+            return {"success": False, "message": str(e)}
+
+    # ==================== WORKOUT LOG TOOL HANDLERS ====================
+
+    async def _log_workout(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Log a workout to the user's workout history"""
+        try:
+            # Get exercise IDs for the exercises
+            existing_exercises = await self.db.exercises.find(
+                {"$or": [{"isCommon": True}, {"createdBy": ObjectId(user_id)}]},
+                {"name": 1, "_id": 1}
+            ).to_list(None)
+            exercise_map = {ex["name"].lower(): ex["_id"] for ex in existing_exercises}
+
+            # Process exercises
+            formatted_exercises = []
+            for i, ex in enumerate(args.get("exercises", [])):
+                exercise_name = ex.get("exerciseName", "")
+                exercise_id = exercise_map.get(exercise_name.lower())
+
+                sets = []
+                for s in ex.get("sets", []):
+                    set_data = {
+                        "targetReps": s.get("targetReps"),
+                        "actualReps": s.get("actualReps"),
+                        "weight": s.get("weight"),
+                        "time": s.get("time"),
+                        "rpe": s.get("rpe"),
+                        "restSeconds": s.get("restSeconds", 60),
+                        "notes": s.get("notes", ""),
+                        "isCompleted": s.get("actualReps") is not None or s.get("time") is not None
+                    }
+                    sets.append(set_data)
+
+                formatted_exercises.append({
+                    "exerciseId": exercise_id,
+                    "exerciseName": exercise_name,
+                    "order": i,
+                    "sets": sets,
+                    "notes": ex.get("notes", "")
+                })
+
+            # Parse date or use today
+            workout_date = datetime.utcnow()
+            if args.get("date"):
+                try:
+                    workout_date = datetime.fromisoformat(args["date"].replace("Z", "+00:00"))
+                except Exception:
+                    pass
+
+            workout_data = {
+                "userId": ObjectId(user_id),
+                "title": args["title"],
+                "date": workout_date,
+                "type": args.get("type", "strength"),
+                "status": args.get("status", "completed"),
+                "durationMinutes": args.get("durationMinutes"),
+                "exercises": formatted_exercises,
+                "totalStrain": 0,
+                "muscleStrain": {
+                    "chest": 0, "back": 0, "shoulders": 0,
+                    "arms": 0, "legs": 0, "core": 0
+                },
+                "notes": args.get("notes", ""),
+                "createdAt": datetime.utcnow(),
+                "updatedAt": datetime.utcnow()
+            }
+
+            # Link to plan if provided
+            if args.get("planId"):
+                try:
+                    workout_data["planId"] = ObjectId(args["planId"])
+                except Exception:
+                    pass
+
+            result = await self.db.workouts.insert_one(workout_data)
+
+            if result.inserted_id:
+                logger.info(f"Logged workout '{args['title']}' for user {user_id}")
+                return {
+                    "success": True,
+                    "message": f"Logged '{args['title']}' with {len(formatted_exercises)} exercises!",
+                    "workout_id": str(result.inserted_id)
+                }
+            else:
+                return {"success": False, "message": "Failed to log workout"}
+
+        except Exception as e:
+            logger.error(f"Error logging workout: {e}")
+            return {"success": False, "message": str(e)}
+
+    async def _get_workout_history(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Get user's workout history"""
+        try:
+            days = args.get("days", 30)
+            start_date = datetime.utcnow() - timedelta(days=days)
+
+            query: Dict[str, Any] = {
+                "userId": ObjectId(user_id),
+                "date": {"$gte": start_date}
+            }
+
+            if args.get("type"):
+                query["type"] = args["type"]
+            if args.get("status"):
+                query["status"] = args["status"]
+
+            limit = args.get("limit", 10)
+
+            workouts = await self.db.workouts.find(
+                query,
+                {"title": 1, "date": 1, "type": 1, "status": 1, "durationMinutes": 1, "exercises": 1}
+            ).sort("date", -1).limit(limit).to_list(None)
+
+            results = []
+            for w in workouts:
+                results.append({
+                    "id": str(w["_id"]),
+                    "title": w["title"],
+                    "date": w["date"].isoformat() if w.get("date") else None,
+                    "type": w.get("type"),
+                    "status": w.get("status"),
+                    "duration": w.get("durationMinutes"),
+                    "exercise_count": len(w.get("exercises", []))
+                })
+
+            return {
+                "success": True,
+                "count": len(results),
+                "workouts": results
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting workout history: {e}")
+            return {"success": False, "message": str(e)}
+
+    # ==================== PLAN TOOL HANDLERS ====================
+
+    async def _create_plan(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a training plan"""
+        try:
+            schedule = args.get("schedule", {})
+
+            # Process weeks if provided
+            weeks = []
+            for week_data in args.get("weeks", []):
+                week = {
+                    "_id": ObjectId(),
+                    "weekNumber": week_data.get("weekNumber", 1),
+                    "focus": week_data.get("focus", ""),
+                    "description": week_data.get("description", ""),
+                    "deloadWeek": week_data.get("deloadWeek", False),
+                    "workouts": [],
+                    "restDays": []
+                }
+
+                # Process workouts for this week
+                for workout in week_data.get("workouts", []):
+                    weekly_workout = {
+                        "_id": ObjectId(),
+                        "dayOfWeek": workout.get("dayOfWeek", 1),
+                        "workoutType": workout.get("workoutType", "custom"),
+                        "notes": workout.get("notes", ""),
+                        "isOptional": workout.get("isOptional", False)
+                    }
+
+                    if workout.get("workoutType") == "predefined" and workout.get("predefinedWorkoutId"):
+                        try:
+                            weekly_workout["predefinedWorkoutId"] = ObjectId(workout["predefinedWorkoutId"])
+                        except Exception:
+                            pass
+                    elif workout.get("customWorkout"):
+                        custom = workout["customWorkout"]
+                        exercises = []
+                        for ex in custom.get("exercises", []):
+                            exercises.append({
+                                "exerciseName": ex.get("exerciseName", ""),
+                                "sets": ex.get("sets", [])
+                            })
+                        weekly_workout["customWorkout"] = {
+                            "title": custom.get("title", ""),
+                            "type": custom.get("type", "strength"),
+                            "durationMinutes": custom.get("durationMinutes", 45),
+                            "exercises": exercises
+                        }
+
+                    week["workouts"].append(weekly_workout)
+
+                weeks.append(week)
+
+            plan_data = {
+                "userId": ObjectId(user_id),
+                "name": args["name"],
+                "description": args.get("description", ""),
+                "status": "draft",
+                "schedule": {
+                    "weeksTotal": schedule.get("weeksTotal", 4),
+                    "workoutsPerWeek": schedule.get("workoutsPerWeek", 3),
+                    "restDays": schedule.get("restDays", [0, 6]),
+                    "preferredWorkoutDays": schedule.get("preferredWorkoutDays", [1, 3, 5])
+                },
+                "weeks": weeks,
+                "progress": {
+                    "currentWeek": 1,
+                    "completedWorkouts": 0,
+                    "totalWorkouts": sum(len(w.get("workouts", [])) for w in weeks),
+                    "skippedWorkouts": 0,
+                    "adherencePercentage": 0
+                },
+                "settings": args.get("settings", {
+                    "autoAdvance": True,
+                    "allowModifications": True,
+                    "sendReminders": True,
+                    "difficultyAdjustment": "manual"
+                }),
+                "tags": args.get("tags", []),
+                "isTemplate": False,
+                "createdAt": datetime.utcnow(),
+                "updatedAt": datetime.utcnow()
+            }
+
+            # Link to goal if provided
+            if args.get("goalId"):
+                try:
+                    plan_data["goalId"] = ObjectId(args["goalId"])
+                except Exception:
+                    pass
+
+            result = await self.db.plans.insert_one(plan_data)
+
+            if result.inserted_id:
+                logger.info(f"Created plan '{args['name']}' for user {user_id}")
+                return {
+                    "success": True,
+                    "message": f"Created plan '{args['name']}' ({schedule.get('weeksTotal', 4)} weeks, {schedule.get('workoutsPerWeek', 3)} workouts/week)!",
+                    "plan_id": str(result.inserted_id)
+                }
+            else:
+                return {"success": False, "message": "Failed to create plan"}
+
+        except Exception as e:
+            logger.error(f"Error creating plan: {e}")
+            return {"success": False, "message": str(e)}
+
+    async def _list_plans(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """List user's training plans"""
+        try:
+            query: Dict[str, Any] = {"userId": ObjectId(user_id)}
+
+            if args.get("status"):
+                query["status"] = args["status"]
+
+            include_templates = args.get("include_templates", False)
+            if not include_templates:
+                query["isTemplate"] = {"$ne": True}
+
+            plans = await self.db.plans.find(
+                query,
+                {"name": 1, "description": 1, "status": 1, "schedule": 1, "progress": 1, "startDate": 1}
+            ).sort("updatedAt", -1).to_list(None)
+
+            results = []
+            for p in plans:
+                results.append({
+                    "id": str(p["_id"]),
+                    "name": p["name"],
+                    "description": p.get("description", ""),
+                    "status": p.get("status"),
+                    "weeks_total": p.get("schedule", {}).get("weeksTotal"),
+                    "workouts_per_week": p.get("schedule", {}).get("workoutsPerWeek"),
+                    "current_week": p.get("progress", {}).get("currentWeek"),
+                    "adherence": p.get("progress", {}).get("adherencePercentage"),
+                    "start_date": p["startDate"].isoformat() if p.get("startDate") else None
+                })
+
+            return {
+                "success": True,
+                "count": len(results),
+                "plans": results
+            }
+
+        except Exception as e:
+            logger.error(f"Error listing plans: {e}")
+            return {"success": False, "message": str(e)}
+
+    # ==================== GOAL TOOL HANDLERS ====================
+
+    async def _list_goals(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """List user's fitness goals"""
+        try:
+            query: Dict[str, Any] = {"userId": ObjectId(user_id)}
+
+            if args.get("category"):
+                query["category"] = args["category"]
+            if args.get("isActive") is not None:
+                query["isActive"] = args["isActive"]
+
+            goals = await self.db.goals.find(
+                query,
+                {"name": 1, "category": 1, "description": 1, "targetMetrics": 1, "deadline": 1, "isActive": 1}
+            ).sort("createdAt", -1).to_list(None)
+
+            results = []
+            for g in goals:
+                results.append({
+                    "id": str(g["_id"]),
+                    "name": g["name"],
+                    "category": g.get("category"),
+                    "description": g.get("description", ""),
+                    "target_metrics": g.get("targetMetrics", {}),
+                    "deadline": g["deadline"].isoformat() if g.get("deadline") else None,
+                    "is_active": g.get("isActive", True)
+                })
+
+            return {
+                "success": True,
+                "count": len(results),
+                "goals": results
+            }
+
+        except Exception as e:
+            logger.error(f"Error listing goals: {e}")
             return {"success": False, "message": str(e)}
     
     async def _create_goal(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a goal"""
+        """Create a fitness goal with target metrics"""
         try:
             goal_data = {
                 "userId": ObjectId(user_id),
                 "name": args["name"],
                 "category": args.get("category", "skill"),
-                "target": args.get("target"),
+                "description": args.get("description", ""),
+                "difficulty": args.get("difficulty", "intermediate"),
+                "targetMetrics": args.get("targetMetrics", {}),
+                "isActive": True,
+                "isCommon": False,
+                "createdBy": ObjectId(user_id),
                 "createdAt": datetime.utcnow(),
                 "updatedAt": datetime.utcnow()
             }
-            
+
+            # Parse deadline if provided
+            if args.get("deadline"):
+                try:
+                    goal_data["deadline"] = datetime.fromisoformat(args["deadline"].replace("Z", "+00:00"))
+                except Exception:
+                    pass
+
             result = await self.db.goals.insert_one(goal_data)
-            
+
             if result.inserted_id:
-                return {"success": True, "message": f"✅ Created goal: {args['name']}"}
+                logger.info(f"Created goal '{args['name']}' for user {user_id}")
+                return {
+                    "success": True,
+                    "message": f"Created goal: '{args['name']}'!",
+                    "goal_id": str(result.inserted_id)
+                }
             else:
                 return {"success": False, "message": "Failed to create goal"}
-                
+
         except Exception as e:
             logger.error(f"Error creating goal: {e}")
             return {"success": False, "message": str(e)}
 
     async def _update_goal(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Update an existing goal for the current user"""
+        """Update an existing fitness goal"""
         try:
             goal_id = args.get("goal_id")
             if not goal_id:
                 return {"success": False, "message": "Missing required parameter: goal_id"}
 
-            # Build changes payload
-            allowed_fields = ["name", "target", "current", "deadline", "description", "isActive"]
-            updates: Dict[str, Any] = {k: v for k, v in args.items() if k in allowed_fields and v is not None}
+            # Build updates - support both old and new field names
+            updates: Dict[str, Any] = {}
+
+            if args.get("name"):
+                updates["name"] = args["name"]
+            if args.get("description"):
+                updates["description"] = args["description"]
+            if args.get("targetMetrics"):
+                updates["targetMetrics"] = args["targetMetrics"]
+            if args.get("isActive") is not None:
+                updates["isActive"] = args["isActive"]
+            if args.get("deadline"):
+                try:
+                    updates["deadline"] = datetime.fromisoformat(args["deadline"].replace("Z", "+00:00"))
+                except Exception:
+                    pass
+
+            if not updates:
+                return {"success": False, "message": "No valid fields to update"}
+
             updates["updatedAt"] = datetime.utcnow()
 
             result = await self.db.goals.update_one(
@@ -638,9 +1850,10 @@ Be conversational and helpful. If a user says they can do an exercise, add it fo
             )
 
             if result.modified_count > 0:
-                return {"success": True, "message": "✅ Updated goal successfully!"}
+                return {"success": True, "message": "Updated goal successfully!"}
             else:
                 return {"success": False, "message": "Goal not found or no changes made"}
+
         except Exception as e:
             logger.error(f"Error updating goal: {e}")
             return {"success": False, "message": str(e)}

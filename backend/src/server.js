@@ -135,8 +135,16 @@ app.use(cors({
   optionsSuccessStatus: 200 // Support legacy browsers
 }));
 
-// Compression middleware
-app.use(compression());
+// Compression middleware - skip for SSE streaming endpoints
+app.use(compression({
+  filter: (req, res) => {
+    // Don't compress SSE/streaming responses
+    if (req.path === '/api/v1/ai/stream' || req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  }
+}));
 
 // Data sanitization
 app.use(mongoSanitize());
@@ -172,11 +180,22 @@ const mongooseOptions = {
   // SSL is handled automatically by the mongodb+srv:// protocol
 };
 
+const { ensureIndexes, createSearchIndexes } = require('./utils/ensureIndexes');
+
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ripped-potato', mongooseOptions)
-.then(() => {
+.then(async () => {
   const message = '✅ MongoDB connected successfully';
   console.log(message);
   logger.info(message, { database: mongoose.connection.name });
+
+  // Ensure all indexes are created on startup
+  try {
+    await ensureIndexes(logger);
+    await createSearchIndexes(logger);
+    logger.info('✅ Database indexes verified');
+  } catch (indexErr) {
+    logger.warn('⚠️ Index verification had issues (non-fatal)', { error: indexErr.message });
+  }
 })
 .catch(err => {
   const message = '❌ MongoDB connection error';

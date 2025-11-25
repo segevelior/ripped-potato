@@ -50,11 +50,16 @@ async def generate_stream_with_reasoning(
     # System prompt (same as orchestrator but with streaming guidance)
     system_prompt = """You are an expert AI fitness coach helping users manage their fitness journey.
 
-When users ask to add exercises (like "add muscle ups to my exercises"), use add_exercise.
-When they want to create workouts or goals, use create_workout or create_goal.
-When they want to update an existing goal, use update_goal.
-When they want to update a plan's details (name, status, start date, schedule), use update_plan.
-When they want to add or remove weekly workouts in a plan, use add_plan_workout or remove_plan_workout.
+TOOL USAGE:
+- grep_exercises: Search ALL available exercises (common + user's custom). Use output_mode="both" to find similar exercises when exact match not found.
+- add_exercise: Add new exercises. ALWAYS use grep_exercises first to check if it exists!
+- create_workout_template: Create workout templates with exercise blocks.
+- log_workout: Record completed workouts.
+- create_plan: Create training plans.
+- update_plan, add_plan_workout, remove_plan_workout: Manage plans.
+- create_goal, update_goal: Manage fitness goals.
+
+When user asks "do I have X exercise?" use grep_exercises with output_mode="both".
 
 IMPORTANT: Show your thinking process naturally as you work:
 - Before calling a tool, explain what you're about to do
@@ -62,8 +67,8 @@ IMPORTANT: Show your thinking process naturally as you work:
 - Be conversational and guide users through your process
 
 For example:
-- "Let me create that workout for you..."
-- "I'm adding these exercises to your predefined workouts..."
+- "Let me search for that exercise..."
+- "I found a similar exercise called X - is that what you meant?"
 - "Great! I've successfully added the workout to your library."""
 
     messages = [
@@ -157,36 +162,35 @@ For example:
 
                         # Map tool names to user-friendly descriptions
                         tool_descriptions = {
+                            # Exercise tools
                             "add_exercise": f"Adding {function_args.get('name', 'exercise')} to your library",
-                            "create_workout": f"Creating {function_args.get('name', 'workout')}",
-                            "create_goal": f"Setting up {function_args.get('name', 'fitness goal')}",
-                            "update_goal": "Updating your fitness goal",
+                            "list_exercises": "Searching exercises in the database",
+                            "grep_exercises": f"Grep searching {len(function_args.get('patterns', []))} exercise patterns",
+                            "grep_workouts": f"Grep searching {len(function_args.get('patterns', []))} workout patterns",
+                            # Workout template tools
+                            "create_workout_template": f"Creating workout template: {function_args.get('name', 'workout')}",
+                            "list_workout_templates": "Browsing workout templates",
+                            # Workout log tools
+                            "log_workout": f"Logging workout: {function_args.get('title', 'workout')}",
+                            "get_workout_history": "Fetching your workout history",
+                            # Plan tools
+                            "create_plan": f"Creating training plan: {function_args.get('name', 'plan')}",
+                            "list_plans": "Fetching your training plans",
                             "update_plan": "Updating your training plan",
                             "add_plan_workout": f"Adding workout to week {function_args.get('weekNumber', '')}",
-                            "remove_plan_workout": f"Removing workout from week {function_args.get('weekNumber', '')}"
+                            "remove_plan_workout": f"Removing workout from week {function_args.get('weekNumber', '')}",
+                            # Goal tools
+                            "create_goal": f"Setting up goal: {function_args.get('name', 'fitness goal')}",
+                            "update_goal": "Updating your fitness goal",
+                            "list_goals": "Fetching your fitness goals"
                         }
 
                         # Send tool execution start event
                         tool_display_name = tool_descriptions.get(function_name, f"Processing {function_name}")
                         yield f"data: {json.dumps({'type': 'tool_start', 'tool': function_name, 'description': tool_display_name})}\n\n"
 
-                        # Execute using orchestrator's methods
-                        if function_name == "add_exercise":
-                            result = await orchestrator._add_exercise(user_id, function_args)
-                        elif function_name == "create_workout":
-                            result = await orchestrator._create_workout(user_id, function_args)
-                        elif function_name == "create_goal":
-                            result = await orchestrator._create_goal(user_id, function_args)
-                        elif function_name == "update_goal":
-                            result = await orchestrator._update_goal(user_id, function_args)
-                        elif function_name == "update_plan":
-                            result = await orchestrator._update_plan(user_id, function_args)
-                        elif function_name == "add_plan_workout":
-                            result = await orchestrator._add_plan_workout(user_id, function_args)
-                        elif function_name == "remove_plan_workout":
-                            result = await orchestrator._remove_plan_workout(user_id, function_args)
-                        else:
-                            result = {"error": f"Unknown function: {function_name}"}
+                        # Execute using orchestrator's unified tool router
+                        result = await orchestrator._execute_tool(user_id, function_name, function_args)
 
                         logger.info(f"✅ Tool {function_name} result: {result}")
 
