@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { X, Dumbbell, Target, Zap, Timer, Info, Activity, TrendingUp, AlertCircle, Star } from "lucide-react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { X, Dumbbell, Target, Zap, Timer, Info, Activity, TrendingUp, AlertCircle, Star, Copy } from "lucide-react";
+import { getDisciplineClass } from "@/styles/designTokens";
 
 const intensityColors = {
   low: "bg-green-100 text-green-800",
@@ -8,417 +9,317 @@ const intensityColors = {
   max: "bg-red-100 text-red-800"
 };
 
-const loadColors = {
-  bodyweight: "bg-blue-100 text-blue-800",
-  light: "bg-green-100 text-green-800",
-  moderate: "bg-yellow-100 text-yellow-800",
-  heavy: "bg-red-100 text-red-800"
+const difficultyColors = {
+  beginner: "bg-green-500",
+  intermediate: "bg-orange-500",
+  advanced: "bg-red-500"
 };
 
-const difficultyColors = {
-  beginner: "bg-green-100 text-green-800 border-green-300",
-  intermediate: "bg-yellow-100 text-yellow-800 border-yellow-300",
-  advanced: "bg-red-100 text-red-800 border-red-300"
+// Simple throttle utility
+const throttle = (func, limit) => {
+  let inThrottle;
+  return function () {
+    const args = arguments;
+    const context = this;
+    if (!inThrottle) {
+      func.apply(context, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  }
 };
 
 export default function ExerciseDetailModal({ exercise, onClose, onEdit, onToggleFavorite }) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  const scrollContainerRef = useRef(null);
+  const [isFavorite, setIsFavorite] = useState(exercise.userMetadata?.isFavorite || false);
+
+  useEffect(() => {
+    setIsFavorite(exercise.userMetadata?.isFavorite || false);
+  }, [exercise.userMetadata?.isFavorite]);
+
+  // Throttled scroll handler
+  const handleScroll = useCallback(throttle((e) => {
+    const scrollTop = e.target.scrollTop;
+    setIsHeaderCollapsed(scrollTop > 50);
+  }, 100), []);
+
+  // Handle ESC key to close
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
 
   if (!exercise) return null;
 
+  const hasImage = !!exercise.image;
+  const discipline = exercise.discipline?.[0] || 'Fitness';
+  // Extract color name from class (e.g., 'bg-blue-600' -> 'text-blue-600')
+  const disciplineClass = getDisciplineClass(discipline);
+  const disciplineTextColor = disciplineClass.replace('bg-', 'text-');
+
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-3">
-                <h2 className="text-3xl font-bold text-gray-900">
-                  {exercise.name}
-                </h2>
-                <button
-                  onClick={() => onToggleFavorite(exercise)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    exercise.userMetadata?.isFavorite 
-                      ? 'text-yellow-500 hover:text-yellow-600 bg-yellow-50' 
-                      : 'text-gray-400 hover:text-yellow-500 hover:bg-gray-50'
-                  }`}
-                  title="Toggle favorite"
-                >
-                  <Star className="w-6 h-6" fill={exercise.userMetadata?.isFavorite ? 'currentColor' : 'none'} />
-                </button>
-              </div>
-              
-              {/* Always show description, even if it's empty */}
-              <div className="mb-4">
-                {exercise.description ? (
-                  <p className="text-lg text-gray-700 leading-relaxed">
-                    {exercise.description}
-                  </p>
-                ) : (
-                  <p className="text-lg text-gray-500 italic">
-                    No description available for this exercise.
-                  </p>
-                )}
-              </div>
-              
-              {/* Key Attributes */}
-              <div className="flex flex-wrap gap-2">
-                {/* Exercise Type Badges */}
-                {exercise.isCommon && !exercise.isModified && (
-                  <span className="px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                    Common Exercise
-                  </span>
-                )}
-                {exercise.isModified && (
-                  <span className="px-3 py-1.5 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
-                    Customized
-                  </span>
-                )}
-                {!exercise.isCommon && (
-                  <span className="px-3 py-1.5 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-                    Private Exercise
-                  </span>
-                )}
-                
-                {/* Difficulty */}
-                {exercise.difficulty && (
-                  <span className={`px-3 py-1.5 rounded-full text-sm font-medium border ${difficultyColors[exercise.difficulty]}`}>
-                    {exercise.difficulty.charAt(0).toUpperCase() + exercise.difficulty.slice(1)}
-                  </span>
-                )}
-              </div>
-            </div>
-            
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/50 transition-colors">
-              <X className="w-6 h-6 text-gray-500" />
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-end md:items-center justify-center z-[100]"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="bg-white w-full h-full md:h-[85vh] md:max-w-md md:rounded-[40px] rounded-none flex flex-col overflow-hidden relative shadow-2xl">
+
+        {/* Top Navigation */}
+        <div className="absolute top-0 left-0 right-0 p-2 z-50 flex justify-between items-center pointer-events-none">
+          <button
+            onClick={onClose}
+            className={`w-10 h-10 rounded-xl backdrop-blur-md flex items-center justify-center transition-colors pointer-events-auto ${hasImage ? 'bg-black/10 text-white hover:bg-black/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          <div className="flex gap-2 pointer-events-auto">
+            <button
+              onClick={() => {
+                setIsFavorite(!isFavorite);
+                onToggleFavorite(exercise);
+              }}
+              className={`w-10 h-10 rounded-xl backdrop-blur-md flex items-center justify-center transition-colors ${isFavorite
+                ? 'bg-white text-yellow-500 shadow-md'
+                : hasImage ? 'bg-black/10 text-white hover:bg-black/20' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                }`}
+            >
+              <Star className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+            </button>
+            <button
+              onClick={() => onEdit(exercise)}
+              className={`w-10 h-10 rounded-xl backdrop-blur-md flex items-center justify-center transition-colors ${hasImage ? 'bg-black/10 text-white hover:bg-black/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            >
+              <Info className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="border-b border-gray-200 bg-gray-50">
-          <div className="flex">
-            {["overview", "instructions", "details"].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-6 py-3 font-medium transition-colors ${
-                  activeTab === tab
-                    ? "text-blue-600 border-b-2 border-blue-600 bg-white"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
+        {/* Scrollable Container for Hero + Content */}
+        <div
+          className="flex-1 overflow-y-auto no-scrollbar"
+          onScroll={handleScroll}
+          ref={scrollContainerRef}
+        >
+          {/* Hero Image Section - Only if image exists */}
+          {hasImage && (
+            <div className="h-[280px] relative shrink-0">
+              <img
+                src={exercise.image}
+                alt={exercise.name}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
+
+              {/* Badge Overlay */}
+              <div className="absolute bottom-14 left-6 flex flex-wrap gap-2">
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-white ${disciplineClass}`}>
+                  {discipline}
+                </span>
+                {exercise.isCommon && !exercise.isModified && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-500 text-white">
+                    Common
+                  </span>
+                )}
+                {exercise.isModified && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-orange-500 text-white">
+                    Custom
+                  </span>
+                )}
+                {!exercise.isCommon && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-500 text-white">
+                    Private
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Content Card */}
+          <div className={`bg-white relative z-10 px-6 pb-32 min-h-full ${hasImage ? 'rounded-t-[40px] -mt-10 pt-8' : 'pt-16'}`}>
+
+            {/* Title */}
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 leading-tight">
+              {exercise.name}
+            </h2>
+
+            {/* Badges if no image */}
+            {!hasImage && (
+              <div className="flex flex-wrap gap-2 mb-6">
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-white ${disciplineClass}`}>
+                  {discipline}
+                </span>
+                {exercise.isCommon && !exercise.isModified && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800">
+                    Common
+                  </span>
+                )}
+                {exercise.isModified && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800">
+                    Custom
+                  </span>
+                )}
+                {!exercise.isCommon && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-800">
+                    Private
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Metadata Row */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-600`}>
+                  <Target className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Target</p>
+                  <span className="text-sm font-bold text-gray-900 capitalize">
+                    {exercise.muscles?.[0]?.replace('_', ' ') || 'Full Body'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${exercise.difficulty === 'beginner' ? 'bg-green-100 text-green-600' :
+                  exercise.difficulty === 'intermediate' ? 'bg-orange-100 text-orange-600' :
+                    'bg-red-100 text-red-600'
+                  }`}>
+                  <Activity className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Difficulty</p>
+                  <span className={`text-sm font-bold capitalize ${exercise.difficulty === 'beginner' ? 'text-green-600' :
+                    exercise.difficulty === 'intermediate' ? 'text-orange-600' :
+                      'text-red-600'
+                    }`}>
+                    {exercise.difficulty || 'General'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-3 gap-4 mb-8 bg-gray-50 rounded-2xl p-4">
+              <div className="text-center">
+                <div className="w-8 h-8 mx-auto mb-2 text-blue-500">
+                  <Dumbbell className="w-full h-full" />
+                </div>
+                <p className="text-xs font-bold text-gray-900 mb-0.5 capitalize truncate">
+                  {exercise.equipment?.[0] || 'None'}
+                </p>
+                <p className="text-[10px] text-gray-500">Equipment</p>
+              </div>
+              <div className="text-center border-l border-gray-200">
+                <div className={`w-8 h-8 mx-auto mb-2 ${disciplineTextColor}`}>
+                  <Activity className="w-full h-full" />
+                </div>
+                <p className="text-xs font-bold text-gray-900 mb-0.5 capitalize truncate">
+                  {discipline}
+                </p>
+                <p className="text-[10px] text-gray-500">Type</p>
+              </div>
+              <div className="text-center border-l border-gray-200">
+                <div className="w-8 h-8 mx-auto mb-2 text-orange-500">
+                  <Zap className="w-full h-full" />
+                </div>
+                <p className="text-xs font-bold text-gray-900 mb-0.5 capitalize">
+                  {exercise.strain?.intensity || 'N/A'}
+                </p>
+                <p className="text-[10px] text-gray-500">Intensity</p>
+              </div>
+            </div>
+
+            {/* About Section */}
+            <div className="mb-8">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">About</h3>
+              <p className="text-gray-500 text-sm leading-relaxed">
+                {exercise.description || "No description available for this exercise."}
+              </p>
+            </div>
+
+            {/* Instructions */}
+            {exercise.instructions && exercise.instructions.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">How to Perform</h3>
+                <div className="space-y-4">
+                  {exercise.instructions.map((step, idx) => (
+                    <div key={idx} className="flex gap-4">
+                      <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                        {idx + 1}
+                      </div>
+                      <p className="text-sm text-gray-600 leading-relaxed">{step}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Muscles Tags */}
+            {exercise.muscles && exercise.muscles.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-gray-900 mb-3">Muscles Worked</h3>
+                <div className="flex flex-wrap gap-2">
+                  {exercise.muscles.map((muscle, i) => (
+                    <span key={i} className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-xl text-xs font-bold capitalize">
+                      {muscle.replace('_', ' ')}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Tips & Mistakes */}
+            {(exercise.tips?.length > 0 || exercise.commonMistakes?.length > 0) && (
+              <div className="space-y-4">
+                {exercise.tips?.length > 0 && (
+                  <div className="bg-yellow-50 rounded-2xl p-4">
+                    <h4 className="font-bold text-yellow-800 mb-2 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" /> Pro Tips
+                    </h4>
+                    <ul className="space-y-2">
+                      {exercise.tips.map((tip, i) => (
+                        <li key={i} className="text-xs text-yellow-900/80 leading-relaxed">• {tip}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {exercise.commonMistakes?.length > 0 && (
+                  <div className="bg-red-50 rounded-2xl p-4">
+                    <h4 className="font-bold text-red-800 mb-2 flex items-center gap-2">
+                      <X className="w-4 h-4" /> Common Mistakes
+                    </h4>
+                    <ul className="space-y-2">
+                      {exercise.commonMistakes.map((mistake, i) => (
+                        <li key={i} className="text-xs text-red-900/80 leading-relaxed">• {mistake}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 p-6 overflow-y-auto">
-          {activeTab === "overview" && (
-            <div className="space-y-6">
-              {/* Exercise Description Box - Prominent display */}
-              {exercise.description && (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
-                  <h3 className="font-bold text-lg text-gray-900 mb-2 flex items-center gap-2">
-                    <Info className="w-5 h-5 text-blue-600" />
-                    Exercise Details
-                  </h3>
-                  <p className="text-gray-800 leading-relaxed text-base">
-                    {exercise.description}
-                  </p>
-                </div>
-              )}
-
-              {/* Muscle Groups */}
-              <div>
-                <h3 className="font-bold text-lg text-gray-900 mb-3 flex items-center gap-2">
-                  <Target className="w-5 h-5 text-blue-600" />
-                  Target Muscles
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  {exercise.muscles && exercise.muscles.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-700 mb-2">Primary Muscles</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {exercise.muscles.map((muscle, i) => (
-                          <span key={i} className="px-3 py-1.5 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                            {muscle.replace('_', ' ')}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-700 mb-2">Secondary Muscles</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {exercise.secondaryMuscles.map((muscle, i) => (
-                          <span key={i} className="px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-sm">
-                            {muscle.replace('_', ' ')}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Equipment & Disciplines */}
-              <div className="grid md:grid-cols-2 gap-6">
-                {exercise.equipment && exercise.equipment.length > 0 && (
-                  <div>
-                    <h3 className="font-bold text-lg text-gray-900 mb-3 flex items-center gap-2">
-                      <Dumbbell className="w-5 h-5 text-purple-600" />
-                      Equipment Required
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {exercise.equipment.map((eq, i) => (
-                        <span key={i} className="px-3 py-1.5 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-                          {eq}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {exercise.discipline && exercise.discipline.length > 0 && (
-                  <div>
-                    <h3 className="font-bold text-lg text-gray-900 mb-3 flex items-center gap-2">
-                      <Activity className="w-5 h-5 text-indigo-600" />
-                      Disciplines
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {exercise.discipline.map((disc, i) => (
-                        <span key={i} className="px-3 py-1.5 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium">
-                          {disc}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Strain Information */}
-              {exercise.strain && (
-                <div>
-                  <h3 className="font-bold text-lg text-gray-900 mb-3 flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-orange-600" />
-                    Exercise Strain & Volume
-                  </h3>
-                  <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {exercise.strain.intensity && (
-                        <div>
-                          <div className="text-xs text-gray-600 mb-1">Intensity</div>
-                          <span className={`inline-block px-3 py-1.5 rounded-full text-sm font-medium ${intensityColors[exercise.strain.intensity]}`}>
-                            {exercise.strain.intensity}
-                          </span>
-                        </div>
-                      )}
-                      {exercise.strain.load && (
-                        <div>
-                          <div className="text-xs text-gray-600 mb-1">Load Type</div>
-                          <span className={`inline-block px-3 py-1.5 rounded-full text-sm font-medium ${loadColors[exercise.strain.load]}`}>
-                            {exercise.strain.load}
-                          </span>
-                        </div>
-                      )}
-                      {exercise.strain.duration_type && (
-                        <div>
-                          <div className="text-xs text-gray-600 mb-1">Measured By</div>
-                          <span className="inline-block px-3 py-1.5 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">
-                            {exercise.strain.duration_type}
-                          </span>
-                        </div>
-                      )}
-                      {exercise.strain.typical_volume && (
-                        <div>
-                          <div className="text-xs text-gray-600 mb-1">Typical Volume</div>
-                          <span className="inline-block px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                            {exercise.strain.typical_volume}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Progression Information */}
-              {exercise.progression_group && (
-                <div>
-                  <h3 className="font-bold text-lg text-gray-900 mb-3 flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-green-600" />
-                    Progression Path
-                  </h3>
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm text-gray-600 mb-1">Progression Group</div>
-                        <div className="font-semibold text-gray-900">{exercise.progression_group}</div>
-                      </div>
-                      {exercise.progression_level && (
-                        <div className="text-right">
-                          <div className="text-sm text-gray-600 mb-1">Current Level</div>
-                          <div className="text-2xl font-bold text-green-600">Level {exercise.progression_level}</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === "instructions" && (
-            <div className="space-y-6">
-              {/* Instructions */}
-              {exercise.instructions && exercise.instructions.length > 0 && (
-                <div>
-                  <h3 className="font-bold text-lg text-gray-900 mb-3 flex items-center gap-2">
-                    <Info className="w-5 h-5 text-blue-600" />
-                    How to Perform
-                  </h3>
-                  <ol className="space-y-3">
-                    {exercise.instructions.map((instruction, i) => (
-                      <li key={i} className="flex gap-3">
-                        <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-800 rounded-full flex items-center justify-center font-semibold text-sm">
-                          {i + 1}
-                        </span>
-                        <p className="text-gray-700 leading-relaxed pt-1">{instruction}</p>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-
-              {/* Tips */}
-              {exercise.tips && exercise.tips.length > 0 && (
-                <div>
-                  <h3 className="font-bold text-lg text-gray-900 mb-3 flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5 text-yellow-600" />
-                    Pro Tips
-                  </h3>
-                  <div className="bg-yellow-50 rounded-xl p-4 space-y-2">
-                    {exercise.tips.map((tip, i) => (
-                      <div key={i} className="flex gap-2">
-                        <span className="text-yellow-600 mt-0.5">•</span>
-                        <p className="text-gray-700">{tip}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Common Mistakes */}
-              {exercise.commonMistakes && exercise.commonMistakes.length > 0 && (
-                <div>
-                  <h3 className="font-bold text-lg text-gray-900 mb-3 flex items-center gap-2">
-                    <X className="w-5 h-5 text-red-600" />
-                    Common Mistakes to Avoid
-                  </h3>
-                  <div className="bg-red-50 rounded-xl p-4 space-y-2">
-                    {exercise.commonMistakes.map((mistake, i) => (
-                      <div key={i} className="flex gap-2">
-                        <span className="text-red-600 mt-0.5">✕</span>
-                        <p className="text-gray-700">{mistake}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === "details" && (
-            <div className="space-y-6">
-              {/* User Metadata */}
-              {exercise.userMetadata && (
-                <div>
-                  <h3 className="font-bold text-lg text-gray-900 mb-3">Your Stats</h3>
-                  <div className="bg-blue-50 rounded-xl p-4">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {exercise.userMetadata.timesCompleted !== undefined && (
-                        <div>
-                          <div className="text-sm text-gray-600 mb-1">Times Completed</div>
-                          <div className="text-2xl font-bold text-blue-600">{exercise.userMetadata.timesCompleted}</div>
-                        </div>
-                      )}
-                      {exercise.userMetadata.personalRecord && (
-                        <div>
-                          <div className="text-sm text-gray-600 mb-1">Personal Record</div>
-                          <div className="text-xl font-bold text-green-600">{exercise.userMetadata.personalRecord}</div>
-                        </div>
-                      )}
-                      {exercise.userMetadata.lastPerformed && (
-                        <div>
-                          <div className="text-sm text-gray-600 mb-1">Last Performed</div>
-                          <div className="text-lg font-semibold text-gray-900">
-                            {new Date(exercise.userMetadata.lastPerformed).toLocaleDateString()}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Additional Metadata */}
-              <div>
-                <h3 className="font-bold text-lg text-gray-900 mb-3">Additional Information</h3>
-                <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-                  {exercise.createdAt && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Created</span>
-                      <span className="font-medium">{new Date(exercise.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                  {exercise.updatedAt && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Last Updated</span>
-                      <span className="font-medium">{new Date(exercise.updatedAt).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Exercise ID</span>
-                    <span className="font-mono text-xs">{exercise.id}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="p-6 border-t border-gray-100 bg-white">
-          <div className="flex justify-between items-center">
-            <div className="text-sm text-gray-600">
-              {exercise.isModified && "This is a customized version of a common exercise"}
-              {!exercise.isCommon && "This is your private exercise"}
-              {exercise.isCommon && !exercise.isModified && "This is a common exercise available to all users"}
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={onClose}
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => {
-                  onEdit(exercise);
-                  onClose();
-                }}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
-                {exercise.isCommon && !exercise.isModified ? 'Customize' : 'Edit'}
-              </button>
-            </div>
-          </div>
+        {/* Sticky Footer Actions */}
+        <div className="absolute bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100 z-50">
+          <button
+            onClick={() => {
+              onEdit(exercise);
+              onClose();
+            }}
+            className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold text-base hover:bg-gray-800 transition-colors shadow-xl shadow-gray-900/10 flex items-center justify-center gap-2"
+          >
+            {exercise.isCommon && !exercise.isModified ? 'Customize Exercise' : 'Edit Exercise'}
+          </button>
         </div>
       </div>
     </div>

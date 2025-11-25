@@ -152,17 +152,17 @@ I'll walk you through my reasoning as I work on your request!`
   };
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-b from-gray-50 to-white">
+    <div className="flex flex-col h-full bg-white">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b px-6 py-4">
+      <div className="bg-white border-b border-grey-100 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-2 rounded-lg">
-              <Bot className="h-6 w-6 text-white" />
+            <div className="bg-white p-2 rounded-lg">
+              <Bot className="h-6 w-6 text-primary-500" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">AI Coach Chat</h1>
-              <p className="text-sm text-gray-500">
+              <h1 className="text-xl font-bold text-grey-900">AI Coach Chat</h1>
+              <p className="text-sm text-grey-500">
                 {useStreaming ? "Streaming mode with reasoning" : "Standard mode"}
               </p>
             </div>
@@ -170,11 +170,10 @@ I'll walk you through my reasoning as I work on your request!`
           <div className="flex items-center gap-3">
             <button
               onClick={() => setUseStreaming(!useStreaming)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
-                useStreaming 
-                  ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${useStreaming
+                  ? 'bg-secondary-50 text-secondary-700 hover:bg-secondary-100'
+                  : 'bg-grey-100 text-grey-700 hover:bg-grey-200'
+                }`}
               title={useStreaming ? "Streaming enabled" : "Streaming disabled"}
             >
               <Zap className={`h-4 w-4 ${useStreaming ? 'fill-current' : ''}`} />
@@ -184,7 +183,7 @@ I'll walk you through my reasoning as I work on your request!`
             </button>
             <button
               onClick={clearChat}
-              className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 bg-grey-100 text-grey-700 rounded-lg hover:bg-grey-200 transition-colors"
             >
               <RotateCcw className="h-4 w-4" />
               <span className="text-sm font-medium">Clear</span>
@@ -203,17 +202,16 @@ I'll walk you through my reasoning as I work on your request!`
             <div className="flex gap-3 max-w-[70%]">
               {message.role === "assistant" && (
                 <div className="flex-shrink-0 mt-1">
-                  <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-2 rounded-lg">
-                    <Bot className="h-5 w-5 text-white" />
+                  <div className="bg-grey-100 p-2 rounded-lg">
+                    <Bot className="h-5 w-5 text-grey-700" />
                   </div>
                 </div>
               )}
               <div
-                className={`px-4 py-2.5 rounded-lg ${
-                  message.role === "user"
-                    ? "bg-blue-600 text-white"
-                    : "bg-white border shadow-sm"
-                }`}
+                className={`px-4 py-2.5 rounded-lg ${message.role === "user"
+                    ? "bg-primary-500 text-white"
+                    : "bg-grey-100 text-grey-900"
+                  }`}
               >
                 {message.role === "assistant" && message.isStreaming ? (
                   <div className="prose prose-sm max-w-none">
@@ -231,7 +229,7 @@ I'll walk you through my reasoning as I work on your request!`
                       {streamingMessage || "..."}
                     </ReactMarkdown>
                     {isStreaming && (
-                      <span className="inline-block w-2 h-4 bg-blue-600 animate-pulse ml-1" />
+                      <span className="inline-block w-2 h-4 bg-primary-500 animate-pulse ml-1" />
                     )}
                   </div>
                 ) : (
@@ -254,8 +252,8 @@ I'll walk you through my reasoning as I work on your request!`
               </div>
               {message.role === "user" && (
                 <div className="flex-shrink-0 mt-1">
-                  <div className="bg-gray-200 p-2 rounded-lg">
-                    <MessageCircle className="h-5 w-5 text-gray-600" />
+                  <div className="bg-primary-100 p-2 rounded-lg">
+                    <MessageCircle className="h-5 w-5 text-primary-600" />
                   </div>
                 </div>
               )}
@@ -269,12 +267,12 @@ I'll walk you through my reasoning as I work on your request!`
           <div className="flex justify-start">
             <div className="flex gap-3">
               <div className="flex-shrink-0 mt-1">
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-2 rounded-lg">
-                  <Bot className="h-5 w-5 text-white" />
+                <div className="bg-grey-100 p-2 rounded-lg">
+                  <Bot className="h-5 w-5 text-grey-700" />
                 </div>
               </div>
-              <div className="bg-white border shadow-sm px-4 py-2.5 rounded-lg">
-                <div className="flex items-center gap-2 text-gray-500">
+              <div className="bg-grey-100 px-4 py-2.5 rounded-lg">
+                <div className="flex items-center gap-2 text-grey-500">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Thinking...</span>
                 </div>
@@ -287,7 +285,7 @@ I'll walk you through my reasoning as I work on your request!`
       </div>
 
       {/* Input Area */}
-      <div className="border-t bg-white px-6 py-4">
+      <div className="border-t border-grey-100 bg-grey-50 px-6 py-4">
         <form onSubmit={handleSendMessage}>
           <div className="flex gap-3">
             <input
@@ -295,17 +293,17 @@ I'll walk you through my reasoning as I work on your request!`
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={
-                useStreaming 
+                useStreaming
                   ? "Ask me to create a workout and I'll show you my thinking process..."
                   : "Type your message..."
               }
-              className="flex-1 px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="flex-1 px-4 py-2.5 border border-grey-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
               disabled={isThinking || isStreaming}
             />
             <button
               type="submit"
               disabled={isThinking || isStreaming || !input.trim()}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+              className="bg-primary-500 text-white px-6 py-2.5 rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
             >
               {isThinking || isStreaming ? (
                 <>
@@ -321,9 +319,9 @@ I'll walk you through my reasoning as I work on your request!`
             </button>
           </div>
           {authToken ? (
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-grey-500 mt-2">
               {useStreaming && <Sparkles className="inline h-3 w-3 mr-1" />}
-              {useStreaming 
+              {useStreaming
                 ? "Streaming enabled - I'll show my reasoning as I work through your request"
                 : "Standard mode - Quick responses without reasoning steps"}
             </p>
