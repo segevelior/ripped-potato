@@ -52,6 +52,27 @@ if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
 }
 
+// Health check endpoint - placed before rate limiting to ensure Render health checks never get 429
+app.get('/api/v1/health', (req, res) => {
+  const healthCheck = {
+    status: 'ok',
+    message: 'SynergyFit API is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    version: process.env.APP_VERSION || '1.0.0',
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  };
+
+  if (process.env.NODE_ENV !== 'production') {
+    healthCheck.nodeVersion = process.version;
+    healthCheck.platform = process.platform;
+  }
+
+  res.json(healthCheck);
+});
+
 // Security Middleware
 app.use(helmet({
   contentSecurityPolicy: {
@@ -85,10 +106,6 @@ const limiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => {
-    // Skip rate limiting for health checks in production
-    return req.path === '/api/v1/health';
-  }
 });
 
 // Apply rate limiting
@@ -179,28 +196,6 @@ mongoose.connection.on('disconnected', () => {
 
 mongoose.connection.on('reconnected', () => {
   logger.info('MongoDB reconnected');
-});
-
-// Health check endpoint
-app.get('/api/v1/health', (req, res) => {
-  const healthCheck = {
-    status: 'ok',
-    message: 'SynergyFit API is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-    version: process.env.APP_VERSION || '1.0.0',
-    uptime: process.uptime(),
-    memory: process.memoryUsage(),
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-  };
-  
-  // Only include sensitive info in development
-  if (process.env.NODE_ENV !== 'production') {
-    healthCheck.nodeVersion = process.version;
-    healthCheck.platform = process.platform;
-  }
-  
-  res.json(healthCheck);
 });
 
 // API Routes
