@@ -10,12 +10,14 @@ import json
 import structlog
 from openai import AsyncOpenAI
 import asyncio
+import time
 
 from app.config import get_settings
 from app.models.schemas import ChatRequest
 from app.middleware.auth import get_current_user
 from app.core.agents.orchestrator import AgentOrchestrator
 from app.core.agents.data_reader import DataReaderAgent
+from app.services.conversation_service import ConversationService
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -26,13 +28,18 @@ async def generate_stream_with_reasoning(
     user_context: Dict[str, Any],
     settings: Any,
     orchestrator: AgentOrchestrator,
-    data_reader: DataReaderAgent
+    data_reader: DataReaderAgent,
+    conversation_service: ConversationService,
+    conversation_id: str,
+    conversation_history: list = None
 ) -> AsyncGenerator[str, None]:
     """
     Generate streaming response with tool calling and reasoning steps shown to user.
     The AI can use tools to interact with the database while streaming.
+    Saves messages to conversation history.
     """
     logger.info(f"📝 generate_stream_with_reasoning called with message: {message[:50]}...")
+    start_time = time.time()
     client = AsyncOpenAI(api_key=settings.openai_api_key)
 
     user_id = user_context.get("user_id")
@@ -50,11 +57,16 @@ async def generate_stream_with_reasoning(
     # System prompt (same as orchestrator but with streaming guidance)
     system_prompt = """You are an expert AI fitness coach helping users manage their fitness journey.
 
-When users ask to add exercises (like "add muscle ups to my exercises"), use add_exercise.
-When they want to create workouts or goals, use create_workout or create_goal.
-When they want to update an existing goal, use update_goal.
-When they want to update a plan's details (name, status, start date, schedule), use update_plan.
-When they want to add or remove weekly workouts in a plan, use add_plan_workout or remove_plan_workout.
+TOOL USAGE:
+- grep_exercises: Search ALL available exercises (common + user's custom). Use output_mode="both" to find similar exercises when exact match not found.
+- add_exercise: Add new exercises. ALWAYS use grep_exercises first to check if it exists!
+- create_workout_template: Create workout templates with exercise blocks.
+- log_workout: Record completed workouts.
+- create_plan: Create training plans.
+- update_plan, add_plan_workout, remove_plan_workout: Manage plans.
+- create_goal, update_goal: Manage fitness goals.
+
+When user asks "do I have X exercise?" use grep_exercises with output_mode="both".
 
 IMPORTANT: Show your thinking process naturally as you work:
 - Before calling a tool, explain what you're about to do
@@ -62,14 +74,31 @@ IMPORTANT: Show your thinking process naturally as you work:
 - Be conversational and guide users through your process
 
 For example:
-- "Let me create that workout for you..."
-- "I'm adding these exercises to your predefined workouts..."
+- "Let me search for that exercise..."
+- "I found a similar exercise called X - is that what you meant?"
 - "Great! I've successfully added the workout to your library."""
 
+    # Build messages array with conversation history
     messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": f"{context_str}\n\nUser: {message}"}
     ]
+
+    # Add conversation history if available (excluding the current message which we'll add separately)
+    if conversation_history:
+        for hist_msg in conversation_history:
+            role = "user" if hist_msg.get("role") == "human" else "assistant"
+            messages.append({
+                "role": role,
+                "content": hist_msg.get("content", "")
+            })
+        # Add current message without context prefix (history provides context)
+        messages.append({"role": "user", "content": message})
+    else:
+        # First message - include context
+        messages.append({"role": "user", "content": f"{context_str}\n\nUser: {message}"})
+
+    # Track the full response for saving to conversation
+    full_response = []
 
     try:
         # Create streaming completion WITH TOOLS
@@ -107,6 +136,7 @@ For example:
             if delta.content:
                 logger.debug(f"Token #{token_count}: '{delta.content}'")
                 token = delta.content
+                full_response.append(token)  # Capture for saving
                 # Format as Server-Sent Event
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
@@ -157,36 +187,35 @@ For example:
 
                         # Map tool names to user-friendly descriptions
                         tool_descriptions = {
+                            # Exercise tools
                             "add_exercise": f"Adding {function_args.get('name', 'exercise')} to your library",
-                            "create_workout": f"Creating {function_args.get('name', 'workout')}",
-                            "create_goal": f"Setting up {function_args.get('name', 'fitness goal')}",
-                            "update_goal": "Updating your fitness goal",
+                            "list_exercises": "Searching exercises in the database",
+                            "grep_exercises": f"Grep searching {len(function_args.get('patterns', []))} exercise patterns",
+                            "grep_workouts": f"Grep searching {len(function_args.get('patterns', []))} workout patterns",
+                            # Workout template tools
+                            "create_workout_template": f"Creating workout template: {function_args.get('name', 'workout')}",
+                            "list_workout_templates": "Browsing workout templates",
+                            # Workout log tools
+                            "log_workout": f"Logging workout: {function_args.get('title', 'workout')}",
+                            "get_workout_history": "Fetching your workout history",
+                            # Plan tools
+                            "create_plan": f"Creating training plan: {function_args.get('name', 'plan')}",
+                            "list_plans": "Fetching your training plans",
                             "update_plan": "Updating your training plan",
                             "add_plan_workout": f"Adding workout to week {function_args.get('weekNumber', '')}",
-                            "remove_plan_workout": f"Removing workout from week {function_args.get('weekNumber', '')}"
+                            "remove_plan_workout": f"Removing workout from week {function_args.get('weekNumber', '')}",
+                            # Goal tools
+                            "create_goal": f"Setting up goal: {function_args.get('name', 'fitness goal')}",
+                            "update_goal": "Updating your fitness goal",
+                            "list_goals": "Fetching your fitness goals"
                         }
 
                         # Send tool execution start event
                         tool_display_name = tool_descriptions.get(function_name, f"Processing {function_name}")
                         yield f"data: {json.dumps({'type': 'tool_start', 'tool': function_name, 'description': tool_display_name})}\n\n"
 
-                        # Execute using orchestrator's methods
-                        if function_name == "add_exercise":
-                            result = await orchestrator._add_exercise(user_id, function_args)
-                        elif function_name == "create_workout":
-                            result = await orchestrator._create_workout(user_id, function_args)
-                        elif function_name == "create_goal":
-                            result = await orchestrator._create_goal(user_id, function_args)
-                        elif function_name == "update_goal":
-                            result = await orchestrator._update_goal(user_id, function_args)
-                        elif function_name == "update_plan":
-                            result = await orchestrator._update_plan(user_id, function_args)
-                        elif function_name == "add_plan_workout":
-                            result = await orchestrator._add_plan_workout(user_id, function_args)
-                        elif function_name == "remove_plan_workout":
-                            result = await orchestrator._remove_plan_workout(user_id, function_args)
-                        else:
-                            result = {"error": f"Unknown function: {function_name}"}
+                        # Execute using orchestrator's unified tool router
+                        result = await orchestrator._execute_tool(user_id, function_name, function_args)
 
                         logger.info(f"✅ Tool {function_name} result: {result}")
 
@@ -237,11 +266,26 @@ For example:
                     async for final_chunk in final_stream:
                         final_choice = final_chunk.choices[0] if final_chunk.choices else None
                         if final_choice and final_choice.delta.content:
+                            full_response.append(final_choice.delta.content)  # Capture for saving
                             yield f"data: {json.dumps({'type': 'token', 'content': final_choice.delta.content})}\n\n"
 
-        # Send completion event
+        # Calculate response time
+        response_time_ms = int((time.time() - start_time) * 1000)
+
+        # Save AI response to conversation
+        final_response_text = "".join(full_response)
+        if final_response_text:
+            await conversation_service.add_message(
+                conversation_id=conversation_id,
+                role="ai",
+                content=final_response_text,
+                response_time_ms=response_time_ms
+            )
+            logger.info(f"💾 Saved AI response to conversation {conversation_id}")
+
+        # Send completion event with conversation_id
         logger.info(f"✅ Stream completed successfully. Total chunks: {token_count}")
-        yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+        yield f"data: {json.dumps({'type': 'complete', 'conversation_id': conversation_id})}\n\n"
 
     except Exception as e:
         logger.error(f"❌ Streaming error: {e}", exc_info=True)
@@ -285,19 +329,57 @@ async def chat_stream(
     # Get database and Redis connections
     from app.main import db, redis_client
 
-    # Initialize orchestrator and data reader (same as non-streaming endpoint)
+    # Initialize orchestrator, data reader, and conversation service
     orchestrator = AgentOrchestrator(db, redis_client)
     data_reader = DataReaderAgent(db)
+    conversation_service = ConversationService(db)
+
+    user_id = current_user["user_id"]
+
+    # Get or create conversation and retrieve history
+    conversation_id = request.conversation_id
+    conversation_history = []
+
+    if conversation_id:
+        # Verify conversation exists and belongs to user
+        existing = await conversation_service.get_conversation(conversation_id, user_id)
+        if not existing:
+            # Create new if not found
+            result = await conversation_service.create_conversation(
+                user_id=user_id,
+                initial_message=request.message
+            )
+            conversation_id = result["conversation_id"]
+        else:
+            # Get existing conversation history for context
+            conversation_history = existing.get("messages", [])
+            logger.info(f"📚 Loaded {len(conversation_history)} previous messages for context")
+
+            # Add human message to existing conversation
+            await conversation_service.add_message(
+                conversation_id=conversation_id,
+                role="human",
+                content=request.message
+            )
+    else:
+        # Create new conversation with initial message
+        result = await conversation_service.create_conversation(
+            user_id=user_id,
+            initial_message=request.message
+        )
+        conversation_id = result["conversation_id"]
+
+    logger.info(f"💬 Using conversation {conversation_id} for user {user_id}")
 
     # Prepare user context
     user_context = {
-        "user_id": current_user["user_id"],
+        "user_id": user_id,
         "email": current_user.get("email"),
         "username": current_user.get("username"),
         "schema": request.context.get("schema") if request.context else None
     }
 
-    logger.info(f"✅ Starting stream generation for user {current_user['user_id']}")
+    logger.info(f"✅ Starting stream generation for user {user_id}")
 
     # Generate streaming response with tools
     stream_generator = generate_stream_with_reasoning(
@@ -305,7 +387,10 @@ async def chat_stream(
         user_context,
         settings,
         orchestrator,
-        data_reader
+        data_reader,
+        conversation_service,
+        conversation_id,
+        conversation_history
     )
 
     return StreamingResponse(

@@ -1,336 +1,398 @@
-/**
- * MINIMAL POC - Chat with Streaming and Reasoning
- * Shows AI's thinking process as it works through requests
- */
-
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { User } from "@/api/entities";
-import { Bot, Send, Loader2, Zap, RotateCcw, Sparkles, MessageCircle } from "lucide-react";
+import { Bot, Send, Loader2, Sparkles, User as UserIcon, Menu } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import { useStreamingChat } from "@/hooks/useStreamingChat";
 import { ToolExecutionMarker } from "@/components/ToolExecutionMarker";
+import { ConversationSidebar } from "@/components/chat/ConversationSidebar";
+import { FeedbackButtons } from "@/components/chat/FeedbackButtons";
+
+// API Base URL
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 export default function ChatWithStreaming() {
+  // State
+  const [user, setUser] = useState(null);
+  const [authToken, setAuthToken] = useState(null);
+  const [conversations, setConversations] = useState([]);
+  const [currentConversationId, setCurrentConversationId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [isThinking, setIsThinking] = useState(false);
-  const [user, setUser] = useState(null);
-  const [useStreaming, setUseStreaming] = useState(true);
-  const [authToken, setAuthToken] = useState(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [isLoadingConversation, setIsLoadingConversation] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default
+
+  // Refs
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
 
   // Streaming hook
-  const { isStreaming, streamingMessage, activeTools, completedTools, sendStreamingMessage } = useStreamingChat();
+  const {
+    isStreaming,
+    streamingMessage,
+    activeTools,
+    completedTools,
+    sendStreamingMessage
+  } = useStreamingChat();
 
+  // Initial Load
   useEffect(() => {
-    const loadUser = async () => {
+    const loadUserAndHistory = async () => {
       try {
         const userData = await User.me();
         setUser(userData);
-
-        // Get auth token
         const token = localStorage.getItem('authToken');
         setAuthToken(token);
 
-        // Load chat history
-        const savedMessages = localStorage.getItem('chatHistory');
-        if (savedMessages) {
-          setMessages(JSON.parse(savedMessages));
-        } else {
-          setMessages([{
-            role: "assistant",
-            content: `Hi ${userData.full_name}! I'm your AI fitness coach with reasoning capabilities. 
-            
-When you ask me to create workouts or analyze exercises, I'll show you my thinking process step by step. Try asking me something like:
-- "Create a 15 minute core workout"
-- "Help me build a workout plan for next week"
-- "What exercises are good for beginners?"
-
-I'll walk you through my reasoning as I work on your request!`
-          }]);
+        if (token) {
+          await fetchHistory(token);
         }
       } catch (error) {
         console.error("Error loading user:", error);
+      } finally {
+        setIsLoadingHistory(false);
       }
     };
 
-    loadUser();
+    loadUserAndHistory();
   }, []);
 
-  useEffect(() => {
-    // Save chat history
-    if (messages.length > 0) {
-      localStorage.setItem('chatHistory', JSON.stringify(messages));
-    }
-  }, [messages]);
-
-  // Auto-scroll to bottom when messages change or streaming updates
-  useEffect(() => {
-    // Use instant scroll during streaming to avoid jumpy behavior
-    // Use smooth scroll when not streaming for better UX
-    const behavior = isStreaming ? "instant" : "smooth";
-    messagesEndRef.current?.scrollIntoView({ behavior });
-  }, [messages, streamingMessage, isStreaming]);
-
-  // Update messages when streaming completes
-  useEffect(() => {
-    if (!isStreaming && streamingMessage) {
-      setMessages(prev => {
-        const lastMessage = prev[prev.length - 1];
-        if (lastMessage && lastMessage.role === "assistant" && lastMessage.isStreaming) {
-          // Update the streaming message to final
-          const updatedMessages = [...prev];
-          updatedMessages[updatedMessages.length - 1] = {
-            role: "assistant",
-            content: streamingMessage,
-            isStreaming: false
-          };
-          return updatedMessages;
-        }
-        return prev;
+  // Fetch Conversation History
+  const fetchHistory = async (token) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/conversations/history?limit=50`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
+      if (response.ok) {
+        const data = await response.json();
+        setConversations(data.conversations || []);
+      }
+    } catch (error) {
+      console.error("Error fetching history:", error);
     }
-  }, [isStreaming, streamingMessage]);
+  };
 
+  // Load Specific Conversation
+  const loadConversation = async (conversationId) => {
+    if (conversationId === currentConversationId) return;
+
+    setIsLoadingConversation(true);
+    setCurrentConversationId(conversationId);
+    setMessages([]); // Clear current messages while loading
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/conversations/${conversationId}`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Transform backend messages to UI format
+        const uiMessages = data.messages.map(msg => ({
+          role: msg.role === 'human' ? 'user' : 'assistant',
+          content: msg.content,
+          timestamp: msg.timestamp
+        }));
+        setMessages(uiMessages);
+      }
+    } catch (error) {
+      console.error("Error loading conversation:", error);
+    } finally {
+      setIsLoadingConversation(false);
+      // On mobile, close sidebar after selection
+      if (window.innerWidth < 768) {
+        setIsSidebarOpen(false);
+      }
+    }
+  };
+
+  // Start New Chat
+  const handleNewChat = () => {
+    setCurrentConversationId(null);
+    setMessages([]);
+    setInput("");
+    if (window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    }
+    // Focus input
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  // Delete Conversation
+  const handleDeleteConversation = async (conversationId) => {
+    if (!confirm("Are you sure you want to delete this conversation?")) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/conversations/${conversationId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+
+      if (response.ok) {
+        setConversations(prev => prev.filter(c => c.conversation_id !== conversationId));
+        if (currentConversationId === conversationId) {
+          handleNewChat();
+        }
+      }
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+    }
+  };
+
+  // Send Message
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim() || isThinking || isStreaming) return;
+    if (!input.trim() || isStreaming) return;
 
     const userMessage = { role: "user", content: input };
     setMessages(prev => [...prev, userMessage]);
     const currentInput = input;
     setInput("");
 
-    if (useStreaming && authToken) {
-      // Streaming mode - show reasoning steps
+    // Optimistic UI update for new conversation
+    if (!currentConversationId) {
+      // We'll let the streaming hook return the new ID
+    }
+
+    try {
+      // Add placeholder for AI response
       setMessages(prev => [...prev, { role: "assistant", content: "", isStreaming: true }]);
 
-      try {
-        await sendStreamingMessage(currentInput, authToken);
-      } catch (error) {
-        console.error("[ChatWithStreaming] Streaming error:", error);
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: "Sorry, there was an error with streaming. Please try again."
-        }]);
+      const newConversationId = await sendStreamingMessage(
+        currentInput,
+        authToken,
+        currentConversationId
+      );
+
+      // If we started a new conversation, refresh history and set ID
+      if (newConversationId && newConversationId !== currentConversationId) {
+        setCurrentConversationId(newConversationId);
+        fetchHistory(authToken); // Refresh list to show new chat title
       }
-    } else {
-      // Non-streaming mode
-      setIsThinking(true);
 
-      try {
-        const prompt = `User asks: ${currentInput}
-        Provide a helpful, detailed response about fitness and training.`;
-
-        const result = await InvokeLLM({ prompt });
-
-        const assistantMessage = {
-          role: "assistant",
-          content: result.response || "I'm here to help! Could you please rephrase your question?"
-        };
-
-        setMessages(prev => [...prev, assistantMessage]);
-      } catch (error) {
-        console.error("Error sending message:", error);
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: "Sorry, I encountered an error. Please try again."
-        }]);
-      } finally {
-        setIsThinking(false);
-      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "Sorry, there was an error processing your request."
+      }]);
     }
   };
 
-  const clearChat = () => {
-    setMessages([{
-      role: "assistant",
-      content: "Chat cleared. How can I help you with your fitness journey today?"
-    }]);
-    localStorage.removeItem('chatHistory');
-  };
+  // Auto-scroll
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: isStreaming ? "instant" : "smooth" });
+  }, [messages, streamingMessage, isStreaming]);
+
+  // Update streaming message in UI
+  useEffect(() => {
+    if (streamingMessage) {
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMsg = newMessages[newMessages.length - 1];
+        if (lastMsg && lastMsg.isStreaming) {
+          lastMsg.content = streamingMessage;
+        }
+        return newMessages;
+      });
+    }
+  }, [streamingMessage]);
+
+  // Finalize streaming message
+  useEffect(() => {
+    if (!isStreaming && streamingMessage) {
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMsg = newMessages[newMessages.length - 1];
+        if (lastMsg && lastMsg.isStreaming) {
+          lastMsg.isStreaming = false;
+          lastMsg.content = streamingMessage;
+        }
+        return newMessages;
+      });
+    }
+  }, [isStreaming]);
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Header */}
-      <div className="bg-white border-b border-grey-100 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-white p-2 rounded-lg">
-              <Bot className="h-6 w-6 text-primary-500" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-grey-900">AI Coach Chat</h1>
-              <p className="text-sm text-grey-500">
-                {useStreaming ? "Streaming mode with reasoning" : "Standard mode"}
+    <div className="flex h-[calc(100vh-64px)] bg-white overflow-hidden">
+      {/* Mobile Sidebar Toggle */}
+      <button
+        className="md:hidden fixed top-20 left-4 z-50 p-2 bg-white rounded-lg shadow-md border border-gray-200"
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+      >
+        <Menu className="h-5 w-5 text-gray-600" />
+      </button>
+
+      {/* Sidebar */}
+      <div className={`
+        fixed md:relative z-40 h-full transition-transform duration-300 ease-in-out
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
+        <ConversationSidebar
+          conversations={conversations}
+          currentId={currentConversationId}
+          onSelect={loadConversation}
+          onNewChat={handleNewChat}
+          onDelete={handleDeleteConversation}
+          isLoading={isLoadingHistory}
+        />
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col h-full relative w-full">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+            {messages.length === 0 ? (
+              // Empty State
+              <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-6">
+                <div className="bg-primary-50 p-4 rounded-2xl">
+                  <Sparkles className="h-12 w-12 text-primary-500" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    AI Fitness Coach
+                  </h2>
+                  <p className="text-gray-500 max-w-md">
+                    I can help you create workouts, analyze your progress, and answer fitness questions.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-lg">
+                  {[
+                    "Create a 30-min HIIT workout",
+                    "How do I improve my squat form?",
+                    "Plan a weekly schedule for me",
+                    "Explain progressive overload"
+                  ].map((suggestion, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setInput(suggestion);
+                        inputRef.current?.focus();
+                      }}
+                      className="p-3 text-sm text-left bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              // Message List
+              <>
+                {messages.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    {/* Assistant Avatar */}
+                    {msg.role === 'assistant' && (
+                      <div className="flex-shrink-0 mt-1">
+                        <div className="h-8 w-8 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center shadow-sm">
+                          <Bot className="h-5 w-5 text-white" />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Message Bubble */}
+                    <div className={`
+                      max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-3.5 shadow-sm
+                      ${msg.role === 'user'
+                        ? 'bg-primary-600 text-white rounded-br-none'
+                        : 'bg-white border border-gray-100 text-gray-800 rounded-bl-none shadow-sm'
+                      }
+                    `}>
+                      {msg.role === 'assistant' ? (
+                        <div>
+                          <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200">
+                            <ReactMarkdown
+                              rehypePlugins={[rehypeRaw]}
+                              components={{
+                                'tool-executing': ({ children }) => (
+                                  <ToolExecutionMarker isComplete={false}>{children}</ToolExecutionMarker>
+                                ),
+                                'tool-complete': ({ children }) => (
+                                  <ToolExecutionMarker isComplete={true}>{children}</ToolExecutionMarker>
+                                ),
+                              }}
+                            >
+                              {msg.content || (msg.isStreaming ? "..." : "")}
+                            </ReactMarkdown>
+                            {msg.isStreaming && !msg.content && (
+                              <span className="inline-block w-2 h-4 bg-primary-400 animate-pulse ml-1 align-middle" />
+                            )}
+                          </div>
+                          {/* Feedback buttons - only show for completed AI messages */}
+                          {!msg.isStreaming && msg.content && currentConversationId && (
+                            <FeedbackButtons
+                              conversationId={currentConversationId}
+                              messageIndex={idx}
+                              question={messages[idx - 1]?.content}
+                              answer={msg.content}
+                              authToken={authToken}
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                      )}
+                    </div>
+
+                    {/* User Avatar */}
+                    {msg.role === 'user' && (
+                      <div className="flex-shrink-0 mt-1">
+                        <div className="h-8 w-8 bg-gray-200 rounded-full flex items-center justify-center">
+                          <UserIcon className="h-5 w-5 text-gray-500" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* Input Area */}
+        <div className="bg-white border-t border-gray-100 p-4 md:p-6">
+          <div className="max-w-3xl mx-auto relative">
+            <form onSubmit={handleSendMessage} className="relative">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Message your AI Coach..."
+                className="w-full pl-5 pr-14 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all shadow-sm text-gray-800 placeholder-gray-400"
+                disabled={isStreaming}
+              />
+              <button
+                type="submit"
+                disabled={!input.trim() || isStreaming}
+                className={`
+                  absolute right-2 top-2 bottom-2 p-2 rounded-xl flex items-center justify-center transition-all
+                  ${!input.trim() || isStreaming
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm hover:shadow'
+                  }
+                `}
+              >
+                {isStreaming ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+              </button>
+            </form>
+            <div className="text-center mt-2">
+              <p className="text-xs text-gray-400">
+                AI can make mistakes. Check important info.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setUseStreaming(!useStreaming)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${useStreaming
-                  ? 'bg-secondary-50 text-secondary-700 hover:bg-secondary-100'
-                  : 'bg-grey-100 text-grey-700 hover:bg-grey-200'
-                }`}
-              title={useStreaming ? "Streaming enabled" : "Streaming disabled"}
-            >
-              <Zap className={`h-4 w-4 ${useStreaming ? 'fill-current' : ''}`} />
-              <span className="text-sm font-medium">
-                {useStreaming ? 'Streaming ON' : 'Streaming OFF'}
-              </span>
-            </button>
-            <button
-              onClick={clearChat}
-              className="flex items-center gap-2 px-3 py-1.5 bg-grey-100 text-grey-700 rounded-lg hover:bg-grey-200 transition-colors"
-            >
-              <RotateCcw className="h-4 w-4" />
-              <span className="text-sm font-medium">Clear</span>
-            </button>
-          </div>
         </div>
-      </div>
-
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-        {messages.map((message, idx) => (
-          <div
-            key={idx}
-            className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-          >
-            <div className="flex gap-3 max-w-[70%]">
-              {message.role === "assistant" && (
-                <div className="flex-shrink-0 mt-1">
-                  <div className="bg-grey-100 p-2 rounded-lg">
-                    <Bot className="h-5 w-5 text-grey-700" />
-                  </div>
-                </div>
-              )}
-              <div
-                className={`px-4 py-2.5 rounded-lg ${message.role === "user"
-                    ? "bg-primary-500 text-white"
-                    : "bg-grey-100 text-grey-900"
-                  }`}
-              >
-                {message.role === "assistant" && message.isStreaming ? (
-                  <div className="prose prose-sm max-w-none">
-                    <ReactMarkdown
-                      rehypePlugins={[rehypeRaw]}
-                      components={{
-                        'tool-executing': ({ children }) => (
-                          <ToolExecutionMarker isComplete={false}>{children}</ToolExecutionMarker>
-                        ),
-                        'tool-complete': ({ children }) => (
-                          <ToolExecutionMarker isComplete={true}>{children}</ToolExecutionMarker>
-                        ),
-                      }}
-                    >
-                      {streamingMessage || "..."}
-                    </ReactMarkdown>
-                    {isStreaming && (
-                      <span className="inline-block w-2 h-4 bg-primary-500 animate-pulse ml-1" />
-                    )}
-                  </div>
-                ) : (
-                  <div className={`${message.role === "assistant" ? "prose prose-sm max-w-none" : ""}`}>
-                    <ReactMarkdown
-                      rehypePlugins={[rehypeRaw]}
-                      components={{
-                        'tool-executing': ({ children }) => (
-                          <ToolExecutionMarker isComplete={false}>{children}</ToolExecutionMarker>
-                        ),
-                        'tool-complete': ({ children }) => (
-                          <ToolExecutionMarker isComplete={true}>{children}</ToolExecutionMarker>
-                        ),
-                      }}
-                    >
-                      {message.content}
-                    </ReactMarkdown>
-                  </div>
-                )}
-              </div>
-              {message.role === "user" && (
-                <div className="flex-shrink-0 mt-1">
-                  <div className="bg-primary-100 p-2 rounded-lg">
-                    <MessageCircle className="h-5 w-5 text-primary-600" />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {/* Tool execution is now inline within the message using custom HTML tags */}
-
-        {isThinking && (
-          <div className="flex justify-start">
-            <div className="flex gap-3">
-              <div className="flex-shrink-0 mt-1">
-                <div className="bg-grey-100 p-2 rounded-lg">
-                  <Bot className="h-5 w-5 text-grey-700" />
-                </div>
-              </div>
-              <div className="bg-grey-100 px-4 py-2.5 rounded-lg">
-                <div className="flex items-center gap-2 text-grey-500">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Thinking...</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input Area */}
-      <div className="border-t border-grey-100 bg-grey-50 px-6 py-4">
-        <form onSubmit={handleSendMessage}>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={
-                useStreaming
-                  ? "Ask me to create a workout and I'll show you my thinking process..."
-                  : "Type your message..."
-              }
-              className="flex-1 px-4 py-2.5 border border-grey-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
-              disabled={isThinking || isStreaming}
-            />
-            <button
-              type="submit"
-              disabled={isThinking || isStreaming || !input.trim()}
-              className="bg-primary-500 text-white px-6 py-2.5 rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
-            >
-              {isThinking || isStreaming ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>{isStreaming ? "Streaming" : "Processing"}</span>
-                </>
-              ) : (
-                <>
-                  <Send className="h-5 w-5" />
-                  <span>Send</span>
-                </>
-              )}
-            </button>
-          </div>
-          {authToken ? (
-            <p className="text-xs text-grey-500 mt-2">
-              {useStreaming && <Sparkles className="inline h-3 w-3 mr-1" />}
-              {useStreaming
-                ? "Streaming enabled - I'll show my reasoning as I work through your request"
-                : "Standard mode - Quick responses without reasoning steps"}
-            </p>
-          ) : (
-            <p className="text-xs text-orange-500 mt-2">
-              Using fallback mode - streaming not available
-            </p>
-          )}
-        </form>
       </div>
     </div>
   );

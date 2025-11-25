@@ -1,5 +1,6 @@
 const Exercise = require('../models/Exercise');
 const UserExerciseModification = require('../models/UserExerciseModification');
+const mongoose = require('mongoose');
 
 class ExerciseService {
   /**
@@ -8,11 +9,14 @@ class ExerciseService {
    * @returns {Array} Array of exercises with modifications applied
    */
   static async getExercisesForUser(userId) {
+    // Convert userId to ObjectId to match how exercises are stored
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
     // 1. Get all exercises user can see
     const exercises = await Exercise.find({
       $or: [
         { isCommon: true },
-        { createdBy: userId }
+        { createdBy: userObjectId }
       ]
     }).lean();
     
@@ -74,12 +78,15 @@ class ExerciseService {
    * @param {Object} metadata - User-specific metadata
    */
   static async saveModification(userId, exerciseId, modifications, metadata) {
+    // Convert userId to ObjectId
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
     // Verify exercise exists and user can access it
     const exercise = await Exercise.findOne({
       _id: exerciseId,
       $or: [
         { isCommon: true },
-        { createdBy: userId }
+        { createdBy: userObjectId }
       ]
     });
     
@@ -122,11 +129,14 @@ class ExerciseService {
    * @param {String} userId - The user's ID
    */
   static async getExerciseForUser(exerciseId, userId) {
+    // Convert userId to ObjectId
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
     const exercise = await Exercise.findOne({
       _id: exerciseId,
       $or: [
         { isCommon: true },
-        { createdBy: userId }
+        { createdBy: userObjectId }
       ]
     }).lean();
     

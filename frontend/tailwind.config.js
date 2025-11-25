@@ -18,6 +18,8 @@ module.exports = {
 					100: '#FEE1DC', // Primary/Red 100
 					400: '#FE755D', // Primary/Red 400
 					500: '#FE5334', // Primary/Red 500
+					600: '#E0482C', // Primary/Red 600 (Added)
+					700: '#C23D25', // Primary/Red 700 (Added)
 				},
 				secondary: {
 					DEFAULT: '#6366F1',

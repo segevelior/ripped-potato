@@ -8,16 +8,16 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 class APIService {
   constructor() {
-    this.token = localStorage.getItem('auth_token');
+    this.token = localStorage.getItem('authToken');
     this.baseURL = API_BASE_URL;
   }
 
   updateToken(token) {
     this.token = token;
     if (token) {
-      localStorage.setItem('auth_token', token);
+      localStorage.setItem('authToken', token);
     } else {
-      localStorage.removeItem('auth_token');
+      localStorage.removeItem('authToken');
     }
   }
 
