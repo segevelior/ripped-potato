@@ -37,7 +37,7 @@ const calendarEventSchema = new mongoose.Schema({
   workoutDetails: {
     type: {
       type: String,
-      enum: ['strength', 'cardio', 'hybrid', 'recovery', 'hiit', 'flexibility', 'calisthenics', 'mobility']
+      enum: ['strength', 'cardio', 'hybrid', 'recovery', 'hiit', 'flexibility', 'calisthenics', 'mobility', 'meditation']
     },
     estimatedDuration: Number, // in minutes
     exercises: [{

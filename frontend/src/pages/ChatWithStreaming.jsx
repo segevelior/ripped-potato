@@ -8,6 +8,7 @@ import { useStreamingChat } from "@/hooks/useStreamingChat";
 import { ToolExecutionMarker } from "@/components/ToolExecutionMarker";
 import { ConversationSidebar } from "@/components/chat/ConversationSidebar";
 import { FeedbackButtons } from "@/components/chat/FeedbackButtons";
+import { QuickReplies, parseQuickReplies } from "@/components/chat/QuickReplies";
 
 // API Base URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
@@ -211,6 +212,37 @@ export default function ChatWithStreaming() {
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
+  // Handle Quick Reply Click
+  const handleQuickReply = async (replyText) => {
+    if (isStreaming) return;
+
+    const userMessage = { role: "user", content: replyText };
+    setMessages(prev => [...prev, userMessage]);
+
+    try {
+      // Add placeholder for AI response
+      setMessages(prev => [...prev, { role: "assistant", content: "", isStreaming: true }]);
+
+      const newConversationId = await sendStreamingMessage(
+        replyText,
+        authToken,
+        currentConversationId
+      );
+
+      // If we started a new conversation, refresh history and set ID
+      if (newConversationId && newConversationId !== currentConversationId) {
+        setCurrentConversationId(newConversationId);
+        fetchHistory(authToken);
+      }
+    } catch (error) {
+      console.error("Error sending quick reply:", error);
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "Sorry, there was an error processing your request."
+      }]);
+    }
+  };
+
   // Delete Conversation
   const handleDeleteConversation = async (conversationId) => {
     if (!confirm("Are you sure you want to delete this conversation?")) return;
@@ -406,116 +438,132 @@ export default function ChatWithStreaming() {
                       }
                     `}>
                       {msg.role === 'assistant' ? (
-                        <div>
-                          <div className="prose prose-sm max-w-none
-                              prose-p:my-2 prose-p:leading-relaxed
-                              prose-headings:font-semibold prose-headings:text-gray-900
-                              prose-h1:text-lg prose-h1:mt-4 prose-h1:mb-2
-                              prose-h2:text-base prose-h2:mt-3 prose-h2:mb-2
-                              prose-h3:text-sm prose-h3:mt-2 prose-h3:mb-1
-                              prose-strong:text-gray-900 prose-strong:font-semibold
-                              prose-ul:my-2 prose-ul:pl-4
-                              prose-ol:my-2 prose-ol:pl-4
-                              prose-li:my-0.5 prose-li:leading-relaxed
-                              prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200 prose-pre:rounded-lg
-                              prose-code:text-primary-600 prose-code:bg-primary-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:font-medium prose-code:before:content-none prose-code:after:content-none
-                              prose-a:text-primary-600 prose-a:font-medium prose-a:no-underline hover:prose-a:underline
-                            ">
-                            <ReactMarkdown
-                              rehypePlugins={[rehypeRaw]}
-                              components={{
-                                'tool-executing': ({ children }) => (
-                                  <ToolExecutionMarker isComplete={false}>{children}</ToolExecutionMarker>
-                                ),
-                                'tool-complete': ({ children }) => (
-                                  <ToolExecutionMarker isComplete={true}>{children}</ToolExecutionMarker>
-                                ),
-                                h1: ({ children }) => (
-                                  <h1 className="flex items-center gap-2 text-lg font-bold text-gray-900 mt-4 mb-2 pb-1 border-b border-gray-100">
-                                    {children}
-                                  </h1>
-                                ),
-                                h2: ({ children }) => (
-                                  <h2 className="flex items-center gap-2 text-base font-semibold text-gray-800 mt-4 mb-2">
-                                    <span className="w-1 h-4 bg-primary-500 rounded-full"></span>
-                                    {children}
-                                  </h2>
-                                ),
-                                h3: ({ children }) => (
-                                  <h3 className="text-sm font-semibold text-gray-700 mt-3 mb-1.5">
-                                    {children}
-                                  </h3>
-                                ),
-                                strong: ({ children }) => (
-                                  <strong className="font-semibold text-gray-900">{children}</strong>
-                                ),
-                                ul: ({ children }) => (
-                                  <ul className="my-2 ml-5 space-y-1.5 list-disc">{children}</ul>
-                                ),
-                                ol: ({ children }) => (
-                                  <ol className="my-2 ml-5 space-y-1.5 list-decimal">{children}</ol>
-                                ),
-                                li: ({ children }) => (
-                                  <li className="text-gray-700 leading-relaxed">{children}</li>
-                                ),
-                                p: ({ children }) => (
-                                  <p className="my-2 text-gray-700 leading-relaxed">{children}</p>
-                                ),
-                                a: ({ href, children }) => (
-                                  <a href={href} className="text-primary-600 font-medium hover:underline" target="_blank" rel="noopener noreferrer">
-                                    {children}
-                                  </a>
-                                ),
-                                blockquote: ({ children }) => (
-                                  <blockquote className="border-l-3 border-primary-300 pl-4 my-3 italic text-gray-600 bg-gray-50 py-2 rounded-r-lg">
-                                    {children}
-                                  </blockquote>
-                                ),
-                                hr: () => (
-                                  <hr className="my-4 border-gray-200" />
-                                ),
-                                code: ({ inline, className, children }) => {
-                                  if (inline) {
-                                    return (
-                                      <code className="px-1.5 py-0.5 bg-primary-50 text-primary-700 text-xs font-medium rounded">
+                        (() => {
+                          // Parse quick replies from message content
+                          const { cleanContent, quickReplies } = parseQuickReplies(msg.content || "");
+                          const isLastMessage = idx === messages.length - 1;
+
+                          return (
+                            <div>
+                              <div className="prose prose-sm max-w-none
+                                  prose-p:my-2 prose-p:leading-relaxed
+                                  prose-headings:font-semibold prose-headings:text-gray-900
+                                  prose-h1:text-lg prose-h1:mt-4 prose-h1:mb-2
+                                  prose-h2:text-base prose-h2:mt-3 prose-h2:mb-2
+                                  prose-h3:text-sm prose-h3:mt-2 prose-h3:mb-1
+                                  prose-strong:text-gray-900 prose-strong:font-semibold
+                                  prose-ul:my-2 prose-ul:pl-4
+                                  prose-ol:my-2 prose-ol:pl-4
+                                  prose-li:my-0.5 prose-li:leading-relaxed
+                                  prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200 prose-pre:rounded-lg
+                                  prose-code:text-primary-600 prose-code:bg-primary-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:font-medium prose-code:before:content-none prose-code:after:content-none
+                                  prose-a:text-primary-600 prose-a:font-medium prose-a:no-underline hover:prose-a:underline
+                                ">
+                                <ReactMarkdown
+                                  rehypePlugins={[rehypeRaw]}
+                                  components={{
+                                    'tool-executing': ({ children }) => (
+                                      <ToolExecutionMarker isComplete={false}>{children}</ToolExecutionMarker>
+                                    ),
+                                    'tool-complete': ({ children }) => (
+                                      <ToolExecutionMarker isComplete={true}>{children}</ToolExecutionMarker>
+                                    ),
+                                    h1: ({ children }) => (
+                                      <h1 className="flex items-center gap-2 text-lg font-bold text-gray-900 mt-4 mb-2 pb-1 border-b border-gray-100">
                                         {children}
-                                      </code>
-                                    );
-                                  }
-                                  return (
-                                    <code className={className}>
-                                      {children}
-                                    </code>
-                                  );
-                                },
-                                pre: ({ children }) => (
-                                  <pre className="my-3 p-4 bg-gray-50 border border-gray-200 rounded-xl overflow-x-auto text-sm">
-                                    {children}
-                                  </pre>
-                                ),
-                              }}
-                            >
-                              {msg.content || ""}
-                            </ReactMarkdown>
-                            {msg.isStreaming && !msg.content && (
-                              <div className="flex items-center gap-1.5 py-1">
-                                <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                      </h1>
+                                    ),
+                                    h2: ({ children }) => (
+                                      <h2 className="flex items-center gap-2 text-base font-semibold text-gray-800 mt-4 mb-2">
+                                        <span className="w-1 h-4 bg-primary-500 rounded-full"></span>
+                                        {children}
+                                      </h2>
+                                    ),
+                                    h3: ({ children }) => (
+                                      <h3 className="text-sm font-semibold text-gray-700 mt-3 mb-1.5">
+                                        {children}
+                                      </h3>
+                                    ),
+                                    strong: ({ children }) => (
+                                      <strong className="font-semibold text-gray-900">{children}</strong>
+                                    ),
+                                    ul: ({ children }) => (
+                                      <ul className="my-2 ml-5 space-y-1.5 list-disc">{children}</ul>
+                                    ),
+                                    ol: ({ children }) => (
+                                      <ol className="my-2 ml-5 space-y-1.5 list-decimal">{children}</ol>
+                                    ),
+                                    li: ({ children }) => (
+                                      <li className="text-gray-700 leading-relaxed">{children}</li>
+                                    ),
+                                    p: ({ children }) => (
+                                      <p className="my-2 text-gray-700 leading-relaxed">{children}</p>
+                                    ),
+                                    a: ({ href, children }) => (
+                                      <a href={href} className="text-primary-600 font-medium hover:underline" target="_blank" rel="noopener noreferrer">
+                                        {children}
+                                      </a>
+                                    ),
+                                    blockquote: ({ children }) => (
+                                      <blockquote className="border-l-3 border-primary-300 pl-4 my-3 italic text-gray-600 bg-gray-50 py-2 rounded-r-lg">
+                                        {children}
+                                      </blockquote>
+                                    ),
+                                    hr: () => (
+                                      <hr className="my-4 border-gray-200" />
+                                    ),
+                                    code: ({ inline, className, children }) => {
+                                      if (inline) {
+                                        return (
+                                          <code className="px-1.5 py-0.5 bg-primary-50 text-primary-700 text-xs font-medium rounded">
+                                            {children}
+                                          </code>
+                                        );
+                                      }
+                                      return (
+                                        <code className={className}>
+                                          {children}
+                                        </code>
+                                      );
+                                    },
+                                    pre: ({ children }) => (
+                                      <pre className="my-3 p-4 bg-gray-50 border border-gray-200 rounded-xl overflow-x-auto text-sm">
+                                        {children}
+                                      </pre>
+                                    ),
+                                  }}
+                                >
+                                  {cleanContent}
+                                </ReactMarkdown>
+                                {msg.isStreaming && !msg.content && (
+                                  <div className="flex items-center gap-1.5 py-1">
+                                    <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                    <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                    <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                          {/* Feedback buttons - only show for completed AI messages */}
-                          {!msg.isStreaming && msg.content && currentConversationId && (
-                            <FeedbackButtons
-                              conversationId={currentConversationId}
-                              messageIndex={idx}
-                              question={messages[idx - 1]?.content}
-                              answer={msg.content}
-                              authToken={authToken}
-                            />
-                          )}
-                        </div>
+                              {/* Quick Reply Buttons - only show for last completed message */}
+                              {!msg.isStreaming && isLastMessage && quickReplies.length > 0 && (
+                                <QuickReplies
+                                  replies={quickReplies}
+                                  onSelect={handleQuickReply}
+                                  disabled={isStreaming}
+                                />
+                              )}
+                              {/* Feedback buttons - only show for completed AI messages */}
+                              {!msg.isStreaming && msg.content && currentConversationId && (
+                                <FeedbackButtons
+                                  conversationId={currentConversationId}
+                                  messageIndex={idx}
+                                  question={messages[idx - 1]?.content}
+                                  answer={msg.content}
+                                  authToken={authToken}
+                                />
+                              )}
+                            </div>
+                          );
+                        })()
                       ) : (
                         <div className="whitespace-pre-wrap">{msg.content}</div>
                       )}

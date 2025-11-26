@@ -22,8 +22,8 @@ TOOL USAGE GUIDELINES:
 
 **Exercises** (User's personal exercise library):
 - `list_exercises`: Use this to find exercises. KEY FILTERS:
-  - `muscle`: Filter by muscle GROUP (e.g., "Core", "Back", "Chest", "Legs", "Shoulders", "Arms", "Hamstrings", "Glutes", "Quadriceps"). USE THIS when user asks about exercises for a body part! This searches BOTH primary AND secondary muscles.
-  - `discipline`: Filter by training type (e.g., "Calisthenics", "Strength Training")
+  - `muscle`: Filter by muscle GROUP (e.g., "Core", "Back", "Chest", "Legs", "Shoulders", "Arms", "Hamstrings", "Glutes", "Quadriceps", "Mind"). USE THIS when user asks about exercises for a body part! This searches BOTH primary AND secondary muscles. "Mind" is for meditation and mindfulness exercises.
+  - `discipline`: Filter by training type (e.g., "Calisthenics", "Strength Training", "Meditation", "Yoga", "Mobility")
   - `difficulty`: Filter by level ("beginner", "intermediate", "advanced")
   - `equipment`: Filter by equipment needed
   - `name`: Search by exercise name
@@ -78,7 +78,23 @@ IMPORTANT PRINCIPLES:
 7. When creating workouts/exercises, match user's fitness level and available equipment
 8. Use proper volume/intensity based on user's fitness level
 9. If user mentions they "can do" an exercise, check if it exists first, then add if missing
-10. Be conversational and encouraging while being precise with data"""
+10. Be conversational and encouraging while being precise with data
+
+QUICK REPLIES:
+When your response asks for user confirmation or presents options, include clickable quick-reply buttons at the end using this format:
+
+<quick-replies>
+- Yes, add it to my calendar
+- No, suggest something else
+- Show me alternatives
+</quick-replies>
+
+Use quick replies when:
+- Asking for confirmation ("Does that sound good?", "Would you like me to...?")
+- Presenting choices (different workout options, exercise alternatives)
+- After completing an action that may have follow-up options
+
+Keep quick reply options concise (2-5 words ideally, max 8 words). Provide 2-4 options typically."""
 
 
 class AgentOrchestrator:
@@ -2452,15 +2468,42 @@ USER DATA:
 
                 for ex in workout_exercises:
                     exercise_name = ex.get("exerciseName", "")
+                    target_sets = ex.get("targetSets", 3)
+                    target_reps = ex.get("targetReps", 10)
+
                     # Try to find the exercise in the database
                     existing_ex = await self.db.exercises.find_one({
                         "name": {"$regex": f"^{exercise_name}$", "$options": "i"},
                         "$or": [{"isCommon": True}, {"createdBy": ObjectId(user_id)}]
                     })
 
-                    exercise_id = existing_ex["_id"] if existing_ex else None
-                    target_sets = ex.get("targetSets", 3)
-                    target_reps = ex.get("targetReps", 10)
+                    if existing_ex:
+                        exercise_id = existing_ex["_id"]
+                    else:
+                        # Create new exercise in user's library
+                        new_exercise = {
+                            "name": exercise_name,
+                            "description": ex.get("notes", f"AI-generated exercise: {exercise_name}"),
+                            "muscles": ex.get("muscles", ["General"]),
+                            "secondaryMuscles": [],
+                            "discipline": workout_details.get("disciplines", ["General Fitness"]),
+                            "equipment": ex.get("equipment", []),
+                            "difficulty": workout_details.get("difficulty", "intermediate"),
+                            "instructions": [],
+                            "strain": {
+                                "intensity": "moderate",
+                                "load": "moderate",
+                                "durationType": "reps",
+                                "typicalVolume": f"{target_sets}x{target_reps}"
+                            },
+                            "isCommon": False,
+                            "createdBy": ObjectId(user_id),
+                            "createdAt": datetime.utcnow(),
+                            "updatedAt": datetime.utcnow()
+                        }
+                        exercise_result = await self.db.exercises.insert_one(new_exercise)
+                        exercise_id = exercise_result.inserted_id
+                        logger.info(f"Created new exercise '{exercise_name}' for user {user_id}")
 
                     # Add to blocks for PredefinedWorkout
                     blocks[0]["exercises"].append({
