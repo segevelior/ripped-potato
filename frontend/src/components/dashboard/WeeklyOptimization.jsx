@@ -61,9 +61,9 @@ export default function WeeklyOptimization() {
       
       // Get this week's data
       const [workouts, plans, patterns] = await Promise.all([
-        Workout.list("-date", 30),
-        Plan.filter({ status: 'active' }),
-        UserTrainingPattern.list()
+        Workout.list().catch(() => []),
+        Plan.active().catch(() => []),
+        UserTrainingPattern.list().catch(() => [])
       ]);
 
       const thisWeekWorkouts = workouts.filter(w => {

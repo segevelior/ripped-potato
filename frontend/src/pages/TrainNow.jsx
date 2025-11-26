@@ -105,12 +105,15 @@ export default function TrainNow() {
     setErrorMessage(""); // Clear any previous error messages
     const today = format(new Date(), "yyyy-MM-dd");
     try {
-      const [workouts, predefined, exercises] = await Promise.all([
-        Workout.filter({ date: today }),
-        PredefinedWorkout.list(),
-        Exercise.list()
+      const [allWorkouts, predefined, exercises] = await Promise.all([
+        Workout.list().catch(() => []),
+        PredefinedWorkout.list().catch(() => []),
+        Exercise.list().catch(() => [])
       ]);
-      setTodaysWorkouts(workouts);
+      // Filter workouts for today in JS
+      const workoutsArray = Array.isArray(allWorkouts) ? allWorkouts : [];
+      const todayWorkouts = workoutsArray.filter(w => w.date === today);
+      setTodaysWorkouts(todayWorkouts);
       setPredefinedWorkouts(predefined);
       setAllExercises(exercises);
       setIsLoading(false);

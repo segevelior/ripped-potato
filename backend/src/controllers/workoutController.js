@@ -95,17 +95,29 @@ const createWorkout = async (req, res) => {
       });
     }
 
-    // Validate exercise references and populate exercise names
+    // Validate exercise references and populate exercise names (if valid ObjectIds)
     if (req.body.exercises && req.body.exercises.length > 0) {
-      for (let exerciseSet of req.body.exercises) {
-        const exercise = await Exercise.findById(exerciseSet.exerciseId);
-        if (!exercise) {
-          return res.status(400).json({
-            success: false,
-            message: `Exercise not found: ${exerciseSet.exerciseId}`
-          });
+      for (let i = 0; i < req.body.exercises.length; i++) {
+        let exerciseSet = req.body.exercises[i];
+
+        // Add order if not present
+        if (exerciseSet.order === undefined) {
+          exerciseSet.order = i;
         }
-        exerciseSet.exerciseName = exercise.name;
+
+        // If exerciseId looks like a valid MongoDB ObjectId, validate it
+        if (exerciseSet.exerciseId && /^[0-9a-fA-F]{24}$/.test(exerciseSet.exerciseId)) {
+          const exercise = await Exercise.findById(exerciseSet.exerciseId);
+          if (exercise) {
+            exerciseSet.exerciseName = exercise.name;
+          }
+          // If not found, just keep the provided exerciseName (from templates)
+        }
+        // If exerciseName is provided but no valid exerciseId, that's fine for template-based workouts
+        // Remove invalid exerciseId to prevent mongoose errors
+        if (exerciseSet.exerciseId && !/^[0-9a-fA-F]{24}$/.test(exerciseSet.exerciseId)) {
+          delete exerciseSet.exerciseId;
+        }
       }
     }
 

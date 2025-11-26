@@ -57,6 +57,17 @@ WHEN USER ASKS ABOUT EXERCISES BY MUSCLE GROUP (e.g., "what core exercises do I 
 - `update_goal`: Update goal progress or details.
 - `list_goals`: View user's goals.
 
+**Calendar** (Scheduling workouts):
+- `schedule_to_calendar`: Schedule a workout or event to a specific date. Use this when user wants to add a workout to their calendar. Supports 'today', 'tomorrow', or ISO dates.
+- `get_calendar_events`: Check what's already scheduled on the user's calendar.
+
+CALENDAR WORKFLOW:
+When user asks to add/schedule a workout for a specific date:
+1. Design the workout and get user approval
+2. Call `schedule_to_calendar` with the workout details (title, date, workoutDetails with exercises)
+3. The `schedule_to_calendar` tool creates the calendar event directly - it does NOT need a template first
+4. If for today, ask if they want to start training now
+
 IMPORTANT PRINCIPLES:
 1. MUSCLE GROUP vs EXERCISE NAME: "Core", "Back", "Chest", "Hamstrings" are muscle groups - use list_exercises with muscle filter. "Plank", "Pull-up", "Deadlift" are exercise names - use grep_exercises.
 2. SECONDARY MUSCLES MATTER: When user asks about exercises for a muscle group, remember that compound exercises target multiple muscles. For example, Deadlifts primarily work the back but ALSO work hamstrings and glutes. The list_exercises tool searches BOTH primary AND secondary muscles, so include these results!
@@ -796,9 +807,94 @@ class AgentOrchestrator:
                         }
                     }
                 }
+            },
+            # ==================== CALENDAR TOOLS ====================
+            {
+                "type": "function",
+                "function": {
+                    "name": "schedule_to_calendar",
+                    "description": "Schedule a workout or event to the user's calendar for a specific date. Use this when the user wants to add a workout to their calendar, schedule a rest day, or plan future training.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "date": {
+                                "type": "string",
+                                "description": "Date in ISO format (YYYY-MM-DD). Use 'today' or 'tomorrow' for relative dates."
+                            },
+                            "title": {
+                                "type": "string",
+                                "description": "Title for the calendar event (e.g., 'Upper Body Strength', 'Active Recovery', 'Rest Day')"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["workout", "rest", "deload", "event"],
+                                "description": "Type of calendar event"
+                            },
+                            "workoutDetails": {
+                                "type": "object",
+                                "description": "Details for workout events",
+                                "properties": {
+                                    "workoutType": {
+                                        "type": "string",
+                                        "enum": ["strength", "cardio", "hybrid", "recovery", "hiit", "flexibility", "calisthenics", "mobility"],
+                                        "description": "Type of workout"
+                                    },
+                                    "estimatedDuration": {
+                                        "type": "integer",
+                                        "description": "Estimated duration in minutes"
+                                    },
+                                    "exercises": {
+                                        "type": "array",
+                                        "description": "Exercises for this workout",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "exerciseName": {"type": "string"},
+                                                "targetSets": {"type": "integer"},
+                                                "targetReps": {"type": "integer"},
+                                                "notes": {"type": "string"}
+                                            },
+                                            "required": ["exerciseName"]
+                                        }
+                                    }
+                                }
+                            },
+                            "notes": {
+                                "type": "string",
+                                "description": "Additional notes for the calendar event"
+                            }
+                        },
+                        "required": ["date", "title", "type"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_calendar_events",
+                    "description": "Get the user's scheduled calendar events for a date range. Use this to check what workouts are already planned.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "startDate": {
+                                "type": "string",
+                                "description": "Start date in ISO format (YYYY-MM-DD). Default: today"
+                            },
+                            "endDate": {
+                                "type": "string",
+                                "description": "End date in ISO format (YYYY-MM-DD). Default: 7 days from start"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["workout", "rest", "deload", "event"],
+                                "description": "Filter by event type"
+                            }
+                        }
+                    }
+                }
             }
         ]
-    
+
     async def process_request(self, message: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Process user request with OpenAI function calling"""
 
@@ -917,7 +1013,10 @@ USER DATA:
             # Goal tools
             "create_goal": f"Setting up goal: {function_args.get('name', 'fitness goal')}",
             "update_goal": "Updating your fitness goal",
-            "list_goals": "Fetching your fitness goals"
+            "list_goals": "Fetching your fitness goals",
+            # Calendar tools
+            "schedule_to_calendar": f"Scheduling {function_args.get('title', 'event')} for {function_args.get('date', 'your calendar')}",
+            "get_calendar_events": "Checking your calendar"
         }
         return descriptions.get(function_name, f"Processing {function_name}")
 
@@ -1134,6 +1233,9 @@ USER DATA:
             "create_goal": self._create_goal,
             "update_goal": self._update_goal,
             "list_goals": self._list_goals,
+            # Calendar tools
+            "schedule_to_calendar": self._schedule_to_calendar,
+            "get_calendar_events": self._get_calendar_events,
         }
 
         handler = tool_handlers.get(function_name)
@@ -2308,3 +2410,179 @@ USER DATA:
         except Exception as e:
             logger.error(f"Error removing plan workout: {e}")
             return {"success": False, "message": str(e)}
+
+    # ==================== CALENDAR TOOL HANDLERS ====================
+
+    async def _schedule_to_calendar(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Schedule a workout or event to the user's calendar"""
+        try:
+            # Parse date - handle 'today', 'tomorrow', or ISO date
+            date_str = args.get("date", "")
+            if date_str.lower() == "today":
+                event_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            elif date_str.lower() == "tomorrow":
+                event_date = (datetime.utcnow() + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            else:
+                try:
+                    event_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                except Exception:
+                    # Try parsing as YYYY-MM-DD
+                    event_date = datetime.strptime(date_str, "%Y-%m-%d")
+
+            title = args.get("title", "Workout")
+            event_type = args.get("type", "workout")
+            workout_details = args.get("workoutDetails", {})
+            notes = args.get("notes", "")
+
+            # Build the calendar event document
+            event_data = {
+                "userId": ObjectId(user_id),
+                "date": event_date,
+                "title": title,
+                "type": event_type,
+                "status": "scheduled",
+                "notes": notes,
+                "createdAt": datetime.utcnow(),
+                "updatedAt": datetime.utcnow()
+            }
+
+            # Add workout details if this is a workout event
+            if event_type == "workout" and workout_details:
+                # Look up exercise IDs
+                exercises = []
+                for ex in workout_details.get("exercises", []):
+                    exercise_name = ex.get("exerciseName", "")
+                    # Try to find the exercise in the database
+                    existing_ex = await self.db.exercises.find_one({
+                        "name": {"$regex": f"^{exercise_name}$", "$options": "i"},
+                        "$or": [{"isCommon": True}, {"createdBy": ObjectId(user_id)}]
+                    })
+
+                    exercises.append({
+                        "exerciseId": existing_ex["_id"] if existing_ex else None,
+                        "exerciseName": exercise_name,
+                        "targetSets": ex.get("targetSets", 3),
+                        "targetReps": ex.get("targetReps", 10),
+                        "notes": ex.get("notes", "")
+                    })
+
+                event_data["workoutDetails"] = {
+                    "type": workout_details.get("workoutType", "strength"),
+                    "estimatedDuration": workout_details.get("estimatedDuration", 45),
+                    "exercises": exercises
+                }
+
+            # Insert into calendarevents collection (Mongoose uses lowercase, no underscore)
+            result = await self.db.calendarevents.insert_one(event_data)
+
+            if result.inserted_id:
+                # Format the date nicely for the response
+                formatted_date = event_date.strftime("%A, %B %d, %Y")
+                exercise_count = len(workout_details.get("exercises", [])) if workout_details else 0
+
+                response_msg = f"✅ Scheduled **{title}** for **{formatted_date}**!"
+                if event_type == "workout" and exercise_count > 0:
+                    duration = workout_details.get("estimatedDuration", 45)
+                    response_msg += f"\n\n📋 **{exercise_count} exercises** | ⏱️ **~{duration} min**"
+
+                # Check if it's today
+                today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+                if event_date.date() == today.date():
+                    response_msg += "\n\n🎯 **This is for today!** Would you like to start training now?"
+
+                logger.info(f"Scheduled calendar event '{title}' for user {user_id} on {formatted_date}")
+                return {
+                    "success": True,
+                    "message": response_msg,
+                    "event_id": str(result.inserted_id),
+                    "date": formatted_date,
+                    "is_today": event_date.date() == today.date()
+                }
+            else:
+                return {"success": False, "message": "Failed to create calendar event"}
+
+        except Exception as e:
+            logger.error(f"Error scheduling to calendar: {e}")
+            return {"success": False, "message": f"Error scheduling event: {str(e)}"}
+
+    async def _get_calendar_events(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Get user's calendar events for a date range"""
+        try:
+            # Parse dates
+            start_str = args.get("startDate")
+            end_str = args.get("endDate")
+
+            if start_str:
+                try:
+                    start_date = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+                except Exception:
+                    start_date = datetime.strptime(start_str, "%Y-%m-%d")
+            else:
+                start_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+            if end_str:
+                try:
+                    end_date = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+                except Exception:
+                    end_date = datetime.strptime(end_str, "%Y-%m-%d")
+            else:
+                end_date = start_date + timedelta(days=7)
+
+            # Build query
+            query = {
+                "userId": ObjectId(user_id),
+                "date": {"$gte": start_date, "$lte": end_date},
+                "status": {"$ne": "cancelled"}
+            }
+
+            # Filter by type if provided
+            event_type = args.get("type")
+            if event_type:
+                query["type"] = event_type
+
+            # Fetch events (Mongoose uses lowercase, no underscore for collection name)
+            events = await self.db.calendarevents.find(query).sort("date", 1).to_list(100)
+
+            if not events:
+                start_fmt = start_date.strftime("%B %d")
+                end_fmt = end_date.strftime("%B %d, %Y")
+                return {
+                    "success": True,
+                    "message": f"No events scheduled from {start_fmt} to {end_fmt}.",
+                    "events": []
+                }
+
+            # Format events for response
+            formatted_events = []
+            for event in events:
+                formatted_events.append({
+                    "id": str(event["_id"]),
+                    "date": event["date"].strftime("%Y-%m-%d"),
+                    "dayOfWeek": event["date"].strftime("%A"),
+                    "title": event.get("title", "Untitled"),
+                    "type": event.get("type", "workout"),
+                    "status": event.get("status", "scheduled"),
+                    "duration": event.get("workoutDetails", {}).get("estimatedDuration"),
+                    "exerciseCount": len(event.get("workoutDetails", {}).get("exercises", [])),
+                    "notes": event.get("notes", "")
+                })
+
+            # Build summary message
+            workout_count = sum(1 for e in formatted_events if e["type"] == "workout")
+            rest_count = sum(1 for e in formatted_events if e["type"] == "rest")
+
+            summary = f"Found **{len(formatted_events)} events** from {start_date.strftime('%B %d')} to {end_date.strftime('%B %d')}:"
+            if workout_count > 0:
+                summary += f"\n- 💪 **{workout_count}** workout(s)"
+            if rest_count > 0:
+                summary += f"\n- 😴 **{rest_count}** rest day(s)"
+
+            return {
+                "success": True,
+                "message": summary,
+                "events": formatted_events
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting calendar events: {e}")
+            return {"success": False, "message": f"Error fetching calendar: {str(e)}"}

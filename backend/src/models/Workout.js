@@ -23,9 +23,12 @@ const exerciseSetSchema = new mongoose.Schema({
   exerciseId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Exercise',
-    required: true
+    required: false // Made optional for template-based workouts
   },
-  exerciseName: String, // denormalized for performance
+  exerciseName: {
+    type: String,
+    required: true // Name is required to identify the exercise
+  },
   order: {
     type: Number,
     required: true
@@ -53,7 +56,7 @@ const workoutSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['strength', 'cardio', 'hybrid', 'recovery', 'hiit'],
+    enum: ['strength', 'cardio', 'hybrid', 'recovery', 'hiit', 'flexibility', 'calisthenics', 'mobility'],
     required: true
   },
   status: {

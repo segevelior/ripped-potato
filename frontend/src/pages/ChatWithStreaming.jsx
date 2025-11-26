@@ -13,6 +13,10 @@ import { FeedbackButtons } from "@/components/chat/FeedbackButtons";
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 export default function ChatWithStreaming() {
+  // Log for debugging auto-send feature
+  console.log('🤖 ChatWithStreaming mounted!');
+  console.log('🔍 Checking localStorage for pendingChatPrompt:', localStorage.getItem('pendingChatPrompt')?.substring(0, 50));
+
   // State
   const [user, setUser] = useState(null);
   const [authToken, setAuthToken] = useState(null);
@@ -23,10 +27,12 @@ export default function ChatWithStreaming() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default
+  const [pendingAutoSend, setPendingAutoSend] = useState(null); // For auto-sending messages from external sources
 
   // Refs
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const hasProcessedPendingRef = useRef(false); // To prevent double-processing
 
   // Streaming hook
   const {
@@ -49,6 +55,38 @@ export default function ChatWithStreaming() {
         if (token) {
           await fetchHistory(token);
         }
+
+        // Check for pending prompt from localStorage (e.g., from WorkoutSelectionModal)
+        // Do this after data is loaded and only once
+        if (!hasProcessedPendingRef.current) {
+          const storedPrompt = localStorage.getItem('pendingChatPrompt');
+          const storedTime = localStorage.getItem('pendingChatPromptTime');
+
+          console.log('📋 Checking localStorage for pending prompt:', {
+            hasPrompt: !!storedPrompt,
+            hasTime: !!storedTime,
+            promptPreview: storedPrompt?.substring(0, 50)
+          });
+
+          if (storedPrompt && storedTime) {
+            const promptAge = Date.now() - parseInt(storedTime, 10);
+            console.log('⏱️ Prompt age:', promptAge, 'ms');
+
+            // Only process if the prompt was set within the last 30 seconds
+            if (promptAge < 30000) {
+              console.log('✅ Found valid pending prompt, setting pendingAutoSend');
+              hasProcessedPendingRef.current = true;
+              // Clear localStorage immediately to prevent re-processing
+              localStorage.removeItem('pendingChatPrompt');
+              localStorage.removeItem('pendingChatPromptTime');
+              setPendingAutoSend(storedPrompt);
+            } else {
+              console.log('⚠️ Prompt too old, cleaning up');
+              localStorage.removeItem('pendingChatPrompt');
+              localStorage.removeItem('pendingChatPromptTime');
+            }
+          }
+        }
       } catch (error) {
         console.error("Error loading user:", error);
       } finally {
@@ -58,6 +96,59 @@ export default function ChatWithStreaming() {
 
     loadUserAndHistory();
   }, []);
+
+  // Process pending auto-send message (from WorkoutSelectionModal or other sources)
+  useEffect(() => {
+    const processPendingMessage = async () => {
+      if (pendingAutoSend && authToken && !isStreaming && !isLoadingHistory) {
+        console.log('🚀 Processing pending auto-send message:', pendingAutoSend.substring(0, 50) + '...');
+
+        // Extract clean display message from the full prompt
+        // The full prompt has context for AI, but we show a cleaner version to user
+        let displayMessage = pendingAutoSend;
+        const userInputMatch = pendingAutoSend.match(/Here's what I'm looking for: (.+?)(?:\n|Please)/s);
+        if (userInputMatch) {
+          displayMessage = userInputMatch[1].trim();
+        } else if (pendingAutoSend.includes('[WORKOUT REQUEST')) {
+          // If no specific input, show a generic message
+          displayMessage = "Help me plan a workout for today";
+        }
+
+        // Add clean user message to UI
+        const userMessage = { role: "user", content: displayMessage };
+        setMessages(prev => [...prev, userMessage]);
+
+        // Clear the pending message
+        const messageToSend = pendingAutoSend;
+        setPendingAutoSend(null);
+
+        // Add placeholder for AI response
+        setMessages(prev => [...prev, { role: "assistant", content: "", isStreaming: true }]);
+
+        try {
+          const newConversationId = await sendStreamingMessage(
+            messageToSend,
+            authToken,
+            currentConversationId
+          );
+
+          // If we started a new conversation, refresh history and set ID
+          if (newConversationId && newConversationId !== currentConversationId) {
+            setCurrentConversationId(newConversationId);
+            fetchHistory(authToken);
+          }
+        } catch (error) {
+          console.error("Error sending auto-message:", error);
+          setMessages(prev => [...prev, {
+            role: "assistant",
+            content: "Sorry, there was an error processing your request."
+          }]);
+        }
+      }
+    };
+
+    processPendingMessage();
+  }, [pendingAutoSend, authToken, isStreaming, isLoadingHistory, currentConversationId]);
 
   // Fetch Conversation History
   const fetchHistory = async (token) => {

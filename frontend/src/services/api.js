@@ -349,6 +349,45 @@ class APIService {
     getActive: () => this.request('/progressions/user/active')
   };
 
+  // Calendar endpoints
+  calendar = {
+    list: async (startDate, endDate) => {
+      const response = await this.request(`/calendar?startDate=${startDate}&endDate=${endDate}`);
+      return response.events || response;
+    },
+    get: (id) => this.request(`/calendar/${id}`),
+    today: async () => {
+      const response = await this.request('/calendar/today');
+      return response.events || response;
+    },
+    create: (data) => this.request('/calendar', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+    update: (id, data) => this.request(`/calendar/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+    delete: (id) => this.request(`/calendar/${id}`, {
+      method: 'DELETE'
+    }),
+    move: (id, newDate) => this.request(`/calendar/${id}/move`, {
+      method: 'PATCH',
+      body: JSON.stringify({ newDate })
+    }),
+    startWorkout: (id) => this.request(`/calendar/${id}/start`, {
+      method: 'POST'
+    }),
+    completeWorkout: (id, data) => this.request(`/calendar/${id}/complete`, {
+      method: 'POST',
+      body: JSON.stringify(data || {})
+    }),
+    skipWorkout: (id, reason) => this.request(`/calendar/${id}/skip`, {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    })
+  };
+
   // Alias endpoints for naming compatibility
   trainingPlans = this.plans;  // TrainingPlan -> Plan
   workoutTemplates = this.predefinedWorkouts;  // WorkoutTemplate -> PredefinedWorkout

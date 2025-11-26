@@ -65,8 +65,8 @@ const validateWorkout = [
     .isISO8601()
     .withMessage('Please provide a valid date'),
   body('type')
-    .isIn(['strength', 'cardio', 'hybrid', 'recovery', 'hiit'])
-    .withMessage('Workout type must be strength, cardio, hybrid, recovery, or hiit'),
+    .isIn(['strength', 'cardio', 'hybrid', 'recovery', 'hiit', 'flexibility', 'calisthenics', 'mobility'])
+    .withMessage('Workout type must be strength, cardio, hybrid, recovery, hiit, flexibility, calisthenics, or mobility'),
   body('status')
     .optional()
     .isIn(['planned', 'in_progress', 'completed', 'skipped'])
@@ -76,11 +76,9 @@ const validateWorkout = [
     .isArray()
     .withMessage('Exercises must be an array'),
   body('exercises.*.exerciseId')
-    .if(body('exercises').exists())
-    .isMongoId()
-    .withMessage('Exercise ID must be a valid MongoDB ObjectId'),
+    .optional(), // Made optional - exercises may not have MongoDB IDs when created from templates
   body('exercises.*.sets')
-    .if(body('exercises').exists())
+    .optional()
     .isArray()
     .withMessage('Sets must be an array'),
   body('exercises.*.sets.*.rpe')

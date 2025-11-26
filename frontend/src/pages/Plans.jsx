@@ -185,13 +185,13 @@ export default function Plans() {
     setIsLoading(true);
     try {
       const [planData, goalData, workoutData] = await Promise.all([
-        Plan.list("-created_date"),
-        Goal.list(),
-        Workout.list("-date", 50)
+        Plan.list().catch(() => []),
+        Goal.list().catch(() => []),
+        Workout.list().catch(() => [])
       ]);
-      setPlans(planData);
-      setGoals(goalData);
-      setWorkouts(workoutData);
+      setPlans(Array.isArray(planData) ? planData : []);
+      setGoals(Array.isArray(goalData) ? goalData : []);
+      setWorkouts(Array.isArray(workoutData) ? workoutData : []);
     } catch (error) {
       console.error("Error loading plans data:", error);
     }

@@ -172,13 +172,15 @@ export default function Dashboard() {
     setIsLoading(true);
     try {
       const [workoutData, goalsData, plansData] = await Promise.all([
-        Workout.list("-date", 50),
-        UserGoalProgress.filter({ is_active: true }),
-        Plan.filter({ status: 'active' }),
+        Workout.list().catch(() => []),
+        UserGoalProgress.list().catch(() => []),
+        Plan.active().catch(() => []),
       ]);
-      setWorkouts(workoutData);
-      setGoals(goalsData);
-      setPlans(plansData);
+      setWorkouts(Array.isArray(workoutData) ? workoutData : []);
+      // Filter active goals in JS
+      const activeGoals = Array.isArray(goalsData) ? goalsData.filter(g => g.is_active) : [];
+      setGoals(activeGoals);
+      setPlans(Array.isArray(plansData) ? plansData : []);
     } catch (error) {
       console.error("Error loading data:", error);
     }

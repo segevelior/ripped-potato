@@ -12,7 +12,6 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import FloatingAIAssistantStreaming from "@/components/FloatingAIAssistantStreaming";
 
 const navigationItems = [
   {
@@ -252,7 +251,6 @@ export default function Layout({ children }) {
           </nav>
         </div>
 
-        <FloatingAIAssistantStreaming />
       </div>
     </SidebarProvider>
   );
