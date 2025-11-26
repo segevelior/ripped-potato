@@ -163,270 +163,218 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-
-
-      {/* Back Button */}
-      <div className="px-4 pt-2 pb-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="w-10 h-10 flex items-center justify-center"
-        >
-          <svg className="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
+    <div className="min-h-screen bg-coral-brand/80 relative overflow-hidden flex items-center justify-center p-4">
+      {/* Background Logo - softer */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.06]">
+        <img src="/logo.png" alt="" className="w-[100%] max-w-none blur-sm" />
       </div>
 
-      {/* Content */}
-      <div className="flex-1 px-6 pb-8 overflow-y-auto">
-        {/* General Error Message */}
-        {errors.general && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
-            {errors.general}
-          </div>
-        )}
-
-        {/* Sign In Form */}
-        {activeTab === "signin" && (
-          <>
-            <div className="mb-10">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Hi, Welcome Back</h1>
-              <p className="text-gray-500 text-base">Login in to your account</p>
+      {/* Main Card */}
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md z-20 overflow-hidden relative">
+        <div className="p-8">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="w-20 h-20 bg-coral-brand/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <img src="/logo.png" alt="Torii Logo" className="w-12 h-12 object-contain" />
             </div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {activeTab === "signup" ? "Create an Account" : "Welcome Back"}
+            </h1>
+            <p className="text-gray-500 mt-2">
+              {activeTab === "signup" ? "Start your fitness journey today" : "Sign in to continue your progress"}
+            </p>
+          </div>
 
-            <form onSubmit={handleSignIn} className="space-y-6">
-              <div>
-                <label className="block text-base font-bold text-gray-900 mb-3">
-                  Email
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          {/* Error Message */}
+          {errors.general && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              {errors.general}
+            </div>
+          )}
+
+          {/* Forms */}
+          {activeTab === "signin" ? (
+            <form onSubmit={handleSignIn} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 ml-1">Email</label>
+                <div className="relative group">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-coral-brand transition-colors" />
                   <input
                     type="email"
+                    required
                     value={signInData.email}
                     onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
-                    className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-base bg-gray-50"
-                    placeholder="Your email"
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-coral-brand/20 focus:border-coral-brand transition-all"
+                    placeholder="john@example.com"
                     disabled={isLoading}
                   />
                 </div>
-                {errors.email && <p className="mt-2 text-sm text-red-600">{errors.email}</p>}
+                {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
               </div>
 
-              <div>
-                <label className="block text-base font-bold text-gray-900 mb-3">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <div className="space-y-2">
+                <div className="flex justify-between items-center ml-1">
+                  <label className="text-sm font-medium text-gray-700">Password</label>
+                  <button type="button" className="text-xs font-medium text-coral-brand/80 hover:text-coral-brand transition-colors">
+                    Forgot Password?
+                  </button>
+                </div>
+                <div className="relative group">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-coral-brand transition-colors" />
                   <input
                     type={showPassword ? "text" : "password"}
+                    required
                     value={signInData.password}
                     onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                    className="w-full pl-12 pr-14 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-base bg-gray-50"
-                    placeholder="Your password"
+                    className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-coral-brand/20 focus:border-coral-brand transition-all"
+                    placeholder="••••••••"
                     disabled={isLoading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     disabled={isLoading}
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
-                {errors.password && <p className="mt-2 text-sm text-red-600">{errors.password}</p>}
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={signInData.rememberMe}
-                    onChange={(e) => setSignInData({ ...signInData, rememberMe: e.target.checked })}
-                    className="w-5 h-5 text-orange-500 bg-orange-500 border-orange-500 rounded focus:ring-orange-500 checked:bg-orange-500"
-                    style={{
-                      accentColor: '#FF6B52'
-                    }}
-                    disabled={isLoading}
-                  />
-                  <span className="ml-3 text-base text-gray-700">Remember me</span>
-                </label>
-                <button type="button" className="text-base text-orange-500 hover:text-orange-600 font-medium">
-                  Forgot password?
-                </button>
+                {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password}</p>}
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gray-900 text-white py-4 px-6 rounded-2xl hover:bg-gray-800 focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 transition-all duration-200 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-8"
+                className="w-full bg-coral-brand/90 hover:bg-coral-brand text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-coral-brand/25 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
               >
-                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                Login
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  "Sign In"
+                )}
               </button>
-
-              <div className="text-center pt-6">
-                <span className="text-base text-gray-600">Don't have an account? </span>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("signup")}
-                  className="text-base text-orange-500 hover:text-orange-600 font-semibold"
-                >
-                  Register
-                </button>
-              </div>
             </form>
-          </>
-        )}
-
-        {/* Sign Up Form */}
-        {activeTab === "signup" && (
-          <>
-            <div className="mb-10">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Hi, Sign up for an account</h1>
-              <p className="text-gray-500 text-base">Enter your email and password for login</p>
-            </div>
-
-            <form onSubmit={handleSignUp} className="space-y-6">
-              <div>
-                <label className="block text-base font-bold text-gray-900 mb-3">
-                  Email
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          ) : (
+            <form onSubmit={handleSignUp} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 ml-1">Email</label>
+                <div className="relative group">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-coral-brand transition-colors" />
                   <input
                     type="email"
+                    required
                     value={signUpData.email}
                     onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
-                    className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-base bg-gray-50"
-                    placeholder="kevinjulio@gmail.com"
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-coral-brand/20 focus:border-coral-brand transition-all"
+                    placeholder="john@example.com"
                     disabled={isLoading}
                   />
                 </div>
-                {errors.email && <p className="mt-2 text-sm text-red-600">{errors.email}</p>}
+                {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
               </div>
 
-              <div>
-                <label className="block text-base font-bold text-gray-900 mb-3">
-                  Phone Number
-                </label>
-                <div className="relative">
-                  <div className="absolute left-4 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
-                    <span className="text-xl">🇺🇸</span>
-                    <span className="text-gray-600 text-base font-medium">+1</span>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 ml-1">Phone Number</label>
+                <div className="relative group">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <span className="text-lg">🇺🇸</span>
+                    <span className="text-gray-500 text-xs font-medium">+1</span>
                   </div>
                   <input
                     type="tel"
+                    required
                     value={signUpData.phoneNumber}
                     onChange={(e) => setSignUpData({ ...signUpData, phoneNumber: e.target.value })}
-                    className="w-full pl-24 pr-4 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-base bg-gray-50"
+                    className="w-full pl-20 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-coral-brand/20 focus:border-coral-brand transition-all"
                     placeholder="111-222-3344"
                     disabled={isLoading}
                   />
                 </div>
-                {errors.phoneNumber && <p className="mt-2 text-sm text-red-600">{errors.phoneNumber}</p>}
+                {errors.phoneNumber && <p className="mt-1 text-xs text-red-600">{errors.phoneNumber}</p>}
               </div>
 
-              <div>
-                <label className="block text-base font-bold text-gray-900 mb-3">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 ml-1">Password</label>
+                <div className="relative group">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-coral-brand transition-colors" />
                   <input
                     type={showPassword ? "text" : "password"}
+                    required
                     value={signUpData.password}
                     onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                    className="w-full pl-12 pr-14 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-base bg-gray-50"
-                    placeholder="Your password"
+                    className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-coral-brand/20 focus:border-coral-brand transition-all"
+                    placeholder="Create a password"
                     disabled={isLoading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     disabled={isLoading}
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
-                {errors.password && <p className="mt-2 text-sm text-red-600">{errors.password}</p>}
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={signUpData.rememberMe}
-                    onChange={(e) => setSignUpData({ ...signUpData, rememberMe: e.target.checked })}
-                    className="w-5 h-5 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
-                    style={{
-                      accentColor: '#FF6B52'
-                    }}
-                    disabled={isLoading}
-                  />
-                  <span className="ml-3 text-base text-gray-700">Remember me</span>
-                </label>
-                <button type="button" className="text-base text-orange-500 hover:text-orange-600 font-medium">
-                  Forgot password?
-                </button>
+                {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password}</p>}
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gray-900 text-white py-4 px-6 rounded-2xl hover:bg-gray-800 focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 transition-all duration-200 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-8"
+                className="w-full bg-coral-brand/90 hover:bg-coral-brand text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-coral-brand/25 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
               >
-                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                Sign Up
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  "Create Account"
+                )}
               </button>
-
-              <div className="text-center pt-6">
-                <span className="text-base text-gray-600">Have an account? </span>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("signin")}
-                  className="text-base text-orange-500 hover:text-orange-600 font-semibold"
-                >
-                  Login
-                </button>
-              </div>
             </form>
-          </>
-        )}
+          )}
 
-        {/* Divider */}
-        <div className="my-10">
-          <div className="relative">
+          {/* Divider */}
+          <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200" />
+              <div className="w-full border-t border-gray-100"></div>
             </div>
-            <div className="relative flex justify-center text-base">
-              <span className="px-4 bg-white text-gray-500">Or sign up with</span>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-white text-gray-500">Or continue with</span>
             </div>
           </div>
+
+          {/* Google Sign In */}
+          <button
+            onClick={handleGoogleAuth}
+            disabled={isLoading}
+            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 border border-gray-200 rounded-xl hover:bg-gray-50 focus:ring-2 focus:ring-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium text-gray-700 bg-white"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+            </svg>
+            Google
+          </button>
+
+          {/* Toggle View */}
+          <div className="text-center mt-6">
+            <p className="text-gray-600">
+              {activeTab === "signup" ? "Already have an account?" : "Don't have an account?"}{" "}
+              <button
+                onClick={() => {
+                  setActiveTab(activeTab === "signup" ? "signin" : "signup");
+                  setErrors({});
+                }}
+                className="font-semibold text-coral-brand/80 hover:text-coral-brand transition-colors"
+              >
+                {activeTab === "signup" ? "Sign In" : "Sign Up"}
+              </button>
+            </p>
+          </div>
         </div>
-
-        {/* Google Sign In */}
-        <button
-          onClick={handleGoogleAuth}
-          disabled={isLoading}
-          className="w-full flex items-center justify-center gap-3 px-6 py-4 border border-gray-200 rounded-2xl hover:bg-gray-50 focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium text-base"
-        >
-          <svg className="w-6 h-6" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-          </svg>
-          Sign up with google
-        </button>
       </div>
-
-
     </div>
   );
 }

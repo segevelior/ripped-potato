@@ -204,13 +204,12 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden">
-                  {/* Placeholder Avatar */}
-                  <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-500 text-xs">AI</div>
+                <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center">
+                  <img src="/logo.png" alt="Sensei" className="w-9 h-9 object-contain" />
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Coached by</p>
-                  <p className="text-sm font-bold text-gray-900">Torii Coach</p>
+                  <p className="text-sm font-bold text-gray-900">Sensei</p>
                 </div>
               </div>
             </div>

@@ -10,7 +10,7 @@ export function ConversationSidebar({
   isLoading
 }) {
   return (
-    <div className="w-64 bg-gray-900 flex flex-col h-full border-r border-gray-800 flex-shrink-0">
+    <div className="w-64 bg-gray-900 flex flex-col h-full border-r border-gray-800 flex-shrink-0 pt-14 md:pt-0">
       {/* New Chat Button */}
       <div className="p-4">
         <button
@@ -78,10 +78,10 @@ export function ConversationSidebar({
       {/* User Profile / Bottom Section */}
       <div className="p-4 border-t border-gray-800">
         <div className="flex items-center gap-3 px-2">
-          <div className="h-8 w-8 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-400 font-bold text-xs">
-            AI
+          <div className="h-8 w-8 rounded-full flex items-center justify-center overflow-hidden">
+            <img src="/logo.png" alt="Sensei" className="w-7 h-7 object-contain" />
           </div>
-          <div className="text-sm font-medium text-gray-300">AI Coach</div>
+          <div className="text-sm font-medium text-gray-300">Sensei</div>
         </div>
       </div>
     </div>

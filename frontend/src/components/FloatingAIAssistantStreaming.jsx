@@ -47,7 +47,7 @@ export default function FloatingAIAssistantStreaming() {
         } else {
           setMessages([{
             role: "assistant",
-            content: `Hi ${userData.full_name}! I'm your AI Coach with streaming support! Ask me anything!`
+            content: `Hi ${userData.full_name}! I'm your Sensei with streaming support! Ask me anything!`
           }]);
         }
       } catch (error) {
@@ -255,8 +255,10 @@ Provide a helpful, concise response.`;
         onMouseDown={handleMouseDown}
       >
         <div className="flex items-center gap-2">
-          <Bot className="h-5 w-5" />
-          <span className="font-semibold">AI Coach</span>
+          <div className="h-6 w-6 rounded-full flex items-center justify-center overflow-hidden">
+            <img src="/logo.png" alt="Sensei" className="h-6 w-6 object-contain" />
+          </div>
+          <span className="font-semibold">Sensei</span>
           {useStreaming && (
             <div className="flex items-center gap-1 text-xs bg-white/20 px-2 py-1 rounded">
               <Zap className="h-3 w-3" />
