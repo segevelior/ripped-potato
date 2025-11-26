@@ -35,6 +35,17 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Name is required'],
     trim: true
   },
+  phone: {
+    type: String,
+    trim: true
+  },
+  dateOfBirth: {
+    type: Date
+  },
+  address: {
+    type: String,
+    trim: true
+  },
   isEmailVerified: {
     type: Boolean,
     default: false
@@ -51,16 +62,26 @@ const userSchema = new mongoose.Schema({
     age: Number,
     weight: Number, // in kg
     height: Number, // in cm
+    gender: {
+      type: String,
+      enum: ['male', 'female', 'other', 'prefer_not_to_say']
+    },
     fitnessLevel: {
       type: String,
       enum: ['beginner', 'intermediate', 'advanced'],
       default: 'beginner'
     },
     goals: [String],
+    sportPreferences: [String], // e.g., ['running', 'weightlifting', 'yoga', 'cycling']
+    injuries: [String], // any injuries to be aware of
     preferences: {
       workoutDuration: Number, // preferred minutes
       workoutDays: [Number], // 0-6 for days of week
-      equipment: [String]
+      equipment: [String],
+      preferredWorkoutTime: {
+        type: String,
+        enum: ['morning', 'afternoon', 'evening', 'night']
+      }
     }
   },
   settings: {

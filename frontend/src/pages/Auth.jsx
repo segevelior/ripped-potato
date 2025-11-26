@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { User } from "@/api/entities";
-import { Eye, EyeOff, Mail, Lock, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Loader2, User as UserIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export default function Auth() {
@@ -18,8 +18,8 @@ export default function Auth() {
   });
 
   const [signUpData, setSignUpData] = useState({
+    name: "",
     email: "",
-    phoneNumber: "",
     password: "",
     rememberMe: false
   });
@@ -54,14 +54,14 @@ export default function Auth() {
   const validateSignUp = () => {
     const newErrors = {};
 
+    if (!signUpData.name) {
+      newErrors.name = "Name is required";
+    }
+
     if (!signUpData.email) {
       newErrors.email = "Email is required";
     } else if (!validateEmail(signUpData.email)) {
       newErrors.email = "Please enter a valid email";
-    }
-
-    if (!signUpData.phoneNumber) {
-      newErrors.phoneNumber = "Phone number is required";
     }
 
     if (!signUpData.password) {
@@ -134,9 +134,9 @@ export default function Auth() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          name: signUpData.name,
           email: signUpData.email,
-          password: signUpData.password,
-          phoneNumber: signUpData.phoneNumber
+          password: signUpData.password
         })
       });
 
@@ -258,6 +258,23 @@ export default function Auth() {
           ) : (
             <form onSubmit={handleSignUp} className="space-y-4">
               <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 ml-1">Name</label>
+                <div className="relative group">
+                  <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-coral-brand transition-colors" />
+                  <input
+                    type="text"
+                    required
+                    value={signUpData.name}
+                    onChange={(e) => setSignUpData({ ...signUpData, name: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-coral-brand/20 focus:border-coral-brand transition-all"
+                    placeholder="John Doe"
+                    disabled={isLoading}
+                  />
+                </div>
+                {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
+              </div>
+
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700 ml-1">Email</label>
                 <div className="relative group">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-coral-brand transition-colors" />
@@ -272,26 +289,6 @@ export default function Auth() {
                   />
                 </div>
                 {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 ml-1">Phone Number</label>
-                <div className="relative group">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <span className="text-lg">🇺🇸</span>
-                    <span className="text-gray-500 text-xs font-medium">+1</span>
-                  </div>
-                  <input
-                    type="tel"
-                    required
-                    value={signUpData.phoneNumber}
-                    onChange={(e) => setSignUpData({ ...signUpData, phoneNumber: e.target.value })}
-                    className="w-full pl-20 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-coral-brand/20 focus:border-coral-brand transition-all"
-                    placeholder="111-222-3344"
-                    disabled={isLoading}
-                  />
-                </div>
-                {errors.phoneNumber && <p className="mt-1 text-xs text-red-600">{errors.phoneNumber}</p>}
               </div>
 
               <div className="space-y-2">

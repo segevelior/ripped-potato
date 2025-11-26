@@ -28,6 +28,8 @@ import Documentation from "./Documentation";
 
 import Progressions from "./Progressions";
 
+import Settings from "./Settings";
+
 import Auth from "./Auth";
 
 import AuthCallback from "./AuthCallback";
@@ -65,6 +67,8 @@ const PAGES = {
     Documentation: Documentation,
 
     Progressions: Progressions,
+
+    Settings: Settings,
 
 }
 
@@ -137,6 +141,8 @@ function PagesContent() {
                 <Route path="/Documentation" element={<Documentation />} />
 
                 <Route path="/Progressions" element={<Progressions />} />
+
+                <Route path="/Settings" element={<Settings />} />
             </Route>
             <Route path="*" element={<Navigate to="/auth" replace />} />
         </Routes>

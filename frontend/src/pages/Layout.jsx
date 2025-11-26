@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot, TrendingUp } from "lucide-react";
+import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot, TrendingUp, Settings } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -117,7 +117,7 @@ export default function Layout({ children }) {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen bg-gray-50/50 w-full" style={{ '--primary': '#1a1a1a', '--secondary': '#737373', '--accent': '#007aff', '--background': '#f9fafb', '--card-background': '#ffffff', '--separator': '#e5e5e5', '--text-primary': '#1a1a1a', '--text-secondary': '#737373', '--neu-light': '#ffffff', '--neu-dark': '#d1d9e6' }}>
+      <div className="flex h-screen bg-gray-50/50 dark:bg-gray-900 w-full" style={{ '--primary': '#1a1a1a', '--secondary': '#737373', '--accent': '#007aff', '--background': '#f9fafb', '--card-background': '#ffffff', '--separator': '#e5e5e5', '--text-primary': '#1a1a1a', '--text-secondary': '#737373', '--neu-light': '#ffffff', '--neu-dark': '#d1d9e6' }}>
         {/* Desktop Sidebar - Hidden on Mobile */}
         <div className="hidden md:block">
           <Sidebar>
@@ -148,13 +148,24 @@ export default function Layout({ children }) {
               </div>
             </SidebarContent>
             <SidebarFooter>
-              <div className="p-4 border-t">
+              <div className="p-4 border-t space-y-3">
+                <Link
+                  to={createPageUrl("Settings")}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all text-sm font-medium ${
+                    location.pathname === createPageUrl("Settings")
+                      ? 'bg-gray-100 text-gray-900'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <Settings className="w-5 h-5" />
+                  Settings
+                </Link>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
+                  <Link to={createPageUrl("Settings")} className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center hover:bg-purple-700 transition-colors">
                     <span className="text-white font-medium">
                       {JSON.parse(localStorage.getItem('authUser') || '{}')?.name?.charAt(0)?.toUpperCase() || 'U'}
                     </span>
-                  </div>
+                  </Link>
                   <div className="flex-1">
                     <p className="text-sm font-medium">{JSON.parse(localStorage.getItem('authUser') || '{}')?.name || 'User'}</p>
                     <p className="text-xs text-muted-foreground">{JSON.parse(localStorage.getItem('authUser') || '{}')?.email || ''}</p>
@@ -177,20 +188,23 @@ export default function Layout({ children }) {
 
         <div className="flex-1 flex flex-col h-full overflow-hidden">
           {/* Mobile Sticky Header - Hidden on Chat page */}
-          <header className={`flex items-center justify-between gap-4 border-b bg-white/80 backdrop-blur-md px-4 py-3 md:hidden sticky top-0 z-50 ${isChatPage ? 'hidden' : ''}`}>
+          <header className={`flex items-center justify-between gap-4 border-b bg-white/80 dark:bg-gray-900/80 dark:border-gray-800 backdrop-blur-md px-4 py-3 md:hidden sticky top-0 z-50 ${isChatPage ? 'hidden' : ''}`}>
             <Link to={createPageUrl("Dashboard")} className="flex items-center gap-2">
               <img src="/logo.png" alt="Torii Logo" className="w-8 h-8 object-contain" />
-              <span className="font-bold text-lg">Torii</span>
+              <span className="font-bold text-lg dark:text-white">Torii</span>
             </Link>
             <div className="flex items-center gap-3">
-              <Link to={createPageUrl("Calendar")} className="p-2 text-gray-600 hover:text-purple-600 transition-colors">
+              <Link to={createPageUrl("Calendar")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
                 <Calendar className="w-5 h-5" />
               </Link>
-              <Link to={createPageUrl("TrainNow")} className="p-2 text-gray-600 hover:text-purple-600 transition-colors">
+              <Link to={createPageUrl("TrainNow")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
                 <Zap className="w-5 h-5" />
               </Link>
-              <Link to={createPageUrl("Chat")} className="p-2 text-gray-600 hover:text-purple-600 transition-colors">
+              <Link to={createPageUrl("Chat")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
                 <Bot className="w-5 h-5" />
+              </Link>
+              <Link to={createPageUrl("Settings")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+                <Settings className="w-5 h-5" />
               </Link>
               <SidebarTrigger className="md:hidden" />
             </div>
@@ -207,7 +221,7 @@ export default function Layout({ children }) {
           {/* Mobile Bottom Navigation - Hidden on Chat page */}
           <nav
             className={`
-              md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-gray-200 pb-[env(safe-area-inset-bottom)] z-50 transition-transform duration-300 ease-in-out
+              md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg border-t border-gray-200 dark:border-gray-800 pb-[env(safe-area-inset-bottom)] z-50 transition-transform duration-300 ease-in-out
               ${isNavVisible && !isChatPage ? 'translate-y-0' : 'translate-y-full'}
               ${isChatPage ? 'hidden' : ''}
             `}
