@@ -97,6 +97,11 @@ const userSchema = new mongoose.Schema({
     theme: {
       type: String,
       default: 'light'
+    },
+    weekStartDay: {
+      type: Number,
+      enum: [0, 1], // 0 = Sunday, 1 = Monday
+      default: 0
     }
   }
 }, {

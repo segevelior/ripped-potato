@@ -1,56 +1,204 @@
-
 import React, { useState, useEffect } from "react";
-import { TrainingPlan, Discipline, Workout, Plan } from "@/api/entities";
+import { CalendarEvent, Plan, PredefinedWorkout } from "@/api/entities";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Calendar, Target, ChevronLeft, ChevronRight, Plus, CalendarDays, CalendarRange, FileText } from "lucide-react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, startOfWeek, endOfWeek, parseISO, isValid, isToday, addWeeks, subWeeks, startOfDay, endOfDay, addDays } from "date-fns";
+import { Calendar, ChevronLeft, ChevronRight, CalendarDays, CalendarRange, FileText, Plus } from "lucide-react";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, startOfWeek, endOfWeek, parseISO, isValid, isToday, addWeeks, subWeeks, addDays, isSameDay } from "date-fns";
 
 import WorkoutSelectionModal from "../components/calendar/WorkoutSelectionModal";
 
-// Enhanced Calendar with plan integration and drag support
-const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, onAddWorkout, onEditWorkout, onDeleteWorkout, onRescheduleWorkout }) => {
-  const [selectedDate, setSelectedDate] = useState(null);
+// Helper to get user's week start preference from localStorage
+const getWeekStartDay = () => {
+  try {
+    const authUser = JSON.parse(localStorage.getItem('authUser') || '{}');
+    return authUser.settings?.weekStartDay ?? 0; // Default to Sunday (0)
+  } catch {
+    return 0;
+  }
+};
+
+// Color palette for workout types - circular after 10 colors
+const WORKOUT_COLORS = [
+  { bg: 'bg-blue-100', dot: 'bg-blue-500', text: 'text-blue-700', border: 'border-blue-200' },
+  { bg: 'bg-green-100', dot: 'bg-green-500', text: 'text-green-700', border: 'border-green-200' },
+  { bg: 'bg-purple-100', dot: 'bg-purple-500', text: 'text-purple-700', border: 'border-purple-200' },
+  { bg: 'bg-orange-100', dot: 'bg-orange-500', text: 'text-orange-700', border: 'border-orange-200' },
+  { bg: 'bg-pink-100', dot: 'bg-pink-500', text: 'text-pink-700', border: 'border-pink-200' },
+  { bg: 'bg-cyan-100', dot: 'bg-cyan-500', text: 'text-cyan-700', border: 'border-cyan-200' },
+  { bg: 'bg-yellow-100', dot: 'bg-yellow-500', text: 'text-yellow-700', border: 'border-yellow-200' },
+  { bg: 'bg-red-100', dot: 'bg-red-500', text: 'text-red-700', border: 'border-red-200' },
+  { bg: 'bg-indigo-100', dot: 'bg-indigo-500', text: 'text-indigo-700', border: 'border-indigo-200' },
+  { bg: 'bg-teal-100', dot: 'bg-teal-500', text: 'text-teal-700', border: 'border-teal-200' },
+];
+
+// Get color for a workout type (circular index for 10+ types)
+const getWorkoutTypeColor = (typeIndex) => {
+  return WORKOUT_COLORS[typeIndex % WORKOUT_COLORS.length];
+};
+
+// Map workout types to their color indices
+const getTypeColorIndex = (type, typeMap) => {
+  if (!typeMap.has(type)) {
+    typeMap.set(type, typeMap.size);
+  }
+  return typeMap.get(type);
+};
+
+// Get color for event type
+const getEventTypeColor = (eventType) => {
+  switch (eventType) {
+    case 'workout':
+      return WORKOUT_COLORS[0]; // blue
+    case 'rest':
+      return WORKOUT_COLORS[6]; // yellow
+    case 'deload':
+      return WORKOUT_COLORS[5]; // cyan
+    case 'milestone':
+      return WORKOUT_COLORS[2]; // purple
+    default:
+      return WORKOUT_COLORS[0];
+  }
+};
+
+// Selected Day Panel Component - shows below the calendar
+const SelectedDayPanel = ({ date, events, onAddClick, onEditEvent, onDeleteEvent, getEventColor }) => {
+  const isCurrentDay = isToday(date);
+
+  return (
+    <div className={`bg-white rounded-xl shadow-sm p-6 ${isCurrentDay ? 'ring-2 ring-[#FE5334]/20' : ''}`}>
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h3 className={`text-lg font-bold ${isCurrentDay ? 'text-[#FE5334]' : 'text-gray-900'}`}>
+            {format(date, 'EEEE, MMMM d')}
+            {isCurrentDay && <span className="ml-2 text-sm font-medium bg-[#FEE1DC] px-2 py-0.5 rounded-full">Today</span>}
+          </h3>
+          <p className="text-sm text-gray-500">{events.length} workout{events.length !== 1 ? 's' : ''} scheduled</p>
+        </div>
+        <button
+          onClick={() => onAddClick(date)}
+          className="flex items-center gap-2 px-4 py-2 bg-[#FE5334] text-white rounded-lg hover:bg-[#E84A2D] transition-colors text-sm font-semibold"
+        >
+          <Plus className="w-4 h-4" />
+          Add Workout
+        </button>
+      </div>
+
+      {events.length > 0 ? (
+        <div className="space-y-3">
+          {events.map((event, idx) => {
+            const colors = getEventColor(event);
+            return (
+              <div key={event.id || idx} className="group relative">
+                <div
+                  className={`p-4 rounded-xl cursor-pointer hover:shadow-md transition-all ${colors.bg} border ${colors.border}`}
+                  onClick={() => onEditEvent(event)}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`w-3 h-3 rounded-full ${colors.dot}`}></div>
+                    <p className={`font-bold text-base ${colors.text}`}>
+                      {event.title}
+                    </p>
+                    {event.status && event.status !== 'scheduled' && (
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        event.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        event.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                        event.status === 'skipped' ? 'bg-gray-100 text-gray-600' : ''
+                      }`}>
+                        {event.status.replace('_', ' ')}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-600 ml-6">
+                    {event.workoutDetails?.exercises?.length || 0} exercises • {event.workoutDetails?.estimatedDuration || 60}min
+                  </p>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteEvent(event.id);
+                  }}
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white text-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-xl">
+          <Calendar className="w-10 h-10 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No workouts scheduled for this day</p>
+          <p className="text-xs text-gray-400 mt-1">Click "Add Workout" to schedule one</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Figma-style Calendar View Component
+const CalendarView = ({ events, activePlans, view, currentDate, onDateChange, onAddEvent, onEditEvent, onDeleteEvent, onMoveEvent, weekStartDay }) => {
+  const [selectedDate, setSelectedDate] = useState(new Date()); // Default to today
   const [showWorkoutModal, setShowWorkoutModal] = useState(false);
-  const [editingWorkout, setEditingWorkout] = useState(null);
-  const [draggedWorkout, setDraggedWorkout] = useState(null);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [draggedEvent, setDraggedEvent] = useState(null);
   const [hoveredDate, setHoveredDate] = useState(null);
 
+  // Create a stable type-to-color mapping based on workoutDetails.type
+  const workoutTypeMap = new Map();
+  events.forEach(e => {
+    const type = e.workoutDetails?.type || e.type || 'general';
+    if (!workoutTypeMap.has(type)) {
+      workoutTypeMap.set(type, workoutTypeMap.size);
+    }
+  });
+
+  // Week day labels based on start day preference
+  const weekDays = weekStartDay === 1
+    ? ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]  // Monday start
+    : ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]; // Sunday start
+
+  // Click on date -> select it (don't change view)
   const handleDateClick = (date) => {
     setSelectedDate(date);
-    setEditingWorkout(null);
+  };
+
+  // Click + button to add workout
+  const handleAddClick = (date) => {
+    setSelectedDate(date);
+    setEditingEvent(null);
     setShowWorkoutModal(true);
   };
 
-  const handleEditWorkout = (workout) => {
-    if (!workout || !workout.date) return;
-    const workoutDate = parseISO(workout.date);
-    if (isValid(workoutDate)) {
-      setEditingWorkout(workout);
-      setSelectedDate(workoutDate);
+  const handleEditEvent = (event) => {
+    if (!event || !event.date) return;
+    const eventDate = typeof event.date === 'string' ? parseISO(event.date) : new Date(event.date);
+    if (isValid(eventDate)) {
+      setEditingEvent(event);
+      setSelectedDate(eventDate);
       setShowWorkoutModal(true);
     }
   };
 
   const handleApplyWorkout = (workoutData) => {
-    if (editingWorkout) {
-      onEditWorkout(editingWorkout.id, {
+    if (editingEvent) {
+      onEditEvent(editingEvent.id, {
         ...workoutData,
         date: format(selectedDate, 'yyyy-MM-dd')
       });
     } else {
-      onAddWorkout({
+      onAddEvent({
         ...workoutData,
         date: format(selectedDate, 'yyyy-MM-dd')
       });
     }
     setShowWorkoutModal(false);
-    setEditingWorkout(null);
+    setEditingEvent(null);
   };
 
   // Drag and Drop handlers
-  const handleDragStart = (e, workout) => {
-    setDraggedWorkout(workout);
+  const handleDragStart = (e, event) => {
+    setDraggedEvent(event);
     e.dataTransfer.effectAllowed = 'move';
   };
 
@@ -61,49 +209,35 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
 
   const handleDrop = (e, targetDate) => {
     e.preventDefault();
-    if (draggedWorkout && targetDate) {
+    if (draggedEvent && targetDate) {
       const newDate = format(targetDate, 'yyyy-MM-dd');
-      if (newDate !== draggedWorkout.date) {
-        onRescheduleWorkout(draggedWorkout.id, newDate);
-
-        // Save edit for AI feedback
-        const editInfo = {
-          type: 'reschedule',
-          workoutTitle: draggedWorkout.title,
-          oldDate: draggedWorkout.date,
-          newDate: newDate
-        };
-        localStorage.setItem('manualEdit', JSON.stringify(editInfo));
+      const oldDate = typeof draggedEvent.date === 'string'
+        ? draggedEvent.date.split('T')[0]
+        : format(new Date(draggedEvent.date), 'yyyy-MM-dd');
+      if (newDate !== oldDate) {
+        onMoveEvent(draggedEvent.id, newDate);
       }
     }
-    setDraggedWorkout(null);
+    setDraggedEvent(null);
     setHoveredDate(null);
   };
 
   const getDayData = (date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    const dayWorkouts = workouts.filter(w => w.date === dateStr && w.exercises && w.exercises.length > 0);
-
-    return { actual: dayWorkouts };
+    const dayEvents = events.filter(e => {
+      const eventDate = typeof e.date === 'string' ? e.date.split('T')[0] : format(new Date(e.date), 'yyyy-MM-dd');
+      return eventDate === dateStr;
+    });
+    return { events: dayEvents };
   };
 
-  const getWorkoutPlanInfo = (workout) => {
-    const plan = activePlans.find(plan =>
-      plan.linked_workouts?.some(pw => pw.workout_id === workout.id)
-    );
-    return plan ? { id: plan.id, name: plan.name, color: getPlanColor(plan.id) } : null;
-  };
-
-  const getPlanColor = (planId) => {
-    const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-red-500', 'bg-yellow-500'];
-    return colors[planId.charCodeAt(0) % colors.length];
-  };
-
-  const isProgressionWorkout = (workout, planInfo) => {
-    if (!planInfo) return false;
-    const plan = activePlans.find(p => p.id === planInfo.id);
-    const linkedWorkout = plan?.linked_workouts?.find(pw => pw.workout_id === workout.id);
-    return linkedWorkout?.workout_type === 'progression';
+  const getEventColor = (event) => {
+    if (event.type === 'workout') {
+      const type = event.workoutDetails?.type || 'strength';
+      const colorIndex = getTypeColorIndex(type, workoutTypeMap);
+      return getWorkoutTypeColor(colorIndex);
+    }
+    return getEventTypeColor(event.type);
   };
 
   const navigate = (direction) => {
@@ -118,148 +252,115 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
 
   const getDateRange = () => {
     if (view === 'month') {
-      const firstDay = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 });
-      const lastDay = endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 });
+      const firstDay = startOfWeek(startOfMonth(currentDate), { weekStartsOn: weekStartDay });
+      const lastDay = endOfWeek(endOfMonth(currentDate), { weekStartsOn: weekStartDay });
       return eachDayOfInterval({ start: firstDay, end: lastDay });
     } else if (view === 'week') {
-      const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-      const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+      const weekStart = startOfWeek(currentDate, { weekStartsOn: weekStartDay });
+      const weekEnd = endOfWeek(currentDate, { weekStartsOn: weekStartDay });
       return eachDayOfInterval({ start: weekStart, end: weekEnd });
     } else {
       return [currentDate];
     }
   };
 
-  const getViewTitle = () => {
-    if (view === 'month') {
-      return format(currentDate, "MMMM yyyy");
-    } else if (view === 'week') {
-      const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-      const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
-      return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
-    } else {
-      return format(currentDate, "EEEE, MMMM d, yyyy");
-    }
-  };
-
   const dates = getDateRange();
+  const selectedDayEvents = getDayData(selectedDate).events;
 
+  // Day View - full day display
   if (view === 'day') {
-    const { actual } = getDayData(currentDate);
+    const { events: dayEvents } = getDayData(currentDate);
     const isCurrentDay = isToday(currentDate);
 
     return (
       <>
-        <div className="bg-white rounded-3xl shadow-sm border border-grey-100 p-6">
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          {/* Header */}
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-grey-900">
-              {getViewTitle()}
-            </h2>
-            <div className="flex items-center gap-2">
-              <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-grey-100">
-                <ChevronLeft className="w-5 h-5 text-grey-500" />
+            <h2 className="text-lg font-bold text-gray-900">Calendar</h2>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-bold text-gray-900">
+                {format(currentDate, "MMMM d, yyyy")}
+              </span>
+              <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                <ChevronLeft className="w-5 h-5 text-gray-400" />
               </button>
-              <button onClick={() => navigate(1)} className="p-2 rounded-lg hover:bg-grey-100">
-                <ChevronRight className="w-5 h-5 text-grey-500" />
+              <button onClick={() => navigate(1)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                <ChevronRight className="w-5 h-5 text-gray-400" />
               </button>
             </div>
           </div>
 
+          {/* Day Content */}
           <div
-            className={`p-6 rounded-xl border-2 min-h-[400px] ${isCurrentDay ? 'bg-primary-50 border-primary-100' : 'bg-grey-50 border-grey-200'
-              } ${hoveredDate && hoveredDate.getTime() === currentDate.getTime() ? 'border-secondary-400 bg-secondary-50' : ''}`}
+            className={`p-6 rounded-xl min-h-[400px] ${isCurrentDay ? 'bg-[#FEE1DC]' : 'bg-gray-50'}`}
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, currentDate)}
-            onDragEnter={() => setHoveredDate(currentDate)}
-            onDragLeave={() => setHoveredDate(null)}
           >
             <div className="flex justify-between items-center mb-4">
-              <h3 className={`text-lg font-semibold ${isCurrentDay ? 'text-primary-500' : 'text-grey-900'}`}>
-                {format(currentDate, 'EEEE, MMMM d')}
-                {isCurrentDay && <span className="ml-2 text-sm font-normal">(Today)</span>}
+              <h3 className={`text-xl font-bold ${isCurrentDay ? 'text-[#FE5334]' : 'text-gray-900'}`}>
+                {format(currentDate, 'EEEE')}
+                {isCurrentDay && <span className="ml-2 text-sm font-medium">(Today)</span>}
               </h3>
               <button
-                onClick={() => handleDateClick(currentDate)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                onClick={() => handleAddClick(currentDate)}
+                className="flex items-center gap-2 px-4 py-2 bg-[#FE5334] text-white rounded-lg hover:bg-[#E84A2D] transition-colors text-sm font-semibold"
               >
+                <Plus className="w-4 h-4" />
                 Add Workout
               </button>
             </div>
 
             <div className="space-y-3">
-              {actual.length > 0 ? actual.map((workout, idx) => {
-                const planInfo = getWorkoutPlanInfo(workout);
-                const isProgression = isProgressionWorkout(workout, planInfo);
-
+              {dayEvents.length > 0 ? dayEvents.map((event, idx) => {
+                const colors = getEventColor(event);
                 return (
-                  <div key={idx} className="group relative">
+                  <div key={event.id || idx} className="group relative">
                     <div
                       draggable
-                      onDragStart={(e) => handleDragStart(e, workout)}
-                      className="p-4 rounded-lg text-sm bg-white border cursor-move hover:shadow-md transition-all border-secondary-200 group-hover:border-secondary-400"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditWorkout(workout);
-                      }}
+                      onDragStart={(e) => handleDragStart(e, event)}
+                      className={`p-4 rounded-xl cursor-move hover:shadow-md transition-all ${colors.bg} border ${colors.border}`}
+                      onClick={() => handleEditEvent(event)}
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <p className="font-bold text-lg mb-1 text-grey-900">
-                            {workout.title}
-                            {isProgression && (
-                              <span className="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                                📈 Progression
-                              </span>
-                            )}
-                          </p>
-                          {planInfo && (
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className={`w-3 h-3 rounded-full ${planInfo.color}`}></div>
-                              <Link
-                                to={createPageUrl(`Plans`)}
-                                className="text-sm text-secondary-600 hover:underline font-medium"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {planInfo.name}
-                              </Link>
-                            </div>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={`w-3 h-3 rounded-full ${colors.dot}`}></div>
+                        <p className={`font-bold text-base ${colors.text}`}>
+                          {event.title}
+                        </p>
+                        {event.status && event.status !== 'scheduled' && (
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            event.status === 'completed' ? 'bg-green-100 text-green-700' :
+                            event.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                            event.status === 'skipped' ? 'bg-gray-100 text-gray-600' : ''
+                          }`}>
+                            {event.status.replace('_', ' ')}
+                          </span>
+                        )}
                       </div>
-
-                      <p className="text-sm opacity-75 mb-2">
-                        {workout.exercises?.length || 0} exercises • {workout.duration_minutes}min
+                      <p className="text-sm text-gray-600 ml-6">
+                        {event.workoutDetails?.exercises?.length || 0} exercises • {event.workoutDetails?.estimatedDuration || 60}min
                       </p>
-                      {workout.exercises?.slice(0, 3).map((ex, exIdx) => (
-                        <p key={exIdx} className="text-sm opacity-60">
-                          {ex.exercise_name} - {ex.sets}x{ex.reps?.[0] || '?'}
-                        </p>
-                      ))}
-                      {workout.exercises?.length > 3 && (
-                        <p className="text-sm opacity-60 mt-1">
-                          +{workout.exercises.length - 3} more exercises
-                        </p>
-                      )}
                     </div>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onDeleteWorkout(workout.id);
+                        onDeleteEvent(event.id);
                       }}
-                      className="absolute -top-2 -right-2 w-6 h-6 bg-primary-500 text-white text-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white text-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       ×
                     </button>
                   </div>
                 );
               }) : (
-                <div className="text-center py-12 text-grey-500">
+                <div className="text-center py-12 text-gray-500">
                   <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No workouts scheduled for this day</p>
+                  <p className="text-sm">No workouts scheduled</p>
                   <button
-                    onClick={() => handleDateClick(currentDate)}
-                    className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    onClick={() => handleAddClick(currentDate)}
+                    className="mt-4 flex items-center gap-2 mx-auto px-4 py-2 bg-[#FE5334] text-white rounded-lg hover:bg-[#E84A2D] transition-colors text-sm font-semibold"
                   >
+                    <Plus className="w-4 h-4" />
                     Add Workout
                   </button>
                 </div>
@@ -273,9 +374,9 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
             date={selectedDate}
             onClose={() => {
               setShowWorkoutModal(false);
-              setEditingWorkout(null);
+              setEditingEvent(null);
             }}
-            editingWorkout={editingWorkout}
+            editingWorkout={editingEvent}
             onApplyWorkout={handleApplyWorkout}
           />
         )}
@@ -283,244 +384,292 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
     );
   }
 
+  // Week View
   if (view === 'week') {
-    const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
     return (
       <>
-        <div className="bg-white rounded-3xl shadow-sm border border-grey-100 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-grey-900">
-              {getViewTitle()}
-            </h2>
-            <div className="flex items-center gap-2">
-              <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-grey-100">
-                <ChevronLeft className="w-5 h-5 text-grey-500" />
-              </button>
-              <button onClick={() => navigate(1)} className="p-2 rounded-lg hover:bg-grey-100">
-                <ChevronRight className="w-5 h-5 text-grey-500" />
-              </button>
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold text-gray-900">Calendar</h2>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-gray-900">
+                  {format(startOfWeek(currentDate, { weekStartsOn: weekStartDay }), 'MMM d')} - {format(endOfWeek(currentDate, { weekStartsOn: weekStartDay }), 'MMM d, yyyy')}
+                </span>
+                <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                  <ChevronLeft className="w-5 h-5 text-gray-400" />
+                </button>
+                <button onClick={() => navigate(1)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+            </div>
+
+            {/* Week Grid */}
+            <div className="grid grid-cols-7 gap-2">
+              {dates.map((day, index) => {
+                const { events: dayEvents } = getDayData(day);
+                const isCurrentDay = isToday(day);
+                const isSelected = isSameDay(day, selectedDate);
+                const isDragTarget = hoveredDate && hoveredDate.getTime() === day.getTime();
+
+                return (
+                  <div key={index} className="flex flex-col">
+                    {/* Day Header */}
+                    <div className="text-center mb-2">
+                      <div className="text-xs font-medium text-gray-400 mb-1">
+                        {weekDays[index]}
+                      </div>
+                      <div
+                        onClick={() => handleDateClick(day)}
+                        className={`w-10 h-10 mx-auto flex items-center justify-center rounded-lg text-base font-semibold cursor-pointer transition-all ${
+                          isSelected
+                            ? 'bg-[#FE5334] text-white'
+                            : isCurrentDay
+                              ? 'bg-[#FEE1DC] text-[#FE5334]'
+                              : 'text-gray-900 hover:bg-gray-100'
+                        }`}
+                      >
+                        {format(day, 'd')}
+                      </div>
+                    </div>
+
+                    {/* Day Content */}
+                    <div
+                      className={`flex-1 rounded-lg p-2 min-h-[140px] transition-colors relative group cursor-pointer ${
+                        isSelected ? 'bg-[#FFF2F0] ring-2 ring-[#FE5334]' :
+                        isCurrentDay ? 'bg-[#FFF8F7]' : 'bg-gray-50 hover:bg-gray-100'
+                      } ${isDragTarget ? 'ring-2 ring-[#FE5334] bg-[#FFF2F0]' : ''}`}
+                      onClick={() => handleDateClick(day)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, day)}
+                      onDragEnter={() => setHoveredDate(day)}
+                      onDragLeave={() => setHoveredDate(null)}
+                    >
+                      {/* + button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAddClick(day);
+                        }}
+                        className="absolute top-1 right-1 w-6 h-6 bg-[#FE5334] text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-[#E84A2D]"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+
+                      <div className="space-y-1.5">
+                        {dayEvents.slice(0, 3).map((event, idx) => {
+                          const colors = getEventColor(event);
+                          return (
+                            <div key={event.id || idx} className="group/event relative">
+                              <div
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, event)}
+                                className={`p-2 rounded-lg cursor-move text-xs ${colors.bg} border ${colors.border}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditEvent(event);
+                                }}
+                              >
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${colors.dot}`}></div>
+                                  <p className={`font-semibold truncate ${colors.text}`}>
+                                    {event.title}
+                                  </p>
+                                </div>
+                                <p className="text-gray-500 text-[10px] ml-3.5">
+                                  {event.workoutDetails?.estimatedDuration || 60}min
+                                </p>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteEvent(event.id);
+                                }}
+                                className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center opacity-0 group-hover/event:opacity-100 transition-opacity"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          );
+                        })}
+                        {dayEvents.length > 3 && (
+                          <div className="text-[10px] text-gray-500 text-center py-1">
+                            +{dayEvents.length - 3} more
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          <div className="grid grid-cols-7 gap-2">
-            {dates.map((day, index) => {
-              const { actual } = getDayData(day);
-              const isCurrentDay = isToday(day);
-              const isDragTarget = hoveredDate && hoveredDate.getTime() === day.getTime();
-
-              return (
-                <div key={index} className="space-y-2">
-                  <div className="text-center">
-                    <div className="text-xs font-medium text-grey-500">
-                      {weekDays[index]}
-                    </div>
-                    <div
-                      className={`text-lg font-bold p-2 rounded-full w-10 h-10 mx-auto flex items-center justify-center cursor-pointer hover:bg-grey-100 transition-colors ${isCurrentDay ? 'bg-primary-500 text-white' : 'text-grey-900'
-                        }`}
-                      onClick={() => handleDateClick(day)}
-                    >
-                      {format(day, 'd')}
-                    </div>
-                  </div>
-
-                  <div
-                    className={`bg-grey-50 rounded-lg p-2 min-h-[120px] cursor-pointer hover:bg-grey-100 transition-colors ${isCurrentDay ? 'ring-2 ring-primary-100' : ''
-                      } ${isDragTarget ? 'ring-2 ring-secondary-400 bg-secondary-50' : ''}`}
-                    onClick={() => handleDateClick(day)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, day)}
-                    onDragEnter={() => setHoveredDate(day)}
-                    onDragLeave={() => setHoveredDate(null)}
-                  >
-                    <div className="space-y-1">
-                      {actual.slice(0, 2).map((workout, idx) => {
-                        const planInfo = getWorkoutPlanInfo(workout);
-                        const isProgression = isProgressionWorkout(workout, planInfo);
-
-                        return (
-                          <div key={idx} className="group relative">
-                            <div
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, workout)}
-                              className="p-2 rounded bg-white border cursor-move hover:shadow-sm border-secondary-200 text-xs"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditWorkout(workout);
-                              }}
-                            >
-                              <div className="flex items-center gap-1 mb-1">
-                                {planInfo && <div className={`w-2 h-2 rounded-full ${planInfo.color}`}></div>}
-                                <p className="font-bold truncate flex-1 text-grey-900">
-                                  {workout.title}
-                                </p>
-                                {isProgression && <span className="text-green-600">📈</span>}
-                              </div>
-                              <p className="text-xs opacity-75">
-                                {workout.exercises?.length || 0} exercises
-                              </p>
-                              {planInfo && (
-                                <p className="text-xs text-secondary-600 truncate mt-1">
-                                  {planInfo.name}
-                                </p>
-                              )}
-                            </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDeleteWorkout(workout.id);
-                              }}
-                              className="absolute -top-1 -right-1 w-4 h-4 bg-primary-500 text-white text-xs rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        );
-                      })}
-                      {actual.length > 2 && (
-                        <div className="text-xs text-grey-500 text-center">
-                          +{actual.length - 2} more
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div >
+          {/* Selected Day Panel */}
+          <SelectedDayPanel
+            date={selectedDate}
+            events={selectedDayEvents}
+            onAddClick={handleAddClick}
+            onEditEvent={handleEditEvent}
+            onDeleteEvent={onDeleteEvent}
+            getEventColor={getEventColor}
+          />
+        </div>
 
         {showWorkoutModal && (
           <WorkoutSelectionModal
             date={selectedDate}
             onClose={() => {
               setShowWorkoutModal(false);
-              setEditingWorkout(null);
+              setEditingEvent(null);
             }}
-            editingWorkout={editingWorkout}
+            editingWorkout={editingEvent}
             onApplyWorkout={handleApplyWorkout}
           />
-        )
-        }
+        )}
       </>
     );
   }
 
-  // Month view with plan integration
-  const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
+  // Month View (Figma-style)
   return (
     <>
-      <div className="bg-white rounded-3xl shadow-sm border border-grey-100 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-grey-900">
-            {getViewTitle()}
-          </h2>
-          <div className="flex items-center gap-2">
-            <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-grey-100">
-              <ChevronLeft className="w-5 h-5 text-grey-500" />
-            </button>
-            <button onClick={() => navigate(1)} className="p-2 rounded-lg hover:bg-grey-100">
-              <ChevronRight className="w-5 h-5 text-grey-500" />
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-7 gap-px bg-grey-200 border border-grey-200 rounded-lg overflow-hidden">
-          {weekDays.map(day => (
-            <div key={day} className="py-2 text-center text-xs font-bold text-grey-500 bg-white">
-              {day}
+      <div className="space-y-4">
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-bold text-gray-900">Calendar</h2>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-bold text-gray-900">
+                {format(currentDate, "MMMM yyyy")}
+              </span>
+              <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                <ChevronLeft className="w-5 h-5 text-gray-400" />
+              </button>
+              <button onClick={() => navigate(1)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </button>
             </div>
-          ))}
-          {dates.map((day, i) => {
-            const { actual } = getDayData(day);
-            const isCurrentMonth = day.getMonth() === currentDate.getMonth();
-            const isCurrentDay = isToday(day);
-            const isDragTarget = hoveredDate && hoveredDate.getTime() === day.getTime();
+          </div>
 
-            return (
-              <div
-                key={i}
-                className={`p-2 min-h-[120px] cursor-pointer hover:bg-grey-50 transition-colors ${isCurrentMonth ? (isCurrentDay ? 'bg-primary-50 border-2 border-primary-100' : 'bg-white') : 'bg-grey-50'
-                  } ${isDragTarget ? 'bg-secondary-50 border-2 border-secondary-300' : ''}`}
-                onClick={() => handleDateClick(day)}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, day)}
-                onDragEnter={() => setHoveredDate(day)}
-                onDragLeave={() => setHoveredDate(null)}
-              >
-                <span className={`text-sm font-medium ${isCurrentMonth ?
-                  (isCurrentDay ? 'text-primary-500 font-bold' : 'text-grey-900') :
-                  'text-grey-400'
-                  }`}>
-                  {format(day, 'd')}
-                  {isCurrentDay && <span className="text-xs ml-1">(Today)</span>}
-                </span>
+          {/* Day Headers */}
+          <div className="grid grid-cols-7 mb-2">
+            {weekDays.map(day => (
+              <div key={day} className="py-2 text-center text-sm font-medium text-gray-400">
+                {day}
+              </div>
+            ))}
+          </div>
 
-                <div className="mt-1 space-y-1">
-                  {actual.slice(0, 3).map((workout, idx) => {
-                    const planInfo = getWorkoutPlanInfo(workout);
-                    const isProgression = isProgressionWorkout(workout, planInfo);
+          {/* Calendar Grid */}
+          <div className="grid grid-cols-7 gap-px bg-gray-100 rounded-lg overflow-hidden">
+            {dates.map((day, i) => {
+              const { events: dayEvents } = getDayData(day);
+              const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+              const isCurrentDay = isToday(day);
+              const isSelected = isSameDay(day, selectedDate);
+              const isDragTarget = hoveredDate && hoveredDate.getTime() === day.getTime();
+              const hasEvents = dayEvents.length > 0;
 
-                    return (
-                      <div key={idx} className="group relative">
-                        <div
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, workout)}
-                          className="p-2 rounded-lg text-xs bg-white border cursor-move hover:shadow-sm border-secondary-200"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditWorkout(workout);
-                          }}
-                        >
-                          <div className="flex items-center gap-1 mb-1">
-                            {planInfo && <div className={`w-2 h-2 rounded-full ${planInfo.color}`}></div>}
-                            <p className="font-bold truncate text-xs flex-1 text-grey-900">
-                              {workout.title}
-                              {isProgression && <span className="ml-1 text-green-600">📈</span>}
-                            </p>
+              return (
+                <div
+                  key={i}
+                  className={`bg-white p-2 min-h-[100px] cursor-pointer transition-all relative group ${
+                    !isCurrentMonth ? 'opacity-40' : ''
+                  } ${isSelected ? 'bg-[#FFF2F0] ring-2 ring-inset ring-[#FE5334]' : ''} ${isDragTarget ? 'bg-[#FFF2F0] ring-2 ring-[#FE5334]' : 'hover:bg-gray-50'}`}
+                  onClick={() => handleDateClick(day)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, day)}
+                  onDragEnter={() => setHoveredDate(day)}
+                  onDragLeave={() => setHoveredDate(null)}
+                >
+                  {/* + button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddClick(day);
+                    }}
+                    className="absolute top-1 right-1 w-5 h-5 bg-[#FE5334] text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-[#E84A2D] z-10"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+
+                  {/* Date Number */}
+                  <div className="flex justify-center mb-2">
+                    <span
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg text-base font-semibold transition-colors ${
+                        isSelected
+                          ? 'bg-[#FE5334] text-white'
+                          : isCurrentDay
+                            ? 'bg-[#FEE1DC] text-[#FE5334]'
+                            : isCurrentMonth
+                              ? 'text-gray-900'
+                              : 'text-gray-300'
+                      }`}
+                    >
+                      {format(day, 'd')}
+                    </span>
+                  </div>
+
+                  {/* Event Indicators */}
+                  {hasEvents && (
+                    <div className="space-y-1">
+                      {dayEvents.slice(0, 2).map((event, idx) => {
+                        const colors = getEventColor(event);
+                        return (
+                          <div key={event.id || idx} className="group/event relative">
+                            <div
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, event)}
+                              className={`px-2 py-1 rounded-md text-[11px] cursor-move ${colors.bg} border ${colors.border}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditEvent(event);
+                              }}
+                            >
+                              <div className="flex items-center gap-1">
+                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${colors.dot}`}></div>
+                                <span className={`font-medium truncate ${colors.text}`}>
+                                  {event.title}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteEvent(event.id);
+                              }}
+                              className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center opacity-0 group-hover/event:opacity-100 transition-opacity"
+                            >
+                              ×
+                            </button>
                           </div>
-                          <p className="text-xs opacity-75 mb-1">
-                            {workout.exercises?.length || 0} exercises • {workout.duration_minutes}min
-                          </p>
-                          {planInfo && (
-                            <p className="text-xs text-secondary-600 truncate">
-                              {planInfo.name}
-                            </p>
-                          )}
-                          {workout.exercises?.slice(0, 2).map((ex, exIdx) => (
-                            <p key={exIdx} className="text-xs opacity-60 truncate">
-                              {ex.exercise_name}
-                            </p>
-                          ))}
-                          {workout.exercises?.length > 2 && (
-                            <p className="text-xs opacity-60">
-                              +{workout.exercises.length - 2} more exercises
-                            </p>
-                          )}
+                        );
+                      })}
+                      {dayEvents.length > 2 && (
+                        <div className="text-[10px] text-gray-400 text-center">
+                          +{dayEvents.length - 2} more
                         </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteWorkout(workout.id);
-                          }}
-                          className="absolute -top-1 -right-1 w-5 h-5 bg-primary-500 text-white text-xs rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    );
-                  })}
-                  {actual.length > 3 && (
-                    <div className="text-xs text-grey-500 text-center">
-                      +{actual.length - 3} more
+                      )}
                     </div>
                   )}
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
+
+        {/* Selected Day Panel */}
+        <SelectedDayPanel
+          date={selectedDate}
+          events={selectedDayEvents}
+          onAddClick={handleAddClick}
+          onEditEvent={handleEditEvent}
+          onDeleteEvent={onDeleteEvent}
+          getEventColor={getEventColor}
+        />
       </div>
 
       {showWorkoutModal && (
@@ -528,9 +677,9 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
           date={selectedDate}
           onClose={() => {
             setShowWorkoutModal(false);
-            setEditingWorkout(null);
+            setEditingEvent(null);
           }}
-          editingWorkout={editingWorkout}
+          editingWorkout={editingEvent}
           onApplyWorkout={handleApplyWorkout}
         />
       )}
@@ -539,128 +688,130 @@ const CalendarView = ({ workouts, activePlans, view, currentDate, onDateChange, 
 };
 
 export default function CalendarPage() {
-  const [currentPlan, setCurrentPlan] = useState(null);
   const [activePlans, setActivePlans] = useState([]);
-  const [disciplines, setDisciplines] = useState([]);
-  const [workouts, setWorkouts] = useState([]);
+  const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState('month'); // 'day', 'week', 'month'
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [weekStartDay, setWeekStartDay] = useState(getWeekStartDay());
+
+  // Calculate date range for current view
+  const getViewDateRange = (date, viewType) => {
+    if (viewType === 'month') {
+      const firstDay = startOfWeek(startOfMonth(date), { weekStartsOn: weekStartDay });
+      const lastDay = endOfWeek(endOfMonth(date), { weekStartsOn: weekStartDay });
+      return { startDate: format(firstDay, 'yyyy-MM-dd'), endDate: format(lastDay, 'yyyy-MM-dd') };
+    } else if (viewType === 'week') {
+      const weekStart = startOfWeek(date, { weekStartsOn: weekStartDay });
+      const weekEnd = endOfWeek(date, { weekStartsOn: weekStartDay });
+      return { startDate: format(weekStart, 'yyyy-MM-dd'), endDate: format(weekEnd, 'yyyy-MM-dd') };
+    } else {
+      // Day view - get a week around the day for context
+      const start = addDays(date, -3);
+      const end = addDays(date, 3);
+      return { startDate: format(start, 'yyyy-MM-dd'), endDate: format(end, 'yyyy-MM-dd') };
+    }
+  };
 
   useEffect(() => {
     loadData();
+  }, [currentDate, view]);
+
+  // Listen for storage changes to update weekStartDay when user changes settings
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setWeekStartDay(getWeekStartDay());
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [plans, trainingPlans, disciplineData, workoutData] = await Promise.all([
-        Plan.filter({ status: 'active' }),
-        TrainingPlan.filter({ is_active: true }),
-        Discipline.list(),
-        Workout.list("-date", 100)
+      const { startDate, endDate } = getViewDateRange(currentDate, view);
+
+      const [plans, calendarEvents] = await Promise.all([
+        Plan.active().catch(() => []),
+        CalendarEvent.list(startDate, endDate).catch(() => [])
       ]);
 
-      setActivePlans(plans || []);
-      if (trainingPlans && trainingPlans.length > 0) setCurrentPlan(trainingPlans[0]);
-      setDisciplines(disciplineData || []);
-
-      // Filter out invalid/placeholder workouts and add plan info
-      const validWorkouts = (workoutData || []).filter(workout =>
-        workout.exercises &&
-        workout.exercises.length > 0 &&
-        workout.title &&
-        workout.title.trim() !== "" &&
-        workout.title !== "Strength Session" &&
-        !workout.title.includes("Planned")
-      ).map(workout => {
-        // Check if this workout is linked to any active plan
-        const linkedPlan = plans.find(plan =>
-          plan.linked_workouts?.some(pw =>
-            pw.workout_id === workout.id && pw.workout_type === 'scheduled'
-          )
-        );
-
-        return {
-          ...workout,
-          linkedPlan: linkedPlan ? { id: linkedPlan.id, name: linkedPlan.name } : null
-        };
-      });
-
-      setWorkouts(validWorkouts);
+      setActivePlans(Array.isArray(plans) ? plans : []);
+      setEvents(Array.isArray(calendarEvents) ? calendarEvents : []);
     } catch (error) {
       console.error("Error loading calendar data:", error);
+      setEvents([]);
+      setActivePlans([]);
     }
     setIsLoading(false);
   };
 
-  const handleAddWorkout = async (workoutData) => {
+  const handleAddEvent = async (workoutData) => {
     try {
-      const result = await Workout.create(workoutData);
+      // Convert workout data to calendar event format
+      const eventData = {
+        date: workoutData.date,
+        title: workoutData.title,
+        type: 'workout',
+        status: 'scheduled',
+        workoutDetails: {
+          type: workoutData.type || 'strength',
+          estimatedDuration: workoutData.durationMinutes || 60,
+          exercises: workoutData.exercises || []
+        },
+        notes: workoutData.notes
+      };
+
+      // If workoutTemplateId is provided, add it
+      if (workoutData.workoutTemplateId) {
+        eventData.workoutTemplateId = workoutData.workoutTemplateId;
+      }
+
+      await CalendarEvent.create(eventData);
       loadData();
     } catch (error) {
-      console.error("Error adding workout:", error);
+      console.error("Error adding calendar event:", error);
       alert(`Failed to add workout: ${error.message}`);
     }
   };
 
-  const handleEditWorkout = async (workoutId, workoutData) => {
+  const handleEditEvent = async (eventId, eventData) => {
     try {
-      await Workout.update(workoutId, workoutData);
+      const updateData = {
+        title: eventData.title,
+        date: eventData.date,
+        workoutDetails: {
+          type: eventData.type || 'strength',
+          estimatedDuration: eventData.durationMinutes || 60,
+          exercises: eventData.exercises || []
+        },
+        notes: eventData.notes
+      };
+      await CalendarEvent.update(eventId, updateData);
       loadData();
     } catch (error) {
-      console.error("Error updating workout:", error);
+      console.error("Error updating calendar event:", error);
     }
   };
 
-  const handleDeleteWorkout = async (workoutId) => {
+  const handleDeleteEvent = async (eventId) => {
     if (!confirm("Are you sure you want to delete this workout?")) return;
 
     try {
-      await Workout.delete(workoutId);
-
-      // Also remove from any linked plans
-      for (const plan of activePlans) {
-        if (plan.linked_workouts?.some(pw => pw.workout_id === workoutId)) {
-          const updatedWorkouts = plan.linked_workouts.filter(pw => pw.workout_id !== workoutId);
-          await Plan.update(plan.id, {
-            linked_workouts: updatedWorkouts,
-            progress_metrics: {
-              ...plan.progress_metrics,
-              total_workouts: updatedWorkouts.length
-            }
-          });
-        }
-      }
-
-      loadData(); // Refresh the calendar
+      await CalendarEvent.delete(eventId);
+      loadData();
     } catch (error) {
-      console.error("Error deleting workout:", error);
+      console.error("Error deleting calendar event:", error);
       alert("Failed to delete workout. Please try again.");
     }
   };
 
-  const handleRescheduleWorkout = async (workoutId, newDate) => {
+  const handleMoveEvent = async (eventId, newDate) => {
     try {
-      await Workout.update(workoutId, { date: newDate });
-
-      // Also update the plan if this workout is linked to a plan
-      const workout = workouts.find(w => w.id === workoutId);
-      if (workout?.linkedPlan) {
-        const plan = activePlans.find(p => p.id === workout.linkedPlan.id);
-        if (plan) {
-          const updatedWorkouts = plan.linked_workouts.map(pw =>
-            pw.workout_id === workoutId
-              ? { ...pw, scheduled_date: newDate }
-              : pw
-          );
-          await Plan.update(plan.id, { linked_workouts: updatedWorkouts });
-        }
-      }
-
+      await CalendarEvent.move(eventId, newDate);
       loadData();
     } catch (error) {
-      console.error("Error rescheduling workout:", error);
+      console.error("Error moving calendar event:", error);
     }
   };
 
@@ -668,27 +819,36 @@ export default function CalendarPage() {
     setCurrentDate(new Date());
   };
 
-  const openAICoach = (prompt) => {
-    document.dispatchEvent(new CustomEvent('open-ai-chat', { detail: { prompt } }));
-  }
-
   if (isLoading) {
-    return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded-lg"></div></div>;
+    return (
+      <div className="space-y-6">
+        <div className="animate-pulse bg-white rounded-xl p-6">
+          <div className="h-8 bg-gray-200 rounded w-48 mb-6"></div>
+          <div className="grid grid-cols-7 gap-2">
+            {Array(35).fill(0).map((_, i) => (
+              <div key={i} className="h-24 bg-gray-100 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Figma-style Header */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-grey-100">
-        <div className="flex items-center bg-grey-100 p-1.5 rounded-xl">
+    <div className="space-y-4">
+      {/* Figma-style Header Controls */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm">
+        {/* View Toggle - Figma Style */}
+        <div className="flex items-center bg-gray-100 p-1 rounded-lg border border-gray-200">
           {['Day', 'Week', 'Month'].map((v) => (
             <button
               key={v}
               onClick={() => setView(v.toLowerCase())}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${view === v.toLowerCase()
-                ? 'bg-white text-grey-900 shadow-sm'
-                : 'text-grey-500 hover:text-grey-900'
-                }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                view === v.toLowerCase()
+                  ? 'bg-gray-900 text-white shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
             >
               {v === 'Day' && <CalendarDays className="w-4 h-4" />}
               {v === 'Week' && <CalendarRange className="w-4 h-4" />}
@@ -698,53 +858,46 @@ export default function CalendarPage() {
           ))}
         </div>
 
-        <div className="flex items-center gap-6">
+        {/* Action Buttons */}
+        <div className="flex items-center gap-3">
           <button
             onClick={goToToday}
-            className="px-8 py-2.5 bg-primary-500 text-white rounded-full font-bold hover:bg-primary-400 transition-colors shadow-sm text-sm"
+            className="px-6 py-2 bg-[#FE5334] text-white rounded-full font-semibold hover:bg-[#E84A2D] transition-colors shadow-sm text-sm"
           >
             Today
           </button>
 
-          <Link to={createPageUrl("Plans")} className="flex items-center gap-2 text-grey-900 font-bold hover:text-grey-700 text-sm">
-            <FileText className="w-5 h-5" />
+          <Link to={createPageUrl("Plans")} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors text-sm font-medium">
+            <FileText className="w-4 h-4" />
             Plans
           </Link>
-
-          <button
-            onClick={() => openAICoach('I want to create a new plan.')}
-            className="flex items-center gap-2 text-grey-900 font-bold hover:text-grey-700 text-sm"
-          >
-            <Plus className="w-5 h-5" />
-            Plan with AI
-          </button>
         </div>
       </div>
 
+      {/* Calendar View */}
       <CalendarView
-        workouts={workouts}
+        events={events}
         activePlans={activePlans}
         view={view}
         currentDate={currentDate}
         onDateChange={setCurrentDate}
-        onAddWorkout={handleAddWorkout}
-        onEditWorkout={handleEditWorkout}
-        onDeleteWorkout={handleDeleteWorkout}
-        onRescheduleWorkout={handleRescheduleWorkout}
+        onAddEvent={handleAddEvent}
+        onEditEvent={handleEditEvent}
+        onDeleteEvent={handleDeleteEvent}
+        onMoveEvent={handleMoveEvent}
+        weekStartDay={weekStartDay}
       />
 
-      {workouts.length === 0 && !isLoading && (
-        <div className="bg-white rounded-3xl shadow-sm border border-grey-100 p-12 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 bg-grey-100 rounded-full flex items-center justify-center">
-            <Calendar className="w-8 h-8 text-grey-500" />
+      {/* Empty State - only show when no events at all */}
+      {events.length === 0 && !isLoading && (
+        <div className="bg-[#FFF2F0] rounded-xl p-6 flex items-center gap-4">
+          <div className="w-12 h-12 bg-[#FE5334] rounded-xl flex items-center justify-center flex-shrink-0">
+            <Calendar className="w-6 h-6 text-white" />
           </div>
-          <h3 className="text-xl font-semibold mb-2 text-grey-900">No Workouts Scheduled</h3>
-          <p className="mb-6 text-grey-500">
-            Click on any date to add a workout, or use Sensei to create a plan.
-          </p>
-          <button onClick={() => openAICoach('Help me create a workout plan.')} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors">Go to Sensei</button>
-
-          {/* Test button */}
+          <div className="flex-1">
+            <p className="font-semibold text-gray-900">No workouts scheduled this month</p>
+            <p className="text-sm text-gray-500">Click the + button on any date to add a workout</p>
+          </div>
         </div>
       )}
     </div>

@@ -129,7 +129,7 @@ const PlanCard = ({ plan, onEdit, onDelete, onToggleStatus, goals, workouts }) =
         <div className="mb-4">
           <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-500"
+              className="h-full bg-gradient-to-r from-blue-500 to-primary-500 rounded-full transition-all duration-500"
               style={{ width: `${progress.percentage}%` }}
             />
           </div>
@@ -141,7 +141,7 @@ const PlanCard = ({ plan, onEdit, onDelete, onToggleStatus, goals, workouts }) =
             <div className="text-xs text-gray-500 mb-2">Working toward:</div>
             <div className="flex flex-wrap gap-1">
               {linkedGoals.map(goal => (
-                <span key={goal.id} className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800">
+                <span key={goal.id} className="px-2 py-1 text-xs rounded-full bg-primary-50 text-orange-800">
                   {goal.name}
                 </span>
               ))}
@@ -185,13 +185,13 @@ export default function Plans() {
     setIsLoading(true);
     try {
       const [planData, goalData, workoutData] = await Promise.all([
-        Plan.list("-created_date"),
-        Goal.list(),
-        Workout.list("-date", 50)
+        Plan.list().catch(() => []),
+        Goal.list().catch(() => []),
+        Workout.list().catch(() => [])
       ]);
-      setPlans(planData);
-      setGoals(goalData);
-      setWorkouts(workoutData);
+      setPlans(Array.isArray(planData) ? planData : []);
+      setGoals(Array.isArray(goalData) ? goalData : []);
+      setWorkouts(Array.isArray(workoutData) ? workoutData : []);
     } catch (error) {
       console.error("Error loading plans data:", error);
     }
@@ -281,7 +281,7 @@ export default function Plans() {
           </p>
         </div>
         <Link to={createPageUrl("CreatePlan")}>
-          <button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors">
+          <button className="bg-primary-500 hover:bg-primary-600 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors">
             <Plus className="w-5 h-5" />
             Create Plan
           </button>
@@ -345,8 +345,8 @@ export default function Plans() {
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-200">
-          <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-full flex items-center justify-center">
-            <Target className="w-8 h-8 text-purple-600" />
+          <div className="w-16 h-16 mx-auto mb-4 bg-primary-50 rounded-full flex items-center justify-center">
+            <Target className="w-8 h-8 text-primary-500" />
           </div>
           <h3 className="text-xl font-semibold mb-2 text-gray-900">
             {view === 'all' ? 'No Plans Yet' : `No ${view.charAt(0).toUpperCase() + view.slice(1)} Plans`}
@@ -358,7 +358,7 @@ export default function Plans() {
             }
           </p>
           <Link to={createPageUrl("CreatePlan")}>
-            <button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium">
+            <button className="bg-primary-500 hover:bg-primary-600 text-white px-6 py-3 rounded-lg font-medium">
               Create Your First Plan
             </button>
           </Link>

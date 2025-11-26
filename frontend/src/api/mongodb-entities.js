@@ -112,6 +112,20 @@ export const ProgressionPath = {
   create: async (data) => ({ ...data, id: Date.now().toString() })
 };
 
+// CalendarEvent entity
+export const CalendarEvent = {
+  list: async (startDate, endDate) => normalizeArray(await apiService.calendar.list(startDate, endDate)),
+  get: async (id) => normalizeId(await apiService.calendar.get(id)),
+  today: async () => normalizeArray(await apiService.calendar.today()),
+  create: async (data) => normalizeId(await apiService.calendar.create(data)),
+  update: async (id, data) => normalizeId(await apiService.calendar.update(id, data)),
+  delete: async (id) => apiService.calendar.delete(id),
+  move: async (id, newDate) => normalizeId(await apiService.calendar.move(id, newDate)),
+  startWorkout: async (id) => apiService.calendar.startWorkout(id),
+  completeWorkout: async (id, data) => apiService.calendar.completeWorkout(id, data),
+  skipWorkout: async (id, reason) => apiService.calendar.skipWorkout(id, reason)
+};
+
 // Aliases for compatibility
 export const TrainingPlan = Plan;
 export const WorkoutTemplate = PredefinedWorkout;

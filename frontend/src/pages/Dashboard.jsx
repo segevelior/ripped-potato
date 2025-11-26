@@ -34,7 +34,7 @@ const ActiveGoalCard = ({ goal, progress, onGoalClick, onResignGoal }) => {
           </h3>
           <div className="flex items-center gap-2 mt-1">
             {goal.icon && <span className="text-lg">{goal.icon}</span>}
-            <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800 font-medium">
+            <span className="px-2 py-1 text-xs rounded-full bg-primary-50 text-primary-500 font-medium">
               {goal.category}
             </span>
           </div>
@@ -80,7 +80,7 @@ const ActiveGoalCard = ({ goal, progress, onGoalClick, onResignGoal }) => {
         <div className="mb-3">
           <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-300"
+              className="h-full bg-gradient-to-r from-blue-500 to-primary-500 rounded-full transition-all duration-300"
               style={{ width: `${getProgressPercentage()}%` }}
             />
           </div>
@@ -133,7 +133,7 @@ const ActivePlanCard = ({ plan, onPlanClick }) => {
             </span>
           </div>
         </div>
-        <FileText className="w-5 h-5 text-purple-600" />
+        <FileText className="w-5 h-5 text-primary-500" />
       </div>
 
       {/* Progress Bar */}
@@ -172,13 +172,15 @@ export default function Dashboard() {
     setIsLoading(true);
     try {
       const [workoutData, goalsData, plansData] = await Promise.all([
-        Workout.list("-date", 50),
-        UserGoalProgress.filter({ is_active: true }),
-        Plan.filter({ status: 'active' }),
+        Workout.list().catch(() => []),
+        UserGoalProgress.list().catch(() => []),
+        Plan.active().catch(() => []),
       ]);
-      setWorkouts(workoutData);
-      setGoals(goalsData);
-      setPlans(plansData);
+      setWorkouts(Array.isArray(workoutData) ? workoutData : []);
+      // Filter active goals in JS
+      const activeGoals = Array.isArray(goalsData) ? goalsData.filter(g => g.is_active) : [];
+      setGoals(activeGoals);
+      setPlans(Array.isArray(plansData) ? plansData : []);
     } catch (error) {
       console.error("Error loading data:", error);
     }
@@ -265,7 +267,7 @@ export default function Dashboard() {
           </div>
 
           <Link to={createPageUrl("TrainNow")}>
-            <button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-lg">
+            <button className="bg-primary-500 hover:bg-primary-600 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-lg">
               <Play className="w-5 h-5" />
               Train Now
             </button>
@@ -288,7 +290,7 @@ export default function Dashboard() {
             </div>
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-purple-100 rounded-lg"><Target className="w-6 h-6 text-purple-600" /></div>
+                <div className="p-3 bg-orange-100 rounded-lg"><Target className="w-6 h-6 text-primary-500" /></div>
                 <div>
                   <p className="text-3xl font-bold text-gray-900">{activeGoals.length}</p>
                   <p className="text-sm text-gray-600">Active Goals</p>
@@ -451,7 +453,7 @@ export default function Dashboard() {
           {activePlans.length > 0 && (
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                <FileText className="w-6 h-6 text-purple-600" />
+                <FileText className="w-6 h-6 text-primary-500" />
                 Your Active Plans
               </h2>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -470,7 +472,7 @@ export default function Dashboard() {
           {activeGoals.length > 0 && (
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                <Target className="w-6 h-6 text-purple-600" />
+                <Target className="w-6 h-6 text-primary-500" />
                 Training Goals
               </h2>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -523,7 +525,7 @@ export default function Dashboard() {
                 <h3 className="text-lg font-semibold mb-2">No workouts planned</h3>
                 <p className="mb-6">Let's get your training plan started!</p>
                 <Link to={createPageUrl("TrainNow")}>
-                  <button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium">
+                  <button className="bg-primary-500 hover:bg-primary-600 text-white px-6 py-3 rounded-lg font-medium">
                     Plan Your Week
                   </button>
                 </Link>
@@ -536,7 +538,7 @@ export default function Dashboard() {
             <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
             <div className="grid md:grid-cols-3 gap-4">
               <Link to={createPageUrl("CreatePlan")}>
-                <button className="w-full bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-lg font-medium flex items-center gap-2 transition-colors">
+                <button className="w-full bg-primary-500 hover:bg-primary-600 text-white p-4 rounded-lg font-medium flex items-center gap-2 transition-colors">
                   <Plus className="w-5 h-5" />
                   Create Plan
                 </button>

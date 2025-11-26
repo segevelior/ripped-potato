@@ -11,25 +11,25 @@ const WizardStep = ({ currentStep, stepNumber, title, children, isCompleted }) =
   
   return (
     <div className={`border rounded-xl transition-all ${
-      isActive ? 'border-purple-500 bg-purple-50' : 
+      isActive ? 'border-primary-500 bg-primary-50' : 
       isCompleted ? 'border-green-300 bg-green-50' :
       'border-gray-200 bg-white'
     }`}>
       <div className={`p-4 border-b ${
-        isActive ? 'border-purple-200' : 
+        isActive ? 'border-primary-100' : 
         isCompleted ? 'border-green-200' : 
         'border-gray-100'
       }`}>
         <div className="flex items-center gap-3">
           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
             isCompleted ? 'bg-green-500 text-white' :
-            isActive ? 'bg-purple-500 text-white' :
+            isActive ? 'bg-primary-500 text-white' :
             'bg-gray-200 text-gray-500'
           }`}>
             {isCompleted ? <Check className="w-4 h-4" /> : stepNumber}
           </div>
           <h3 className={`text-lg font-semibold ${
-            isActive ? 'text-purple-900' :
+            isActive ? 'text-primary-700' :
             isCompleted ? 'text-green-900' :
             'text-gray-700'
           }`}>
@@ -67,7 +67,7 @@ const GoalSelector = ({ selectedGoals, onGoalToggle, goals, userProgress }) => {
           placeholder="Search goals..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
         />
       </div>
       
@@ -82,8 +82,8 @@ const GoalSelector = ({ selectedGoals, onGoalToggle, goals, userProgress }) => {
               onClick={() => onGoalToggle(goal.id)}
               className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
                 isSelected
-                  ? 'border-purple-500 bg-purple-50'
-                  : 'border-gray-200 hover:border-purple-300'
+                  ? 'border-primary-500 bg-primary-50'
+                  : 'border-gray-200 hover:border-orange-300'
               }`}
             >
               <div className="flex items-center justify-between">
@@ -98,7 +98,7 @@ const GoalSelector = ({ selectedGoals, onGoalToggle, goals, userProgress }) => {
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded-full">
+                    <span className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded-full">
                       {goal.category}
                     </span>
                     {goal.difficulty_level && (
@@ -109,7 +109,7 @@ const GoalSelector = ({ selectedGoals, onGoalToggle, goals, userProgress }) => {
                   </div>
                 </div>
                 {isSelected && (
-                  <Check className="w-5 h-5 text-purple-600" />
+                  <Check className="w-5 h-5 text-orange-600" />
                 )}
               </div>
             </div>
@@ -263,7 +263,7 @@ const WorkoutAutoGenerator = ({ selectedGoals, goals, progressionPaths, predefin
             <button
               onClick={generateSmartWorkouts}
               disabled={isGenerating}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors disabled:opacity-50"
+              className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors disabled:opacity-50"
             >
               <Zap className="w-4 h-4" />
               {isGenerating ? 'Generating...' : 'Generate Workouts'}
@@ -283,7 +283,7 @@ const WorkoutAutoGenerator = ({ selectedGoals, goals, progressionPaths, predefin
                           {workout.progression_data ? (
                             <>
                               {workout.progression_data.exercise_name}
-                              <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
+                              <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
                                 📈 Level {workout.progression_data.level}
                               </span>
                             </>
@@ -514,13 +514,13 @@ export default function CreatePlan() {
           {[1, 2, 3].map((step) => (
             <div key={step} className="flex items-center">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
-                currentStep >= step ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-500'
+                currentStep >= step ? 'bg-primary-500 text-white' : 'bg-gray-200 text-gray-500'
               }`}>
                 {step}
               </div>
               {step < 3 && (
                 <div className={`w-20 h-1 mx-4 rounded transition-colors ${
-                  currentStep > step ? 'bg-purple-500' : 'bg-gray-200'
+                  currentStep > step ? 'bg-primary-500' : 'bg-gray-200'
                 }`} />
               )}
             </div>
@@ -543,7 +543,7 @@ export default function CreatePlan() {
                 type="text"
                 value={planData.name}
                 onChange={(e) => setPlanData(prev => ({...prev, name: e.target.value}))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 placeholder="e.g., 8-Week Muscle-Up Training"
                 required
               />
@@ -554,7 +554,7 @@ export default function CreatePlan() {
               <select
                 value={planData.recurrence}
                 onChange={(e) => setPlanData(prev => ({...prev, recurrence: e.target.value}))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
                 <option value="once">One-time Plan</option>
                 <option value="weekly">Repeats Weekly</option>
@@ -568,7 +568,7 @@ export default function CreatePlan() {
                 type="date"
                 value={planData.start_date}
                 onChange={(e) => setPlanData(prev => ({...prev, start_date: e.target.value}))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 required
               />
             </div>
@@ -579,7 +579,7 @@ export default function CreatePlan() {
                 type="date"
                 value={planData.end_date}
                 onChange={(e) => setPlanData(prev => ({...prev, end_date: e.target.value}))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 required
               />
             </div>
@@ -590,7 +590,7 @@ export default function CreatePlan() {
             <textarea
               value={planData.description}
               onChange={(e) => setPlanData(prev => ({...prev, description: e.target.value}))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               rows={3}
               placeholder="Describe what this plan aims to achieve..."
             />
@@ -600,7 +600,7 @@ export default function CreatePlan() {
             <div className="flex justify-end mt-6">
               <button
                 onClick={handleNextStep}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors"
+                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors"
               >
                 Next: Select Goals
                 <ChevronRight className="w-4 h-4" />
@@ -631,7 +631,7 @@ export default function CreatePlan() {
             {isStep2Complete && (
               <button
                 onClick={handleNextStep}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors"
+                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors"
               >
                 Next: Generate Workouts
                 <ChevronRight className="w-4 h-4" />
@@ -668,7 +668,7 @@ export default function CreatePlan() {
               <button
                 onClick={() => handleSubmit('active')}
                 disabled={isLoading}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
               >
                 {isLoading ? "Creating..." : "Create & Activate Plan"}
               </button>

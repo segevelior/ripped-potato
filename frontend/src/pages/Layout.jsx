@@ -12,7 +12,6 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import FloatingAIAssistantStreaming from "@/components/FloatingAIAssistantStreaming";
 
 const navigationItems = [
   {
@@ -51,7 +50,7 @@ const navigationItems = [
     icon: Bot,
   },
   {
-    title: "Predefined Workouts",
+    title: "Workouts",
     url: createPageUrl("PredefinedWorkouts"),
     icon: Dumbbell,
   },
@@ -161,7 +160,7 @@ export default function Layout({ children }) {
                   Settings
                 </Link>
                 <div className="flex items-center gap-3">
-                  <Link to={createPageUrl("Settings")} className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center hover:bg-purple-700 transition-colors">
+                  <Link to={createPageUrl("Settings")} className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center hover:bg-primary-600 transition-colors">
                     <span className="text-white font-medium">
                       {JSON.parse(localStorage.getItem('authUser') || '{}')?.name?.charAt(0)?.toUpperCase() || 'U'}
                     </span>
@@ -194,16 +193,16 @@ export default function Layout({ children }) {
               <span className="font-bold text-lg dark:text-white">Torii</span>
             </Link>
             <div className="flex items-center gap-3">
-              <Link to={createPageUrl("Calendar")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+              <Link to={createPageUrl("Calendar")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
                 <Calendar className="w-5 h-5" />
               </Link>
-              <Link to={createPageUrl("TrainNow")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+              <Link to={createPageUrl("TrainNow")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
                 <Zap className="w-5 h-5" />
               </Link>
-              <Link to={createPageUrl("Chat")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+              <Link to={createPageUrl("Chat")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
                 <Bot className="w-5 h-5" />
               </Link>
-              <Link to={createPageUrl("Settings")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+              <Link to={createPageUrl("Settings")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
                 <Settings className="w-5 h-5" />
               </Link>
               <SidebarTrigger className="md:hidden" />
@@ -230,7 +229,7 @@ export default function Layout({ children }) {
               {[
                 navigationItems.find(i => i.title === "Goals"),
                 navigationItems.find(i => i.title === "Plans"),
-                navigationItems.find(i => i.title === "Predefined Workouts"),
+                navigationItems.find(i => i.title === "Workouts"),
                 navigationItems.find(i => i.title === "Exercises")
               ].filter(Boolean).map((item, index) => {
                 const isActive = location.pathname === item.url;
@@ -238,12 +237,12 @@ export default function Layout({ children }) {
                   <Link
                     key={index}
                     to={item.url}
-                    className={`flex flex-col items-center justify-center min-w-[64px] h-full gap-0.5 px-1 ${isActive ? 'text-purple-600' : 'text-gray-500'
+                    className={`flex flex-col items-center justify-center min-w-[64px] h-full gap-0.5 px-1 ${isActive ? 'text-primary-500' : 'text-gray-500'
                       }`}
                   >
                     <item.icon className={`w-5 h-5 ${isActive ? 'fill-current' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
                     <span className="text-[10px] font-medium whitespace-nowrap">
-                      {item.title === "Predefined Workouts" ? "Workouts" : item.title}
+                      {item.title}
                     </span>
                   </Link>
                 );
@@ -252,7 +251,6 @@ export default function Layout({ children }) {
           </nav>
         </div>
 
-        <FloatingAIAssistantStreaming />
       </div>
     </SidebarProvider>
   );

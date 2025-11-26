@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { User, Workout, PredefinedWorkout, Goal, ProgressionPath, UserGoalProgress, Plan, TrainingPlan, UserTrainingPattern } from "@/api/entities";
 import { InvokeLLM } from "@/api/integrations";
 import { Bot, Send, RotateCcw, MessageCircle, Sparkles, Loader2, Calendar, TrendingUp, AlertCircle, FileText, Target, Dumbbell, Upload, Paperclip, Image, File, X } from "lucide-react";
@@ -101,6 +101,10 @@ const planningSchema = {
 };
 
 export default function Chat() {
+  // Log when component mounts
+  console.log('🤖 Chat component mounted!');
+  console.log('🔍 Checking localStorage for pendingChatPrompt:', localStorage.getItem('pendingChatPrompt'));
+
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -120,8 +124,13 @@ export default function Chat() {
   });
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [pendingPrompt, setPendingPrompt] = useState(null);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [autoSendPending, setAutoSendPending] = useState(false);
   const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const messagesRef = useRef(messages);
+  const pendingPromptRef = useRef(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -130,12 +139,13 @@ export default function Chat() {
         setUser(userData);
 
         const [plansData, goalData, workoutData] = await Promise.all([
-          TrainingPlan.filter({ is_active: true }),
-          Goal.list(),
-          PredefinedWorkout.list()
+          TrainingPlan.active().catch(() => []),
+          Goal.list().catch(() => []),
+          PredefinedWorkout.list().catch(() => [])
         ]);
 
-        if (plansData.length > 0) setCurrentPlan(plansData[0]);
+        const plansArray = Array.isArray(plansData) ? plansData : [];
+        if (plansArray.length > 0) setCurrentPlan(plansArray[0]);
         setGoals(goalData);
         setPredefinedWorkouts(workoutData);
 
@@ -154,6 +164,41 @@ export default function Chat() {
             role: "assistant",
             content: `Hi ${userData.full_name}! I'm your AI Coach. I can help you create goals, build training plans, suggest workouts, and navigate the app. Try saying something like "I want to learn a handstand" or "Show me how to create a plan."`
           }]);
+        }
+
+        setIsDataLoaded(true);
+        console.log('✅ Data loaded, isDataLoaded set to true');
+
+        // Check for pending prompt from localStorage (e.g., from WorkoutSelectionModal)
+        // Do this AFTER setting isDataLoaded to ensure we're ready to process
+        const storedPrompt = localStorage.getItem('pendingChatPrompt');
+        const storedTime = localStorage.getItem('pendingChatPromptTime');
+
+        console.log('📋 Checking localStorage:', {
+          hasPrompt: !!storedPrompt,
+          hasTime: !!storedTime,
+          promptPreview: storedPrompt?.substring(0, 50)
+        });
+
+        if (storedPrompt && storedTime) {
+          // Only process if the prompt was set within the last 10 seconds (to avoid stale prompts)
+          const promptAge = Date.now() - parseInt(storedTime, 10);
+          console.log('⏱️ Prompt age:', promptAge, 'ms');
+
+          if (promptAge < 10000) {
+            console.log('✅ Found valid pending prompt, setting autoSendPending=true');
+            localStorage.removeItem('pendingChatPrompt');
+            localStorage.removeItem('pendingChatPromptTime');
+            pendingPromptRef.current = storedPrompt;
+            setAutoSendPending(true);
+          } else {
+            console.log('⚠️ Prompt too old, cleaning up');
+            // Clean up stale prompts
+            localStorage.removeItem('pendingChatPrompt');
+            localStorage.removeItem('pendingChatPromptTime');
+          }
+        } else {
+          console.log('ℹ️ No pending prompt found in localStorage');
         }
 
       } catch (error) {
@@ -178,6 +223,8 @@ export default function Chat() {
   }, []);
 
   useEffect(() => {
+    // Keep messagesRef in sync
+    messagesRef.current = messages;
     // Save conversation history
     if (messages.length > 0) {
       localStorage.setItem('aiCoachHistory', JSON.stringify(messages));
@@ -192,6 +239,29 @@ export default function Chat() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Handle auto-send for pending prompts (from WorkoutSelectionModal or other sources)
+  useEffect(() => {
+    console.log('Auto-send effect:', { autoSendPending, isDataLoaded, isThinking, hasPendingPrompt: !!pendingPromptRef.current });
+
+    if (autoSendPending && isDataLoaded && !isThinking && pendingPromptRef.current) {
+      const promptToSend = pendingPromptRef.current;
+      console.log('Processing pending prompt:', promptToSend.substring(0, 50) + '...');
+      pendingPromptRef.current = null;
+      setAutoSendPending(false);
+
+      // Add the user message to the UI and trigger processing
+      const userMessage = { role: "user", content: promptToSend };
+      setMessages(prev => [...prev, userMessage]);
+      setIsThinking(true);
+
+      // Small delay to ensure state is updated before processing
+      setTimeout(() => {
+        console.log('Calling processMessageAsync...');
+        processMessageAsync(promptToSend);
+      }, 100);
+    }
+  }, [autoSendPending, isDataLoaded, isThinking]);
 
   const getCurrentPageContext = () => {
     const currentPath = window.location.pathname;
@@ -228,35 +298,36 @@ export default function Chat() {
     return context;
   };
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!input.trim() || isThinking || isRateLimited) return;
-
-    const userMessage = { role: "user", content: input };
-    const currentMessages = [...messages, userMessage];
-    setMessages(currentMessages);
-    const currentInput = input;
-    setInput("");
-    setIsThinking(true);
+  // Process message - the core AI logic (can be called directly without form submission)
+  const processMessageAsync = async (messageText) => {
     setDebugInfo(null);
 
     try {
       const pageContext = getCurrentPageContext();
+      const currentMessages = messagesRef.current;
+
+      const now = new Date();
+      const currentDate = format(now, 'EEEE, MMMM d, yyyy');
+      const currentTime = format(now, 'h:mm a');
 
       const contextSummary = `
+        CURRENT DATE & TIME:
+        Today is: ${currentDate}
+        Current time: ${currentTime}
+
         WEBSITE CONTEXT:
         Current page: ${pageContext.page_description}
         Available actions on this page: ${pageContext.available_actions.join(', ')}
-        
+
         APP NAVIGATION:
         - Dashboard: /Dashboard (overview, stats, active goals)
         - Calendar: /Calendar (schedule workouts, view training plan)
-        - Goals: /Goals (create/manage fitness goals) 
+        - Goals: /Goals (create/manage fitness goals)
         - Plans: /Plans (create/manage training plans)
         - Train Now: /TrainNow (quick workout generation)
         - Predefined Workouts: /PredefinedWorkouts (workout templates)
         - Exercises: /Exercises (exercise database)
-        
+
         USER DATA:
         Current active plan: ${currentPlan ? `${currentPlan.name} (${currentPlan.goal})` : 'None'}
         Available Goals: ${goals.map(g => `"${g.name}"`).slice(0, 10).join(', ')}
@@ -276,15 +347,22 @@ export default function Chat() {
 
       CRITICAL CAPABILITIES:
       1. CREATE GOALS: When user wants to learn a skill (handstand, pull-up, etc), use "create_goal" action
-      2. CREATE PLANS: When user wants a structured training program, use "create_plan" action  
+      2. CREATE PLANS: When user wants a structured training program, use "create_plan" action
       3. CREATE WORKOUTS: When user wants specific workout templates, use "create_predefined_workout" action
-      4. NAVIGATION HELP: Guide users to the right pages and explain how to use features
-      5. WEBSITE AWARENESS: You can see the current page and provide contextual help
+      4. ADD WORKOUT TO CALENDAR: When user wants to schedule a workout for a specific date, use "add_workout" action
+      5. NAVIGATION HELP: Guide users to the right pages and explain how to use features
+      6. WEBSITE AWARENESS: You can see the current page and provide contextual help
+
+      IMPORTANT: If the user mentions scheduling a workout for a specific date (like "today", "tomorrow", or a specific date),
+      you should help them create a workout and add it to their calendar. Parse the date from their message.
+      If the date is today, after creating the workout, ask if they want to start training now.
 
       Context: ${contextSummary}
-      User's message: "${currentInput}"
+      User's message: "${messageText}"
 
-      Analyze what the user wants and take the appropriate action. If they want to build skills over time, create goals. If they want structured training, create plans. If they need navigation help, provide specific instructions.`;
+      Analyze what the user wants and take the appropriate action. If they want to build skills over time, create goals.
+      If they want structured training, create plans. If they want to schedule a workout, use add_workout.
+      If they need navigation help, provide specific instructions.`;
 
       const result = await InvokeLLM({
         prompt,
@@ -376,6 +454,20 @@ export default function Chat() {
     } finally {
       setIsThinking(false);
     }
+  };
+
+  // Form submit handler
+  const handleSendMessage = async (e) => {
+    e?.preventDefault();
+    if (!input.trim() || isThinking || isRateLimited) return;
+
+    const messageText = input;
+    const userMessage = { role: "user", content: messageText };
+    setMessages(prev => [...prev, userMessage]);
+    setInput("");
+    setIsThinking(true);
+
+    await processMessageAsync(messageText);
   };
 
   const clearHistory = () => {

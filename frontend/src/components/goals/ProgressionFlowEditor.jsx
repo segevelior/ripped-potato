@@ -27,7 +27,7 @@ const NodeComponent = ({
   const getStatusColor = () => {
     if (node.isCompleted) return { bg: 'bg-green-50', border: 'border-green-300', text: 'text-green-800' };
     if (node.isCurrent) return { bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-800' };
-    return { bg: 'bg-purple-50', border: 'border-purple-300', text: 'text-purple-800' };
+    return { bg: 'bg-primary-50', border: 'border-primary-100', text: 'text-primary-500' };
   };
 
   const colors = getStatusColor();
@@ -57,7 +57,7 @@ const NodeComponent = ({
         className={`
           relative cursor-grab active:cursor-grabbing transition-all duration-200
           ${colors.bg} ${colors.border} ${colors.text} border-2 rounded-lg shadow-sm
-          ${isSelected ? 'ring-2 ring-purple-500 ring-offset-2 shadow-lg' : ''}
+          ${isSelected ? 'ring-2 ring-orange-500 ring-offset-2 shadow-lg' : ''}
           ${isHovered ? 'shadow-md transform scale-105' : ''}
           ${canConnect ? 'ring-2 ring-yellow-400 ring-offset-1' : ''}
         `}
@@ -115,21 +115,21 @@ const NodeComponent = ({
 
         {/* Connection Ports */}
         <div
-          className="absolute -right-2 top-1/2 w-4 h-4 bg-white border-2 border-purple-400 rounded-full transform -translate-y-1/2 cursor-crosshair hover:scale-125 transition-all opacity-0 group-hover:opacity-100"
+          className="absolute -right-2 top-1/2 w-4 h-4 bg-white border-2 border-orange-400 rounded-full transform -translate-y-1/2 cursor-crosshair hover:scale-125 transition-all opacity-0 group-hover:opacity-100"
           onMouseDown={(e) => {
             e.stopPropagation();
             onConnectionStart(e, node.id, 'output');
           }}
           title="Drag to connect"
         >
-          <div className="absolute inset-1 bg-purple-400 rounded-full"></div>
+          <div className="absolute inset-1 bg-orange-400 rounded-full"></div>
         </div>
         
         <div
-          className="absolute -left-2 top-1/2 w-4 h-4 bg-white border-2 border-purple-400 rounded-full transform -translate-y-1/2 hover:scale-125 transition-all opacity-60"
+          className="absolute -left-2 top-1/2 w-4 h-4 bg-white border-2 border-orange-400 rounded-full transform -translate-y-1/2 hover:scale-125 transition-all opacity-60"
           title="Input port"
         >
-          <div className="absolute inset-1 bg-purple-400 rounded-full"></div>
+          <div className="absolute inset-1 bg-orange-400 rounded-full"></div>
         </div>
       </div>
     </div>
@@ -180,7 +180,7 @@ const ConnectionEdge = ({ connection, nodes, nodePositions, scale, onDelete }) =
         strokeWidth="2"
         fill="none"
         markerEnd={`url(#arrowhead-${connection.id})`}
-        className="hover:stroke-purple-700 transition-colors"
+        className="hover:stroke-orange-700 transition-colors"
       />
       
       {/* Invisible wider path for easier clicking */}
@@ -524,7 +524,7 @@ export default function ProgressionFlowEditor({ goal, initialPath, onSave }) {
           <button
             onClick={handleGenerateWithAI}
             disabled={isGenerating}
-            className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium transition-colors"
+            className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium transition-colors"
           >
             <Zap className="w-4 h-4" />
             {isGenerating ? "Generating..." : "Generate with AI"}
@@ -661,7 +661,7 @@ export default function ProgressionFlowEditor({ goal, initialPath, onSave }) {
               <div className="flex gap-3 justify-center">
                 <button
                   onClick={handleGenerateWithAI}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2"
+                  className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2"
                 >
                   <Zap className="w-5 h-5" />
                   Generate with AI
@@ -700,7 +700,7 @@ export default function ProgressionFlowEditor({ goal, initialPath, onSave }) {
                   type="text"
                   value={editingNode.exercise_name}
                   onChange={(e) => setEditingNode({...editingNode, exercise_name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 />
               </div>
               
@@ -711,7 +711,7 @@ export default function ProgressionFlowEditor({ goal, initialPath, onSave }) {
                   placeholder="e.g., Hold for 30 seconds"
                   value={editingNode.mastery_criteria}
                   onChange={(e) => setEditingNode({...editingNode, mastery_criteria: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 />
               </div>
 
@@ -721,7 +721,7 @@ export default function ProgressionFlowEditor({ goal, initialPath, onSave }) {
                   placeholder="What this level develops or why it's important"
                   value={editingNode.description}
                   onChange={(e) => setEditingNode({...editingNode, description: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent h-20 resize-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent h-20 resize-none"
                 />
               </div>
               
@@ -731,7 +731,7 @@ export default function ProgressionFlowEditor({ goal, initialPath, onSave }) {
                   type="number"
                   value={editingNode.timeline_week}
                   onChange={(e) => setEditingNode({...editingNode, timeline_week: parseInt(e.target.value)})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 />
               </div>
               
@@ -741,7 +741,7 @@ export default function ProgressionFlowEditor({ goal, initialPath, onSave }) {
                     setNodes(nodes.map(n => n.id === editingNode.id ? editingNode : n));
                     setEditingNode(null);
                   }}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-medium transition-colors"
+                  className="flex-1 bg-orange-600 hover:bg-orange-700 text-white py-2 rounded-lg font-medium transition-colors"
                 >
                   Save Changes
                 </button>

@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip } from 
 
 const muscleGroupColors = {
   chest: "#ef4444",
-  back: "#f97316", 
+  back: "#f97316",
   shoulders: "#f59e0b",
   biceps: "#eab308",
   triceps: "#84cc16",
@@ -14,7 +14,8 @@ const muscleGroupColors = {
   quads: "#06b6d4",
   hamstrings: "#0ea5e9",
   calves: "#3b82f6",
-  full_body: "#6366f1"
+  full_body: "#6366f1",
+  mind: "#8b5cf6"
 };
 
 export default function BodyRegionChart({ workouts, activities }) {

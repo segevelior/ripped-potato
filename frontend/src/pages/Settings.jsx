@@ -29,7 +29,8 @@ export default function Settings() {
     settings: {
       units: 'metric',
       notifications: true,
-      theme: 'light'
+      theme: 'light',
+      weekStartDay: 0 // 0 = Sunday, 1 = Monday
     }
   });
 
@@ -68,7 +69,8 @@ export default function Settings() {
           settings: {
             units: userData.settings?.units || 'metric',
             notifications: userData.settings?.notifications ?? true,
-            theme: userData.settings?.theme || 'light'
+            theme: userData.settings?.theme || 'light',
+            weekStartDay: userData.settings?.weekStartDay ?? 0
           }
         });
       }
@@ -387,6 +389,33 @@ export default function Settings() {
                     setFormData({
                       ...formData,
                       settings: { ...formData.settings, units: newUnits }
+                    });
+                    handleSave();
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 rounded-lg hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
+                >
+                  Switch
+                </button>
+              </div>
+            </div>
+
+            {/* Week Start Day Toggle */}
+            <div className="py-4 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-gray-500 dark:text-gray-400 tracking-wide">
+                    Week Starts On
+                  </p>
+                  <p className="text-base font-medium text-gray-900 dark:text-white mt-1">
+                    {formData.settings.weekStartDay === 0 ? 'Sunday' : 'Monday'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const newWeekStartDay = formData.settings.weekStartDay === 0 ? 1 : 0;
+                    setFormData({
+                      ...formData,
+                      settings: { ...formData.settings, weekStartDay: newWeekStartDay }
                     });
                     handleSave();
                   }}

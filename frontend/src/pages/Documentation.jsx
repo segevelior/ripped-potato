@@ -18,7 +18,7 @@ export default function Documentation() {
         {/* Quick Navigation */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
           <a href="#overview" className="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow text-center">
-            <Target className="w-8 h-8 mx-auto mb-2 text-purple-600" />
+            <Target className="w-8 h-8 mx-auto mb-2 text-primary-500" />
             <div className="font-medium">Features</div>
           </a>
           <a href="#architecture" className="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow text-center">
@@ -30,7 +30,7 @@ export default function Documentation() {
             <div className="font-medium">Data Models</div>
           </a>
           <a href="#ai-coach" className="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow text-center">
-            <Bot className="w-8 h-8 mx-auto mb-2 text-orange-600" />
+            <Bot className="w-8 h-8 mx-auto mb-2 text-primary-500" />
             <div className="font-medium">AI Coach</div>
           </a>
         </div>
@@ -38,14 +38,14 @@ export default function Documentation() {
         {/* Overview Section */}
         <section id="overview" className="mb-16">
           <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-            <Target className="w-8 h-8 text-purple-600" />
+            <Target className="w-8 h-8 text-primary-500" />
             Features Overview
           </h2>
 
           <div className="grid md:grid-cols-2 gap-8">
             <div className="bg-white p-6 rounded-xl shadow">
               <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <Bot className="w-6 h-6 text-purple-600" />
+                <Bot className="w-6 h-6 text-primary-500" />
                 AI-Powered Personal Coach
               </h3>
               <ul className="space-y-2 text-gray-600">
@@ -84,7 +84,7 @@ export default function Documentation() {
 
             <div className="bg-white p-6 rounded-xl shadow">
               <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <TrendingUp className="w-6 h-6 text-orange-600" />
+                <TrendingUp className="w-6 h-6 text-primary-500" />
                 Progress Analytics
               </h3>
               <ul className="space-y-2 text-gray-600">
@@ -171,7 +171,7 @@ Layout.js               # App navigation and layout`}
               <h3 className="text-xl font-semibold mb-4">Core Entities</h3>
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <h4 className="font-semibold text-purple-600 mb-2">Workout</h4>
+                  <h4 className="font-semibold text-primary-500 mb-2">Workout</h4>
                   <ul className="text-sm text-gray-600 space-y-1">
                     <li>• Title, date, type, duration</li>
                     <li>• Exercise list with sets/reps/weight</li>
@@ -201,7 +201,7 @@ Layout.js               # App navigation and layout`}
                 </div>
 
                 <div>
-                  <h4 className="font-semibold text-orange-600 mb-2">Exercise</h4>
+                  <h4 className="font-semibold text-primary-500 mb-2">Exercise</h4>
                   <ul className="text-sm text-gray-600 space-y-1">
                     <li>• Name, discipline, muscle groups</li>
                     <li>• Equipment requirements</li>
@@ -217,7 +217,7 @@ Layout.js               # App navigation and layout`}
         {/* AI Coach Implementation */}
         <section id="ai-coach" className="mb-16">
           <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-            <Bot className="w-8 h-8 text-orange-600" />
+            <Bot className="w-8 h-8 text-primary-500" />
             AI Coach Implementation
           </h2>
 
@@ -253,7 +253,7 @@ Layout.js               # App navigation and layout`}
               <h3 className="text-xl font-semibold mb-4">Conversation Flow</h3>
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 font-semibold">1</div>
+                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-primary-500 font-semibold">1</div>
                   <div>
                     <h4 className="font-semibold">Input Processing</h4>
                     <p className="text-sm text-gray-600">User input analyzed for intent and context</p>
@@ -274,7 +274,7 @@ Layout.js               # App navigation and layout`}
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-semibold">4</div>
+                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-primary-500 font-semibold">4</div>
                   <div>
                     <h4 className="font-semibold">Action Execution</h4>
                     <p className="text-sm text-gray-600">Creates/updates entities based on AI response</p>
@@ -301,23 +301,23 @@ Layout.js               # App navigation and layout`}
               <h3 className="text-xl font-semibold mb-4">Getting Started</h3>
               <ol className="space-y-3 text-gray-600">
                 <li className="flex gap-3">
-                  <span className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">1</span>
+                  <span className="w-6 h-6 bg-orange-100 text-primary-500 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">1</span>
                   <span>Set up your training preferences in the onboarding flow</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">2</span>
+                  <span className="w-6 h-6 bg-orange-100 text-primary-500 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">2</span>
                   <span>Define 1-3 primary fitness objectives in Goals</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">3</span>
+                  <span className="w-6 h-6 bg-orange-100 text-primary-500 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">3</span>
                   <span>Describe your goals to the AI coach in natural language</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">4</span>
+                  <span className="w-6 h-6 bg-orange-100 text-primary-500 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">4</span>
                   <span>Review and activate the generated training plan</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">5</span>
+                  <span className="w-6 h-6 bg-orange-100 text-primary-500 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">5</span>
                   <span>Follow scheduled workouts and track daily progress</span>
                 </li>
               </ol>
@@ -327,7 +327,7 @@ Layout.js               # App navigation and layout`}
               <h3 className="text-xl font-semibold mb-4">AI Coach Interaction</h3>
               <ul className="space-y-3 text-gray-600">
                 <li className="flex items-start gap-3">
-                  <Bot className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                  <Bot className="w-5 h-5 text-primary-500 mt-0.5 flex-shrink-0" />
                   <span><strong>Natural Language:</strong> Speak to the coach as you would a human trainer</span>
                 </li>
                 <li className="flex items-start gap-3">
@@ -339,7 +339,7 @@ Layout.js               # App navigation and layout`}
                   <span><strong>Full Conversations:</strong> Use the Chat tab for detailed planning sessions</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <Zap className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                  <Zap className="w-5 h-5 text-primary-500 mt-0.5 flex-shrink-0" />
                   <span><strong>Context Help:</strong> The coach sees what you're working on and provides relevant advice</span>
                 </li>
               </ul>
@@ -356,7 +356,7 @@ Layout.js               # App navigation and layout`}
               <h3 className="text-xl font-semibold mb-4">Pattern Learning Engine</h3>
               <div className="grid md:grid-cols-3 gap-6">
                 <div>
-                  <h4 className="font-semibold text-purple-600 mb-2">Training Preferences</h4>
+                  <h4 className="font-semibold text-primary-500 mb-2">Training Preferences</h4>
                   <p className="text-sm text-gray-600">Learns optimal workout times, durations, and intensity preferences</p>
                 </div>
                 <div>
