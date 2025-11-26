@@ -2434,23 +2434,23 @@ USER DATA:
             workout_details = args.get("workoutDetails", {})
             notes = args.get("notes", "")
 
-            # Build the calendar event document
-            event_data = {
-                "userId": ObjectId(user_id),
-                "date": event_date,
-                "title": title,
-                "type": event_type,
-                "status": "scheduled",
-                "notes": notes,
-                "createdAt": datetime.utcnow(),
-                "updatedAt": datetime.utcnow()
-            }
+            # Add date to title to make it unique and identifiable
+            date_suffix = event_date.strftime("%b %d")
+            title_with_date = f"{title} ({date_suffix})"
 
-            # Add workout details if this is a workout event
+            workout_template_id = None
+            exercises = []
+
+            # If this is a workout event with details, first save it to user's workout library
             if event_type == "workout" and workout_details:
-                # Look up exercise IDs
-                exercises = []
-                for ex in workout_details.get("exercises", []):
+                # Look up exercise IDs and build blocks structure
+                workout_exercises = workout_details.get("exercises", [])
+                blocks = [{
+                    "name": "Main Workout",
+                    "exercises": []
+                }]
+
+                for ex in workout_exercises:
                     exercise_name = ex.get("exerciseName", "")
                     # Try to find the exercise in the database
                     existing_ex = await self.db.exercises.find_one({
@@ -2458,14 +2458,66 @@ USER DATA:
                         "$or": [{"isCommon": True}, {"createdBy": ObjectId(user_id)}]
                     })
 
-                    exercises.append({
-                        "exerciseId": existing_ex["_id"] if existing_ex else None,
-                        "exerciseName": exercise_name,
-                        "targetSets": ex.get("targetSets", 3),
-                        "targetReps": ex.get("targetReps", 10),
+                    exercise_id = existing_ex["_id"] if existing_ex else None
+                    target_sets = ex.get("targetSets", 3)
+                    target_reps = ex.get("targetReps", 10)
+
+                    # Add to blocks for PredefinedWorkout
+                    blocks[0]["exercises"].append({
+                        "exercise_id": exercise_id,
+                        "exercise_name": exercise_name,
+                        "volume": f"{target_sets}x{target_reps}",
+                        "rest": "60s",
                         "notes": ex.get("notes", "")
                     })
 
+                    # Add to exercises list for CalendarEvent
+                    exercises.append({
+                        "exerciseId": exercise_id,
+                        "exerciseName": exercise_name,
+                        "targetSets": target_sets,
+                        "targetReps": target_reps,
+                        "notes": ex.get("notes", "")
+                    })
+
+                # Save workout to user's library (PredefinedWorkout collection)
+                workout_template = {
+                    "name": title_with_date,
+                    "goal": workout_details.get("goal", f"Workout for {date_suffix}"),
+                    "primary_disciplines": workout_details.get("disciplines", ["General Fitness"]),
+                    "estimated_duration": workout_details.get("estimatedDuration", 45),
+                    "difficulty_level": workout_details.get("difficulty", "intermediate"),
+                    "blocks": blocks,
+                    "tags": ["ai-generated", date_suffix.lower().replace(" ", "-")],
+                    "isCommon": False,
+                    "createdBy": ObjectId(user_id),
+                    "createdAt": datetime.utcnow(),
+                    "updatedAt": datetime.utcnow()
+                }
+
+                template_result = await self.db.predefinedworkouts.insert_one(workout_template)
+                if template_result.inserted_id:
+                    workout_template_id = template_result.inserted_id
+                    logger.info(f"Saved workout '{title_with_date}' to user's library")
+
+            # Build the calendar event document
+            event_data = {
+                "userId": ObjectId(user_id),
+                "date": event_date,
+                "title": title_with_date,
+                "type": event_type,
+                "status": "scheduled",
+                "notes": notes,
+                "createdAt": datetime.utcnow(),
+                "updatedAt": datetime.utcnow()
+            }
+
+            # Link to workout template if created
+            if workout_template_id:
+                event_data["workoutTemplateId"] = workout_template_id
+
+            # Add workout details to calendar event
+            if event_type == "workout" and workout_details:
                 event_data["workoutDetails"] = {
                     "type": workout_details.get("workoutType", "strength"),
                     "estimatedDuration": workout_details.get("estimatedDuration", 45),
@@ -2480,7 +2532,9 @@ USER DATA:
                 formatted_date = event_date.strftime("%A, %B %d, %Y")
                 exercise_count = len(workout_details.get("exercises", [])) if workout_details else 0
 
-                response_msg = f"✅ Scheduled **{title}** for **{formatted_date}**!"
+                response_msg = f"✅ Scheduled **{title_with_date}** for **{formatted_date}**!"
+                if workout_template_id:
+                    response_msg += "\n\n💾 **Saved to your workout library** - you can reuse this workout anytime!"
                 if event_type == "workout" and exercise_count > 0:
                     duration = workout_details.get("estimatedDuration", 45)
                     response_msg += f"\n\n📋 **{exercise_count} exercises** | ⏱️ **~{duration} min**"

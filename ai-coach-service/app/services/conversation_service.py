@@ -2,6 +2,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import uuid
 import math
+import re
 import structlog
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
@@ -60,6 +61,25 @@ class ConversationService:
             logger.error(f"Failed to create indexes: {e}")
             return False
 
+    def _extract_clean_title(self, message: str) -> str:
+        """Extract a clean title from a message, removing hidden prompts"""
+        if not message:
+            return "New Conversation"
+
+        # Check if this is a workout request with hidden context
+        if message.startswith("[WORKOUT REQUEST"):
+            # Try to extract the user's actual input
+            # Pattern: "Here's what I'm looking for: <user input>"
+            user_input_match = re.search(r"Here's what I'm looking for:\s*(.+?)(?:\n|Please)", message, re.DOTALL)
+            if user_input_match:
+                clean_title = user_input_match.group(1).strip()
+                return clean_title[:100] if clean_title else "Workout planning"
+            # If no specific input, use a generic workout title
+            return "Workout planning"
+
+        # For regular messages, just use the first part
+        return message[:100].strip()
+
     async def create_conversation(
         self,
         user_id: str,
@@ -74,7 +94,7 @@ class ConversationService:
 
             # Auto-generate title from initial message if not provided
             if not title and initial_message:
-                title = initial_message[:100].strip()
+                title = self._extract_clean_title(initial_message)
             elif not title:
                 title = "New Conversation"
 

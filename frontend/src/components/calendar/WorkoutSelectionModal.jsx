@@ -206,7 +206,7 @@ I want to add a workout to my calendar for ${dateStr}. Please help me decide wha
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="e.g., 'feeling tired, something light'"
+                    placeholder="e.g., 'full body strength' or 'quick HIIT session'"
                     value={coachPrompt}
                     onChange={(e) => setCoachPrompt(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleAskSensei()}
