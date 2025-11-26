@@ -193,7 +193,7 @@ I want to add a workout to my calendar for ${dateStr}. Please help me decide wha
           {!showPreview ? (
             <div className="p-6 space-y-6">
               {/* Ask Sensei Section */}
-              <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-5 border border-orange-100">
+              <div className="bg-gradient-to-br from-primary-50 to-red-50 rounded-xl p-5 border border-primary-100">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 bg-[#FE5334] rounded-lg flex items-center justify-center">
                     <Sparkles className="w-4 h-4 text-white" />
@@ -210,7 +210,7 @@ I want to add a workout to my calendar for ${dateStr}. Please help me decide wha
                     value={coachPrompt}
                     onChange={(e) => setCoachPrompt(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleAskSensei()}
-                    className="flex-1 px-4 py-2.5 bg-white border border-orange-200 rounded-xl text-sm focus:ring-2 focus:ring-[#FE5334] focus:border-transparent placeholder:text-gray-400"
+                    className="flex-1 px-4 py-2.5 bg-white border border-primary-100 rounded-xl text-sm focus:ring-2 focus:ring-[#FE5334] focus:border-transparent placeholder:text-gray-400"
                   />
                   <button
                     onClick={handleAskSensei}
@@ -250,7 +250,7 @@ I want to add a workout to my calendar for ${dateStr}. Please help me decide wha
                         setSelectedWorkout(workout);
                         setShowPreview(true);
                       }}
-                      className="w-full p-4 bg-white border border-gray-200 rounded-xl hover:border-orange-300 hover:shadow-sm transition-all text-left group"
+                      className="w-full p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-400 hover:shadow-sm transition-all text-left group"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">

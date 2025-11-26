@@ -132,7 +132,7 @@ export default function ExerciseDetailModal({ exercise, onClose, onEdit, onToggl
                   </span>
                 )}
                 {!exercise.isCommon && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-500 text-white">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-orange-500 text-white">
                     Private
                   </span>
                 )}
@@ -165,7 +165,7 @@ export default function ExerciseDetailModal({ exercise, onClose, onEdit, onToggl
                   </span>
                 )}
                 {!exercise.isCommon && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-800">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800">
                     Private
                   </span>
                 )}
@@ -305,7 +305,7 @@ export default function ExerciseDetailModal({ exercise, onClose, onEdit, onToggl
                     </div>
                   )}
                   {exercise.strain.load && (
-                    <div className="p-3 rounded-xl bg-purple-50 text-purple-700">
+                    <div className="p-3 rounded-xl bg-orange-50 text-orange-700">
                       <div className="flex items-center gap-2 mb-1">
                         <Weight className="w-4 h-4" />
                         <span className="text-xs font-medium opacity-80">Load Type</span>
@@ -354,9 +354,9 @@ export default function ExerciseDetailModal({ exercise, onClose, onEdit, onToggl
             {(exercise.progression_group || exercise.previous_progression || exercise.next_progression) && (
               <div className="mb-8">
                 <h3 className="text-lg font-bold text-gray-900 mb-3">Progression Path</h3>
-                <div className="bg-gradient-to-r from-violet-50 to-purple-50 rounded-2xl p-4">
+                <div className="bg-gradient-to-r from-violet-50 to-orange-50 rounded-2xl p-4">
                   {exercise.progression_group && (
-                    <p className="text-xs text-purple-600 font-medium mb-2">
+                    <p className="text-xs text-orange-600 font-medium mb-2">
                       Part of: <span className="font-bold">{exercise.progression_group}</span>
                       {exercise.progression_level && <span className="ml-1">(Level {exercise.progression_level})</span>}
                     </p>
@@ -365,15 +365,15 @@ export default function ExerciseDetailModal({ exercise, onClose, onEdit, onToggl
                     {exercise.previous_progression && (
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <span className="px-2 py-1 bg-white rounded-lg text-xs font-medium">{exercise.previous_progression}</span>
-                        <ArrowRight className="w-4 h-4 text-purple-400" />
+                        <ArrowRight className="w-4 h-4 text-orange-400" />
                       </div>
                     )}
-                    <span className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-bold">
+                    <span className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-bold">
                       {exercise.name}
                     </span>
                     {exercise.next_progression && (
                       <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <ArrowRight className="w-4 h-4 text-purple-400" />
+                        <ArrowRight className="w-4 h-4 text-orange-400" />
                         <span className="px-2 py-1 bg-white rounded-lg text-xs font-medium">{exercise.next_progression}</span>
                       </div>
                     )}

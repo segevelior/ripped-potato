@@ -2,7 +2,7 @@ import React from "react";
 import { Target, Trophy, Calendar, ChevronRight, Play, Clock, Eye } from "lucide-react";
 
 const categoryColors = {
-  skill: "bg-purple-100 text-purple-800",
+  skill: "bg-primary-50 text-primary-500",
   performance: "bg-blue-100 text-blue-800", 
   endurance: "bg-green-100 text-green-800",
   strength: "bg-red-100 text-red-800"
@@ -149,7 +149,7 @@ export default function GoalCard({ goal, userProgress, onView, onStart }) {
         ) : (
           <button
             onClick={onStart}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
           >
             <Play className="w-4 h-4" />
             Start This Goal

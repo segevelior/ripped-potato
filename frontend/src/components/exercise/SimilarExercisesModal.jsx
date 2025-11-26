@@ -209,7 +209,7 @@ export default function SimilarExercisesModal({ currentExercise, onClose, onRepl
                         
                         {/* Equipment */}
                         {(exercise.equipment || []).slice(0, 2).map(equipment => (
-                          <span key={equipment} className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                          <span key={equipment} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                             {equipment}
                           </span>
                         ))}

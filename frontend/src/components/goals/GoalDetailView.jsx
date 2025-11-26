@@ -81,7 +81,7 @@ export default function GoalDetailView({ goal, progressionPath, userProgress, al
           <h1 className="text-3xl font-bold">{goal.name}</h1>
           <div className="flex items-center gap-2 mt-2">
             {goal.icon && <span className="text-2xl">{goal.icon}</span>}
-            <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800 font-medium">{goal.category}</span>
+            <span className="px-2 py-1 text-xs rounded-full bg-primary-50 text-primary-500 font-medium">{goal.category}</span>
             {goal.difficulty_level && (
               <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 font-medium">{goal.difficulty_level}</span>
             )}
@@ -105,7 +105,7 @@ export default function GoalDetailView({ goal, progressionPath, userProgress, al
             ) : (
                  <button
                     onClick={() => onStartGoal(goal)}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors text-lg"
+                    className="bg-primary-500 hover:bg-primary-600 text-white px-6 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors text-lg"
                  >
                     <Play className="w-5 h-5" />
                     Start This Goal
@@ -143,7 +143,7 @@ export default function GoalDetailView({ goal, progressionPath, userProgress, al
       {/* Progression Builder */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
         <h3 className="text-xl font-bold flex items-center gap-2 mb-4">
-          <GitBranch className="text-purple-600"/> 
+          <GitBranch className="text-primary-500"/> 
           Progression Builder
         </h3>
         <ProgressionFlowEditor 

@@ -9,7 +9,7 @@ import GoalCard from "../components/goals/GoalCard";
 import GoalDetailView from "../components/goals/GoalDetailView";
 
 const categoryColors = {
-  skill: "bg-purple-100 text-purple-800",
+  skill: "bg-primary-50 text-primary-500",
   performance: "bg-blue-100 text-blue-800",
   endurance: "bg-green-100 text-green-800",
   strength: "bg-red-100 text-red-800"
@@ -188,7 +188,7 @@ export default function Goals() {
             Active Goals ({activeGoals.length})
           </button>
           <Link to={createPageUrl("CreateGoal")}>
-            <button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors">
+            <button className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors">
               <Plus className="w-5 h-5" />
               Create Goal
             </button>
@@ -244,8 +244,8 @@ export default function Goals() {
       <div className="grid md:grid-cols-4 gap-6">
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Target className="w-5 h-5 text-purple-600" />
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Target className="w-5 h-5 text-orange-600" />
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900">{userProgress.filter(p => p.is_active).length}</p>
@@ -310,7 +310,7 @@ export default function Goals() {
                 placeholder="Search goals..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -319,7 +319,7 @@ export default function Goals() {
             <select
               value={disciplineFilter}
               onChange={(e) => setDisciplineFilter(e.target.value)}
-              className="px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             >
               <option value="all">All Disciplines</option>
               {disciplines.map(discipline => (
@@ -332,7 +332,7 @@ export default function Goals() {
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             >
               <option value="all">All Categories</option>
               {categories.map(category => (
