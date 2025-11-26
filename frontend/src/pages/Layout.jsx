@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot } from "lucide-react"; // Added Bot
+import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot, TrendingUp } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -39,6 +39,11 @@ const navigationItems = [
     title: "Goals",
     url: createPageUrl("Goals"),
     icon: Target,
+  },
+  {
+    title: "Progressions",
+    url: createPageUrl("Progressions"),
+    icon: TrendingUp,
   },
   {
     title: "Sensei",

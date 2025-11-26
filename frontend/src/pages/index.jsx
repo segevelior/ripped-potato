@@ -26,6 +26,8 @@ import Chat from "./ChatWithStreaming";
 
 import Documentation from "./Documentation";
 
+import Progressions from "./Progressions";
+
 import Auth from "./Auth";
 
 import AuthCallback from "./AuthCallback";
@@ -59,9 +61,11 @@ const PAGES = {
     CreatePlan: CreatePlan,
     
     Chat: Chat,
-    
+
     Documentation: Documentation,
-    
+
+    Progressions: Progressions,
+
 }
 
 function _getCurrentPage(url) {
@@ -131,6 +135,8 @@ function PagesContent() {
                 <Route path="/Chat" element={<Chat />} />
                 
                 <Route path="/Documentation" element={<Documentation />} />
+
+                <Route path="/Progressions" element={<Progressions />} />
             </Route>
             <Route path="*" element={<Navigate to="/auth" replace />} />
         </Routes>

@@ -316,21 +316,37 @@ class APIService {
     })
   };
 
-  // ProgressionPath endpoints (to be implemented in backend)
-  progressionPaths = {
-    list: () => this.request('/progression-paths'),
-    get: (id) => this.request(`/progression-paths/${id}`),
-    create: (data) => this.request('/progression-paths', {
+  // Progression endpoints
+  progressions = {
+    list: async () => {
+      const response = await this.request('/progressions');
+      return response.progressions || response;
+    },
+    get: (id) => this.request(`/progressions/${id}`),
+    create: (data) => this.request('/progressions', {
       method: 'POST',
       body: JSON.stringify(data)
     }),
-    update: (id, data) => this.request(`/progression-paths/${id}`, {
+    update: (id, data) => this.request(`/progressions/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     }),
-    delete: (id) => this.request(`/progression-paths/${id}`, {
+    delete: (id) => this.request(`/progressions/${id}`, {
       method: 'DELETE'
-    })
+    }),
+    // User progress actions
+    start: (id) => this.request(`/progressions/${id}/start`, {
+      method: 'POST'
+    }),
+    completeStep: (id, stepIndex, performance) => this.request(`/progressions/${id}/steps/${stepIndex}/complete`, {
+      method: 'POST',
+      body: JSON.stringify({ performance })
+    }),
+    updateProgress: (id, data) => this.request(`/progressions/${id}/progress`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+    getActive: () => this.request('/progressions/user/active')
   };
 
   // Alias endpoints for naming compatibility

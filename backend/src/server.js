@@ -45,6 +45,7 @@ const workoutTypeRoutes = require('./routes/workoutTypes');
 const aiRoutes = require('./routes/ai');
 const adminRoutes = require('./routes/admin');
 const conversationRoutes = require('./routes/conversations');
+const progressionRoutes = require('./routes/progressions');
 
 const app = express();
 
@@ -232,6 +233,7 @@ app.use('/api/v1/workout-types', workoutTypeRoutes);
 app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/conversations', conversationRoutes);
+app.use('/api/v1/progressions', progressionRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
