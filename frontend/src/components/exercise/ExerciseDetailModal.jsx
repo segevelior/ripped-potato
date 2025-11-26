@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { X, Dumbbell, Target, Zap, Timer, Info, Activity, TrendingUp, AlertCircle, Star, Copy } from "lucide-react";
+import { X, Dumbbell, Target, Zap, Timer, Info, Activity, TrendingUp, AlertCircle, Star, Copy, Repeat, ArrowRight, Weight, Clock } from "lucide-react";
 import { getDisciplineClass } from "@/styles/designTokens";
 
 const intensityColors = {
@@ -271,6 +271,113 @@ export default function ExerciseDetailModal({ exercise, onClose, onEdit, onToggl
                       {muscle.replace('_', ' ')}
                     </span>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Equipment List */}
+            {exercise.equipment && exercise.equipment.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-gray-900 mb-3">Equipment Needed</h3>
+                <div className="flex flex-wrap gap-2">
+                  {exercise.equipment.map((eq, i) => (
+                    <span key={i} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold capitalize flex items-center gap-1.5">
+                      <Dumbbell className="w-3 h-3" />
+                      {eq}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Strain Characteristics */}
+            {exercise.strain && (exercise.strain.intensity || exercise.strain.load || exercise.strain.typical_volume) && (
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-gray-900 mb-3">Strain Profile</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {exercise.strain.intensity && (
+                    <div className={`p-3 rounded-xl ${intensityColors[exercise.strain.intensity] || 'bg-gray-100 text-gray-700'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Zap className="w-4 h-4" />
+                        <span className="text-xs font-medium opacity-80">Intensity</span>
+                      </div>
+                      <p className="text-sm font-bold capitalize">{exercise.strain.intensity}</p>
+                    </div>
+                  )}
+                  {exercise.strain.load && (
+                    <div className="p-3 rounded-xl bg-purple-50 text-purple-700">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Weight className="w-4 h-4" />
+                        <span className="text-xs font-medium opacity-80">Load Type</span>
+                      </div>
+                      <p className="text-sm font-bold capitalize">{exercise.strain.load}</p>
+                    </div>
+                  )}
+                  {exercise.strain.duration_type && (
+                    <div className="p-3 rounded-xl bg-cyan-50 text-cyan-700">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Clock className="w-4 h-4" />
+                        <span className="text-xs font-medium opacity-80">Measured In</span>
+                      </div>
+                      <p className="text-sm font-bold capitalize">{exercise.strain.duration_type}</p>
+                    </div>
+                  )}
+                  {exercise.strain.typical_volume && (
+                    <div className="p-3 rounded-xl bg-emerald-50 text-emerald-700">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Repeat className="w-4 h-4" />
+                        <span className="text-xs font-medium opacity-80">Typical Volume</span>
+                      </div>
+                      <p className="text-sm font-bold">{exercise.strain.typical_volume}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Similar Exercises */}
+            {exercise.similar_exercises && exercise.similar_exercises.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-gray-900 mb-3">Similar Exercises</h3>
+                <div className="flex flex-wrap gap-2">
+                  {exercise.similar_exercises.map((simEx, i) => (
+                    <span key={i} className="px-3 py-1.5 bg-orange-50 text-orange-700 rounded-xl text-xs font-bold capitalize flex items-center gap-1.5">
+                      <ArrowRight className="w-3 h-3" />
+                      {simEx}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Progression Info */}
+            {(exercise.progression_group || exercise.previous_progression || exercise.next_progression) && (
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-gray-900 mb-3">Progression Path</h3>
+                <div className="bg-gradient-to-r from-violet-50 to-purple-50 rounded-2xl p-4">
+                  {exercise.progression_group && (
+                    <p className="text-xs text-purple-600 font-medium mb-2">
+                      Part of: <span className="font-bold">{exercise.progression_group}</span>
+                      {exercise.progression_level && <span className="ml-1">(Level {exercise.progression_level})</span>}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {exercise.previous_progression && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <span className="px-2 py-1 bg-white rounded-lg text-xs font-medium">{exercise.previous_progression}</span>
+                        <ArrowRight className="w-4 h-4 text-purple-400" />
+                      </div>
+                    )}
+                    <span className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-bold">
+                      {exercise.name}
+                    </span>
+                    {exercise.next_progression && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <ArrowRight className="w-4 h-4 text-purple-400" />
+                        <span className="px-2 py-1 bg-white rounded-lg text-xs font-medium">{exercise.next_progression}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

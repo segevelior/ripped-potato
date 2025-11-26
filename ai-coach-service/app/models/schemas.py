@@ -145,3 +145,37 @@ class PaginatedFeedbackResponse(BaseModel):
     page: int = 1
     limit: int = 50
     total_pages: int = 0
+
+
+# ============ Exercise Suggestion Models ============
+
+class ExerciseSuggestionRequest(BaseModel):
+    """Request for exercise auto-suggestion based on name."""
+    name: str = Field(..., min_length=2, description="Exercise name to get suggestions for")
+
+
+class StrainSuggestion(BaseModel):
+    """Suggested strain characteristics for an exercise."""
+    intensity: str = Field(..., pattern="^(low|moderate|high|max)$")
+    load: str = Field(..., pattern="^(bodyweight|light|moderate|heavy)$")
+    duration_type: str = Field(..., pattern="^(reps|time|distance)$")
+    typical_volume: str
+
+
+class ExerciseSuggestion(BaseModel):
+    """Suggested values for exercise form fields."""
+    description: Optional[str] = None
+    muscles: List[str] = []
+    secondary_muscles: List[str] = []
+    discipline: List[str] = []
+    equipment: List[str] = []
+    difficulty: Optional[str] = None
+    strain: Optional[StrainSuggestion] = None
+    similar_exercises: List[str] = []
+    instructions: List[str] = []
+
+
+class ExerciseSuggestionResponse(BaseModel):
+    """Response containing exercise suggestions."""
+    suggestions: ExerciseSuggestion
+    confidence: float = Field(..., ge=0.0, le=1.0)
