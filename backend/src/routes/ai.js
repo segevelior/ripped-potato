@@ -645,6 +645,162 @@ router.post('/exercises/suggest/stream', authMiddleware, aiRateLimit, async (req
   }
 });
 
+// Progression suggestion endpoint - proxies to Python AI Coach service
+router.post('/progressions/suggest', authMiddleware, aiRateLimit, async (req, res) => {
+  try {
+    const { goalExercise, currentLevel, availableEquipment } = req.body;
+
+    if (!goalExercise) {
+      return res.status(400).json({
+        success: false,
+        message: 'Goal exercise is required'
+      });
+    }
+
+    console.log(`[PROGRESSION SUGGEST] Proxying request for: ${goalExercise}`);
+
+    // Proxy to Python AI Coach service
+    const urlParts = new URL(`${AI_SERVICE_URL}/api/v1/progressions/suggest`);
+    const isHttps = urlParts.protocol === 'https:';
+    const http = require(isHttps ? 'https' : 'http');
+
+    const body = JSON.stringify({ goalExercise, currentLevel, availableEquipment });
+
+    const response = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: urlParts.hostname,
+        port: urlParts.port || (isHttps ? 443 : 80),
+        path: urlParts.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body)
+        }
+      };
+
+      const request = http.request(options, (response) => {
+        let data = '';
+
+        response.on('data', (chunk) => {
+          data += chunk;
+        });
+
+        response.on('end', () => {
+          if (response.statusCode === 200) {
+            try {
+              resolve(JSON.parse(data));
+            } catch (e) {
+              reject(new Error('Invalid JSON response from AI service'));
+            }
+          } else {
+            reject(new Error(`AI service returned status ${response.statusCode}: ${data}`));
+          }
+        });
+      });
+
+      request.on('error', reject);
+      request.write(body);
+      request.end();
+    });
+
+    res.json(response);
+
+  } catch (error) {
+    console.error('Progression suggestion error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get progression suggestions',
+      error: error.message
+    });
+  }
+});
+
+// Progression suggestion streaming endpoint - proxies to Python AI Coach service
+router.post('/progressions/suggest/stream', authMiddleware, aiRateLimit, async (req, res) => {
+  try {
+    const { goalExercise, currentLevel, availableEquipment } = req.body;
+
+    if (!goalExercise) {
+      return res.status(400).json({
+        success: false,
+        message: 'Goal exercise is required'
+      });
+    }
+
+    console.log(`[PROGRESSION SUGGEST STREAM] Proxying streaming request for: ${goalExercise}`);
+
+    // Set up SSE headers
+    const origin = req.headers.origin;
+    const headers = {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+      'Content-Encoding': 'none',
+      'Transfer-Encoding': 'chunked'
+    };
+
+    if (origin) {
+      headers['Access-Control-Allow-Origin'] = origin;
+      headers['Access-Control-Allow-Credentials'] = 'true';
+    }
+
+    res.writeHead(200, headers);
+    res.flushHeaders();
+
+    // Proxy to Python AI Coach streaming endpoint
+    const urlParts = new URL(`${AI_SERVICE_URL}/api/v1/progressions/suggest/stream`);
+    const isHttps = urlParts.protocol === 'https:';
+    const http = require(isHttps ? 'https' : 'http');
+
+    const options = {
+      hostname: urlParts.hostname,
+      port: urlParts.port || (isHttps ? 443 : 80),
+      path: urlParts.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    };
+
+    const proxyReq = http.request(options, (proxyRes) => {
+      proxyRes.on('data', (chunk) => {
+        res.write(chunk);
+      });
+
+      proxyRes.on('end', () => {
+        console.log('[PROGRESSION SUGGEST STREAM] Stream ended from AI Coach');
+        res.end();
+      });
+
+      proxyRes.on('error', (error) => {
+        console.error('[PROGRESSION SUGGEST STREAM] Proxy response error:', error);
+        res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+        res.end();
+      });
+    });
+
+    proxyReq.on('error', (error) => {
+      console.error('[PROGRESSION SUGGEST STREAM] Proxy request error:', error);
+      res.write(`data: ${JSON.stringify({ error: 'Failed to connect to AI service' })}\n\n`);
+      res.end();
+    });
+
+    const requestBody = JSON.stringify({ goalExercise, currentLevel, availableEquipment });
+    proxyReq.write(requestBody);
+    proxyReq.end();
+
+  } catch (error) {
+    console.error('Progression suggestion streaming error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to start progression suggestion streaming'
+      });
+    }
+  }
+});
+
 // Status endpoint to check AI provider
 router.get('/status', async (req, res) => {
   const status = {
