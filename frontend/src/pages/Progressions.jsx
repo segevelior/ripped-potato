@@ -2,19 +2,17 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Search, Sparkles, Loader2, Target, ChevronRight, Trash2,
   Play, CheckCircle2, MessageCircle, Send, ArrowLeft, Star, TrendingUp,
-  Clock, Trophy, Zap, Filter
+  Clock, Trophy, Zap, X
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import apiService from "@/services/api";
 import aiService from "@/services/aiService";
 import ProgressionGraph from "@/components/progression/ProgressionGraph";
 
 const difficultyColors = {
-  beginner: "bg-green-100 text-green-800 border-green-200",
-  intermediate: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  advanced: "bg-red-100 text-red-800 border-red-200"
+  beginner: "bg-green-100 text-green-700",
+  intermediate: "bg-amber-100 text-amber-700",
+  advanced: "bg-red-100 text-red-700"
 };
 
 const statusColors = {
@@ -132,143 +130,103 @@ export default function Progressions() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl text-white shadow-lg">
-            <TrendingUp className="w-8 h-8" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Progressions</h1>
-            <p className="text-lg text-gray-500">Master exercises step by step</p>
-          </div>
-        </div>
-        <button
-          onClick={() => setIsCreateMode(true)}
-          className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all shadow-lg"
-        >
-          <Sparkles className="w-5 h-5" />
-          Create with Sensei
-        </button>
-      </div>
-
-      {/* Stats Overview */}
-      <div className="grid md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <Target className="w-5 h-5 text-orange-600" />
+    <div className="min-h-screen bg-gray-50 pb-24">
+      {/* Mobile-first Header */}
+      <div className="sticky top-0 z-20 bg-white border-b border-gray-100">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-gray-900">Progressions</h1>
+                <p className="text-xs text-gray-500">Master exercises step by step</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{progressions.length}</p>
-              <p className="text-sm text-gray-600">Total Paths</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Zap className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{activeProgressions}</p>
-              <p className="text-sm text-gray-600">In Progress</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Trophy className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{completedProgressions}</p>
-              <p className="text-sm text-gray-600">Completed</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <TrendingUp className="w-5 h-5 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{totalSteps}</p>
-              <p className="text-sm text-gray-600">Total Steps</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search progressions..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <select
-              value={difficultyFilter}
-              onChange={(e) => setDifficultyFilter(e.target.value)}
-              className="px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            <button
+              onClick={() => setIsCreateMode(true)}
+              className="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg active:scale-95 transition-transform"
             >
-              <option value="all">All Difficulties</option>
-              <option value="beginner">Beginner</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="advanced">Advanced</option>
-            </select>
+              <Sparkles className="w-5 h-5 text-white" />
+            </button>
           </div>
         </div>
+      </div>
 
-        <div className="mt-3 text-sm text-gray-600">
-          Showing {filteredProgressions.length} of {progressions.length} progressions
+      {/* Horizontal Scrolling Stats */}
+      <div className="px-4 py-3 overflow-x-auto scrollbar-hide">
+        <div className="flex gap-3 min-w-max">
+          <StatCard icon={Target} value={progressions.length} label="Paths" color="orange" />
+          <StatCard icon={Zap} value={activeProgressions} label="Active" color="blue" />
+          <StatCard icon={Trophy} value={completedProgressions} label="Done" color="green" />
+          <StatCard icon={TrendingUp} value={totalSteps} label="Steps" color="purple" />
+        </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="px-4 py-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search progressions..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full h-11 pl-10 pr-4 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          />
+        </div>
+
+        {/* Filter Pills */}
+        <div className="flex gap-2 mt-3 overflow-x-auto scrollbar-hide pb-1">
+          {["all", "beginner", "intermediate", "advanced"].map((level) => (
+            <button
+              key={level}
+              onClick={() => setDifficultyFilter(level)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                difficultyFilter === level
+                  ? "bg-orange-500 text-white"
+                  : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {level === "all" ? "All" : level.charAt(0).toUpperCase() + level.slice(1)}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Loading State */}
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-orange-600" />
+          <Loader2 className="w-6 h-6 animate-spin text-orange-600" />
         </div>
       )}
 
       {/* Empty State */}
       {!loading && progressions.length === 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-200">
-          <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
-            <TrendingUp className="w-8 h-8 text-orange-600" />
+        <div className="px-4 py-8">
+          <div className="bg-white rounded-2xl p-6 text-center border border-gray-100">
+            <div className="w-14 h-14 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
+              <TrendingUp className="w-7 h-7 text-orange-600" />
+            </div>
+            <h3 className="text-lg font-semibold mb-1 text-gray-900">No Progressions Yet</h3>
+            <p className="text-sm text-gray-500 mb-5">
+              Talk to Sensei to create your first progression
+            </p>
+            <button
+              onClick={() => setIsCreateMode(true)}
+              className="w-full h-12 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+            >
+              <MessageCircle className="w-5 h-5" />
+              Chat with Sensei
+            </button>
           </div>
-          <h3 className="text-xl font-semibold mb-2 text-gray-900">No Progressions Yet</h3>
-          <p className="text-gray-600 mb-6">
-            Talk to Sensei to create your first progression path
-          </p>
-          <button
-            onClick={() => setIsCreateMode(true)}
-            className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 mx-auto transition-colors"
-          >
-            <MessageCircle className="w-5 h-5" />
-            Chat with Sensei
-          </button>
         </div>
       )}
 
-      {/* Progressions Grid */}
+      {/* Progressions List (Mobile: Single Column) */}
       {!loading && filteredProgressions.length > 0 && (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="px-4 py-2 space-y-3">
           {filteredProgressions.map((progression) => (
             <ProgressionCard
               key={progression._id}
@@ -281,21 +239,53 @@ export default function Progressions() {
 
       {/* No results from filter */}
       {!loading && progressions.length > 0 && filteredProgressions.length === 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-200">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-            <Search className="w-8 h-8 text-gray-400" />
+        <div className="px-4 py-8">
+          <div className="bg-white rounded-2xl p-6 text-center border border-gray-100">
+            <div className="w-14 h-14 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+              <Search className="w-7 h-7 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold mb-1 text-gray-900">No Results</h3>
+            <p className="text-sm text-gray-500">
+              Try adjusting your search or filters
+            </p>
           </div>
-          <h3 className="text-xl font-semibold mb-2 text-gray-900">No Results Found</h3>
-          <p className="text-gray-600">
-            Try adjusting your search or filters
-          </p>
         </div>
       )}
+
+      {/* Floating Action Button for Create */}
+      <button
+        onClick={() => setIsCreateMode(true)}
+        className="fixed bottom-20 right-4 w-14 h-14 bg-gradient-to-r from-orange-500 to-red-600 rounded-full shadow-xl flex items-center justify-center z-30 active:scale-95 transition-transform"
+      >
+        <Plus className="w-6 h-6 text-white" />
+      </button>
     </div>
   );
 }
 
-// ============ Progression Card ============
+// ============ Stat Card (Compact) ============
+function StatCard({ icon: Icon, value, label, color }) {
+  const colorStyles = {
+    orange: "bg-orange-50 text-orange-600",
+    blue: "bg-blue-50 text-blue-600",
+    green: "bg-green-50 text-green-600",
+    purple: "bg-purple-50 text-purple-600"
+  };
+
+  return (
+    <div className="bg-white rounded-xl px-4 py-3 border border-gray-100 flex items-center gap-3 min-w-[100px]">
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${colorStyles[color]}`}>
+        <Icon className="w-4 h-4" />
+      </div>
+      <div>
+        <p className="text-lg font-bold text-gray-900">{value}</p>
+        <p className="text-[10px] text-gray-500 uppercase tracking-wide">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+// ============ Progression Card (Mobile Optimized) ============
 function ProgressionCard({ progression, onClick }) {
   const stepsCount = progression.steps?.length || 0;
   const completedSteps = progression.userProgress?.stepProgress?.filter(s => s.status === "completed").length || 0;
@@ -305,58 +295,79 @@ function ProgressionCard({ progression, onClick }) {
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all cursor-pointer border border-gray-200 overflow-hidden group"
+      className="bg-white rounded-2xl border border-gray-100 overflow-hidden active:scale-[0.98] transition-transform"
     >
-      {/* Card Header with gradient */}
-      <div className="h-2 bg-gradient-to-r from-orange-500 to-red-500" />
+      {/* Gradient accent bar */}
+      <div className="h-1 bg-gradient-to-r from-orange-500 to-red-500" />
 
-      <div className="p-6">
-        <div className="flex items-start gap-4">
+      <div className="p-4">
+        <div className="flex items-start gap-3">
           {/* Icon */}
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-            <Target className="w-6 h-6 text-orange-600" />
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center flex-shrink-0">
+            <Target className="w-5 h-5 text-orange-600" />
           </div>
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2 mb-1">
-              <h3 className="font-bold text-gray-900 truncate group-hover:text-orange-600 transition-colors">
-                {progression.name}
-              </h3>
-            </div>
-
-            <p className="text-sm text-gray-500 mb-3 line-clamp-1">
+            <h3 className="font-semibold text-gray-900 truncate text-[15px]">
+              {progression.name}
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5 truncate">
               Goal: {progression.goalExercise?.name}
             </p>
 
-            {/* Tags */}
-            <div className="flex items-center gap-2 flex-wrap mb-3">
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${difficultyColors[progression.difficulty]}`}>
+            {/* Tags Row */}
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${difficultyColors[progression.difficulty]}`}>
                 {progression.difficulty}
               </span>
               {isStarted && (
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[progression.userProgress?.status || 'not_started']}`}>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusColors[progression.userProgress?.status || 'not_started']}`}>
                   {progression.userProgress?.status?.replace('_', ' ')}
                 </span>
               )}
               {progression.estimatedWeeks && (
-                <span className="flex items-center gap-1 text-xs text-gray-500">
+                <span className="flex items-center gap-1 text-[10px] text-gray-400">
                   <Clock className="w-3 h-3" />
-                  ~{progression.estimatedWeeks}w
+                  {progression.estimatedWeeks}w
                 </span>
               )}
             </div>
+          </div>
 
-            {/* Progress Bar */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-orange-500 to-red-500 transition-all duration-500"
-                  style={{ width: `${progressPercent}%` }}
+          {/* Progress indicator */}
+          <div className="flex flex-col items-center">
+            <div className="relative w-10 h-10">
+              <svg className="w-10 h-10 -rotate-90">
+                <circle
+                  cx="20"
+                  cy="20"
+                  r="16"
+                  fill="none"
+                  stroke="#f3f4f6"
+                  strokeWidth="3"
                 />
-              </div>
-              <span className="text-xs text-gray-500 flex-shrink-0 font-medium">
-                {completedSteps}/{stepsCount}
+                <circle
+                  cx="20"
+                  cy="20"
+                  r="16"
+                  fill="none"
+                  stroke="url(#progressGradient)"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeDasharray={`${progressPercent} ${100 - progressPercent}`}
+                  strokeDashoffset="0"
+                  style={{ strokeDasharray: `${progressPercent * 1.005} 100` }}
+                />
+                <defs>
+                  <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#f97316" />
+                    <stop offset="100%" stopColor="#ef4444" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-gray-700">
+                {progressPercent}%
               </span>
             </div>
           </div>
@@ -366,7 +377,7 @@ function ProgressionCard({ progression, onClick }) {
   );
 }
 
-// ============ Progression Detail (Full-Screen like LiveWorkout) ============
+// ============ Progression Detail (Full-Screen Mobile) ============
 function ProgressionDetail({ progression, onBack, onStart, onDelete, onUpdate }) {
   const { toast } = useToast();
   const [isEditMode, setIsEditMode] = useState(false);
@@ -377,12 +388,11 @@ function ProgressionDetail({ progression, onBack, onStart, onDelete, onUpdate })
   const completedSteps = localProgress?.stepProgress?.filter(s => s.status === "completed").length || 0;
   const progressPercent = stepsCount > 0 ? Math.round((completedSteps / stepsCount) * 100) : 0;
 
-  // Handle clicking on a step to mark it as current position
   const handleSetCurrentStep = async (step) => {
     if (!hasStarted) {
       toast({
         title: "Start first",
-        description: "Start the progression before adjusting your position",
+        description: "Start the progression before adjusting",
         variant: "destructive"
       });
       return;
@@ -394,7 +404,6 @@ function ProgressionDetail({ progression, onBack, onStart, onDelete, onUpdate })
 
     if (stepIndex === -1) return;
 
-    // Update local state immediately for responsive UI
     const newStepProgress = progression.steps.map((s, i) => {
       const existingProgress = localProgress?.stepProgress?.find(sp =>
         sp.stepId === (s._id || s.id)
@@ -412,7 +421,6 @@ function ProgressionDetail({ progression, onBack, onStart, onDelete, onUpdate })
       currentStepIndex: stepIndex
     });
 
-    // Save to backend
     try {
       await apiService.progressions.updateProgress(progression._id, {
         currentStepIndex: stepIndex,
@@ -420,7 +428,7 @@ function ProgressionDetail({ progression, onBack, onStart, onDelete, onUpdate })
       });
       toast({
         title: "Progress updated",
-        description: `Set current step to "${step.exerciseName}"`
+        description: `Now on "${step.exerciseName}"`
       });
       onUpdate?.();
     } catch (error) {
@@ -434,97 +442,124 @@ function ProgressionDetail({ progression, onBack, onStart, onDelete, onUpdate })
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-28">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={onBack}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-gray-900">{progression.name}</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${difficultyColors[progression.difficulty]}`}>
-                  {progression.difficulty}
-                </span>
-                {progression.estimatedWeeks && (
-                  <span className="text-xs text-gray-500">~{progression.estimatedWeeks} weeks</span>
-                )}
-              </div>
+      <div className="sticky top-0 z-20 bg-white border-b border-gray-100">
+        <div className="px-4 py-3 flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 active:scale-95 transition"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-700" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-bold text-gray-900 truncate">{progression.name}</h1>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${difficultyColors[progression.difficulty]}`}>
+                {progression.difficulty}
+              </span>
+              {progression.estimatedWeeks && (
+                <span className="text-[10px] text-gray-400">~{progression.estimatedWeeks}w</span>
+              )}
             </div>
-            {hasStarted && (
-              <button
-                onClick={() => setIsEditMode(!isEditMode)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  isEditMode
-                    ? 'bg-orange-100 text-orange-700'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {isEditMode ? 'Done' : 'Adjust Position'}
-              </button>
-            )}
-            <button
-              onClick={onDelete}
-              className="p-2 hover:bg-red-50 rounded-lg text-red-500 transition-colors"
-            >
-              <Trash2 className="w-5 h-5" />
-            </button>
           </div>
+          <button
+            onClick={onDelete}
+            className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-red-50 text-red-500 active:scale-95 transition"
+          >
+            <Trash2 className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-        {/* Edit Mode Instructions */}
-        {isEditMode && (
-          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-            <p className="text-sm text-orange-700">
-              <strong>Adjust your position:</strong> Click on any step to set it as your current progress.
-              Steps before it will be marked as completed.
-            </p>
+      <div className="px-4 py-4 space-y-4">
+        {/* Edit Mode Toggle & Instructions */}
+        {hasStarted && (
+          <div className={`rounded-xl p-3 flex items-center justify-between ${isEditMode ? 'bg-orange-50 border border-orange-200' : 'bg-gray-50'}`}>
+            <div className="flex-1">
+              {isEditMode ? (
+                <p className="text-xs text-orange-700">
+                  Tap any step to set as current position
+                </p>
+              ) : (
+                <p className="text-xs text-gray-500">
+                  Adjust where you are in the progression
+                </p>
+              )}
+            </div>
+            <button
+              onClick={() => setIsEditMode(!isEditMode)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                isEditMode
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-white border border-gray-200 text-gray-600'
+              }`}
+            >
+              {isEditMode ? 'Done' : 'Adjust'}
+            </button>
           </div>
         )}
 
-        {/* Progress Overview */}
+        {/* Progress Ring Card */}
         {hasStarted && (
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-gray-900">Your Progress</h2>
-              <span className="text-2xl font-bold text-orange-600">{progressPercent}%</span>
+          <div className="bg-white rounded-2xl p-4 border border-gray-100">
+            <div className="flex items-center gap-4">
+              <div className="relative w-16 h-16">
+                <svg className="w-16 h-16 -rotate-90">
+                  <circle
+                    cx="32"
+                    cy="32"
+                    r="28"
+                    fill="none"
+                    stroke="#f3f4f6"
+                    strokeWidth="5"
+                  />
+                  <circle
+                    cx="32"
+                    cy="32"
+                    r="28"
+                    fill="none"
+                    stroke="url(#detailProgressGradient)"
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    style={{ strokeDasharray: `${progressPercent * 1.76} 176` }}
+                  />
+                  <defs>
+                    <linearGradient id="detailProgressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#f97316" />
+                      <stop offset="100%" stopColor="#ef4444" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-lg font-bold text-gray-900">
+                  {progressPercent}%
+                </span>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900">Your Progress</h3>
+                <p className="text-sm text-gray-500">
+                  {completedSteps} of {stepsCount} steps completed
+                </p>
+              </div>
             </div>
-            <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
-              <div
-                className="h-full bg-gradient-to-r from-orange-500 to-red-500 transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <p className="text-sm text-gray-500">
-              {completedSteps} of {stepsCount} steps completed
-            </p>
           </div>
         )}
 
         {/* Description */}
         {progression.description && (
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <h2 className="font-bold text-gray-900 mb-2">About</h2>
-            <p className="text-gray-600">{progression.description}</p>
+          <div className="bg-white rounded-2xl p-4 border border-gray-100">
+            <h3 className="font-semibold text-gray-900 text-sm mb-2">About</h3>
+            <p className="text-sm text-gray-600 leading-relaxed">{progression.description}</p>
 
-            {/* Muscles & Disciplines */}
             {(progression.muscles?.length > 0 || progression.discipline?.length > 0) && (
-              <div className="flex flex-wrap gap-2 mt-4">
+              <div className="flex flex-wrap gap-1.5 mt-3">
                 {progression.muscles?.map((muscle, i) => (
-                  <span key={i} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                  <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded-full">
                     {muscle}
                   </span>
                 ))}
                 {progression.discipline?.map((disc, i) => (
-                  <span key={i} className="px-2 py-1 bg-orange-100 text-orange-600 text-xs rounded-full">
+                  <span key={i} className="px-2 py-0.5 bg-orange-100 text-orange-600 text-[10px] rounded-full">
                     {disc}
                   </span>
                 ))}
@@ -534,54 +569,55 @@ function ProgressionDetail({ progression, onBack, onStart, onDelete, onUpdate })
         )}
 
         {/* Progression Path */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-orange-600" />
-            Your Journey
-          </h2>
+        <div className="bg-white rounded-2xl p-4 border border-gray-100">
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp className="w-4 h-4 text-orange-600" />
+            <h3 className="font-semibold text-gray-900 text-sm">Your Journey</h3>
+          </div>
           <ProgressionGraph
             steps={progression.steps}
             goalExercise={progression.goalExercise?.name}
             userProgress={localProgress}
             editable={isEditMode}
             onSetCurrentStep={handleSetCurrentStep}
+            compact
           />
         </div>
+      </div>
 
-        {/* Action Button */}
-        <div className="flex justify-center pb-8">
-          {!hasStarted ? (
-            <button
-              onClick={onStart}
-              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-8 py-4 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg transform hover:scale-105"
-            >
-              <Play className="w-5 h-5" />
-              Start This Journey
-            </button>
-          ) : (
-            <button
-              className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white px-8 py-4 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg"
-            >
-              <ChevronRight className="w-5 h-5" />
-              Continue Training
-            </button>
-          )}
-        </div>
+      {/* Sticky Bottom Action */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 z-20">
+        {!hasStarted ? (
+          <button
+            onClick={onStart}
+            className="w-full h-14 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-lg"
+          >
+            <Play className="w-5 h-5" />
+            Start This Journey
+          </button>
+        ) : (
+          <button
+            className="w-full h-14 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-lg"
+          >
+            <ChevronRight className="w-5 h-5" />
+            Continue Training
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-// ============ Conversational Progression Creator ============
+// ============ Conversational Progression Creator (Mobile-First) ============
 function ProgressionCreator({ onBack, onCreated }) {
   const { toast } = useToast();
-  const [conversationState, setConversationState] = useState('initial'); // initial, asked_level, showing_result
+  const [conversationState, setConversationState] = useState('initial');
   const [userLevel, setUserLevel] = useState('beginner');
   const [goalExercise, setGoalExercise] = useState('');
   const [messages, setMessages] = useState([
     {
       role: "assistant",
-      content: "Hey! I'm Sensei. What exercise would you like to master?\n\nExamples: muscle up, handstand, front lever, pistol squat, planche...",
+      content: "Hey! What exercise do you want to master?",
       thinking: null
     }
   ]);
@@ -606,24 +642,21 @@ function ProgressionCreator({ onBack, onCreated }) {
     setInput("");
     setMessages(prev => [...prev, { role: "user", content: userMessage }]);
 
-    // Handle conversation flow based on state
     if (conversationState === 'initial') {
-      // User just told us their goal - ask about their current level
       setGoalExercise(userMessage);
       setConversationState('asked_level');
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: `Great choice! **${userMessage}** is an awesome goal.\n\nWhere are you currently at with this? This helps me create the right starting point.`,
+        content: `**${userMessage}** - nice goal! Where are you at currently?`,
         options: [
-          { label: "Complete beginner", value: "beginner", description: "Never tried it or related exercises" },
-          { label: "Some experience", value: "intermediate", description: "Can do some prerequisite exercises" },
-          { label: "Almost there", value: "advanced", description: "Can almost do it or do assisted versions" }
+          { label: "Complete beginner", value: "beginner", description: "Never tried it" },
+          { label: "Some experience", value: "intermediate", description: "Done some prerequisites" },
+          { label: "Almost there", value: "advanced", description: "Can almost do it" }
         ]
       }]);
       return;
     }
 
-    // If user types instead of clicking option, try to interpret
     if (conversationState === 'asked_level') {
       const lowerMsg = userMessage.toLowerCase();
       let level = 'beginner';
@@ -636,7 +669,6 @@ function ProgressionCreator({ onBack, onCreated }) {
       return;
     }
 
-    // Default: generate with what we have
     await generateProgression(userMessage, userLevel);
   };
 
@@ -652,13 +684,10 @@ function ProgressionCreator({ onBack, onCreated }) {
     setThinkingSteps([]);
     setSuggestion(null);
 
-    // Show thinking animation
     const thinkingMessages = [
       "Analyzing your goal...",
-      "Checking your current level...",
-      "Identifying prerequisite exercises...",
-      "Finding parallel training paths...",
-      "Building your progression..."
+      "Finding prerequisites...",
+      "Building your path..."
     ];
 
     let currentThinking = 0;
@@ -667,7 +696,7 @@ function ProgressionCreator({ onBack, onCreated }) {
         setThinkingSteps(prev => [...prev, thinkingMessages[currentThinking]]);
         currentThinking++;
       }
-    }, 700);
+    }, 600);
 
     try {
       const result = await aiService.suggestProgression(goal, level, []);
@@ -679,7 +708,6 @@ function ProgressionCreator({ onBack, onCreated }) {
         setSuggestion(result.suggestion);
         setConversationState('showing_result');
 
-        // Count parallel groups
         const levels = {};
         result.suggestion.steps?.forEach(s => {
           const lvl = s.level ?? s.order;
@@ -687,13 +715,11 @@ function ProgressionCreator({ onBack, onCreated }) {
         });
         const parallelGroups = Object.values(levels).filter(count => count > 1).length;
 
-        let message = `I've created a **${result.suggestion.steps?.length || 0}-step progression** for **${result.suggestion.goalExercise}**!\n\n${result.suggestion.description}`;
+        let message = `Here's your **${result.suggestion.steps?.length || 0}-step** path to **${result.suggestion.goalExercise}**!`;
 
         if (parallelGroups > 0) {
-          message += `\n\n📊 **${parallelGroups} parallel training groups** - exercises marked "Train Together" should be done in the same session.`;
+          message += `\n\n${parallelGroups} exercise pairs to train together.`;
         }
-
-        message += `\n\nAfter creating, you can adjust your starting position by clicking "Adjust Position" in the detail view.`;
 
         setMessages(prev => [...prev, {
           role: "assistant",
@@ -707,7 +733,7 @@ function ProgressionCreator({ onBack, onCreated }) {
       console.error("Sensei error:", error);
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: "Sorry, I had trouble creating that progression. Could you try rephrasing your goal?"
+        content: "Sorry, couldn't create that. Try again?"
       }]);
       setConversationState('initial');
     } finally {
@@ -740,15 +766,15 @@ function ProgressionCreator({ onBack, onCreated }) {
 
       await apiService.progressions.create(progressionData);
       toast({
-        title: "Progression created!",
-        description: `${progressionData.name} is ready to start`
+        title: "Created!",
+        description: `${progressionData.name} is ready`
       });
       onCreated();
     } catch (error) {
       console.error("Create error:", error);
       toast({
         title: "Error",
-        description: "Failed to create progression",
+        description: "Failed to create",
         variant: "destructive"
       });
     } finally {
@@ -759,60 +785,61 @@ function ProgressionCreator({ onBack, onCreated }) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
-          <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <ArrowLeft className="w-5 h-5" />
+      <div className="sticky top-0 z-20 bg-white border-b border-gray-100">
+        <div className="px-4 py-3 flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 active:scale-95 transition"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-700" />
           </button>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-lg">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="font-bold text-gray-900">Sensei</h1>
-              <p className="text-xs text-gray-500">Progression Builder</p>
-            </div>
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h1 className="font-bold text-gray-900 text-sm">Sensei</h1>
+            <p className="text-[10px] text-gray-400">Progression Builder</p>
           </div>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 max-w-3xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.map((msg, index) => (
           <div key={index} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[85%] ${msg.role === "user" ? "order-2" : ""}`}>
+            <div className={`max-w-[88%] ${msg.role === "user" ? "" : ""}`}>
               {msg.role === "assistant" && (
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
-                    <Sparkles className="w-3 h-3 text-white" />
+                <div className="flex items-center gap-1.5 mb-1">
+                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
+                    <Sparkles className="w-2.5 h-2.5 text-white" />
                   </div>
-                  <span className="text-xs font-medium text-gray-500">Sensei</span>
+                  <span className="text-[10px] font-medium text-gray-400">Sensei</span>
                 </div>
               )}
               <div
                 className={`rounded-2xl px-4 py-3 ${
                   msg.role === "user"
-                    ? "bg-gradient-to-r from-orange-500 to-red-500 text-white"
-                    : "bg-white shadow-sm border border-gray-100"
+                    ? "bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-br-md"
+                    : "bg-white border border-gray-100 rounded-bl-md"
                 }`}
               >
-                <p className={`text-sm whitespace-pre-wrap ${msg.role === "user" ? "text-white" : "text-gray-700"}`}>
+                <p className={`text-sm leading-relaxed ${msg.role === "user" ? "text-white" : "text-gray-700"}`}>
                   {msg.content}
                 </p>
 
                 {/* Level Selection Options */}
                 {msg.options && !isLoading && conversationState === 'asked_level' && (
-                  <div className="mt-4 space-y-2">
+                  <div className="mt-3 space-y-2">
                     {msg.options.map((option, i) => (
                       <button
                         key={i}
                         onClick={() => handleOptionSelect(option)}
-                        className="w-full text-left p-3 rounded-xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50 transition-all group"
+                        className="w-full text-left p-3 rounded-xl border-2 border-gray-100 hover:border-orange-400 hover:bg-orange-50 active:scale-[0.98] transition-all"
                       >
-                        <div className="font-medium text-gray-900 group-hover:text-orange-600">
+                        <div className="font-medium text-gray-900 text-sm">
                           {option.label}
                         </div>
-                        <div className="text-xs text-gray-500 mt-0.5">
+                        <div className="text-[10px] text-gray-400 mt-0.5">
                           {option.description}
                         </div>
                       </button>
@@ -822,11 +849,11 @@ function ProgressionCreator({ onBack, onCreated }) {
 
                 {/* Show suggestion graph */}
                 {msg.suggestion && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-3">
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-2">
                         <Star className="w-4 h-4 text-orange-500" />
-                        <span className="font-bold text-gray-900">{msg.suggestion.name}</span>
+                        <span className="font-semibold text-gray-900 text-sm">{msg.suggestion.name}</span>
                       </div>
                       <ProgressionGraph
                         steps={msg.suggestion.steps}
@@ -835,16 +862,14 @@ function ProgressionCreator({ onBack, onCreated }) {
                       />
                     </div>
 
-                    <div className="flex gap-2 mt-4">
-                      <button
-                        onClick={handleCreate}
-                        disabled={isLoading}
-                        className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg"
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                        Create This Progression
-                      </button>
-                    </div>
+                    <button
+                      onClick={handleCreate}
+                      disabled={isLoading}
+                      className="w-full mt-3 h-12 bg-gradient-to-r from-green-500 to-emerald-600 disabled:opacity-50 text-white rounded-xl font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      Create Progression
+                    </button>
                   </div>
                 )}
               </div>
@@ -855,23 +880,23 @@ function ProgressionCreator({ onBack, onCreated }) {
         {/* Thinking Animation */}
         {thinkingSteps.length > 0 && (
           <div className="flex justify-start">
-            <div className="max-w-[85%]">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
-                  <Sparkles className="w-3 h-3 text-white" />
+            <div className="max-w-[88%]">
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
+                  <Sparkles className="w-2.5 h-2.5 text-white" />
                 </div>
-                <span className="text-xs font-medium text-gray-500">Sensei is thinking...</span>
+                <span className="text-[10px] font-medium text-gray-400">Thinking...</span>
               </div>
-              <div className="bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100">
-                <div className="space-y-2">
+              <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 border border-gray-100">
+                <div className="space-y-1.5">
                   {thinkingSteps.map((step, i) => (
-                    <div key={i} className="flex items-center gap-2 text-sm text-gray-500">
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                    <div key={i} className="flex items-center gap-2 text-xs text-gray-500">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
                       <span>{step}</span>
                     </div>
                   ))}
-                  <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                  <div className="flex items-center gap-2 text-xs text-gray-400">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     <span>Working...</span>
                   </div>
                 </div>
@@ -883,33 +908,43 @@ function ProgressionCreator({ onBack, onCreated }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="bg-white border-t p-4">
-        <div className="max-w-3xl mx-auto flex gap-2">
+      {/* Sticky Input */}
+      <div className="sticky bottom-0 bg-white border-t border-gray-100 p-3">
+        <div className="flex gap-2">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-            placeholder={conversationState === 'asked_level' ? "Or type your current level..." : "Tell me what exercise you want to master..."}
+            placeholder={conversationState === 'asked_level' ? "Or type your level..." : "e.g. muscle up, front lever..."}
             disabled={isLoading}
-            className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            className="flex-1 h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
-            className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 disabled:opacity-50 text-white px-6 py-3 rounded-xl font-medium transition-all"
+            className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-600 disabled:opacity-50 rounded-xl flex items-center justify-center active:scale-95 transition-transform"
           >
             {isLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-5 h-5 text-white animate-spin" />
             ) : (
-              <Send className="w-5 h-5" />
+              <Send className="w-5 h-5 text-white" />
             )}
           </button>
         </div>
         {conversationState === 'initial' && (
-          <p className="text-xs text-gray-400 text-center mt-2">
-            Try: "muscle up", "human flag", "front lever", "handstand push-up"
-          </p>
+          <div className="flex gap-2 mt-2 overflow-x-auto scrollbar-hide">
+            {["Muscle Up", "Front Lever", "Handstand", "Pistol Squat"].map((ex) => (
+              <button
+                key={ex}
+                onClick={() => {
+                  setInput(ex);
+                }}
+                className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-full text-xs whitespace-nowrap active:bg-gray-200"
+              >
+                {ex}
+              </button>
+            ))}
+          </div>
         )}
       </div>
     </div>

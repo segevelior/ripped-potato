@@ -1,37 +1,34 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { Check, Lock, Star, Trophy, Circle } from "lucide-react";
 
 /**
- * ProgressionGraph - A sleek vertical progression visualization
+ * ProgressionGraph - Visual branching graph for exercise progressions
  *
  * Design:
- * - Circles as nodes (filled or outlined based on status)
- * - Orange connecting edges/lines
- * - Text positioned next to circles
- * - Supports parallel exercise paths (displayed in a row)
- * - Click on any step to adjust your current position
+ * - Vertical flow with horizontal branching for parallel exercises
+ * - Orange edges connecting nodes
+ * - Parallel paths split visually like a tree/graph
  */
 
 const NODE_SIZE = {
-  default: 44,
-  compact: 36,
-  goal: 52
+  default: 40,
+  compact: 32,
+  goal: 44
 };
 
-const EDGE_COLOR = "#f97316"; // Orange-500 for edges
-const EDGE_COLOR_COMPLETED = "#22c55e"; // Green-500 for completed
-const EDGE_COLOR_LOCKED = "#d1d5db"; // Gray-300 for locked
+const EDGE_COLOR = "#f97316";
+const EDGE_COLOR_COMPLETED = "#22c55e";
+const EDGE_COLOR_LOCKED = "#e5e7eb";
 
 export default function ProgressionGraph({
   steps = [],
   goalExercise,
   userProgress,
   onStepClick,
-  onSetCurrentStep, // New: callback to manually set current position
+  onSetCurrentStep,
   compact = false,
-  editable = false // New: whether user can click to adjust position
+  editable = false
 }) {
-  // Calculate step status based on user progress
   const stepsWithStatus = useMemo(() => {
     return steps.map((step, index) => {
       const stepProgress = userProgress?.stepProgress?.find(sp =>
@@ -49,7 +46,6 @@ export default function ProgressionGraph({
     });
   }, [steps, userProgress]);
 
-  // Group steps by level for parallel rendering
   const stepsByLevel = useMemo(() => {
     const levels = {};
     stepsWithStatus.forEach(step => {
@@ -66,7 +62,7 @@ export default function ProgressionGraph({
 
   if (!steps || steps.length === 0) {
     return (
-      <div className="flex items-center justify-center py-8 text-gray-400">
+      <div className="flex items-center justify-center py-6 text-gray-400 text-sm">
         No steps defined
       </div>
     );
@@ -75,9 +71,8 @@ export default function ProgressionGraph({
   const nodeSize = compact ? NODE_SIZE.compact : NODE_SIZE.default;
 
   return (
-    <div className={`relative ${compact ? 'py-3' : 'py-6'}`}>
-      {/* Vertical Timeline with Orange Edges */}
-      <div className="flex flex-col items-start">
+    <div className={`relative ${compact ? 'py-2' : 'py-4'}`}>
+      <div className="flex flex-col items-center">
         {stepsByLevel.map((levelData, levelIndex) => {
           const { steps: levelSteps } = levelData;
           const isLastLevel = levelIndex === stepsByLevel.length - 1 && !goalExercise;
@@ -85,86 +80,167 @@ export default function ProgressionGraph({
           const allCompleted = levelSteps.every(s => s.isCompleted);
           const someCurrent = levelSteps.some(s => s.isCurrent);
 
+          const edgeColor = allCompleted ? EDGE_COLOR_COMPLETED : someCurrent ? EDGE_COLOR : EDGE_COLOR_LOCKED;
+
           return (
             <div key={levelIndex} className="relative w-full">
-              {/* Connecting Edge to next level */}
-              {!isLastLevel && (
-                <div
-                  className="absolute left-[21px] z-0"
-                  style={{
-                    top: hasParallel ? (compact ? 60 : 80) : nodeSize,
-                    height: compact ? '28px' : '40px',
-                    width: '3px',
-                    background: allCompleted
-                      ? EDGE_COLOR_COMPLETED
-                      : someCurrent
-                        ? EDGE_COLOR
-                        : EDGE_COLOR_LOCKED,
-                    borderRadius: '2px'
-                  }}
-                />
-              )}
-
-              {/* Parallel steps - displayed in a visual group */}
+              {/* Parallel branching layout */}
               {hasParallel ? (
-                <div className="relative mb-2">
-                  {/* Parallel indicator label */}
-                  {!compact && (
-                    <div className="flex items-center gap-2 mb-2 ml-14">
-                      <span className="text-[10px] uppercase tracking-wider font-semibold text-orange-500 bg-orange-50 px-2 py-0.5 rounded">
-                        Train Together
-                      </span>
-                    </div>
-                  )}
+                <div className="relative">
+                  {/* SVG for branch lines */}
+                  <svg
+                    className="absolute top-0 left-0 w-full overflow-visible pointer-events-none"
+                    style={{ height: compact ? 60 : 80 }}
+                  >
+                    {/* Main vertical line coming in */}
+                    {levelIndex > 0 && (
+                      <line
+                        x1="50%"
+                        y1="0"
+                        x2="50%"
+                        y2={compact ? 12 : 16}
+                        stroke={edgeColor}
+                        strokeWidth="2"
+                      />
+                    )}
 
-                  {/* Container for parallel steps */}
-                  <div className="relative bg-gradient-to-r from-orange-50/50 to-transparent rounded-xl py-2 pl-0 pr-4">
-                    {/* Vertical connecting line for parallel group */}
-                    <div
-                      className="absolute left-[21px] top-0 bottom-0 w-[3px] rounded"
-                      style={{ background: someCurrent ? EDGE_COLOR : allCompleted ? EDGE_COLOR_COMPLETED : EDGE_COLOR_LOCKED }}
+                    {/* Horizontal connector bar */}
+                    <line
+                      x1={`${50 - (levelSteps.length - 1) * (compact ? 18 : 22)}%`}
+                      y1={compact ? 12 : 16}
+                      x2={`${50 + (levelSteps.length - 1) * (compact ? 18 : 22)}%`}
+                      y2={compact ? 12 : 16}
+                      stroke={edgeColor}
+                      strokeWidth="2"
                     />
 
-                    {/* Branch lines to each parallel step */}
-                    <div className="space-y-1">
-                      {levelSteps.map((step, stepIndex) => (
-                        <div key={step._id || step.id || `${levelIndex}-${stepIndex}`} className="relative">
-                          {/* Horizontal branch line */}
-                          <div
-                            className="absolute left-[21px] top-1/2 h-[3px] -translate-y-1/2"
-                            style={{
-                              width: '20px',
-                              background: step.isCompleted ? EDGE_COLOR_COMPLETED : step.isCurrent ? EDGE_COLOR : EDGE_COLOR_LOCKED,
-                              borderRadius: '2px'
-                            }}
-                          />
-                          <div className="ml-10">
-                            <StepNode
-                              step={step}
-                              index={step.order ?? levelIndex}
-                              compact={compact}
-                              nodeSize={nodeSize}
-                              onStepClick={onStepClick}
-                              onSetCurrentStep={onSetCurrentStep}
-                              editable={editable}
-                              isParallel
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    {/* Vertical drops to each node */}
+                    {levelSteps.map((_, i) => {
+                      const xPercent = 50 + (i - (levelSteps.length - 1) / 2) * (compact ? 36 : 44);
+                      return (
+                        <line
+                          key={i}
+                          x1={`${xPercent}%`}
+                          y1={compact ? 12 : 16}
+                          x2={`${xPercent}%`}
+                          y2={compact ? 24 : 32}
+                          stroke={levelSteps[i].isCompleted ? EDGE_COLOR_COMPLETED : levelSteps[i].isCurrent ? EDGE_COLOR : EDGE_COLOR_LOCKED}
+                          strokeWidth="2"
+                        />
+                      );
+                    })}
+                  </svg>
+
+                  {/* Nodes row */}
+                  <div
+                    className="flex justify-center gap-2"
+                    style={{ paddingTop: compact ? 24 : 32 }}
+                  >
+                    {levelSteps.map((step, stepIndex) => (
+                      <BranchNode
+                        key={step._id || step.id || `${levelIndex}-${stepIndex}`}
+                        step={step}
+                        index={step.order ?? levelIndex}
+                        compact={compact}
+                        nodeSize={nodeSize}
+                        onStepClick={onStepClick}
+                        onSetCurrentStep={onSetCurrentStep}
+                        editable={editable}
+                      />
+                    ))}
                   </div>
+
+                  {/* Merge lines after parallel nodes */}
+                  {!isLastLevel && (
+                    <svg
+                      className="w-full overflow-visible pointer-events-none"
+                      style={{ height: compact ? 20 : 28 }}
+                    >
+                      {/* Vertical lines from each node */}
+                      {levelSteps.map((step, i) => {
+                        const xPercent = 50 + (i - (levelSteps.length - 1) / 2) * (compact ? 36 : 44);
+                        return (
+                          <line
+                            key={i}
+                            x1={`${xPercent}%`}
+                            y1="0"
+                            x2={`${xPercent}%`}
+                            y2={compact ? 8 : 12}
+                            stroke={step.isCompleted ? EDGE_COLOR_COMPLETED : step.isCurrent ? EDGE_COLOR : EDGE_COLOR_LOCKED}
+                            strokeWidth="2"
+                          />
+                        );
+                      })}
+
+                      {/* Horizontal merge bar */}
+                      <line
+                        x1={`${50 - (levelSteps.length - 1) * (compact ? 18 : 22)}%`}
+                        y1={compact ? 8 : 12}
+                        x2={`${50 + (levelSteps.length - 1) * (compact ? 18 : 22)}%`}
+                        y2={compact ? 8 : 12}
+                        stroke={allCompleted ? EDGE_COLOR_COMPLETED : EDGE_COLOR_LOCKED}
+                        strokeWidth="2"
+                      />
+
+                      {/* Main vertical line going out */}
+                      <line
+                        x1="50%"
+                        y1={compact ? 8 : 12}
+                        x2="50%"
+                        y2={compact ? 20 : 28}
+                        stroke={allCompleted ? EDGE_COLOR_COMPLETED : EDGE_COLOR_LOCKED}
+                        strokeWidth="2"
+                      />
+                    </svg>
+                  )}
                 </div>
               ) : (
-                <StepNode
-                  step={levelSteps[0]}
-                  index={levelSteps[0].order ?? levelIndex}
-                  compact={compact}
-                  nodeSize={nodeSize}
-                  onStepClick={onStepClick}
-                  onSetCurrentStep={onSetCurrentStep}
-                  editable={editable}
-                />
+                /* Single node (no parallel) */
+                <div className="relative">
+                  {/* Connector line from previous */}
+                  {levelIndex > 0 && (
+                    <div
+                      className="absolute left-1/2 -translate-x-1/2"
+                      style={{
+                        top: 0,
+                        height: compact ? 8 : 12,
+                        width: 2,
+                        background: edgeColor
+                      }}
+                    />
+                  )}
+
+                  <div
+                    className="flex justify-center"
+                    style={{ paddingTop: levelIndex > 0 ? (compact ? 8 : 12) : 0 }}
+                  >
+                    <SingleNode
+                      step={levelSteps[0]}
+                      index={levelSteps[0].order ?? levelIndex}
+                      compact={compact}
+                      nodeSize={nodeSize}
+                      onStepClick={onStepClick}
+                      onSetCurrentStep={onSetCurrentStep}
+                      editable={editable}
+                    />
+                  </div>
+
+                  {/* Connector line to next */}
+                  {!isLastLevel && (
+                    <div
+                      className="absolute left-1/2 -translate-x-1/2"
+                      style={{
+                        bottom: -(compact ? 8 : 12),
+                        height: compact ? 8 : 12,
+                        width: 2,
+                        background: levelSteps[0].isCompleted ? EDGE_COLOR_COMPLETED : EDGE_COLOR_LOCKED
+                      }}
+                    />
+                  )}
+
+                  {/* Spacer for connector */}
+                  {!isLastLevel && <div style={{ height: compact ? 8 : 12 }} />}
+                </div>
               )}
             </div>
           );
@@ -172,57 +248,48 @@ export default function ProgressionGraph({
 
         {/* Goal Node */}
         {goalExercise && (
-          <div className="relative w-full">
-            {/* Final connecting edge */}
+          <div className="relative">
+            {/* Final connector */}
             <div
-              className="absolute left-[21px] z-0"
+              className="absolute left-1/2 -translate-x-1/2"
               style={{
-                top: -32,
-                height: compact ? '28px' : '36px',
-                width: '3px',
+                top: 0,
+                height: compact ? 12 : 16,
+                width: 2,
                 background: `linear-gradient(to bottom, ${
                   stepsWithStatus.every(s => s.isCompleted) ? EDGE_COLOR_COMPLETED : EDGE_COLOR
-                }, #8b5cf6)`,
-                borderRadius: '2px'
+                }, #8b5cf6)`
               }}
             />
 
-            <div className={`flex items-center gap-4 ${compact ? 'py-2' : 'py-3'}`}>
-              {/* Goal Circle */}
-              <div
-                className="relative flex-shrink-0 z-10"
-                style={{ width: compact ? NODE_SIZE.compact : NODE_SIZE.goal, height: compact ? NODE_SIZE.compact : NODE_SIZE.goal }}
-              >
+            <div
+              className="flex justify-center"
+              style={{ paddingTop: compact ? 12 : 16 }}
+            >
+              <div className="flex flex-col items-center">
                 <div
-                  className="w-full h-full rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105"
+                  className="rounded-full flex items-center justify-center shadow-lg"
                   style={{
+                    width: compact ? NODE_SIZE.compact : NODE_SIZE.goal,
+                    height: compact ? NODE_SIZE.compact : NODE_SIZE.goal,
                     background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%)',
-                    boxShadow: '0 0 20px rgba(139, 92, 246, 0.4)'
+                    boxShadow: '0 0 16px rgba(139, 92, 246, 0.4)'
                   }}
                 >
                   {stepsWithStatus.every(s => s.isCompleted) ? (
-                    <Trophy className="text-white" style={{ width: compact ? 18 : 24, height: compact ? 18 : 24 }} />
+                    <Trophy className="text-white" style={{ width: compact ? 14 : 18, height: compact ? 14 : 18 }} />
                   ) : (
-                    <Star className="text-white fill-white/30" style={{ width: compact ? 18 : 24, height: compact ? 18 : 24 }} />
+                    <Star className="text-white fill-white/30" style={{ width: compact ? 14 : 18, height: compact ? 14 : 18 }} />
                   )}
                 </div>
-              </div>
-
-              {/* Goal Text */}
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h4 className={`font-bold ${compact ? 'text-sm' : 'text-lg'} text-violet-700`}>
+                <div className="mt-2 text-center">
+                  <span className={`font-bold text-violet-700 ${compact ? 'text-xs' : 'text-sm'}`}>
                     {goalExercise}
-                  </h4>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-600 uppercase tracking-wide">
+                  </span>
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-violet-100 text-violet-600 uppercase">
                     Goal
                   </span>
                 </div>
-                {!compact && (
-                  <p className="text-sm text-violet-400 mt-0.5">
-                    Master this to complete your journey
-                  </p>
-                )}
               </div>
             </div>
           </div>
@@ -232,42 +299,13 @@ export default function ProgressionGraph({
   );
 }
 
-// Individual Step Node Component
-function StepNode({ step, index, compact, nodeSize, onStepClick, onSetCurrentStep, editable = false, isParallel = false }) {
-  const getNodeStyle = () => {
-    switch (step.status) {
-      case 'completed':
-        return {
-          bg: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-          border: 'none',
-          iconColor: 'white',
-          shadow: '0 4px 12px rgba(34, 197, 94, 0.3)'
-        };
-      case 'in_progress':
-      case 'available':
-        return {
-          bg: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-          border: 'none',
-          iconColor: 'white',
-          shadow: '0 4px 12px rgba(249, 115, 22, 0.4)'
-        };
-      case 'locked':
-      default:
-        return {
-          bg: 'white',
-          border: '3px solid #e5e7eb',
-          iconColor: '#9ca3af',
-          shadow: 'none'
-        };
-    }
-  };
-
-  const style = getNodeStyle();
+// Single node (for non-parallel steps)
+function SingleNode({ step, index, compact, nodeSize, onStepClick, onSetCurrentStep, editable }) {
+  const style = getNodeStyle(step.status);
   const isClickable = editable || (onStepClick && step.status !== 'locked');
 
   const handleClick = () => {
     if (editable && onSetCurrentStep) {
-      // If editable mode, allow setting current step
       onSetCurrentStep(step);
     } else if (onStepClick && step.status !== 'locked') {
       onStepClick(step);
@@ -276,96 +314,126 @@ function StepNode({ step, index, compact, nodeSize, onStepClick, onSetCurrentSte
 
   return (
     <div
-      className={`flex items-center gap-4 ${compact ? 'py-2' : 'py-3'} ${
-        isClickable ? 'cursor-pointer group' : ''
-      } ${isParallel ? '' : 'w-full'}`}
+      className={`flex flex-col items-center ${isClickable ? 'cursor-pointer group' : ''}`}
       onClick={handleClick}
     >
-      {/* Circle Node */}
       <div
-        className="relative flex-shrink-0 z-10"
-        style={{ width: nodeSize, height: nodeSize }}
+        className={`rounded-full flex items-center justify-center transition-all ${
+          isClickable ? 'group-hover:scale-110 group-hover:ring-2 group-hover:ring-orange-200' : ''
+        }`}
+        style={{
+          width: nodeSize,
+          height: nodeSize,
+          background: style.bg,
+          border: style.border,
+          boxShadow: style.shadow
+        }}
       >
-        <div
-          className={`w-full h-full rounded-full flex items-center justify-center transition-all duration-300 ${
-            isClickable ? 'group-hover:scale-110 group-hover:ring-4 group-hover:ring-orange-200' : ''
-          }`}
-          style={{
-            background: style.bg,
-            border: style.border,
-            boxShadow: style.shadow
-          }}
-        >
-          {step.isCompleted ? (
-            <Check
-              style={{ width: compact ? 16 : 20, height: compact ? 16 : 20, color: style.iconColor }}
-              strokeWidth={3}
-            />
-          ) : step.status === 'locked' ? (
-            editable ? (
-              // Show circle instead of lock in editable mode
-              <Circle
-                style={{ width: compact ? 14 : 18, height: compact ? 14 : 18, color: style.iconColor }}
-              />
-            ) : (
-              <Lock
-                style={{ width: compact ? 14 : 18, height: compact ? 14 : 18, color: style.iconColor }}
-              />
-            )
-          ) : (
-            <span
-              className="font-bold"
-              style={{ fontSize: compact ? 14 : 16, color: style.iconColor }}
-            >
-              {index + 1}
-            </span>
-          )}
-        </div>
-
-        {/* Edit hint on hover */}
-        {editable && !compact && (
-          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-orange-500 rounded-full items-center justify-center text-white text-[10px] font-bold hidden group-hover:flex shadow">
-            ✓
-          </div>
-        )}
+        <NodeIcon step={step} index={index} compact={compact} iconColor={style.iconColor} editable={editable} />
       </div>
-
-      {/* Exercise Text - Next to circle */}
-      <div className="flex-1 min-w-0">
-        <h4 className={`font-semibold leading-tight ${compact ? 'text-sm' : 'text-base'} ${
+      <div className={`mt-1.5 text-center max-w-[100px] ${compact ? 'max-w-[80px]' : ''}`}>
+        <p className={`font-medium leading-tight ${compact ? 'text-[10px]' : 'text-xs'} ${
           step.status === 'locked' && !editable ? 'text-gray-400' : 'text-gray-900'
-        } ${isClickable ? 'group-hover:text-orange-600 transition-colors' : ''}`}>
+        } ${isClickable ? 'group-hover:text-orange-600' : ''} line-clamp-2`}>
           {step.exerciseName}
-        </h4>
-
-        {!compact && step.notes && (
-          <p className={`text-sm mt-0.5 line-clamp-1 ${
-            step.status === 'locked' && !editable ? 'text-gray-300' : 'text-gray-500'
-          }`}>
-            {step.notes}
-          </p>
-        )}
-
+        </p>
         {!compact && step.targetMetrics && (
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {step.targetMetrics.reps && (
-              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                {step.targetMetrics.reps} reps
-              </span>
-            )}
-            {step.targetMetrics.sets && (
-              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                {step.targetMetrics.sets} sets
-              </span>
-            )}
-            {step.targetMetrics.holdTime && (
-              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                {step.targetMetrics.holdTime}s hold
-              </span>
-            )}
-          </div>
+          <p className="text-[9px] text-gray-400 mt-0.5">
+            {step.targetMetrics.reps && `${step.targetMetrics.reps} reps`}
+            {step.targetMetrics.sets && ` × ${step.targetMetrics.sets}`}
+            {step.targetMetrics.holdTime && `${step.targetMetrics.holdTime}s`}
+          </p>
         )}
       </div>
     </div>
   );
+}
+
+// Branch node (for parallel steps - more compact)
+function BranchNode({ step, index, compact, nodeSize, onStepClick, onSetCurrentStep, editable }) {
+  const style = getNodeStyle(step.status);
+  const isClickable = editable || (onStepClick && step.status !== 'locked');
+
+  const handleClick = () => {
+    if (editable && onSetCurrentStep) {
+      onSetCurrentStep(step);
+    } else if (onStepClick && step.status !== 'locked') {
+      onStepClick(step);
+    }
+  };
+
+  return (
+    <div
+      className={`flex flex-col items-center ${isClickable ? 'cursor-pointer group' : ''}`}
+      onClick={handleClick}
+      style={{ width: compact ? 70 : 90 }}
+    >
+      <div
+        className={`rounded-full flex items-center justify-center transition-all ${
+          isClickable ? 'group-hover:scale-110 group-hover:ring-2 group-hover:ring-orange-200' : ''
+        }`}
+        style={{
+          width: nodeSize,
+          height: nodeSize,
+          background: style.bg,
+          border: style.border,
+          boxShadow: style.shadow
+        }}
+      >
+        <NodeIcon step={step} index={index} compact={compact} iconColor={style.iconColor} editable={editable} />
+      </div>
+      <div className="mt-1.5 text-center">
+        <p className={`font-medium leading-tight ${compact ? 'text-[9px]' : 'text-[11px]'} ${
+          step.status === 'locked' && !editable ? 'text-gray-400' : 'text-gray-900'
+        } ${isClickable ? 'group-hover:text-orange-600' : ''} line-clamp-2`}>
+          {step.exerciseName}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Shared node icon component
+function NodeIcon({ step, index, compact, iconColor, editable }) {
+  if (step.isCompleted) {
+    return <Check style={{ width: compact ? 14 : 16, height: compact ? 14 : 16, color: iconColor }} strokeWidth={3} />;
+  }
+  if (step.status === 'locked') {
+    return editable
+      ? <Circle style={{ width: compact ? 12 : 14, height: compact ? 12 : 14, color: iconColor }} />
+      : <Lock style={{ width: compact ? 12 : 14, height: compact ? 12 : 14, color: iconColor }} />;
+  }
+  return (
+    <span className="font-bold" style={{ fontSize: compact ? 11 : 13, color: iconColor }}>
+      {index + 1}
+    </span>
+  );
+}
+
+// Style helper
+function getNodeStyle(status) {
+  switch (status) {
+    case 'completed':
+      return {
+        bg: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+        border: 'none',
+        iconColor: 'white',
+        shadow: '0 2px 8px rgba(34, 197, 94, 0.3)'
+      };
+    case 'in_progress':
+    case 'available':
+      return {
+        bg: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+        border: 'none',
+        iconColor: 'white',
+        shadow: '0 2px 8px rgba(249, 115, 22, 0.35)'
+      };
+    default:
+      return {
+        bg: 'white',
+        border: '2px solid #e5e7eb',
+        iconColor: '#9ca3af',
+        shadow: 'none'
+      };
+  }
 }
