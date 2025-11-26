@@ -1,18 +1,26 @@
 /**
  * AI Service Layer
- * Direct connection to AI Coach Service for AI-powered features
+ * Routes through the Node.js backend which proxies to the AI Coach Service
  */
 
-const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8001';
+// Use the backend API URL (same as chat - proxied through Node.js backend)
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 class AIService {
   constructor() {
-    this.baseURL = AI_SERVICE_URL;
+    this.baseURL = API_BASE_URL;
+  }
+
+  getAuthToken() {
+    // Get auth token from localStorage (same pattern as other API calls)
+    return localStorage.getItem('authToken');
   }
 
   async request(endpoint, options = {}) {
     try {
       const url = `${this.baseURL}${endpoint}`;
+      const token = this.getAuthToken();
+
       if (import.meta.env.DEV) {
         console.log(`AI Service Request: ${options.method || 'GET'} ${url}`);
       }
@@ -21,6 +29,7 @@ class AIService {
         ...options,
         headers: {
           'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` }),
           ...options.headers
         }
       });
@@ -44,7 +53,7 @@ class AIService {
    * @returns {Promise<{suggestions: Object, confidence: number}>}
    */
   async suggestExercise(name) {
-    return this.request('/api/v1/exercises/suggest', {
+    return this.request('/api/v1/ai/exercises/suggest', {
       method: 'POST',
       body: JSON.stringify({ name })
     });
@@ -61,7 +70,8 @@ class AIService {
    */
   streamSuggestExercise(name, onField, onComplete, onError) {
     const controller = new AbortController();
-    const url = `${this.baseURL}/api/v1/exercises/suggest/stream`;
+    const url = `${this.baseURL}/api/v1/ai/exercises/suggest/stream`;
+    const token = this.getAuthToken();
 
     if (import.meta.env.DEV) {
       console.log(`AI Service Stream Request: POST ${url}`);
@@ -71,6 +81,7 @@ class AIService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
       },
       body: JSON.stringify({ name }),
       signal: controller.signal
@@ -140,7 +151,7 @@ class AIService {
    * @returns {Promise<{suggestion: Object, confidence: number}>}
    */
   async suggestProgression(goalExercise, currentLevel = 'beginner', availableEquipment = []) {
-    return this.request('/api/v1/progressions/suggest', {
+    return this.request('/api/v1/ai/progressions/suggest', {
       method: 'POST',
       body: JSON.stringify({ goalExercise, currentLevel, availableEquipment })
     });
@@ -159,7 +170,8 @@ class AIService {
    */
   streamSuggestProgression(goalExercise, currentLevel, availableEquipment, onField, onComplete, onError) {
     const controller = new AbortController();
-    const url = `${this.baseURL}/api/v1/progressions/suggest/stream`;
+    const url = `${this.baseURL}/api/v1/ai/progressions/suggest/stream`;
+    const token = this.getAuthToken();
 
     if (import.meta.env.DEV) {
       console.log(`AI Service Stream Request: POST ${url}`);
@@ -169,6 +181,7 @@ class AIService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
       },
       body: JSON.stringify({ goalExercise, currentLevel, availableEquipment }),
       signal: controller.signal
