@@ -25,8 +25,16 @@ export default function Onboarding() {
         <img src={splashPattern2} alt="" className="w-full h-full" />
       </div>
 
+      {/* Background Logo */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
+        <img src="/logo.png" alt="" className="w-[120%] max-w-none blur-sm" />
+      </div>
+
       {/* Logo/Brand */}
-      <div className="z-10 text-center mt-[-60px]">
+      <div className="z-10 text-center mt-[-60px] flex flex-col items-center gap-4">
+        <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center shadow-lg mb-4">
+          <img src="/logo.png" alt="Torii Logo" className="w-20 h-20 object-contain" />
+        </div>
         <h1 className="text-[40px] font-bold text-white leading-[1.5] tracking-[0.2px]">
           Torii
         </h1>

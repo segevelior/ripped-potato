@@ -21,6 +21,7 @@ module.exports = {
 					600: '#E0482C', // Primary/Red 600 (Added)
 					700: '#C23D25', // Primary/Red 700 (Added)
 				},
+				'coral-brand': '#FE5334', // Adding explicit coral-brand to match usage
 				secondary: {
 					DEFAULT: '#6366F1',
 					foreground: '#FFFFFF'

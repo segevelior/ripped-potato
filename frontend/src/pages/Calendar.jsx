@@ -740,9 +740,9 @@ export default function CalendarPage() {
           </div>
           <h3 className="text-xl font-semibold mb-2 text-grey-900">No Workouts Scheduled</h3>
           <p className="mb-6 text-grey-500">
-            Click on any date to add a workout, or use the AI Coach to create a plan.
+            Click on any date to add a workout, or use Sensei to create a plan.
           </p>
-          <button onClick={() => openAICoach('Help me create a workout plan.')} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors">Go to AI Coach</button>
+          <button onClick={() => openAICoach('Help me create a workout plan.')} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors">Go to Sensei</button>
 
           {/* Test button */}
         </div>

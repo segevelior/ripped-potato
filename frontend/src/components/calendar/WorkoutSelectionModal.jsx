@@ -224,11 +224,11 @@ export default function WorkoutSelectionModal({ date, onClose, onApplyWorkout })
         <div className="flex-1 overflow-y-auto bg-gray-50">
           {!showPreview ? (
             <div className="p-6 space-y-6">
-              {/* AI Coach Prompt */}
+              {/* Sensei Prompt */}
               <div className="bg-white rounded-xl p-6 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <Bot className="w-5 h-5 text-purple-600" />
-                  Tell the coach what you want to do today...
+                  Tell your Sensei what you want to do today...
                 </h3>
                 <div className="flex gap-3">
                   <input
@@ -244,7 +244,7 @@ export default function WorkoutSelectionModal({ date, onClose, onApplyWorkout })
                     disabled={isProcessingPrompt}
                     className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    {isProcessingPrompt ? 'Thinking...' : 'Ask Coach'}
+                    {isProcessingPrompt ? 'Thinking...' : 'Ask Sensei'}
                   </button>
                 </div>
               </div>
@@ -338,7 +338,7 @@ export default function WorkoutSelectionModal({ date, onClose, onApplyWorkout })
 
                 {filteredWorkouts.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
-                    No workouts match your criteria. Try adjusting your filters or asking the AI coach for help.
+                    No workouts match your criteria. Try adjusting your filters or asking Sensei for help.
                   </div>
                 )}
               </div>

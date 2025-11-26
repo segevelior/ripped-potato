@@ -41,7 +41,7 @@ const navigationItems = [
     icon: Target,
   },
   {
-    title: "AI Coach",
+    title: "Sensei",
     url: createPageUrl("Chat"),
     icon: Bot,
   },
@@ -77,6 +77,9 @@ export default function Layout({ children }) {
   const [isNavVisible, setIsNavVisible] = useState(true);
   const lastScrollY = useRef(0);
   const mainContentRef = useRef(null);
+
+  // Check if we're on the chat page - it has its own full-screen layout
+  const isChatPage = location.pathname === '/chat' || location.pathname === '/Chat';
 
   useEffect(() => {
     const handleScroll = throttle(() => {
@@ -115,7 +118,7 @@ export default function Layout({ children }) {
           <Sidebar>
             <SidebarHeader>
               <div className="flex items-center gap-2">
-                <Activity className="w-6 h-6" style={{ color: 'var(--accent)' }} />
+                <img src="/logo.png" alt="Torii Logo" className="w-8 h-8 object-contain" />
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Torii</h1>
               </div>
             </SidebarHeader>
@@ -168,10 +171,10 @@ export default function Layout({ children }) {
         </div>
 
         <div className="flex-1 flex flex-col h-full overflow-hidden">
-          {/* Mobile Sticky Header */}
-          <header className="flex items-center justify-between gap-4 border-b bg-white/80 backdrop-blur-md px-4 py-3 md:hidden sticky top-0 z-50">
+          {/* Mobile Sticky Header - Hidden on Chat page */}
+          <header className={`flex items-center justify-between gap-4 border-b bg-white/80 backdrop-blur-md px-4 py-3 md:hidden sticky top-0 z-50 ${isChatPage ? 'hidden' : ''}`}>
             <Link to={createPageUrl("Dashboard")} className="flex items-center gap-2">
-              <Activity className="w-6 h-6 text-purple-600" />
+              <img src="/logo.png" alt="Torii Logo" className="w-8 h-8 object-contain" />
               <span className="font-bold text-lg">Torii</span>
             </Link>
             <div className="flex items-center gap-3">
@@ -191,16 +194,17 @@ export default function Layout({ children }) {
           {/* Main Content Area */}
           <main
             ref={mainContentRef}
-            className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-24 md:pb-8 scroll-smooth"
+            className={`flex-1 overflow-y-auto scroll-smooth ${isChatPage ? 'p-0' : 'p-4 md:p-6 lg:p-8 pb-24 md:pb-8'}`}
           >
             <Outlet />
           </main>
 
-          {/* Mobile Bottom Navigation */}
+          {/* Mobile Bottom Navigation - Hidden on Chat page */}
           <nav
             className={`
               md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-gray-200 pb-[env(safe-area-inset-bottom)] z-50 transition-transform duration-300 ease-in-out
-              ${isNavVisible ? 'translate-y-0' : 'translate-y-full'}
+              ${isNavVisible && !isChatPage ? 'translate-y-0' : 'translate-y-full'}
+              ${isChatPage ? 'hidden' : ''}
             `}
           >
             <div className="flex items-center justify-around h-14 px-2">

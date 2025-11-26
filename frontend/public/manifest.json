@@ -1,0 +1,15 @@
+{
+    "short_name": "Torii",
+    "name": "Torii - AI-Powered Fitness Tracker",
+    "icons": [
+        {
+            "src": "/logo.png",
+            "sizes": "192x192 512x512",
+            "type": "image/png"
+        }
+    ],
+    "start_url": ".",
+    "display": "standalone",
+    "theme_color": "#000000",
+    "background_color": "#ffffff"
+}

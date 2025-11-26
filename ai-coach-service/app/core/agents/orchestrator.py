@@ -3,7 +3,7 @@ Enhanced Agent Orchestrator - OpenAI with comprehensive fitness tools
 """
 
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any, List, AsyncGenerator
 from openai import AsyncOpenAI
 import structlog
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -14,6 +14,60 @@ from app.config import get_settings
 from app.core.agents.data_reader import DataReaderAgent
 
 logger = structlog.get_logger()
+
+# System prompt used by the AI coach - shared across streaming and non-streaming endpoints
+SYSTEM_PROMPT = """You are an expert AI fitness coach helping users manage their personalized fitness journey. All data you create is personal to this specific user.
+
+TOOL USAGE GUIDELINES:
+
+**Exercises** (User's personal exercise library):
+- `list_exercises`: Use this to find exercises. KEY FILTERS:
+  - `muscle`: Filter by muscle GROUP (e.g., "Core", "Back", "Chest", "Legs", "Shoulders", "Arms", "Hamstrings", "Glutes", "Quadriceps"). USE THIS when user asks about exercises for a body part! This searches BOTH primary AND secondary muscles.
+  - `discipline`: Filter by training type (e.g., "Calisthenics", "Strength Training")
+  - `difficulty`: Filter by level ("beginner", "intermediate", "advanced")
+  - `equipment`: Filter by equipment needed
+  - `name`: Search by exercise name
+- `add_exercise`: Add exercises the user can perform. IMPORTANT: Always search first to check if the exercise already exists!
+
+**Grep Tools** (Pattern-matching search for specific exercise names):
+- `grep_exercises`: Use this when searching for SPECIFIC exercise names (e.g., "toes to bar", "muscle up"). Good for checking if an exercise exists before adding.
+- `grep_workouts`: Search workout templates by name/goal patterns.
+
+WHEN USER ASKS ABOUT EXERCISES BY MUSCLE GROUP (e.g., "what core exercises do I have?", "show me back exercises", "hamstring exercises"):
+→ Use `list_exercises` with the `muscle` parameter, NOT grep_exercises!
+→ "Core", "Back", "Chest", "Legs", "Hamstrings", "Glutes" etc. are MUSCLE GROUPS, not exercise names.
+→ The muscle filter searches BOTH primary AND secondary muscles - so compound exercises like Deadlifts will show up for "Hamstrings" even if hamstrings is a secondary muscle.
+
+**Workout Templates** (Reusable workout designs):
+- `create_workout_template`: Create workout templates with blocks (Warm-up, Main Work, Finisher, etc.). These are saved to the user's library and can be reused in training plans.
+- `list_workout_templates`: Find existing workout templates.
+
+**Workout Logging** (Training history):
+- `log_workout`: Record completed or planned workouts with actual sets, reps, weights, and RPE. This is the user's training log.
+- `get_workout_history`: View past workouts to analyze progress.
+
+**Training Plans** (Multi-week programs):
+- `create_plan`: Create structured training plans with weekly schedules. Plans can use workout templates or define custom workouts inline.
+- `list_plans`: View user's existing plans.
+- `update_plan`: Modify plan details or status.
+- `add_plan_workout` / `remove_plan_workout`: Manage workouts within plan weeks.
+
+**Goals**:
+- `create_goal`: Set fitness goals with target metrics.
+- `update_goal`: Update goal progress or details.
+- `list_goals`: View user's goals.
+
+IMPORTANT PRINCIPLES:
+1. MUSCLE GROUP vs EXERCISE NAME: "Core", "Back", "Chest", "Hamstrings" are muscle groups - use list_exercises with muscle filter. "Plank", "Pull-up", "Deadlift" are exercise names - use grep_exercises.
+2. SECONDARY MUSCLES MATTER: When user asks about exercises for a muscle group, remember that compound exercises target multiple muscles. For example, Deadlifts primarily work the back but ALSO work hamstrings and glutes. The list_exercises tool searches BOTH primary AND secondary muscles, so include these results!
+3. VERIFY BEFORE ANSWERING: Before saying "you don't have any X exercises", thoroughly check the search results including exercises where X is a secondary muscle.
+4. ALWAYS search before adding exercises to avoid duplicates!
+5. ONLY report exercises that actually exist in the database - NEVER hallucinate or make up exercises!
+6. Everything CREATED is PERSONAL to this user (isCommon=false, createdBy=userId)
+7. When creating workouts/exercises, match user's fitness level and available equipment
+8. Use proper volume/intensity based on user's fitness level
+9. If user mentions they "can do" an exercise, check if it exists first, then add if missing
+10. Be conversational and encouraging while being precise with data"""
 
 
 class AgentOrchestrator:
@@ -108,7 +162,7 @@ class AgentOrchestrator:
                 "type": "function",
                 "function": {
                     "name": "list_exercises",
-                    "description": "Search and list available exercises from the database. Use this to find specific exercises by name or filter by muscle group, discipline, or difficulty.",
+                    "description": "Search and list available exercises from the database. Use this to find exercises by muscle group, discipline, or difficulty. Searches BOTH primary AND secondary muscles - so compound exercises like Deadlifts will appear when filtering for 'Hamstrings' even if it's a secondary muscle.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -118,7 +172,7 @@ class AgentOrchestrator:
                             },
                             "muscle": {
                                 "type": "string",
-                                "description": "Filter by muscle group (e.g., 'Chest', 'Back', 'Legs', 'Core')"
+                                "description": "Filter by muscle group (e.g., 'Chest', 'Back', 'Legs', 'Core', 'Hamstrings', 'Glutes'). Searches BOTH primary AND secondary muscles!"
                             },
                             "discipline": {
                                 "type": "string",
@@ -768,50 +822,9 @@ USER DATA:
 - {len(data_context.get('goals', []))} active goals
 - {len(data_context.get('plans', []))} training plans"""
 
-        # Enhanced system prompt
-        system_prompt = """You are an expert AI fitness coach helping users manage their personalized fitness journey. All data you create is personal to this specific user.
-
-TOOL USAGE GUIDELINES:
-
-**Grep Tools** (Fast pattern-matching search - USE THESE FIRST):
-- `grep_exercises`: ALWAYS use this BEFORE adding exercises. Search multiple exercise patterns at once to check what exists vs. what's missing. Returns matches and missing items.
-- `grep_workouts`: Search workout templates by name/goal patterns.
-
-**Exercises** (User's personal exercise library):
-- `add_exercise`: Add exercises the user can perform. IMPORTANT: Always use grep_exercises first to check if the exercise already exists!
-- `list_exercises`: Search available exercises by muscle, discipline, difficulty, or equipment.
-
-**Workout Templates** (Reusable workout designs):
-- `create_workout_template`: Create workout templates with blocks (Warm-up, Main Work, Finisher, etc.). These are saved to the user's library and can be reused in training plans.
-- `list_workout_templates`: Find existing workout templates.
-
-**Workout Logging** (Training history):
-- `log_workout`: Record completed or planned workouts with actual sets, reps, weights, and RPE. This is the user's training log.
-- `get_workout_history`: View past workouts to analyze progress.
-
-**Training Plans** (Multi-week programs):
-- `create_plan`: Create structured training plans with weekly schedules. Plans can use workout templates or define custom workouts inline.
-- `list_plans`: View user's existing plans.
-- `update_plan`: Modify plan details or status.
-- `add_plan_workout` / `remove_plan_workout`: Manage workouts within plan weeks.
-
-**Goals**:
-- `create_goal`: Set fitness goals with target metrics.
-- `update_goal`: Update goal progress or details.
-- `list_goals`: View user's goals.
-
-IMPORTANT PRINCIPLES:
-1. ALWAYS use grep_exercises BEFORE add_exercise to avoid duplicates!
-2. grep_exercises searches ALL available exercises (common + user's custom). When user asks "do I have X?" use output_mode="both" to find exact and similar matches.
-3. When importing from workout images, first grep all exercises to see what exists
-4. Everything CREATED is PERSONAL to this user (isCommon=false, createdBy=userId)
-5. When creating workouts/exercises, match user's fitness level and available equipment
-6. Use proper volume/intensity based on user's fitness level
-7. If user mentions they "can do" an exercise, check if it exists first, then add if missing
-8. Be conversational and encouraging while being precise with data"""
-
+        # Use the shared system prompt constant
         messages = [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": f"{context_str}\n\nUser: {message}"}
         ]
 
@@ -880,6 +893,222 @@ IMPORTANT PRINCIPLES:
                 "type": "error",
                 "confidence": 0.5
             }
+
+    def _get_tool_description(self, function_name: str, function_args: Dict[str, Any]) -> str:
+        """Get user-friendly description for a tool call"""
+        descriptions = {
+            # Exercise tools
+            "add_exercise": f"Adding {function_args.get('name', 'exercise')} to your library",
+            "list_exercises": f"Searching exercises by {function_args.get('muscle', function_args.get('name', 'filter'))}",
+            "grep_exercises": f"Searching for {', '.join(function_args.get('patterns', ['exercises'])[:3])}",
+            "grep_workouts": f"Searching workouts: {', '.join(function_args.get('patterns', ['workouts'])[:3])}",
+            # Workout template tools
+            "create_workout_template": f"Creating workout template: {function_args.get('name', 'workout')}",
+            "list_workout_templates": "Browsing workout templates",
+            # Workout log tools
+            "log_workout": f"Logging workout: {function_args.get('title', 'workout')}",
+            "get_workout_history": "Fetching your workout history",
+            # Plan tools
+            "create_plan": f"Creating training plan: {function_args.get('name', 'plan')}",
+            "list_plans": "Fetching your training plans",
+            "update_plan": "Updating your training plan",
+            "add_plan_workout": f"Adding workout to week {function_args.get('weekNumber', '')}",
+            "remove_plan_workout": f"Removing workout from week {function_args.get('weekNumber', '')}",
+            # Goal tools
+            "create_goal": f"Setting up goal: {function_args.get('name', 'fitness goal')}",
+            "update_goal": "Updating your fitness goal",
+            "list_goals": "Fetching your fitness goals"
+        }
+        return descriptions.get(function_name, f"Processing {function_name}")
+
+    async def process_request_streaming(
+        self,
+        message: str,
+        user_context: Dict[str, Any],
+        conversation_history: List[Dict[str, Any]] = None
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Process user request with streaming, yielding events for real-time UI updates.
+
+        Yields events:
+        - {"type": "token", "content": "..."} - Individual response tokens
+        - {"type": "tool_start", "tool": "...", "description": "..."} - Tool execution started
+        - {"type": "tool_complete", "tool": "...", "success": bool, "message": "..."} - Tool finished
+        - {"type": "complete", "full_response": "..."} - Stream finished
+        - {"type": "error", "message": "..."} - Error occurred
+        """
+        user_id = user_context.get("user_id")
+
+        # Read user data for context
+        logger.info(f"Processing streaming request for user {user_id}")
+        data_context = await self.data_reader.process(message, user_context)
+
+        # Build context string
+        context_str = f"""User has:
+- {len(data_context.get('exercises', []))} exercises
+- {len(data_context.get('workouts', []))} workouts
+- {len(data_context.get('goals', []))} goals"""
+
+        # Build messages array with conversation history
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+        ]
+
+        # Add conversation history if available
+        if conversation_history:
+            for hist_msg in conversation_history:
+                role = "user" if hist_msg.get("role") == "human" else "assistant"
+                messages.append({
+                    "role": role,
+                    "content": hist_msg.get("content", "")
+                })
+            # Add current message without context prefix (history provides context)
+            messages.append({"role": "user", "content": message})
+        else:
+            # First message - include context
+            messages.append({"role": "user", "content": f"{context_str}\n\nUser: {message}"})
+
+        # Track the full response
+        full_response = []
+
+        try:
+            # Create streaming completion with tools
+            logger.info(f"Calling OpenAI API with model: {self.settings.openai_model} and {len(self.get_tools())} tools")
+            stream = await self.client.chat.completions.create(
+                model=self.settings.openai_model,
+                messages=messages,
+                tools=self.get_tools(),
+                tool_choice="auto",
+                temperature=0.7,
+                max_tokens=1500,
+                stream=True
+            )
+
+            tool_calls_data = {}  # Accumulate tool call chunks by index
+
+            async for chunk in stream:
+                choice = chunk.choices[0] if chunk.choices else None
+                if not choice:
+                    continue
+
+                delta = choice.delta
+
+                # Stream content tokens
+                if delta.content:
+                    token = delta.content
+                    full_response.append(token)
+                    yield {"type": "token", "content": token}
+
+                # Accumulate tool call chunks
+                if delta.tool_calls:
+                    for tool_call_chunk in delta.tool_calls:
+                        index = tool_call_chunk.index
+                        if index not in tool_calls_data:
+                            tool_calls_data[index] = {
+                                "id": "",
+                                "function": {"name": "", "arguments": ""}
+                            }
+
+                        if tool_call_chunk.id:
+                            tool_calls_data[index]["id"] = tool_call_chunk.id
+                        if tool_call_chunk.function:
+                            if tool_call_chunk.function.name:
+                                tool_calls_data[index]["function"]["name"] += tool_call_chunk.function.name
+                            if tool_call_chunk.function.arguments:
+                                tool_calls_data[index]["function"]["arguments"] += tool_call_chunk.function.arguments
+
+                # Check for finish reason
+                if choice.finish_reason == "tool_calls" and tool_calls_data:
+                    logger.info(f"Executing {len(tool_calls_data)} tool calls...")
+
+                    # Add newline before tool execution
+                    yield {"type": "token", "content": "\n\n"}
+
+                    # Execute each tool call
+                    tool_results = []
+                    for index in sorted(tool_calls_data.keys()):
+                        tool_data = tool_calls_data[index]
+                        function_name = tool_data["function"]["name"]
+                        function_args = json.loads(tool_data["function"]["arguments"])
+
+                        logger.info(f"Executing {function_name} with args: {function_args}")
+
+                        # Yield tool start event
+                        tool_description = self._get_tool_description(function_name, function_args)
+                        yield {
+                            "type": "tool_start",
+                            "tool": function_name,
+                            "description": tool_description
+                        }
+
+                        # Execute tool
+                        result = await self._execute_tool(user_id, function_name, function_args)
+
+                        logger.info(f"Tool {function_name} result: {result}")
+
+                        tool_results.append({
+                            "tool_call_id": tool_data["id"],
+                            "role": "tool",
+                            "content": json.dumps(result)
+                        })
+
+                        # Yield tool complete event
+                        yield {
+                            "type": "tool_complete",
+                            "tool": function_name,
+                            "success": result.get("success", False),
+                            "message": result.get("message", "")
+                        }
+
+                    # Build message history with tool results for final response
+                    messages.append({
+                        "role": "assistant",
+                        "tool_calls": [
+                            {
+                                "id": tool_calls_data[i]["id"],
+                                "type": "function",
+                                "function": {
+                                    "name": tool_calls_data[i]["function"]["name"],
+                                    "arguments": tool_calls_data[i]["function"]["arguments"]
+                                }
+                            }
+                            for i in sorted(tool_calls_data.keys())
+                        ]
+                    })
+
+                    for tool_result in tool_results:
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_result["tool_call_id"],
+                            "content": tool_result["content"]
+                        })
+
+                    # Stream the final response after tool execution
+                    logger.info("Getting final response after tool execution...")
+                    final_stream = await self.client.chat.completions.create(
+                        model=self.settings.openai_model,
+                        messages=messages,
+                        temperature=0.7,
+                        max_tokens=500,
+                        stream=True
+                    )
+
+                    async for final_chunk in final_stream:
+                        final_choice = final_chunk.choices[0] if final_chunk.choices else None
+                        if final_choice and final_choice.delta.content:
+                            token = final_choice.delta.content
+                            full_response.append(token)
+                            yield {"type": "token", "content": token}
+
+            # Yield completion event with full response
+            yield {
+                "type": "complete",
+                "full_response": "".join(full_response)
+            }
+
+        except Exception as e:
+            logger.error(f"Streaming error: {e}", exc_info=True)
+            yield {"type": "error", "message": str(e)}
 
     async def _execute_tool(self, user_id: str, function_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Route tool calls to appropriate handlers"""
@@ -985,10 +1214,11 @@ IMPORTANT PRINCIPLES:
 
             # Muscle filter (search primary and secondary muscles)
             if args.get("muscle"):
+                muscle_pattern = args["muscle"]
                 additional_filters.append({
                     "$or": [
-                        {"muscles": {"$regex": args["muscle"], "$options": "i"}},
-                        {"secondaryMuscles": {"$regex": args["muscle"], "$options": "i"}}
+                        {"muscles": {"$regex": muscle_pattern, "$options": "i"}},
+                        {"secondaryMuscles": {"$regex": muscle_pattern, "$options": "i"}}
                     ]
                 })
 
@@ -1016,10 +1246,14 @@ IMPORTANT PRINCIPLES:
 
             limit = args.get("limit", 20)
 
+            logger.info(f"list_exercises query for user {user_id}: {query}")
+
             exercises = await self.db.exercises.find(
                 query,
-                {"name": 1, "muscles": 1, "difficulty": 1, "equipment": 1, "discipline": 1, "description": 1}
+                {"name": 1, "muscles": 1, "secondaryMuscles": 1, "difficulty": 1, "equipment": 1, "discipline": 1, "description": 1}
             ).limit(limit).to_list(None)
+
+            logger.info(f"list_exercises found {len(exercises)} exercises")
 
             # Format results
             results = []

@@ -54,7 +54,9 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
   const [expandedBlocks, setExpandedBlocks] = useState(new Set([0])); // First block expanded by default
   const [expandedExercises, setExpandedExercises] = useState(new Set());
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const scrollContainerRef = useRef(null);
+  const dateInputRef = useRef(null);
 
   const workoutImage = getWorkoutImage(workout);
   const hasImage = true; // Always show image now
@@ -107,6 +109,18 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
       case 'advanced': return 'bg-red-500 text-white';
       default: return 'bg-gray-500 text-white';
     }
+  };
+
+  const handleCalendarClick = () => {
+    // Open native date picker
+    dateInputRef.current?.showPicker();
+  };
+
+  const handleDateChange = (e) => {
+    const newDate = e.target.value;
+    setSelectedDate(newDate);
+    // Auto-apply when date is selected
+    onApply(workout, newDate);
   };
 
   const getDisciplineColor = (discipline) => {
@@ -166,7 +180,7 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
           </div>
 
           {/* Content Card */}
-          <div className="bg-white relative z-10 px-6 pb-32 min-h-full rounded-t-[40px] -mt-10 pt-8">
+          <div className="bg-white relative z-10 px-6 pb-8 min-h-full rounded-t-[40px] -mt-10 pt-8">
 
             {/* Tag / Discipline */}
             <div className="flex items-center gap-2 mb-2">
@@ -203,15 +217,34 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden">
-                  {/* Placeholder Avatar */}
-                  <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-500 text-xs">AI</div>
+              <div className="flex items-center gap-2">
+                {/* Coached by Sensei */}
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center">
+                    <img src="/logo.png" alt="Sensei" className="w-9 h-9 object-contain" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 font-medium">Coached by</p>
+                    <p className="text-sm font-bold text-gray-900">Sensei</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500 font-medium">Coached by</p>
-                  <p className="text-sm font-bold text-gray-900">Torii Coach</p>
-                </div>
+
+                {/* Calendar Icon Button */}
+                <button
+                  onClick={handleCalendarClick}
+                  className="w-10 h-10 rounded-full bg-coral-brand/10 hover:bg-coral-brand/20 flex items-center justify-center transition-colors ml-2"
+                  title="Add to Calendar"
+                >
+                  <Calendar className="w-5 h-5 text-coral-brand" />
+                </button>
+                {/* Hidden date input */}
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  value={selectedDate}
+                  onChange={handleDateChange}
+                  className="sr-only"
+                />
               </div>
             </div>
 
@@ -383,26 +416,6 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
           </div>
         </div>
 
-        {/* Sticky Footer Actions */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100 z-50">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl">
-              <Calendar className="w-5 h-5 text-gray-500 ml-2" />
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="bg-transparent border-none text-sm font-medium text-gray-900 focus:ring-0 w-full"
-              />
-            </div>
-            <button
-              onClick={() => onApply(workout, selectedDate)}
-              className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold text-base hover:bg-gray-800 transition-colors shadow-xl shadow-gray-900/10"
-            >
-              Apply to Calendar
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
