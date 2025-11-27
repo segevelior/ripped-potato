@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     
     # AI Model Configuration
     openai_api_key: str
-    openai_model: str = "gpt-3.5-turbo"
+    openai_model: str = "gpt-5"
     
     # Security
     jwt_secret_key: str
