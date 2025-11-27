@@ -67,7 +67,7 @@ export default function GoalCard({ goal, userProgress, onView, onStart }) {
 
       {/* Disciplines */}
       <div className="flex flex-wrap gap-1 mb-4">
-        {goal.discipline.map((disc, i) => (
+        {(goal.discipline || []).map((disc, i) => (
           <span key={i} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
             {disc}
           </span>

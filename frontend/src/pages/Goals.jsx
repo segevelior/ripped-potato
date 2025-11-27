@@ -129,15 +129,15 @@ export default function Goals() {
   const filteredGoals = goals.filter(goal => {
     const matchesSearch = goal.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          goal.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDiscipline = disciplineFilter === "all" || 
-                             goal.discipline.includes(disciplineFilter);
+    const matchesDiscipline = disciplineFilter === "all" ||
+                             goal.discipline?.includes(disciplineFilter);
     const matchesCategory = categoryFilter === "all" || goal.category === categoryFilter;
     
     return matchesSearch && matchesDiscipline && matchesCategory;
   });
 
   const activeGoals = userProgress.filter(p => p.is_active);
-  const disciplines = [...new Set(goals.flatMap(g => g.discipline))];
+  const disciplines = [...new Set(goals.flatMap(g => g.discipline || []))];
   const categories = ["skill", "performance", "endurance", "strength"];
 
   if (isLoading) {
