@@ -94,7 +94,34 @@ Use quick replies when:
 - Presenting choices (different workout options, exercise alternatives)
 - After completing an action that may have follow-up options
 
-Keep quick reply options concise (2-5 words ideally, max 8 words). Provide 2-4 options typically."""
+Keep quick reply options concise (2-5 words ideally, max 8 words). Provide 2-4 options typically.
+
+ACTION BUTTONS:
+When you've designed a workout and the user has confirmed they want to train, include an action button that lets them start immediately. Use this format:
+
+<action-button action="train-now" workout='WORKOUT_JSON' date="YYYY-MM-DD">Start Training Now</action-button>
+
+The WORKOUT_JSON must be a valid JSON object with this structure:
+{
+  "title": "Workout Name",
+  "type": "strength|cardio|yoga|hiit|flexibility|calisthenics",
+  "duration_minutes": 30,
+  "exercises": [
+    {"exercise_name": "Exercise Name", "volume": "3x10", "notes": "optional notes", "rest": "60s"}
+  ]
+}
+
+IMPORTANT: When a user confirms they want to start training NOW (says "yes", "start", "let's go", etc. after you've proposed a workout):
+1. Include the <action-button> tag in your response with the full workout data
+2. Use today's date in YYYY-MM-DD format
+3. The button will save the workout to their calendar AND start the live workout session
+
+Example response when user confirms:
+"Great! Your Upper Body Strength workout is ready. Click below to begin!
+
+<action-button action="train-now" workout='{"title":"Upper Body Strength","type":"strength","duration_minutes":45,"exercises":[{"exercise_name":"Push-ups","volume":"3x15","rest":"60s"},{"exercise_name":"Pull-ups","volume":"3x8","rest":"90s"}]}' date="2025-11-27">Start Training Now</action-button>"
+
+Do NOT include action buttons when just proposing or discussing workouts - only include them when the user has confirmed they want to start training."""
 
 
 class AgentOrchestrator:
@@ -1095,7 +1122,7 @@ USER DATA:
                 tools=self.get_tools(),
                 tool_choice="auto",
                 temperature=0.7,
-                max_tokens=1500,
+                max_tokens=2500,
                 stream=True
             )
 

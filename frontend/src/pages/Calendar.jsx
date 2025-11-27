@@ -15,19 +15,47 @@ const getWeekStartDay = () => {
   }
 };
 
-// Color palette for workout types - circular after 10 colors
+// Color palette for workout types - using design system colors
 const WORKOUT_COLORS = [
-  { bg: 'bg-blue-100', dot: 'bg-blue-500', text: 'text-blue-700', border: 'border-blue-200' },
-  { bg: 'bg-green-100', dot: 'bg-green-500', text: 'text-green-700', border: 'border-green-200' },
-  { bg: 'bg-purple-100', dot: 'bg-purple-500', text: 'text-purple-700', border: 'border-purple-200' },
-  { bg: 'bg-orange-100', dot: 'bg-orange-500', text: 'text-orange-700', border: 'border-orange-200' },
-  { bg: 'bg-pink-100', dot: 'bg-pink-500', text: 'text-pink-700', border: 'border-pink-200' },
-  { bg: 'bg-cyan-100', dot: 'bg-cyan-500', text: 'text-cyan-700', border: 'border-cyan-200' },
-  { bg: 'bg-yellow-100', dot: 'bg-yellow-500', text: 'text-yellow-700', border: 'border-yellow-200' },
-  { bg: 'bg-red-100', dot: 'bg-red-500', text: 'text-red-700', border: 'border-red-200' },
-  { bg: 'bg-indigo-100', dot: 'bg-indigo-500', text: 'text-indigo-700', border: 'border-indigo-200' },
-  { bg: 'bg-teal-100', dot: 'bg-teal-500', text: 'text-teal-700', border: 'border-teal-200' },
+  { bg: 'bg-indigo-50', dot: 'bg-indigo-500', text: 'text-indigo-700', border: 'border-indigo-100' },      // strength
+  { bg: 'bg-emerald-50', dot: 'bg-emerald-500', text: 'text-emerald-700', border: 'border-emerald-100' },  // cardio
+  { bg: 'bg-violet-50', dot: 'bg-violet-500', text: 'text-violet-700', border: 'border-violet-100' },      // yoga/flexibility
+  { bg: 'bg-amber-50', dot: 'bg-amber-500', text: 'text-amber-700', border: 'border-amber-100' },          // hiit
+  { bg: 'bg-rose-50', dot: 'bg-rose-500', text: 'text-rose-700', border: 'border-rose-100' },              // calisthenics
+  { bg: 'bg-cyan-50', dot: 'bg-cyan-500', text: 'text-cyan-700', border: 'border-cyan-100' },              // mobility
+  { bg: 'bg-slate-100', dot: 'bg-slate-400', text: 'text-slate-600', border: 'border-slate-200' },         // recovery
+  { bg: 'bg-purple-50', dot: 'bg-purple-500', text: 'text-purple-700', border: 'border-purple-100' },      // meditation
+  { bg: 'bg-teal-50', dot: 'bg-teal-500', text: 'text-teal-700', border: 'border-teal-100' },              // hybrid
+  { bg: 'bg-sky-50', dot: 'bg-sky-500', text: 'text-sky-700', border: 'border-sky-100' },                  // other
 ];
+
+// Status-based styling - for showing what's done vs pending
+const STATUS_STYLES = {
+  completed: {
+    badge: 'bg-emerald-100 text-emerald-700',
+    label: 'Done',
+    dotStyle: 'ring-2 ring-emerald-400 ring-offset-1',
+    cardOverlay: ''
+  },
+  in_progress: {
+    badge: 'bg-amber-100 text-amber-700',
+    label: 'In Progress',
+    dotStyle: 'ring-2 ring-amber-400 ring-offset-1',
+    cardOverlay: ''
+  },
+  scheduled: {
+    badge: 'bg-gray-100 text-gray-500',
+    label: 'Scheduled',
+    dotStyle: '',
+    cardOverlay: ''
+  },
+  skipped: {
+    badge: 'bg-gray-100 text-gray-400 line-through',
+    label: 'Skipped',
+    dotStyle: 'opacity-40',
+    cardOverlay: 'opacity-50'
+  }
+};
 
 // Get color for a workout type (circular index for 10+ types)
 const getWorkoutTypeColor = (typeIndex) => {
@@ -61,6 +89,7 @@ const getEventTypeColor = (eventType) => {
 // Selected Day Panel Component - shows below the calendar
 const SelectedDayPanel = ({ date, events, onAddClick, onEditEvent, onDeleteEvent, getEventColor }) => {
   const isCurrentDay = isToday(date);
+  const completedCount = events.filter(e => e.status === 'completed').length;
 
   return (
     <div className={`bg-white rounded-xl shadow-sm p-6 ${isCurrentDay ? 'ring-2 ring-[#FE5334]/20' : ''}`}>
@@ -70,7 +99,12 @@ const SelectedDayPanel = ({ date, events, onAddClick, onEditEvent, onDeleteEvent
             {format(date, 'EEEE, MMMM d')}
             {isCurrentDay && <span className="ml-2 text-sm font-medium bg-[#FEE1DC] px-2 py-0.5 rounded-full">Today</span>}
           </h3>
-          <p className="text-sm text-gray-500">{events.length} workout{events.length !== 1 ? 's' : ''} scheduled</p>
+          <p className="text-sm text-gray-500">
+            {completedCount > 0
+              ? `${completedCount}/${events.length} completed`
+              : `${events.length} workout${events.length !== 1 ? 's' : ''} scheduled`
+            }
+          </p>
         </div>
         <button
           onClick={() => onAddClick(date)}
@@ -85,26 +119,22 @@ const SelectedDayPanel = ({ date, events, onAddClick, onEditEvent, onDeleteEvent
         <div className="space-y-3">
           {events.map((event, idx) => {
             const colors = getEventColor(event);
+            const status = event.status || 'scheduled';
+            const statusStyle = STATUS_STYLES[status] || STATUS_STYLES.scheduled;
             return (
-              <div key={event.id || idx} className="group relative">
+              <div key={event.id || idx} className={`group relative ${statusStyle.cardOverlay}`}>
                 <div
                   className={`p-4 rounded-xl cursor-pointer hover:shadow-md transition-all ${colors.bg} border ${colors.border}`}
                   onClick={() => onEditEvent(event)}
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    <div className={`w-3 h-3 rounded-full ${colors.dot}`}></div>
-                    <p className={`font-bold text-base ${colors.text}`}>
+                    <div className={`w-3 h-3 rounded-full ${colors.dot} ${statusStyle.dotStyle}`}></div>
+                    <p className={`font-bold text-base ${colors.text} ${status === 'skipped' ? 'line-through opacity-60' : ''}`}>
                       {event.title}
                     </p>
-                    {event.status && event.status !== 'scheduled' && (
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        event.status === 'completed' ? 'bg-green-100 text-green-700' :
-                        event.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                        event.status === 'skipped' ? 'bg-gray-100 text-gray-600' : ''
-                      }`}>
-                        {event.status.replace('_', ' ')}
-                      </span>
-                    )}
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusStyle.badge}`}>
+                      {statusStyle.label}
+                    </span>
                   </div>
                   <p className="text-sm text-gray-600 ml-6">
                     {event.workoutDetails?.exercises?.length || 0} exercises • {event.workoutDetails?.estimatedDuration || 60}min
@@ -312,8 +342,10 @@ const CalendarView = ({ events, activePlans, view, currentDate, onDateChange, on
             <div className="space-y-3">
               {dayEvents.length > 0 ? dayEvents.map((event, idx) => {
                 const colors = getEventColor(event);
+                const status = event.status || 'scheduled';
+                const statusStyle = STATUS_STYLES[status] || STATUS_STYLES.scheduled;
                 return (
-                  <div key={event.id || idx} className="group relative">
+                  <div key={event.id || idx} className={`group relative ${statusStyle.cardOverlay}`}>
                     <div
                       draggable
                       onDragStart={(e) => handleDragStart(e, event)}
@@ -321,19 +353,13 @@ const CalendarView = ({ events, activePlans, view, currentDate, onDateChange, on
                       onClick={() => handleEditEvent(event)}
                     >
                       <div className="flex items-center gap-3 mb-2">
-                        <div className={`w-3 h-3 rounded-full ${colors.dot}`}></div>
-                        <p className={`font-bold text-base ${colors.text}`}>
+                        <div className={`w-3 h-3 rounded-full ${colors.dot} ${statusStyle.dotStyle}`}></div>
+                        <p className={`font-bold text-base ${colors.text} ${status === 'skipped' ? 'line-through opacity-60' : ''}`}>
                           {event.title}
                         </p>
-                        {event.status && event.status !== 'scheduled' && (
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                            event.status === 'completed' ? 'bg-green-100 text-green-700' :
-                            event.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                            event.status === 'skipped' ? 'bg-gray-100 text-gray-600' : ''
-                          }`}>
-                            {event.status.replace('_', ' ')}
-                          </span>
-                        )}
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusStyle.badge}`}>
+                          {statusStyle.label}
+                        </span>
                       </div>
                       <p className="text-sm text-gray-600 ml-6">
                         {event.workoutDetails?.exercises?.length || 0} exercises • {event.workoutDetails?.estimatedDuration || 60}min
@@ -610,22 +636,25 @@ const CalendarView = ({ events, activePlans, view, currentDate, onDateChange, on
                     </span>
                   </div>
 
-                  {/* Event Indicators - Horizontal bars */}
+                  {/* Event Indicators - Horizontal bars with status */}
                   {hasEvents && (
                     <div className="space-y-0.5 px-0.5">
                       {dayEvents.slice(0, 3).map((event, idx) => {
                         const colors = getEventColor(event);
+                        const status = event.status || 'scheduled';
+                        const isCompleted = status === 'completed';
+                        const isSkipped = status === 'skipped';
                         return (
                           <div
                             key={event.id || idx}
                             draggable
                             onDragStart={(e) => handleDragStart(e, event)}
-                            className={`h-1 w-full rounded-full cursor-move ${colors.dot}`}
+                            className={`h-1 w-full rounded-full cursor-move ${colors.dot} ${isSkipped ? 'opacity-30' : ''} ${isCompleted ? 'ring-1 ring-emerald-400' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleEditEvent(event);
                             }}
-                            title={event.title}
+                            title={`${event.title} (${STATUS_STYLES[status]?.label || 'Scheduled'})`}
                           />
                         );
                       })}
@@ -659,15 +688,22 @@ const CalendarView = ({ events, activePlans, view, currentDate, onDateChange, on
             <div className="space-y-1.5">
               {selectedDayEvents.map((event, idx) => {
                 const colors = getEventColor(event);
+                const status = event.status || 'scheduled';
+                const statusStyle = STATUS_STYLES[status] || STATUS_STYLES.scheduled;
                 return (
                   <div
                     key={event.id || idx}
-                    className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:opacity-80 transition-opacity ${colors.bg}`}
+                    className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:opacity-80 transition-opacity ${colors.bg} ${statusStyle.cardOverlay}`}
                     onClick={() => handleEditEvent(event)}
                   >
-                    <div className={`w-1.5 h-6 rounded-full ${colors.dot}`}></div>
+                    <div className={`w-1.5 h-6 rounded-full ${colors.dot} ${statusStyle.dotStyle}`}></div>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-semibold truncate ${colors.text}`}>{event.title}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className={`text-xs font-semibold truncate ${colors.text} ${status === 'skipped' ? 'line-through opacity-60' : ''}`}>{event.title}</p>
+                        {status === 'completed' && (
+                          <span className="text-emerald-500 text-[10px]">✓</span>
+                        )}
+                      </div>
                       <p className="text-[10px] text-gray-500">{event.workoutDetails?.estimatedDuration || 60}min</p>
                     </div>
                     <button

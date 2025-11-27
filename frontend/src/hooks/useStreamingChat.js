@@ -4,7 +4,7 @@
  * Shows AI reasoning steps naturally through the response
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 // Use the backend API URL (Node.js backend which proxies to AI Coach service)
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
@@ -16,7 +16,29 @@ export function useStreamingChat() {
   const [activeTools, setActiveTools] = useState([]); // Track currently executing tools
   const [completedTools, setCompletedTools] = useState([]); // Track completed tools with their messages
 
+  // AbortController ref for stopping streams
+  const abortControllerRef = useRef(null);
+
+  // Stop the current stream
+  const stopStreaming = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsStreaming(false);
+    // Mark any active tools as stopped
+    setActiveTools([]);
+  }, []);
+
   const sendStreamingMessage = useCallback(async (message, authToken, conversationId = null) => {
+    // Cancel any existing stream
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
+
     setIsStreaming(true);
     setStreamingMessage('');
     setReasoningSteps([]);
@@ -37,7 +59,8 @@ export function useStreamingChat() {
         body: JSON.stringify({
           message,
           conversation_id: conversationId
-        })
+        }),
+        signal: abortControllerRef.current.signal
       });
 
       if (!response.ok) {
@@ -113,12 +136,22 @@ export function useStreamingChat() {
         }
       }
 
-      // Stream finished
+      // Stream finished - convert any remaining tool-executing tags to tool-complete
+      setStreamingMessage(prev => prev.replace(/<tool-executing>/g, '<tool-complete>').replace(/<\/tool-executing>/g, '</tool-complete>'));
       setIsStreaming(false);
+      setActiveTools([]); // Clear active tools when complete
+      abortControllerRef.current = null;
       return returnedConversationId;
     } catch (error) {
+      // Handle abort gracefully (user stopped the stream)
+      if (error.name === 'AbortError') {
+        console.log('[useStreamingChat] Stream was stopped by user');
+        setActiveTools([]); // Clear active tools
+        return null;
+      }
       console.error('Streaming error:', error);
       setIsStreaming(false);
+      setActiveTools([]); // Clear active tools on error
       throw error;
     }
   }, [activeTools]);
@@ -129,6 +162,7 @@ export function useStreamingChat() {
     reasoningSteps,
     activeTools,
     completedTools,
-    sendStreamingMessage
+    sendStreamingMessage,
+    stopStreaming
   };
 }

@@ -250,8 +250,20 @@ export default function Chat() {
       pendingPromptRef.current = null;
       setAutoSendPending(false);
 
-      // Add the user message to the UI and trigger processing
-      const userMessage = { role: "user", content: promptToSend };
+      // Extract clean display message from the full prompt
+      // The full prompt has context for AI, but we show a cleaner version to user
+      let displayMessage = promptToSend;
+      const userInputMatch = promptToSend.match(/Here's what I'm looking for: (.+?)(?:\n|Please)/s);
+      if (userInputMatch) {
+        displayMessage = userInputMatch[1].trim();
+      } else if (promptToSend.includes('TRAIN NOW')) {
+        displayMessage = "I want to train now - help me decide what to do";
+      } else if (promptToSend.includes('[WORKOUT REQUEST')) {
+        displayMessage = "Help me plan a workout for today";
+      }
+
+      // Add clean user message to the UI and trigger processing
+      const userMessage = { role: "user", content: displayMessage };
       setMessages(prev => [...prev, userMessage]);
       setIsThinking(true);
 
