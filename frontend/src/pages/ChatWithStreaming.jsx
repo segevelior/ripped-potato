@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { User } from "@/api/entities";
-import { Send, Loader2, Sparkles, Menu, ArrowLeft } from "lucide-react";
+import { Send, Sparkles, Menu, ArrowLeft, Square } from "lucide-react";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
@@ -9,6 +9,7 @@ import { ToolExecutionMarker } from "@/components/ToolExecutionMarker";
 import { ConversationSidebar } from "@/components/chat/ConversationSidebar";
 import { FeedbackButtons } from "@/components/chat/FeedbackButtons";
 import { QuickReplies, parseQuickReplies } from "@/components/chat/QuickReplies";
+import { ActionButtons, parseActionButtons } from "@/components/chat/ActionButtons";
 
 // API Base URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
@@ -41,7 +42,8 @@ export default function ChatWithStreaming() {
     streamingMessage,
     activeTools,
     completedTools,
-    sendStreamingMessage
+    sendStreamingMessage,
+    stopStreaming
   } = useStreamingChat();
 
   // Initial Load
@@ -442,8 +444,9 @@ export default function ChatWithStreaming() {
                     `}>
                       {msg.role === 'assistant' ? (
                         (() => {
-                          // Parse quick replies from message content
-                          const { cleanContent, quickReplies } = parseQuickReplies(msg.content || "");
+                          // Parse quick replies and action buttons from message content
+                          const { cleanContent: contentAfterQuickReplies, quickReplies } = parseQuickReplies(msg.content || "");
+                          const { cleanContent, actionButtons } = parseActionButtons(contentAfterQuickReplies);
                           const isLastMessage = idx === messages.length - 1;
 
                           return (
@@ -546,6 +549,13 @@ export default function ChatWithStreaming() {
                                   </div>
                                 )}
                               </div>
+                              {/* Action Buttons - show for last completed message with actions */}
+                              {!msg.isStreaming && isLastMessage && actionButtons.length > 0 && (
+                                <ActionButtons
+                                  actions={actionButtons}
+                                  disabled={isStreaming}
+                                />
+                              )}
                               {/* Quick Reply Buttons - only show for last completed message */}
                               {!msg.isStreaming && isLastMessage && quickReplies.length > 0 && (
                                 <QuickReplies
@@ -593,23 +603,30 @@ export default function ChatWithStreaming() {
                 className="w-full pl-5 pr-14 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all shadow-sm text-gray-800 placeholder-gray-400"
                 disabled={isStreaming}
               />
-              <button
-                type="submit"
-                disabled={!input.trim() || isStreaming}
-                className={`
-                  absolute right-2 top-2 bottom-2 p-2 rounded-xl flex items-center justify-center transition-all
-                  ${!input.trim() || isStreaming
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm hover:shadow'
-                  }
-                `}
-              >
-                {isStreaming ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
+              {isStreaming ? (
+                <button
+                  type="button"
+                  onClick={stopStreaming}
+                  className="absolute right-2 top-2 bottom-2 px-3 rounded-xl flex items-center justify-center gap-2 transition-all bg-red-500 text-white hover:bg-red-600 shadow-sm"
+                >
+                  <Square className="h-4 w-4 fill-current" />
+                  <span className="text-sm font-medium">Stop</span>
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!input.trim()}
+                  className={`
+                    absolute right-2 top-2 bottom-2 p-2 rounded-xl flex items-center justify-center transition-all
+                    ${!input.trim()
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm hover:shadow'
+                    }
+                  `}
+                >
                   <Send className="h-5 w-5" />
-                )}
-              </button>
+                </button>
+              )}
             </form>
             <div className="text-center mt-2">
               <p className="text-xs text-gray-400">
