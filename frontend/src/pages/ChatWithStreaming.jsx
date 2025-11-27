@@ -110,8 +110,11 @@ export default function ChatWithStreaming() {
         const userInputMatch = pendingAutoSend.match(/Here's what I'm looking for: (.+?)(?:\n|Please)/s);
         if (userInputMatch) {
           displayMessage = userInputMatch[1].trim();
+        } else if (pendingAutoSend.includes('TRAIN NOW')) {
+          // Train Now request without specific input
+          displayMessage = "I want to train now - help me decide what to do";
         } else if (pendingAutoSend.includes('[WORKOUT REQUEST')) {
-          // If no specific input, show a generic message
+          // Calendar workout request without specific input
           displayMessage = "Help me plan a workout for today";
         }
 

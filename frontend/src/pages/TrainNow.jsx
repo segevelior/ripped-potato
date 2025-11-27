@@ -147,6 +147,7 @@ export default function TrainNow() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [workoutToView, setWorkoutToView] = useState(null);
+  const [coachPrompt, setCoachPrompt] = useState("");
 
   useEffect(() => {
     loadData();
@@ -247,6 +248,32 @@ export default function TrainNow() {
     setWorkoutToView(null);
   };
 
+  const handleAskSensei = () => {
+    // Build context message for Sensei - emphasizing immediate training
+    // Use similar structure to WorkoutSelectionModal so Chat can extract display message
+    const dateStr = format(new Date(), 'EEEE, MMMM d, yyyy');
+    const isoDate = format(new Date(), 'yyyy-MM-dd');
+
+    let prompt;
+    if (coachPrompt.trim()) {
+      prompt = `[WORKOUT REQUEST for ${dateStr} (${isoDate}) - TODAY - TRAIN NOW]
+
+I want to start training RIGHT NOW. Here's what I'm looking for: ${coachPrompt}
+
+Please suggest a workout that matches this request. After I approve, start the live workout session immediately so I can begin training.`;
+    } else {
+      prompt = `[WORKOUT REQUEST for ${dateStr} (${isoDate}) - TODAY - TRAIN NOW]
+
+I want to start training RIGHT NOW but I'm not sure what to do. Help me decide what to train based on my goals and recent activity. Ask me a quick question about what I'm in the mood for, or suggest a few workout options. Once I pick one, start the live workout session immediately.`;
+    }
+
+    // Store prompt in localStorage for the Chat page to pick up
+    localStorage.setItem('pendingChatPrompt', prompt);
+    localStorage.setItem('pendingChatPromptTime', Date.now().toString());
+
+    navigate("/Chat");
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6 pb-24">
@@ -332,6 +359,35 @@ export default function TrainNow() {
           {/* Featured / Quick Start */}
           <QuickStartCard workout={featuredWorkout} onStart={startWorkout} />
 
+          {/* Ask Sensei Section - Compact */}
+          <div className="bg-gradient-to-br from-primary-50 to-red-50 rounded-xl p-3 border border-primary-100">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 bg-[#FE5334] rounded-lg flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-3 h-3 text-white" />
+              </div>
+              <h3 className="font-semibold text-gray-900 text-sm">Ask Sensei</h3>
+            </div>
+            <p className="text-xs text-gray-600 mb-2">
+              Not sure what to train? Let Sensei help you decide.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="e.g., 'upper body' or 'quick HIIT'"
+                value={coachPrompt}
+                onChange={(e) => setCoachPrompt(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleAskSensei()}
+                className="flex-1 min-w-0 px-3 py-2 bg-white border border-primary-100 rounded-lg text-sm focus:ring-2 focus:ring-[#FE5334] focus:border-transparent placeholder:text-gray-400"
+              />
+              <button
+                onClick={handleAskSensei}
+                className="px-3 py-2 bg-[#FE5334] text-white rounded-lg hover:bg-[#E84A2D] transition-colors text-xs font-medium whitespace-nowrap flex-shrink-0"
+              >
+                Ask
+              </button>
+            </div>
+          </div>
+
           {/* Quick Workouts */}
           <WorkoutRow
             title="Quick Workouts"
@@ -363,21 +419,11 @@ export default function TrainNow() {
           {/* Browse All CTA */}
           <Link
             to={createPageUrl("PredefinedWorkouts")}
-            className="block bg-gray-100 rounded-2xl p-5 text-center hover:bg-gray-200 transition-colors"
+            className="block bg-gray-100 rounded-2xl p-4 text-center hover:bg-gray-200 transition-colors"
           >
-            <Dumbbell className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-            <p className="font-semibold text-gray-900">Browse All Workouts</p>
-            <p className="text-sm text-gray-500 mt-1">{workouts.length} workouts available</p>
-          </Link>
-
-          {/* AI Generate CTA */}
-          <Link
-            to={createPageUrl("Chat")}
-            className="block bg-gradient-to-r from-primary-50 to-indigo-50 border border-primary-100 rounded-2xl p-5 text-center hover:from-primary-100 hover:to-indigo-100 transition-colors"
-          >
-            <Sparkles className="w-8 h-8 text-primary-500 mx-auto mb-2" />
-            <p className="font-semibold text-gray-900">Need Something Different?</p>
-            <p className="text-sm text-primary-500 mt-1">Ask AI to create a custom workout</p>
+            <Dumbbell className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+            <p className="font-semibold text-gray-900 text-sm">Browse All Workouts</p>
+            <p className="text-xs text-gray-500">{workouts.length} available</p>
           </Link>
         </>
       )}
