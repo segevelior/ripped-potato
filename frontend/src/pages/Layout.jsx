@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot, TrendingUp, Settings, MessageSquare } from "lucide-react";
+import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot, TrendingUp, Settings, MessageSquare, Shield } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -168,6 +168,19 @@ export default function Layout({ children }) {
                   <Settings className="w-5 h-5" />
                   Settings
                 </Link>
+                {JSON.parse(localStorage.getItem('authUser') || '{}')?.role === 'superAdmin' && (
+                  <Link
+                    to="/Admin/Feedback"
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all text-sm font-medium ${
+                      location.pathname === '/Admin/Feedback'
+                        ? 'bg-amber-100 text-amber-900'
+                        : 'text-amber-600 hover:bg-amber-50 hover:text-amber-900'
+                    }`}
+                  >
+                    <Shield className="w-5 h-5" />
+                    Feedback Admin
+                  </Link>
+                )}
                 <div className="flex items-center gap-3">
                   <Link to={createPageUrl("Settings")} className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center hover:bg-primary-600 transition-colors">
                     <span className="text-white font-medium">
@@ -202,18 +215,12 @@ export default function Layout({ children }) {
               <span className="font-bold text-lg dark:text-white">Torii</span>
             </Link>
             <div className="flex items-center gap-2">
-              <Link to={createPageUrl("Calendar")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
-                <Calendar className="w-5 h-5" />
-              </Link>
-              <Link to={createPageUrl("TrainNow")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
-                <Zap className="w-5 h-5" />
-              </Link>
               <Link to={createPageUrl("Chat")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
                 <Bot className="w-5 h-5" />
               </Link>
-              <FeedbackTrigger />
-              <Link to={createPageUrl("Settings")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
-                <Settings className="w-5 h-5" />
+              <FeedbackTrigger onClick={() => setShowFeedbackModal(true)} />
+              <Link to={createPageUrl("TrainNow")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
+                <Zap className="w-5 h-5" />
               </Link>
               <SidebarTrigger className="md:hidden" />
             </div>

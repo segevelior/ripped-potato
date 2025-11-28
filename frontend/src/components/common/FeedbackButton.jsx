@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { MessageSquare, ThumbsUp, ThumbsDown, X, Send, Check } from 'lucide-react';
 import { Feedback } from '@/api/entities';
 
@@ -53,9 +54,15 @@ export function FeedbackModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+  return createPortal(
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] overflow-y-auto"
+      onClick={handleClose}
+    >
+      <div
+        className="bg-white rounded-2xl w-full max-w-sm shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="p-4 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-base font-bold text-gray-900">Send Feedback</h3>
@@ -155,14 +162,30 @@ export function FeedbackModal({ isOpen, onClose }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
 // Icon button that can be placed in headers/navbars
-export function FeedbackTrigger({ className = "" }) {
+// Can either manage its own state OR accept onClick to use external state
+export function FeedbackTrigger({ className = "", onClick }) {
   const [isOpen, setIsOpen] = useState(false);
 
+  // If onClick is provided, use external state management
+  if (onClick) {
+    return (
+      <button
+        onClick={onClick}
+        className={`p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors ${className}`}
+        title="Send Feedback"
+      >
+        <MessageSquare className="w-5 h-5" />
+      </button>
+    );
+  }
+
+  // Otherwise, manage state internally
   return (
     <>
       <button

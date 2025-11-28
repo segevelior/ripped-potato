@@ -31,7 +31,7 @@ const feedbackSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['new', 'reviewed', 'resolved', 'dismissed'],
+    enum: ['new', 'reviewed', 'addressed', 'resolved', 'dismissed'],
     default: 'new'
   },
   adminNotes: {
