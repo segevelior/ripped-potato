@@ -405,7 +405,36 @@ class APIService {
     }),
     delete: (id) => this.request(`/feedback/${id}`, {
       method: 'DELETE'
-    })
+    }),
+    bulkUpdate: (ids, status, adminNotes) => this.request('/feedback/bulk', {
+      method: 'PATCH',
+      body: JSON.stringify({ ids, status, adminNotes })
+    }),
+    // Conversation feedback endpoints
+    listConversations: (params = {}) => {
+      const queryString = new URLSearchParams(params).toString();
+      return this.request(`/feedback/conversations${queryString ? `?${queryString}` : ''}`);
+    },
+    updateConversationStatus: (conversationId, messageIndex, status) => this.request('/feedback/conversations/status', {
+      method: 'PATCH',
+      body: JSON.stringify({ conversationId, messageIndex, status })
+    }),
+    bulkUpdateConversations: (items, status) => this.request('/feedback/conversations/bulk', {
+      method: 'PATCH',
+      body: JSON.stringify({ items, status })
+    }),
+    // Report generation
+    generateReport: (siteFeedbackIds, conversationFeedbacks) => this.request('/feedback/report', {
+      method: 'POST',
+      body: JSON.stringify({ siteFeedbackIds, conversationFeedbacks })
+    }),
+    // LLM Analysis
+    analyze: (siteFeedbacks, conversationFeedbacks) => this.request('/feedback/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ siteFeedbacks, conversationFeedbacks })
+    }),
+    // Get full conversation
+    getConversation: (conversationId) => this.request(`/feedback/conversation/${conversationId}`)
   };
 
   // Memories endpoints (Sensei memory system)
