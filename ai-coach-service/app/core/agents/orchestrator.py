@@ -29,12 +29,15 @@ class AgentOrchestrator:
     """Enhanced orchestrator with comprehensive fitness management tools"""
 
     def __init__(self, db: AsyncIOMotorDatabase, redis_client=None):
+        logger.info("Initializing AgentOrchestrator...")
+
         self.db = db
         self.settings = get_settings()
         self.client = AsyncOpenAI(api_key=self.settings.openai_api_key)
         self.data_reader = DataReaderAgent(db)
 
         # Initialize services
+        logger.info("Initializing services...")
         self.exercise_service = ExerciseService(db)
         self.workout_service = WorkoutService(db)
         self.plan_service = PlanService(db)
@@ -42,6 +45,24 @@ class AgentOrchestrator:
         self.calendar_service = CalendarService(db)
         self.search_service = SearchService(self.settings.tavily_api_key)
         self.memory_service = MemoryService(db)
+
+        # Log configuration
+        tools = get_all_tools()
+        logger.info(
+            "AgentOrchestrator initialized",
+            model=self.settings.openai_model,
+            tools_count=len(tools),
+            services=[
+                "ExerciseService",
+                "WorkoutService",
+                "PlanService",
+                "GoalService",
+                "CalendarService",
+                "SearchService",
+                "MemoryService"
+            ],
+            tavily_enabled=bool(self.settings.tavily_api_key)
+        )
         
     def get_tools(self) -> List[Dict[str, Any]]:
         """Define available tools for the LLM - comprehensive fitness management"""
