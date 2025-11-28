@@ -1175,7 +1175,7 @@ USER DATA:
         try:
             # Call OpenAI with function calling
             response = await self.client.chat.completions.create(
-                model="gpt-4-turbo-preview",
+                model=self.settings.openai_model,
                 messages=messages,
                 tools=self.get_tools(),
                 tool_choice="auto",
@@ -1212,7 +1212,7 @@ USER DATA:
                     })
 
                 final_response = await self.client.chat.completions.create(
-                    model="gpt-4-turbo-preview",
+                    model=self.settings.openai_model,
                     messages=messages,
                     temperature=0.7
                 )
