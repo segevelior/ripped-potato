@@ -256,6 +256,9 @@ USER DATA:
 
         # Load user memories for personalization
         user_memories = await self.memory_service.get_user_memories(user_id)
+        logger.info(f"[SENSEI DEBUG STREAMING] Loaded {len(user_memories)} memories for user {user_id}")
+        for i, mem in enumerate(user_memories):
+            logger.info(f"[SENSEI DEBUG STREAMING] Memory {i+1}: [{mem.get('importance')}] [{mem.get('category')}] {mem.get('content', '')[:80]}...")
 
         # Build context string with user profile
         user_profile = data_context.get("user_profile", {})
@@ -302,6 +305,7 @@ USER DATA:
 
         # Add conversation history if available
         if conversation_history:
+            logger.info(f"[SENSEI DEBUG STREAMING] Has conversation history ({len(conversation_history)} messages) - NOT injecting context")
             for hist_msg in conversation_history:
                 role = "user" if hist_msg.get("role") == "human" else "assistant"
                 messages.append({
@@ -312,6 +316,8 @@ USER DATA:
             messages.append({"role": "user", "content": message})
         else:
             # First message - include context
+            logger.info(f"[SENSEI DEBUG STREAMING] No conversation history - injecting full context")
+            logger.info(f"[SENSEI DEBUG STREAMING] Context being injected:\n{context_str}")
             messages.append({"role": "user", "content": f"{context_str}\n\nUser: {message}"})
 
         # Track the full response
