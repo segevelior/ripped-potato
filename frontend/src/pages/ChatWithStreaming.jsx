@@ -10,6 +10,7 @@ import { ConversationSidebar } from "@/components/chat/ConversationSidebar";
 import { FeedbackButtons } from "@/components/chat/FeedbackButtons";
 import { QuickReplies, parseQuickReplies } from "@/components/chat/QuickReplies";
 import { ActionButtons, parseActionButtons } from "@/components/chat/ActionButtons";
+import VideoEmbed from "@/components/chat/VideoEmbed";
 
 // API Base URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
@@ -473,6 +474,9 @@ export default function ChatWithStreaming() {
                                     ),
                                     'tool-complete': ({ children }) => (
                                       <ToolExecutionMarker isComplete={true}>{children}</ToolExecutionMarker>
+                                    ),
+                                    'video-embed': ({ videoid, title, url }) => (
+                                      <VideoEmbed videoid={videoid} title={title} url={url} />
                                     ),
                                     h1: ({ children }) => (
                                       <h1 className="flex items-center gap-2 text-lg font-bold text-gray-900 mt-4 mb-2 pb-1 border-b border-gray-100">

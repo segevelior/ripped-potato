@@ -94,8 +94,12 @@ export function useStreamingChat() {
                   accumulatedMessage += event.content || '';
                   setStreamingMessage(accumulatedMessage);
                 } else if (event.type === 'tool_start') {
+                  // If no content was streamed yet, add a friendly intro
+                  if (!accumulatedMessage.trim()) {
+                    accumulatedMessage = "Let me look that up for you...\n\n";
+                  }
                   // Inject tool marker into the message stream
-                  accumulatedMessage += `\n\n<tool-executing>${event.description}</tool-executing>\n\n`;
+                  accumulatedMessage += `<tool-executing>${event.description}</tool-executing>\n\n`;
                   setStreamingMessage(accumulatedMessage);
 
                   // Also track in activeTools for the UI component
