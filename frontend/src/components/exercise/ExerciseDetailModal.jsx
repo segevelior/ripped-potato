@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { X, Dumbbell, Target, Zap, Timer, Info, Activity, TrendingUp, AlertCircle, Star, Copy, Repeat, ArrowRight, Weight, Clock } from "lucide-react";
+import { X, Dumbbell, Target, Zap, Timer, MoreVertical, Activity, TrendingUp, AlertCircle, Star, Repeat, ArrowRight, Weight, Clock, Pencil, Trash2 } from "lucide-react";
 import { getDisciplineClass } from "@/styles/designTokens";
 
 const intensityColors = {
@@ -29,9 +29,12 @@ const throttle = (func, limit) => {
   }
 };
 
-export default function ExerciseDetailModal({ exercise, onClose, onEdit, onToggleFavorite }) {
+export default function ExerciseDetailModal({ exercise, onClose, onEdit, onToggleFavorite, onDelete }) {
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const scrollContainerRef = useRef(null);
+  const optionsMenuRef = useRef(null);
   const [isFavorite, setIsFavorite] = useState(exercise.userMetadata?.isFavorite || false);
 
   useEffect(() => {
@@ -47,11 +50,32 @@ export default function ExerciseDetailModal({ exercise, onClose, onEdit, onToggl
   // Handle ESC key to close
   useEffect(() => {
     const handleEsc = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        if (showDeleteConfirm) {
+          setShowDeleteConfirm(false);
+        } else if (showOptionsMenu) {
+          setShowOptionsMenu(false);
+        } else {
+          onClose();
+        }
+      }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
+  }, [onClose, showOptionsMenu, showDeleteConfirm]);
+
+  // Close options menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (optionsMenuRef.current && !optionsMenuRef.current.contains(e.target)) {
+        setShowOptionsMenu(false);
+      }
+    };
+    if (showOptionsMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showOptionsMenu]);
 
   if (!exercise) return null;
 
@@ -91,12 +115,47 @@ export default function ExerciseDetailModal({ exercise, onClose, onEdit, onToggl
             >
               <Star className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
             </button>
-            <button
-              onClick={() => onEdit(exercise)}
-              className={`w-10 h-10 rounded-xl backdrop-blur-md flex items-center justify-center transition-colors ${hasImage ? 'bg-black/10 text-white hover:bg-black/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-            >
-              <Info className="w-5 h-5" />
-            </button>
+{(onEdit || onDelete) && (
+              <div className="relative" ref={optionsMenuRef}>
+                <button
+                  onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+                  className={`w-10 h-10 rounded-xl backdrop-blur-md flex items-center justify-center transition-colors ${hasImage ? 'bg-black/10 text-white hover:bg-black/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  title="Options"
+                >
+                  <MoreVertical className="w-5 h-5" />
+                </button>
+
+                {/* Dropdown Menu */}
+                {showOptionsMenu && (
+                  <div className="absolute right-0 top-12 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden min-w-[140px] z-50">
+                    {onEdit && (
+                      <button
+                        onClick={() => {
+                          setShowOptionsMenu(false);
+                          onEdit(exercise);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <Pencil className="w-4 h-4" />
+                        Edit
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button
+                        onClick={() => {
+                          setShowOptionsMenu(false);
+                          setShowDeleteConfirm(true);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -417,18 +476,51 @@ export default function ExerciseDetailModal({ exercise, onClose, onEdit, onToggl
         </div>
 
         {/* Sticky Footer Actions */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100 z-50">
-          <button
-            onClick={() => {
-              onEdit(exercise);
-              onClose();
-            }}
-            className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold text-base hover:bg-gray-800 transition-colors shadow-xl shadow-gray-900/10 flex items-center justify-center gap-2"
-          >
-            {exercise.isCommon && !exercise.isModified ? 'Customize Exercise' : 'Edit Exercise'}
-          </button>
-        </div>
+        {onEdit && (
+          <div className="absolute bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100 z-50">
+            <button
+              onClick={() => {
+                onEdit(exercise);
+                onClose();
+              }}
+              className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold text-base hover:bg-gray-800 transition-colors shadow-xl shadow-gray-900/10 flex items-center justify-center gap-2"
+            >
+              <Pencil className="w-5 h-5" />
+              {exercise.isCommon && !exercise.isModified ? 'Customize Exercise' : 'Edit Exercise'}
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-[110] rounded-[40px]">
+          <div className="bg-white rounded-2xl p-6 mx-4 max-w-sm w-full shadow-2xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Exercise?</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Are you sure you want to delete "{exercise.name}"? This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  onDelete(exercise);
+                  onClose();
+                }}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-sm text-white bg-red-500 hover:bg-red-600 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { X, Clock, Target, Calendar, Copy, ChevronDown, ChevronUp, Dumbbell, Zap, Users, Timer, Star, Bookmark } from "lucide-react";
+import { X, Clock, Target, Calendar, MoreVertical, ChevronDown, ChevronUp, Dumbbell, Zap, Users, Timer, Star, Bookmark, Pencil, Trash2 } from "lucide-react";
 
 const intensityColors = {
   low: "bg-green-100 text-green-800",
@@ -49,14 +49,17 @@ const throttle = (func, limit) => {
   }
 };
 
-export default function WorkoutDetailModal({ workout, exercises, onClose, onApply, onDuplicate }) {
+export default function WorkoutDetailModal({ workout, exercises, onClose, onApply, onEdit, onDelete }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [expandedBlocks, setExpandedBlocks] = useState(new Set([0])); // First block expanded by default
   const [expandedExercises, setExpandedExercises] = useState(new Set());
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const scrollContainerRef = useRef(null);
   const dateInputRef = useRef(null);
+  const optionsMenuRef = useRef(null);
 
   const workoutImage = getWorkoutImage(workout);
   const hasImage = true; // Always show image now
@@ -96,11 +99,32 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
   // Handle ESC key to close
   useEffect(() => {
     const handleEsc = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        if (showDeleteConfirm) {
+          setShowDeleteConfirm(false);
+        } else if (showOptionsMenu) {
+          setShowOptionsMenu(false);
+        } else {
+          onClose();
+        }
+      }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
+  }, [onClose, showOptionsMenu, showDeleteConfirm]);
+
+  // Close options menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (optionsMenuRef.current && !optionsMenuRef.current.contains(e.target)) {
+        setShowOptionsMenu(false);
+      }
+    };
+    if (showOptionsMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showOptionsMenu]);
 
   const getDifficultyColor = (level) => {
     switch (level?.toLowerCase()) {
@@ -159,12 +183,50 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
           >
             <X className="w-5 h-5" />
           </button>
-          <button className={`w-10 h-10 rounded-xl backdrop-blur-md flex items-center justify-center transition-colors pointer-events-auto ${hasImage
-            ? 'bg-black/10 text-white hover:bg-black/20'
-            : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-            }`}>
-            <Copy className="w-5 h-5" onClick={() => onDuplicate(workout)} />
-          </button>
+{(onEdit || onDelete) && (
+            <div className="relative pointer-events-auto" ref={optionsMenuRef}>
+              <button
+                onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+                title="Options"
+                className={`w-10 h-10 rounded-xl backdrop-blur-md flex items-center justify-center transition-colors ${hasImage
+                  ? 'bg-black/10 text-white hover:bg-black/20'
+                  : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                }`}
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+
+              {/* Dropdown Menu */}
+              {showOptionsMenu && (
+                <div className="absolute right-0 top-12 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden min-w-[140px] z-50">
+                  {onEdit && (
+                    <button
+                      onClick={() => {
+                        setShowOptionsMenu(false);
+                        onEdit(workout);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      Edit
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button
+                      onClick={() => {
+                        setShowOptionsMenu(false);
+                        setShowDeleteConfirm(true);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Scrollable Container for Hero + Content */}
@@ -417,6 +479,36 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
         </div>
 
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-[110] rounded-[40px]">
+          <div className="bg-white rounded-2xl p-6 mx-4 max-w-sm w-full shadow-2xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Workout?</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Are you sure you want to delete "{workout.name}"? This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  onDelete(workout);
+                  onClose();
+                }}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-sm text-white bg-red-500 hover:bg-red-600 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

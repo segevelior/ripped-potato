@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Bookmark, Star } from 'lucide-react';
 import { getDisciplineClass } from '@/styles/designTokens';
+import SwipeableCard from '@/components/common/SwipeableCard';
 
 // Placeholder images based on workout type
 const getWorkoutImage = (workout) => {
@@ -20,7 +21,7 @@ const getWorkoutImage = (workout) => {
   return workout.image || imageMap[discipline] || imageMap.strength;
 };
 
-export default function WorkoutCard({ workout, onView, onBookmark, isBookmarked: initialBookmarked }) {
+export default function WorkoutCard({ workout, onView, onBookmark, isBookmarked: initialBookmarked, onDelete, onEdit }) {
   const [bookmarked, setBookmarked] = useState(initialBookmarked || false);
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function WorkoutCard({ workout, onView, onBookmark, isBookmarked:
   const rating = workout.ratings?.average || 0;
   const ratingCount = workout.ratings?.count || 0;
 
-  return (
+  const cardContent = (
     <div
       onClick={handleCardClick}
       className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group"
@@ -125,4 +126,19 @@ export default function WorkoutCard({ workout, onView, onBookmark, isBookmarked:
       </div>
     </div>
   );
+
+  // If onDelete or onEdit is provided, wrap with SwipeableCard for swipe actions
+  if (onDelete || onEdit) {
+    return (
+      <SwipeableCard
+        onDelete={onDelete ? () => onDelete(workout) : undefined}
+        onEdit={onEdit ? () => onEdit(workout) : undefined}
+        className="rounded-3xl"
+      >
+        {cardContent}
+      </SwipeableCard>
+    );
+  }
+
+  return cardContent;
 }

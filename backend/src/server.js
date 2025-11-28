@@ -47,6 +47,7 @@ const adminRoutes = require('./routes/admin');
 const conversationRoutes = require('./routes/conversations');
 const progressionRoutes = require('./routes/progressions');
 const calendarRoutes = require('./routes/calendar');
+const feedbackRoutes = require('./routes/feedback');
 
 const app = express();
 
@@ -236,6 +237,7 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/conversations', conversationRoutes);
 app.use('/api/v1/progressions', progressionRoutes);
 app.use('/api/v1/calendar', calendarRoutes);
+app.use('/api/v1/feedback', feedbackRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

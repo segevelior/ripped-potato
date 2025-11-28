@@ -28,14 +28,16 @@ export const Exercise = {
   create: async (data) => normalizeId(await apiService.exercises.create(data)),
   update: async (id, data) => normalizeId(await apiService.exercises.update(id, data)),
   delete: async (id) => apiService.exercises.delete(id),
-  findById: async (id) => {
+  get: async (id) => {
     try {
       return normalizeId(await apiService.exercises.get(id));
     } catch {
-      const list = await Exercise.list();
+      const data = await apiService.exercises.list();
+      const list = normalizeArray(data);
       return list.find(e => e.id === id || e._id === id);
     }
   },
+  findById: async (id) => Exercise.get(id),
   toggleFavorite: async (id, isFavorite) => apiService.exercises.toggleFavorite(id, isFavorite),
   customize: async (id, modifications) => apiService.exercises.customize(id, modifications),
   removeCustomization: async (id) => apiService.exercises.removeCustomization(id)
@@ -47,14 +49,15 @@ export const Workout = {
   create: async (data) => normalizeId(await apiService.workouts.create(data)),
   update: async (id, data) => normalizeId(await apiService.workouts.update(id, data)),
   delete: async (id) => apiService.workouts.delete(id),
-  findById: async (id) => {
+  get: async (id) => {
     try {
       return normalizeId(await apiService.workouts.get(id));
     } catch {
       const list = await Workout.list();
       return list.find(w => w.id === id || w._id === id);
     }
-  }
+  },
+  findById: async (id) => Workout.get(id)
 };
 
 // Goal entity
@@ -131,6 +134,21 @@ export const TrainingPlan = Plan;
 export const WorkoutTemplate = PredefinedWorkout;
 export const UserTrainingPattern = {
   list: async () => []
+};
+
+// Feedback entity
+export const Feedback = {
+  submit: async (data) => normalizeId(await apiService.feedback.submit(data)),
+  list: async (params) => {
+    const response = await apiService.feedback.list(params);
+    return {
+      feedbacks: normalizeArray(response.feedbacks || []),
+      pagination: response.pagination
+    };
+  },
+  stats: async () => apiService.feedback.stats(),
+  update: async (id, data) => normalizeId(await apiService.feedback.update(id, data)),
+  delete: async (id) => apiService.feedback.delete(id)
 };
 
 // User/Auth entity

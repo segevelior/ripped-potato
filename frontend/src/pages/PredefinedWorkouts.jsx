@@ -46,6 +46,7 @@ export default function PredefinedWorkouts() {
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingWorkout, setEditingWorkout] = useState(null);
 
   // New state for search and filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -82,6 +83,12 @@ export default function PredefinedWorkouts() {
     setShowDetailModal(true);
   };
 
+  const handleEdit = (workout) => {
+    // Open the create modal in edit mode with workout data
+    setEditingWorkout(workout);
+    setShowCreateModal(true);
+  };
+
   const handleDuplicate = async (workout) => {
     try {
       const duplicatedWorkout = {
@@ -99,17 +106,11 @@ export default function PredefinedWorkouts() {
   };
 
   const handleDelete = async (workout) => {
-    if (!confirm(`Are you sure you want to delete "${workout.name}"?`)) {
-      return;
-    }
-
     try {
       await PredefinedWorkout.delete(workout.id);
       await loadData();
-      alert("Workout deleted successfully!");
     } catch (error) {
       console.error("Error deleting workout:", error);
-      alert("Error deleting workout. Please try again.");
     }
   };
 
@@ -118,11 +119,34 @@ export default function PredefinedWorkouts() {
       await PredefinedWorkout.create(newWorkout);
       await loadData();
       setShowCreateModal(false);
-      alert("Workout created successfully!");
+      setEditingWorkout(null);
     } catch (error) {
       console.error("Error creating workout:", error);
-      alert("Error creating workout. Please try again.");
     }
+  };
+
+  const handleUpdate = async (updatedWorkout) => {
+    try {
+      await PredefinedWorkout.update(updatedWorkout.id, updatedWorkout);
+      await loadData();
+      setShowCreateModal(false);
+      setEditingWorkout(null);
+    } catch (error) {
+      console.error("Error updating workout:", error);
+    }
+  };
+
+  const handleSaveWorkout = async (workoutData) => {
+    if (editingWorkout) {
+      await handleUpdate(workoutData);
+    } else {
+      await handleCreate(workoutData);
+    }
+  };
+
+  const handleCloseCreateModal = () => {
+    setShowCreateModal(false);
+    setEditingWorkout(null);
   };
 
   const handleApplyToCalendar = (workout, date) => {
@@ -248,6 +272,8 @@ export default function PredefinedWorkouts() {
               onView={handleView}
               onBookmark={handleBookmark}
               isBookmarked={bookmarkedWorkouts.includes(workout.id)}
+              onDelete={handleDelete}
+              onEdit={handleEdit}
             />
           ))}
         </div>
@@ -266,18 +292,26 @@ export default function PredefinedWorkouts() {
         <WorkoutDetailModal
           workout={selectedWorkout}
           exercises={exercises}
-          onClose={() => setShowDetailModal(false)}
+          onClose={() => {
+            setShowDetailModal(false);
+            setSelectedWorkout(null);
+          }}
           onApply={handleApplyToCalendar}
-          onDuplicate={handleDuplicate}
+          onEdit={(workout) => {
+            setShowDetailModal(false);
+            handleEdit(workout);
+          }}
+          onDelete={handleDelete}
         />
       )}
 
-      {/* Create Workout Modal */}
+      {/* Create/Edit Workout Modal */}
       {showCreateModal && (
         <CreateWorkoutModal
           exercises={exercises}
-          onClose={() => setShowCreateModal(false)}
-          onSave={handleCreate}
+          onClose={handleCloseCreateModal}
+          onSave={handleSaveWorkout}
+          editWorkout={editingWorkout}
         />
       )}
     </div>
