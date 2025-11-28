@@ -70,6 +70,28 @@ WHEN USER ASKS ABOUT EXERCISES BY MUSCLE GROUP (e.g., "what core exercises do I 
   - User asks about proper form, technique, or exercise variations
   - Search types: 'video' for YouTube tutorials, 'article' for written guides, 'general' for mixed results
 
+**Memory** (Personalization):
+- `save_memory`: Save NEW information about the user. Use this when:
+  - User mentions an injury, health condition, or physical limitation (category: health, importance: high)
+  - User expresses a preference for certain training styles, creators, or approaches (category: preference)
+  - User shares a fitness goal or objective (category: goal)
+  - User mentions lifestyle factors like schedule, equipment access, or environment (category: lifestyle)
+  - User explicitly uses #memorize tag or asks you to "remember this"
+  - User wants you to remember something new (like a nickname or preference)
+  - You discover something important about the user during conversation
+- `delete_memory`: Delete a memory when user asks you to forget something. Use this when:
+  - User says "forget that", "delete that memory", "remove the memory about X"
+  - User says information is no longer relevant (e.g., "my knee is healed now")
+- `update_memory`: Update an EXISTING memory. Only use when there's already a saved memory to modify.
+- `list_memories`: List what you remember about the user. Use when user asks "what do you know about me?" or "what have you memorized?"
+- IMPORTANT: The user's name, weight, height etc. come from their PROFILE (shown in USER PROFILE above), NOT from memories.
+  - If user wants to change their profile info (name, weight, height), tell them to update it in Settings → Profile
+  - Memories are for additional info like injuries, preferences, nicknames, lifestyle notes
+  - Example: If user says "call me Eli instead", use save_memory with "Prefers to be called Eli"
+- Be proactive about saving memories when you learn significant information!
+- Always confirm when you save or delete a memory so the user knows what changed
+- Users can also manage memories manually in Settings → Sensei Memory
+
 PREFERRED FITNESS CONTENT CREATORS (include relevant names in your search query for better results):
 - **Calisthenics/Bodyweight**: Saturno Movement, Calisthenicmovement, FitnessFAQs, Chris Heria, Minus The Gym, Hybrid Calisthenics, Tom Merrick
 - **Strength Training/General**: Athlean-X (Jeff Cavaliere), Jeremy Ethier, Jeff Nippard, Renaissance Periodization, Squat University
@@ -984,6 +1006,109 @@ class AgentOrchestrator:
                         "required": ["query"]
                     }
                 }
+            },
+            # ==================== MEMORY TOOL ====================
+            {
+                "type": "function",
+                "function": {
+                    "name": "save_memory",
+                    "description": "Save important information about the user to memory. Use this when you learn something significant about the user that would help personalize future coaching - such as injuries, preferences, goals, lifestyle factors, or training history. Also use when user explicitly asks you to remember something or uses #memorize tag.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "content": {
+                                "type": "string",
+                                "description": "The information to remember about the user. Be concise but specific. Example: 'Has chronic knee pain - avoid deep squats and high-impact jumping'"
+                            },
+                            "category": {
+                                "type": "string",
+                                "enum": ["health", "preference", "goal", "lifestyle", "general"],
+                                "description": "Category of the memory: 'health' for injuries/conditions, 'preference' for training style/content preferences, 'goal' for fitness objectives, 'lifestyle' for schedule/equipment/environment, 'general' for other important info"
+                            },
+                            "importance": {
+                                "type": "string",
+                                "enum": ["high", "medium", "low"],
+                                "description": "How important this memory is. 'high' for safety-critical info (injuries, conditions), 'medium' for preferences that affect recommendations, 'low' for nice-to-know details"
+                            },
+                            "tags": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Optional tags to categorize the memory (e.g., ['knee', 'injury', 'squats'])"
+                            }
+                        },
+                        "required": ["content", "category"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "delete_memory",
+                    "description": "Delete a memory about the user. Use when user asks to forget something, says information is outdated, or wants to remove a previously saved memory.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "search_text": {
+                                "type": "string",
+                                "description": "Text to search for in the memory content. Will delete memories containing this text. Example: 'knee pain' to delete the memory about knee issues."
+                            },
+                            "category": {
+                                "type": "string",
+                                "enum": ["health", "preference", "goal", "lifestyle", "general"],
+                                "description": "Optional: Only delete memories in this category"
+                            }
+                        },
+                        "required": ["search_text"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "list_memories",
+                    "description": "List all memories saved about the user. Use when user asks what you know/remember about them.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "category": {
+                                "type": "string",
+                                "enum": ["health", "preference", "goal", "lifestyle", "general"],
+                                "description": "Optional: Filter to only show memories in this category"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "update_memory",
+                    "description": "Update an existing memory with new information. Use when user wants to modify a previously saved memory.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "search_text": {
+                                "type": "string",
+                                "description": "Text to search for in the memory content to find the memory to update."
+                            },
+                            "new_content": {
+                                "type": "string",
+                                "description": "The new content to replace the old memory with."
+                            },
+                            "category": {
+                                "type": "string",
+                                "enum": ["health", "preference", "goal", "lifestyle", "general"],
+                                "description": "Optional: New category for the memory"
+                            },
+                            "importance": {
+                                "type": "string",
+                                "enum": ["high", "medium", "low"],
+                                "description": "Optional: New importance level"
+                            }
+                        },
+                        "required": ["search_text", "new_content"]
+                    }
+                }
             }
         ]
 
@@ -996,10 +1121,30 @@ class AgentOrchestrator:
         logger.info(f"Processing request for user {user_id}")
         data_context = await self.data_reader.process(message, user_context)
 
+        # Load user memories for personalization
+        user_memories = await self._get_user_memories(user_id)
+
         # Build context string with user profile
         user_profile = data_context.get("user_profile", {})
+        user_name = user_profile.get('name', '').strip()
+        units = user_profile.get('units', 'metric')
+        weight = user_profile.get('weight')
+        height = user_profile.get('height')
+
+        # Format weight and height with units
+        weight_str = 'not set'
+        height_str = 'not set'
+        if weight:
+            weight_str = f"{weight} {'kg' if units == 'metric' else 'lbs'}"
+        if height:
+            height_str = f"{height} {'cm' if units == 'metric' else 'in'}"
+
         context_str = f"""USER PROFILE:
+- Name: {user_name or 'not set'}
 - Fitness Level: {user_profile.get('fitnessLevel', 'not set')}
+- Weight: {weight_str}
+- Height: {height_str}
+- Units: {units}
 - Available Equipment: {', '.join(user_profile.get('equipment', [])) or 'not specified'}
 - Preferred Workout Duration: {user_profile.get('workoutDuration', 'not set')} minutes
 - Workout Days per Week: {len(user_profile.get('workoutDays', []))}
@@ -1009,6 +1154,17 @@ USER DATA:
 - {len(data_context.get('workouts', []))} recent workouts
 - {len(data_context.get('goals', []))} active goals
 - {len(data_context.get('plans', []))} training plans"""
+
+        # Add user memories to context
+        if user_memories:
+            memory_str = "\n\nUSER MEMORIES (important things to remember about this user):"
+            for mem in user_memories[:15]:  # Limit to 15 most important memories
+                category = mem.get("category", "general")
+                content = mem.get("content", "")
+                importance = mem.get("importance", "medium")
+                prefix = "⚠️ " if importance == "high" else "• "
+                memory_str += f"\n{prefix}[{category}] {content}"
+            context_str += memory_str
 
         # Use the shared system prompt constant
         messages = [
@@ -1110,7 +1266,12 @@ USER DATA:
             "schedule_to_calendar": f"Scheduling {function_args.get('title', 'event')} for {function_args.get('date', 'your calendar')}",
             "get_calendar_events": "Checking your calendar",
             # Web search
-            "web_search": f"Searching the web for: {function_args.get('query', 'fitness info')}"
+            "web_search": f"Searching the web for: {function_args.get('query', 'fitness info')}",
+            # Memory
+            "save_memory": f"Remembering: {function_args.get('content', 'information')[:50]}...",
+            "delete_memory": f"Forgetting: {function_args.get('search_text', 'memory')}",
+            "list_memories": "Listing what I remember about you",
+            "update_memory": f"Updating memory about: {function_args.get('search_text', 'information')}"
         }
         return descriptions.get(function_name, f"Processing {function_name}")
 
@@ -1136,11 +1297,46 @@ USER DATA:
         logger.info(f"Processing streaming request for user {user_id}")
         data_context = await self.data_reader.process(message, user_context)
 
-        # Build context string
-        context_str = f"""User has:
+        # Load user memories for personalization
+        user_memories = await self._get_user_memories(user_id)
+
+        # Build context string with user profile
+        user_profile = data_context.get("user_profile", {})
+        user_name = user_profile.get('name', '').strip()
+        units = user_profile.get('units', 'metric')
+        weight = user_profile.get('weight')
+        height = user_profile.get('height')
+
+        # Format weight and height with units
+        weight_str = 'not set'
+        height_str = 'not set'
+        if weight:
+            weight_str = f"{weight} {'kg' if units == 'metric' else 'lbs'}"
+        if height:
+            height_str = f"{height} {'cm' if units == 'metric' else 'in'}"
+
+        context_str = f"""USER PROFILE:
+- Name: {user_name or 'not set'}
+- Fitness Level: {user_profile.get('fitnessLevel', 'not set')}
+- Weight: {weight_str}
+- Height: {height_str}
+- Units: {units}
+
+USER DATA:
 - {len(data_context.get('exercises', []))} exercises
 - {len(data_context.get('workouts', []))} workouts
 - {len(data_context.get('goals', []))} goals"""
+
+        # Add user memories to context
+        if user_memories:
+            memory_str = "\n\nUSER MEMORIES (important things to remember about this user):"
+            for mem in user_memories[:15]:  # Limit to 15 most important memories
+                category = mem.get("category", "general")
+                content = mem.get("content", "")
+                importance = mem.get("importance", "medium")
+                prefix = "⚠️ " if importance == "high" else "• "
+                memory_str += f"\n{prefix}[{category}] {content}"
+            context_str += memory_str
 
         # Build messages array with conversation history
         messages = [
@@ -1332,6 +1528,11 @@ USER DATA:
             "get_calendar_events": self._get_calendar_events,
             # Web search
             "web_search": self._web_search,
+            # Memory
+            "save_memory": self._save_memory,
+            "delete_memory": self._delete_memory,
+            "list_memories": self._list_memories,
+            "update_memory": self._update_memory,
         }
 
         handler = tool_handlers.get(function_name)
@@ -2898,3 +3099,303 @@ USER DATA:
         except Exception as e:
             logger.error(f"Error in web search: {e}")
             return {"success": False, "message": f"Search failed: {str(e)}"}
+
+    # ==================== MEMORY TOOL HANDLER ====================
+
+    async def _save_memory(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Save important information about the user to memory"""
+        try:
+            content = args.get("content")
+            if not content:
+                return {"success": False, "message": "Memory content is required"}
+
+            category = args.get("category", "general")
+            importance = args.get("importance", "medium")
+            tags = args.get("tags", [])
+
+            # Ensure tags are lowercase strings
+            if tags:
+                tags = [str(t).lower().strip() for t in tags if t]
+
+            memory_item = {
+                "_id": ObjectId(),
+                "content": content.strip()[:500],  # Limit to 500 chars
+                "category": category,
+                "tags": tags,
+                "source": "sensei",  # Mark as AI-generated
+                "importance": importance,
+                "isActive": True,
+                "createdAt": datetime.utcnow(),
+                "updatedAt": datetime.utcnow()
+            }
+
+            # Try to find existing user memory document
+            user_memory = await self.db.usermemories.find_one({"user": ObjectId(user_id)})
+
+            if user_memory:
+                # Add to existing memories array
+                result = await self.db.usermemories.update_one(
+                    {"user": ObjectId(user_id)},
+                    {
+                        "$push": {"memories": memory_item},
+                        "$set": {"updatedAt": datetime.utcnow()}
+                    }
+                )
+                success = result.modified_count > 0
+            else:
+                # Create new user memory document
+                new_doc = {
+                    "user": ObjectId(user_id),
+                    "memories": [memory_item],
+                    "createdAt": datetime.utcnow(),
+                    "updatedAt": datetime.utcnow()
+                }
+                result = await self.db.usermemories.insert_one(new_doc)
+                success = result.inserted_id is not None
+
+            if success:
+                # Build a friendly confirmation message
+                category_emoji = {
+                    "health": "🏥",
+                    "preference": "✨",
+                    "goal": "🎯",
+                    "lifestyle": "🌟",
+                    "general": "📝"
+                }
+                emoji = category_emoji.get(category, "📝")
+
+                logger.info(f"Saved memory for user {user_id}: {content[:50]}...")
+                return {
+                    "success": True,
+                    "message": f"{emoji} I'll remember that! Saved to your memory under **{category}**.",
+                    "memory_id": str(memory_item["_id"])
+                }
+            else:
+                return {"success": False, "message": "Failed to save memory"}
+
+        except Exception as e:
+            logger.error(f"Error saving memory: {e}")
+            return {"success": False, "message": f"Error saving memory: {str(e)}"}
+
+    async def _get_user_memories(self, user_id: str) -> list:
+        """Get active memories for a user (for prompt injection)"""
+        try:
+            user_memory = await self.db.usermemories.find_one({"user": ObjectId(user_id)})
+            if not user_memory:
+                return []
+
+            # Filter to only active memories and sort by importance
+            active_memories = [m for m in user_memory.get("memories", []) if m.get("isActive", True)]
+
+            # Sort by importance (high first)
+            importance_order = {"high": 0, "medium": 1, "low": 2}
+            active_memories.sort(key=lambda m: importance_order.get(m.get("importance", "medium"), 1))
+
+            return active_memories
+        except Exception as e:
+            logger.error(f"Error getting user memories: {e}")
+            return []
+
+    async def _delete_memory(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Delete a memory matching the search text"""
+        try:
+            search_text = args.get("search_text", "").lower()
+            category_filter = args.get("category")
+
+            if not search_text:
+                return {"success": False, "message": "Please specify what memory to delete"}
+
+            user_memory = await self.db.usermemories.find_one({"user": ObjectId(user_id)})
+            if not user_memory:
+                return {"success": False, "message": "No memories found"}
+
+            memories = user_memory.get("memories", [])
+            original_count = len(memories)
+
+            # Find memories matching the search text
+            memories_to_keep = []
+            deleted_memories = []
+
+            for mem in memories:
+                content_lower = mem.get("content", "").lower()
+                category_match = not category_filter or mem.get("category") == category_filter
+
+                if search_text in content_lower and category_match:
+                    deleted_memories.append(mem)
+                else:
+                    memories_to_keep.append(mem)
+
+            if not deleted_memories:
+                return {"success": False, "message": f"No memories found matching '{search_text}'"}
+
+            # Update the document
+            result = await self.db.usermemories.update_one(
+                {"user": ObjectId(user_id)},
+                {
+                    "$set": {
+                        "memories": memories_to_keep,
+                        "updatedAt": datetime.utcnow()
+                    }
+                }
+            )
+
+            if result.modified_count > 0:
+                deleted_count = len(deleted_memories)
+                deleted_preview = deleted_memories[0].get("content", "")[:50]
+                logger.info(f"Deleted {deleted_count} memory(ies) for user {user_id}")
+                return {
+                    "success": True,
+                    "message": f"🗑️ Deleted {deleted_count} memory(ies) matching '{search_text}'.",
+                    "deleted_count": deleted_count
+                }
+            else:
+                return {"success": False, "message": "Failed to delete memory"}
+
+        except Exception as e:
+            logger.error(f"Error deleting memory: {e}")
+            return {"success": False, "message": f"Error deleting memory: {str(e)}"}
+
+    async def _list_memories(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """List all memories for the user"""
+        try:
+            category_filter = args.get("category")
+
+            user_memory = await self.db.usermemories.find_one({"user": ObjectId(user_id)})
+            if not user_memory:
+                return {
+                    "success": True,
+                    "message": "I don't have any memories saved about you yet.",
+                    "memories": []
+                }
+
+            memories = user_memory.get("memories", [])
+
+            # Filter by category if specified
+            if category_filter:
+                memories = [m for m in memories if m.get("category") == category_filter]
+
+            # Filter to active only
+            active_memories = [m for m in memories if m.get("isActive", True)]
+
+            if not active_memories:
+                if category_filter:
+                    return {
+                        "success": True,
+                        "message": f"No active memories in the **{category_filter}** category.",
+                        "memories": []
+                    }
+                return {
+                    "success": True,
+                    "message": "I don't have any active memories saved about you.",
+                    "memories": []
+                }
+
+            # Format memories for display
+            category_emoji = {
+                "health": "🏥",
+                "preference": "✨",
+                "goal": "🎯",
+                "lifestyle": "🌟",
+                "general": "📝"
+            }
+
+            formatted = []
+            for mem in active_memories:
+                cat = mem.get("category", "general")
+                emoji = category_emoji.get(cat, "📝")
+                importance = mem.get("importance", "medium")
+                imp_marker = "⚠️ " if importance == "high" else ""
+                formatted.append({
+                    "category": cat,
+                    "content": mem.get("content"),
+                    "importance": importance,
+                    "display": f"{imp_marker}{emoji} [{cat}] {mem.get('content')}"
+                })
+
+            # Build message
+            message = f"Here's what I remember about you ({len(formatted)} memories):\n\n"
+            for f in formatted:
+                message += f"• {f['display']}\n"
+
+            message += "\n_You can manage these in **Settings → Sensei Memory**_"
+
+            return {
+                "success": True,
+                "message": message,
+                "memories": formatted,
+                "count": len(formatted)
+            }
+
+        except Exception as e:
+            logger.error(f"Error listing memories: {e}")
+            return {"success": False, "message": f"Error listing memories: {str(e)}"}
+
+    async def _update_memory(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing memory"""
+        try:
+            search_text = args.get("search_text", "").lower()
+            new_content = args.get("new_content")
+            new_category = args.get("category")
+            new_importance = args.get("importance")
+
+            if not search_text or not new_content:
+                return {"success": False, "message": "Please specify what memory to update and the new content"}
+
+            user_memory = await self.db.usermemories.find_one({"user": ObjectId(user_id)})
+            if not user_memory:
+                return {"success": False, "message": "No memories found"}
+
+            memories = user_memory.get("memories", [])
+            updated = False
+
+            for mem in memories:
+                content_lower = mem.get("content", "").lower()
+                if search_text in content_lower:
+                    mem["content"] = new_content.strip()[:500]
+                    mem["updatedAt"] = datetime.utcnow()
+                    if new_category:
+                        mem["category"] = new_category
+                    if new_importance:
+                        mem["importance"] = new_importance
+                    updated = True
+                    break  # Only update first match
+
+            if not updated:
+                # No existing memory found - create a new one instead
+                logger.info(f"No memory found matching '{search_text}', creating new memory")
+                return await self._save_memory(user_id, {
+                    "content": new_content,
+                    "category": new_category or "general",
+                    "importance": new_importance or "medium"
+                })
+
+            result = await self.db.usermemories.update_one(
+                {"user": ObjectId(user_id)},
+                {
+                    "$set": {
+                        "memories": memories,
+                        "updatedAt": datetime.utcnow()
+                    }
+                }
+            )
+
+            if result.modified_count > 0:
+                category_emoji = {
+                    "health": "🏥",
+                    "preference": "✨",
+                    "goal": "🎯",
+                    "lifestyle": "🌟",
+                    "general": "📝"
+                }
+                emoji = category_emoji.get(new_category or "general", "📝")
+                logger.info(f"Updated memory for user {user_id}")
+                return {
+                    "success": True,
+                    "message": f"{emoji} Memory updated! New content: **{new_content[:100]}{'...' if len(new_content) > 100 else ''}**"
+                }
+            else:
+                return {"success": False, "message": "Failed to update memory"}
+
+        except Exception as e:
+            logger.error(f"Error updating memory: {e}")
+            return {"success": False, "message": f"Error updating memory: {str(e)}"}
