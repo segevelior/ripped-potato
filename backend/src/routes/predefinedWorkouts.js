@@ -145,8 +145,8 @@ router.post('/', auth, async (req, res) => {
       isCommon: false // User-created workouts are private by default
     };
 
-    // Admin can create common workouts
-    if (req.user.role === 'admin' && req.body.isCommon === true) {
+    // Only superAdmin can create common workouts
+    if (req.user.role === 'superAdmin' && req.body.isCommon === true) {
       workoutData.isCommon = true;
       workoutData.createdBy = null; // Common workouts don't have a specific creator
     }
@@ -176,6 +176,17 @@ router.put('/:id', auth, async (req, res) => {
 
     if (!workout) {
       return res.status(404).json({ error: 'Predefined workout not found' });
+    }
+
+    // SuperAdmin can edit any workout, including common ones
+    if (req.user.role === 'superAdmin') {
+      Object.assign(workout, req.body);
+      await workout.save();
+
+      await workout.populate('createdBy', 'name');
+      await workout.populate('blocks.exercises.exercise_id', 'name muscles equipment');
+
+      return res.json(workout);
     }
 
     // Check if user can edit this workout directly
@@ -212,10 +223,23 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ error: 'Predefined workout not found' });
     }
 
-    // Only the owner can delete their private workouts
+    // SuperAdmin can delete any workout, including common ones
+    if (req.user.role === 'superAdmin') {
+      await workout.deleteOne();
+      return res.json({ message: 'Predefined workout deleted successfully' });
+    }
+
+    // Regular users can only delete their own private workouts
     if (!workout.canUserEdit(req.user.id)) {
       return res.status(403).json({
         error: 'You can only delete your own workouts'
+      });
+    }
+
+    // Prevent regular users from deleting common workouts
+    if (workout.isCommon) {
+      return res.status(403).json({
+        error: 'Only superAdmin can delete common workouts'
       });
     }
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot, TrendingUp, Settings } from "lucide-react";
+import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot, TrendingUp, Settings, MessageSquare } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -12,6 +12,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { FeedbackTrigger, FeedbackModal } from "@/components/common/FeedbackButton";
 
 const navigationItems = [
   {
@@ -79,6 +80,7 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isNavVisible, setIsNavVisible] = useState(true);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const lastScrollY = useRef(0);
   const mainContentRef = useRef(null);
 
@@ -148,6 +150,13 @@ export default function Layout({ children }) {
             </SidebarContent>
             <SidebarFooter>
               <div className="p-4 border-t space-y-3">
+                <button
+                  onClick={() => setShowFeedbackModal(true)}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 transition-all text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 w-full"
+                >
+                  <MessageSquare className="w-5 h-5" />
+                  Send Feedback
+                </button>
                 <Link
                   to={createPageUrl("Settings")}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all text-sm font-medium ${
@@ -192,7 +201,7 @@ export default function Layout({ children }) {
               <img src="/logo.png" alt="Torii Logo" className="w-8 h-8 object-contain" />
               <span className="font-bold text-lg dark:text-white">Torii</span>
             </Link>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Link to={createPageUrl("Calendar")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
                 <Calendar className="w-5 h-5" />
               </Link>
@@ -202,6 +211,7 @@ export default function Layout({ children }) {
               <Link to={createPageUrl("Chat")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
                 <Bot className="w-5 h-5" />
               </Link>
+              <FeedbackTrigger />
               <Link to={createPageUrl("Settings")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
                 <Settings className="w-5 h-5" />
               </Link>
@@ -252,6 +262,7 @@ export default function Layout({ children }) {
         </div>
 
       </div>
+      <FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} />
     </SidebarProvider>
   );
 }

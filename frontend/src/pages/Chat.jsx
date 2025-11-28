@@ -422,7 +422,12 @@ export default function Chat() {
 
       if (result.action === "create_predefined_workout" && result.predefined_workout_to_create) {
         try {
-          const newWorkout = await PredefinedWorkout.create(result.predefined_workout_to_create);
+          // AI-created workouts should never be common - they're always personal
+          const workoutData = {
+            ...result.predefined_workout_to_create,
+            isCommon: false
+          };
+          const newWorkout = await PredefinedWorkout.create(workoutData);
           assistantResponse += `\n\n✅ **Workout Template Created!** I've created "${result.predefined_workout_to_create.name}" for you. You can find it on the [Predefined Workouts page](/PredefinedWorkouts).`;
         } catch (error) {
           console.error("Error creating predefined workout:", error);

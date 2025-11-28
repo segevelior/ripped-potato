@@ -67,20 +67,50 @@ const BlockSearch = ({ allExercises, onSelect }) => {
   );
 };
 
-export default function CreateWorkoutModal({ exercises, onClose, onSave }) {
-  const [workout, setWorkout] = useState({
-    name: "",
-    goal: "",
-    difficulty_level: "intermediate",
-    duration_minutes: 45,
-    primary_disciplines: [],
-    blocks: [
-      {
-        name: "Main Block",
-        exercises: []
-      }
-    ]
-  });
+export default function CreateWorkoutModal({ exercises, onClose, onSave, editWorkout = null }) {
+  // Get current user to check for superAdmin role
+  const currentUser = JSON.parse(localStorage.getItem('authUser') || '{}');
+  const isSuperAdmin = currentUser?.role === 'superAdmin';
+
+  const isEditing = !!editWorkout;
+
+  // Initialize state with editWorkout data if provided
+  const getInitialWorkout = () => {
+    if (editWorkout) {
+      return {
+        id: editWorkout.id || editWorkout._id,
+        name: editWorkout.name || "",
+        goal: editWorkout.goal || "",
+        difficulty_level: editWorkout.difficulty_level || "intermediate",
+        duration_minutes: editWorkout.duration_minutes || editWorkout.estimated_duration || 45,
+        primary_disciplines: editWorkout.primary_disciplines || [],
+        isCommon: editWorkout.isCommon || false,
+        blocks: editWorkout.blocks?.length > 0
+          ? editWorkout.blocks.map(block => ({
+              name: block.name || "Block",
+              exercises: block.exercises?.map(ex => ({
+                exercise_id: ex.exercise_id?._id || ex.exercise_id || ex.exercise?.id,
+                exercise_name: ex.exercise_name || ex.exercise?.name || "Unknown Exercise",
+                volume: ex.volume || "3x8",
+                rest: ex.rest || "60s",
+                notes: ex.notes || ""
+              })) || []
+            }))
+          : [{ name: "Main Block", exercises: [] }]
+      };
+    }
+    return {
+      name: "",
+      goal: "",
+      difficulty_level: "intermediate",
+      duration_minutes: 45,
+      primary_disciplines: [],
+      isCommon: false,
+      blocks: [{ name: "Main Block", exercises: [] }]
+    };
+  };
+
+  const [workout, setWorkout] = useState(getInitialWorkout);
 
   // Track expanded exercise for "Compact Row" logic
   // Format: `${blockIndex}-${exerciseIndex}` or null
@@ -195,13 +225,13 @@ export default function CreateWorkoutModal({ exercises, onClose, onSave }) {
             <X className="w-6 h-6 text-gray-400 hover:text-gray-600" />
           </button>
 
-          <h2 className="text-lg font-bold text-gray-900">Create Workout</h2>
+          <h2 className="text-lg font-bold text-gray-900">{isEditing ? "Edit Workout" : "Create Workout"}</h2>
 
           <button
             onClick={handleSaveClick}
             className="text-[#FE755D] font-bold text-sm hover:text-[#E56A54] transition-colors"
           >
-            Save
+            {isEditing ? "Update" : "Save"}
           </button>
         </div>
 
@@ -220,6 +250,24 @@ export default function CreateWorkoutModal({ exercises, onClose, onSave }) {
                 placeholder="e.g., Upper Body Strength"
               />
             </div>
+
+            {/* SuperAdmin: Make Common Option - placed prominently */}
+            {isSuperAdmin && (
+              <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={workout.isCommon}
+                    onChange={(e) => setWorkout({ ...workout, isCommon: e.target.checked })}
+                    className="w-5 h-5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-amber-900">Make this a Common Workout</span>
+                    <p className="text-xs text-amber-700 mt-0.5">Common workouts are visible to all users</p>
+                  </div>
+                </label>
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-4">
               <div className="flex-1 min-w-[140px]">
@@ -284,6 +332,7 @@ export default function CreateWorkoutModal({ exercises, onClose, onSave }) {
                 placeholder="e.g., Build upper body strength with compound movements"
               />
             </div>
+
           </div>
 
           {/* Blocks Section */}

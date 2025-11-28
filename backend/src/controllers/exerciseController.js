@@ -155,9 +155,9 @@ const createExercise = async (req, res) => {
       createdBy: req.user.id,
       isCommon: false // User-created exercises are private by default
     };
-    
-    // Admin can create common exercises
-    if (req.user.role === 'admin' && req.body.isCommon === true) {
+
+    // Only superAdmin can create common exercises
+    if (req.user.role === 'superAdmin' && req.body.isCommon === true) {
       exerciseData.isCommon = true;
       exerciseData.createdBy = null; // Common exercises don't have a specific creator
     }
@@ -181,20 +181,31 @@ const createExercise = async (req, res) => {
 const updateExercise = async (req, res) => {
   try {
     const exercise = await Exercise.findById(req.params.id);
-    
+
     if (!exercise) {
       return res.status(404).json({
         success: false,
         message: 'Exercise not found'
       });
     }
-    
+
+    // SuperAdmin can edit any exercise, including common ones
+    if (req.user.role === 'superAdmin') {
+      Object.assign(exercise, req.body);
+      await exercise.save();
+
+      return res.json({
+        success: true,
+        data: exercise
+      });
+    }
+
     // Check if user can edit this exercise directly
     if (exercise.canUserEdit(req.user.id)) {
       // User owns this exercise - update directly
       Object.assign(exercise, req.body);
       await exercise.save();
-      
+
       res.json({
         success: true,
         data: exercise
@@ -220,7 +231,7 @@ const updateExercise = async (req, res) => {
 const deleteExercise = async (req, res) => {
   try {
     const exercise = await Exercise.findById(req.params.id);
-    
+
     if (!exercise) {
       return res.status(404).json({
         success: false,
@@ -228,11 +239,28 @@ const deleteExercise = async (req, res) => {
       });
     }
 
-    // Only the owner can delete their private exercises
+    // SuperAdmin can delete any exercise, including common ones
+    if (req.user.role === 'superAdmin') {
+      await exercise.deleteOne();
+      return res.json({
+        success: true,
+        message: 'Exercise deleted successfully'
+      });
+    }
+
+    // Regular users can only delete their own private exercises
     if (!exercise.canUserEdit(req.user.id)) {
       return res.status(403).json({
         success: false,
         message: 'You can only delete your own exercises'
+      });
+    }
+
+    // Prevent regular users from deleting common exercises
+    if (exercise.isCommon) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only superAdmin can delete common exercises'
       });
     }
 

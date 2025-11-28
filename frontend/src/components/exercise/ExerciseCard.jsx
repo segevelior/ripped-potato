@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dumbbell, Target, Star, Activity } from 'lucide-react';
 import { getDisciplineClass } from '@/styles/designTokens';
+import SwipeableCard from '@/components/common/SwipeableCard';
 
 const getDifficultyColor = (level) => {
   switch (level?.toLowerCase()) {
@@ -11,7 +12,7 @@ const getDifficultyColor = (level) => {
   }
 };
 
-export default function ExerciseCard({ exercise, onClick, onToggleFavorite }) {
+export default function ExerciseCard({ exercise, onClick, onToggleFavorite, onDelete, onEdit }) {
   const [isFavorite, setIsFavorite] = useState(exercise.userMetadata?.isFavorite || false);
 
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function ExerciseCard({ exercise, onClick, onToggleFavorite }) {
   const discipline = exercise.discipline?.[0] || 'Fitness';
   const hasImage = !!exercise.image;
 
-  return (
+  const cardContent = (
     <div
       onClick={() => onClick(exercise)}
       className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group h-full flex flex-col border border-gray-100"
@@ -109,4 +110,19 @@ export default function ExerciseCard({ exercise, onClick, onToggleFavorite }) {
       </div>
     </div>
   );
+
+  // If onDelete or onEdit is provided, wrap with SwipeableCard for swipe actions
+  if (onDelete || onEdit) {
+    return (
+      <SwipeableCard
+        onDelete={onDelete ? () => onDelete(exercise) : undefined}
+        onEdit={onEdit ? () => onEdit(exercise) : undefined}
+        className="rounded-3xl h-full"
+      >
+        {cardContent}
+      </SwipeableCard>
+    );
+  }
+
+  return cardContent;
 }

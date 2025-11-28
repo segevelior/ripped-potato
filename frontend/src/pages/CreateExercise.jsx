@@ -78,6 +78,10 @@ export default function CreateExercise() {
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
+  // Get current user to check for superAdmin role
+  const currentUser = JSON.parse(localStorage.getItem('authUser') || '{}');
+  const isSuperAdmin = currentUser?.role === 'superAdmin';
+
   // AI suggestion state
   const [suggestions, setSuggestions] = useState(null);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
@@ -121,7 +125,8 @@ export default function CreateExercise() {
     progression_level: null,
     next_progression: "",
     previous_progression: "",
-    description: ""
+    description: "",
+    isCommon: false
   });
   const [newEquipment, setNewEquipment] = useState("");
   const [newSimilarExercise, setNewSimilarExercise] = useState("");
@@ -294,7 +299,8 @@ export default function CreateExercise() {
           load: exerciseToEdit.strain?.load || "",
           duration_type: exerciseToEdit.strain?.duration_type || "",
           typical_volume: exerciseToEdit.strain?.typical_volume || ""
-        }
+        },
+        isCommon: exerciseToEdit.isCommon || false
       });
     } catch (error) {
       console.error("Error loading exercise for editing:", error);
@@ -941,6 +947,25 @@ export default function CreateExercise() {
               </div>
             </div>
           </div>
+
+          {/* SuperAdmin: Make Common Option */}
+          {isSuperAdmin && (
+            <div className="bg-amber-50 rounded-2xl shadow-sm p-6 border border-amber-200">
+              <h3 className="text-lg font-bold text-amber-900 mb-3">Admin Options</h3>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={exercise.isCommon}
+                  onChange={(e) => handleChange('isCommon', e.target.checked)}
+                  className="w-5 h-5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                />
+                <div>
+                  <span className="text-sm font-medium text-amber-900">Make this a Common Exercise</span>
+                  <p className="text-xs text-amber-700 mt-0.5">Common exercises are visible to all users</p>
+                </div>
+              </label>
+            </div>
+          )}
 
           {/* Save Button */}
           <button

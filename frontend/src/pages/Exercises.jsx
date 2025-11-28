@@ -76,6 +76,15 @@ export default function Exercises() {
     }
   };
 
+  const handleDeleteExercise = async (exercise) => {
+    try {
+      await Exercise.delete(exercise.id);
+      await loadExercises();
+    } catch (error) {
+      console.error("Error deleting exercise:", error);
+    }
+  };
+
   // Get unique disciplines for filter
   const disciplines = ["all", ...new Set(exercises.flatMap(ex => ex.discipline || []))];
 
@@ -188,6 +197,8 @@ export default function Exercises() {
               exercise={exercise}
               onClick={setViewExercise}
               onToggleFavorite={handleToggleFavorite}
+              onDelete={handleDeleteExercise}
+              onEdit={handleEditExercise}
             />
           ))}
         </div>
@@ -235,6 +246,7 @@ export default function Exercises() {
           onClose={() => setViewExercise(null)}
           onEdit={handleEditExercise}
           onToggleFavorite={handleToggleFavorite}
+          onDelete={handleDeleteExercise}
         />
       )}
     </div>

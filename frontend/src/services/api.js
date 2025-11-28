@@ -388,6 +388,26 @@ class APIService {
     })
   };
 
+  // Feedback endpoints
+  feedback = {
+    submit: (data) => this.request('/feedback', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+    list: (params = {}) => {
+      const queryString = new URLSearchParams(params).toString();
+      return this.request(`/feedback${queryString ? `?${queryString}` : ''}`);
+    },
+    stats: () => this.request('/feedback/stats'),
+    update: (id, data) => this.request(`/feedback/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }),
+    delete: (id) => this.request(`/feedback/${id}`, {
+      method: 'DELETE'
+    })
+  };
+
   // Alias endpoints for naming compatibility
   trainingPlans = this.plans;  // TrainingPlan -> Plan
   workoutTemplates = this.predefinedWorkouts;  // WorkoutTemplate -> PredefinedWorkout
