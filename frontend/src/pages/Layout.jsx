@@ -202,18 +202,12 @@ export default function Layout({ children }) {
               <span className="font-bold text-lg dark:text-white">Torii</span>
             </Link>
             <div className="flex items-center gap-2">
-              <Link to={createPageUrl("Calendar")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
-                <Calendar className="w-5 h-5" />
-              </Link>
-              <Link to={createPageUrl("TrainNow")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
-                <Zap className="w-5 h-5" />
-              </Link>
               <Link to={createPageUrl("Chat")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
                 <Bot className="w-5 h-5" />
               </Link>
-              <FeedbackTrigger />
-              <Link to={createPageUrl("Settings")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
-                <Settings className="w-5 h-5" />
+              <FeedbackTrigger onClick={() => setShowFeedbackModal(true)} />
+              <Link to={createPageUrl("TrainNow")} className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
+                <Zap className="w-5 h-5" />
               </Link>
               <SidebarTrigger className="md:hidden" />
             </div>
