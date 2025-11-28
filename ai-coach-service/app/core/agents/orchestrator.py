@@ -9,6 +9,7 @@ import structlog
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 from datetime import datetime, timedelta
+from tavily import TavilyClient
 
 from app.config import get_settings
 from app.core.agents.data_reader import DataReaderAgent
@@ -61,6 +62,26 @@ WHEN USER ASKS ABOUT EXERCISES BY MUSCLE GROUP (e.g., "what core exercises do I 
 - `schedule_to_calendar`: Schedule a workout or event to a specific date. Use this when user wants to add a workout to their calendar. Supports 'today', 'tomorrow', or ISO dates.
 - `get_calendar_events`: Check what's already scheduled on the user's calendar.
 
+**Web Search** (External resources):
+- `web_search`: Search the web for exercise tutorials, form guides, and fitness content. Use this when:
+  - User asks "how do I do [exercise]?" or "show me how to do [exercise]"
+  - User wants video tutorials or demonstrations
+  - User needs external resources, articles, or guides about fitness topics
+  - User asks about proper form, technique, or exercise variations
+  - Search types: 'video' for YouTube tutorials, 'article' for written guides, 'general' for mixed results
+
+PREFERRED FITNESS CONTENT CREATORS (include relevant names in your search query for better results):
+- **Calisthenics/Bodyweight**: Saturno Movement, Calisthenicmovement, FitnessFAQs, Chris Heria, Minus The Gym, Hybrid Calisthenics, Tom Merrick
+- **Strength Training/General**: Athlean-X (Jeff Cavaliere), Jeremy Ethier, Jeff Nippard, Renaissance Periodization, Squat University
+- **Mobility/Flexibility**: Tom Merrick, Squat University, GMB Fitness
+- **Powerlifting/Olympic**: Juggernaut Training Systems, Calgary Barbell, Zack Telander
+- **Yoga/Mind-Body**: Yoga With Adriene, Breathe and Flow
+
+When searching for exercise tutorials, include 1-2 relevant creator names in the query. Examples:
+- Calisthenics exercise → "muscle up tutorial Saturno Movement OR Calisthenicmovement"
+- Strength exercise → "deadlift form Athlean-X OR Jeff Nippard"
+- Mobility/stretching → "hip mobility routine Tom Merrick"
+
 CALENDAR WORKFLOW:
 When user asks to add/schedule a workout for a specific date:
 1. Design the workout and get user approval
@@ -79,6 +100,7 @@ IMPORTANT PRINCIPLES:
 8. Use proper volume/intensity based on user's fitness level
 9. If user mentions they "can do" an exercise, check if it exists first, then add if missing
 10. Be conversational and encouraging while being precise with data
+11. ALWAYS acknowledge before using tools - say a brief sentence like "Let me search for that..." or "I'll look that up for you..." BEFORE calling any tool. This keeps the conversation natural and lets the user know what's happening.
 
 QUICK REPLIES:
 When your response asks for user confirmation or presents options, include clickable quick-reply buttons at the end using this format:
@@ -935,6 +957,33 @@ class AgentOrchestrator:
                         }
                     }
                 }
+            },
+            # ==================== WEB SEARCH TOOL ====================
+            {
+                "type": "function",
+                "function": {
+                    "name": "web_search",
+                    "description": "Search the web for fitness-related information, exercise tutorials, form guides, and educational content. Use this when users ask 'how to do' an exercise, want video tutorials, need form tips, or want external resources about fitness topics.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "The search query. Be specific and include 'tutorial', 'how to', 'form guide', etc. for better results. Example: 'how to do muscle ups tutorial' or 'proper deadlift form guide'"
+                            },
+                            "search_type": {
+                                "type": "string",
+                                "enum": ["general", "video", "article"],
+                                "description": "Type of content to search for. 'video' prioritizes YouTube/video results, 'article' prioritizes written guides, 'general' returns mixed results. Default: general"
+                            },
+                            "max_results": {
+                                "type": "integer",
+                                "description": "Maximum number of results to return (1-5). Default: 3"
+                            }
+                        },
+                        "required": ["query"]
+                    }
+                }
             }
         ]
 
@@ -1059,7 +1108,9 @@ USER DATA:
             "list_goals": "Fetching your fitness goals",
             # Calendar tools
             "schedule_to_calendar": f"Scheduling {function_args.get('title', 'event')} for {function_args.get('date', 'your calendar')}",
-            "get_calendar_events": "Checking your calendar"
+            "get_calendar_events": "Checking your calendar",
+            # Web search
+            "web_search": f"Searching the web for: {function_args.get('query', 'fitness info')}"
         }
         return descriptions.get(function_name, f"Processing {function_name}")
 
@@ -1279,6 +1330,8 @@ USER DATA:
             # Calendar tools
             "schedule_to_calendar": self._schedule_to_calendar,
             "get_calendar_events": self._get_calendar_events,
+            # Web search
+            "web_search": self._web_search,
         }
 
         handler = tool_handlers.get(function_name)
@@ -2710,3 +2763,138 @@ USER DATA:
         except Exception as e:
             logger.error(f"Error getting calendar events: {e}")
             return {"success": False, "message": f"Error fetching calendar: {str(e)}"}
+
+    # ==================== WEB SEARCH TOOL HANDLER ====================
+
+    async def _web_search(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Search the web for fitness-related content using Tavily"""
+        try:
+            query = args.get("query")
+            if not query:
+                return {"success": False, "message": "Search query is required"}
+
+            search_type = args.get("search_type", "general")
+            max_results = min(args.get("max_results", 3), 5)  # Cap at 5
+
+            # Check if Tavily API key is configured
+            if not self.settings.tavily_api_key:
+                return {
+                    "success": False,
+                    "message": "Web search is not configured. Please add TAVILY_API_KEY to your environment."
+                }
+
+            # Initialize Tavily client
+            tavily = TavilyClient(api_key=self.settings.tavily_api_key)
+
+            # Preferred fitness creators by category
+            PREFERRED_CREATORS = {
+                "calisthenics": ["Saturno Movement", "Calisthenicmovement", "FitnessFAQs", "Chris Heria", "Hybrid Calisthenics"],
+                "bodyweight": ["Saturno Movement", "Calisthenicmovement", "FitnessFAQs", "Hybrid Calisthenics", "Minus The Gym"],
+                "strength": ["Athlean-X", "Jeff Nippard", "Jeremy Ethier", "Renaissance Periodization"],
+                "mobility": ["Tom Merrick", "Squat University", "GMB Fitness"],
+                "flexibility": ["Tom Merrick", "GMB Fitness", "Yoga With Adriene"],
+                "powerlifting": ["Juggernaut Training Systems", "Calgary Barbell", "Squat University"],
+                "yoga": ["Yoga With Adriene", "Breathe and Flow"],
+                "meditation": ["Yoga With Adriene", "Headspace"],
+            }
+
+            # Detect category from query to boost with preferred creators
+            query_lower = query.lower()
+            creator_boost = ""
+
+            # Check for category keywords in query
+            for category, creators in PREFERRED_CREATORS.items():
+                if category in query_lower:
+                    creator_boost = f" {creators[0]} OR {creators[1]}"
+                    break
+
+            # Also check for common exercise types
+            if not creator_boost:
+                calisthenics_keywords = ["pull up", "pull-up", "muscle up", "muscle-up", "dip", "handstand", "planche", "front lever", "back lever", "l-sit", "ring"]
+                strength_keywords = ["deadlift", "squat", "bench press", "barbell", "dumbbell", "overhead press"]
+                mobility_keywords = ["mobility", "stretch", "flexibility", "warm up", "warm-up"]
+
+                if any(kw in query_lower for kw in calisthenics_keywords):
+                    creator_boost = " Saturno Movement OR Calisthenicmovement"
+                elif any(kw in query_lower for kw in strength_keywords):
+                    creator_boost = " Athlean-X OR Jeff Nippard"
+                elif any(kw in query_lower for kw in mobility_keywords):
+                    creator_boost = " Tom Merrick OR Squat University"
+
+            # Enhance query for fitness context
+            enhanced_query = query
+            if search_type == "video":
+                enhanced_query = f"{query}{creator_boost} video tutorial youtube"
+            elif search_type == "article":
+                enhanced_query = f"{query} guide article"
+            else:
+                enhanced_query = f"{query}{creator_boost}"
+
+            # Perform search
+            logger.info(f"Web search for user {user_id}: {enhanced_query}")
+            response = tavily.search(
+                query=enhanced_query,
+                max_results=max_results,
+                search_depth="basic",
+                include_answer=True,
+                include_domains=["youtube.com", "bodybuilding.com", "menshealth.com",
+                                "womenshealthmag.com", "stack.com", "t-nation.com",
+                                "strengthlog.com", "exrx.net", "verywellfit.com"] if search_type != "general" else None
+            )
+
+            # Format results
+            results = []
+            for result in response.get("results", []):
+                url = result.get("url", "")
+                is_video = "youtube.com" in url or "youtu.be" in url
+                video_id = None
+
+                # Extract YouTube video ID
+                if is_video:
+                    import re
+                    patterns = [
+                        r'(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)',
+                    ]
+                    for pattern in patterns:
+                        match = re.search(pattern, url)
+                        if match:
+                            video_id = match.group(1)
+                            break
+
+                results.append({
+                    "title": result.get("title", ""),
+                    "url": url,
+                    "snippet": result.get("content", "")[:300] + "..." if len(result.get("content", "")) > 300 else result.get("content", ""),
+                    "is_video": is_video,
+                    "video_id": video_id
+                })
+
+            # Build response message
+            if results:
+                message = f"Found **{len(results)} results** for \"{query}\":"
+
+                for i, r in enumerate(results, 1):
+                    if r["is_video"] and r["video_id"]:
+                        # Use video-embed tag for YouTube videos
+                        message += f"\n\n<video-embed videoid=\"{r['video_id']}\" title=\"{r['title']}\" />"
+                    else:
+                        # Regular link for articles
+                        message += f"\n\n📄 **{i}. [{r['title']}]({r['url']})**\n{r['snippet']}"
+
+                # Include Tavily's AI answer if available
+                ai_answer = response.get("answer")
+                if ai_answer:
+                    message = f"**Quick Answer:** {ai_answer}\n\n---\n\n{message}"
+            else:
+                message = f"No results found for \"{query}\". Try a different search term."
+
+            return {
+                "success": True,
+                "message": message,
+                "results": results,
+                "answer": response.get("answer")
+            }
+
+        except Exception as e:
+            logger.error(f"Error in web search: {e}")
+            return {"success": False, "message": f"Search failed: {str(e)}"}

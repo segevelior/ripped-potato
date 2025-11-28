@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     
     # CORS
     allowed_origins: str = "http://localhost:5173,http://localhost:5001"
+
+    # Tavily Web Search API
+    tavily_api_key: Optional[str] = None
     
     @property
     def cors_origins(self) -> List[str]:

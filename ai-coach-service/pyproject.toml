@@ -19,6 +19,7 @@ python-jose = {extras = ["cryptography"], version = "^3.3.0"}
 python-multipart = "^0.0.6"
 # AI/ML Dependencies (cloud-based)
 openai = "^1.10.0"
+tavily-python = "^0.7.0"
 # Observability
 structlog = "^24.1.0"
 
