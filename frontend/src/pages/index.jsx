@@ -30,6 +30,8 @@ import Progressions from "./Progressions";
 
 import Settings from "./Settings";
 
+import MemoriesSettings from "./MemoriesSettings";
+
 import Auth from "./Auth";
 
 import AuthCallback from "./AuthCallback";
@@ -143,6 +145,8 @@ function PagesContent() {
                 <Route path="/Progressions" element={<Progressions />} />
 
                 <Route path="/Settings" element={<Settings />} />
+
+                <Route path="/Settings/Memories" element={<MemoriesSettings />} />
             </Route>
             <Route path="*" element={<Navigate to="/auth" replace />} />
         </Routes>

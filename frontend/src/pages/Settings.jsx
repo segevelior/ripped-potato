@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Camera, Moon, Sun, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Camera, Moon, Sun, Loader2, Brain } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -339,6 +339,34 @@ export default function Settings() {
                 )}
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Sensei Memory Section */}
+        <div className="mt-8">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Sensei Memory</h2>
+          <div className="space-y-1">
+            <div className="py-4 border-b border-gray-100 dark:border-gray-800">
+              <button
+                onClick={() => navigate('/Settings/Memories')}
+                className="w-full flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/30">
+                    <Brain className="w-5 h-5 text-primary-500 dark:text-primary-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-bold text-gray-500 dark:text-gray-400 tracking-wide">
+                      Manage Memories
+                    </p>
+                    <p className="text-base font-medium text-gray-900 dark:text-white mt-1">
+                      Help Sensei remember your preferences
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-primary-300 dark:text-primary-400 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
           </div>
         </div>
 

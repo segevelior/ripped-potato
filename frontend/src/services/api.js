@@ -408,6 +408,33 @@ class APIService {
     })
   };
 
+  // Memories endpoints (Sensei memory system)
+  memories = {
+    list: async (params = {}) => {
+      const queryString = new URLSearchParams(params).toString();
+      const response = await this.request(`/memories${queryString ? `?${queryString}` : ''}`);
+      return response.memories || response;
+    },
+    getActive: async () => {
+      const response = await this.request('/memories/active');
+      return response.memories || response;
+    },
+    create: (data) => this.request('/memories', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+    update: (id, data) => this.request(`/memories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+    toggle: (id) => this.request(`/memories/${id}/toggle`, {
+      method: 'PATCH'
+    }),
+    delete: (id) => this.request(`/memories/${id}`, {
+      method: 'DELETE'
+    })
+  };
+
   // Alias endpoints for naming compatibility
   trainingPlans = this.plans;  // TrainingPlan -> Plan
   workoutTemplates = this.predefinedWorkouts;  // WorkoutTemplate -> PredefinedWorkout

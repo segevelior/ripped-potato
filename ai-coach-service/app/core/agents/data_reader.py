@@ -119,18 +119,32 @@ class DataReaderAgent(BaseAgent):
         try:
             user_oid = ObjectId(user_id)
             user = await self.db.users.find_one({"_id": user_oid})
-            
+
             if not user:
                 return {}
-            
+
+            # Get profile and settings nested objects if they exist
+            profile = user.get("profile", {})
+            settings = user.get("settings", {})
+
             return {
-                "fitness_level": user.get("fitnessLevel", "intermediate"),
+                "name": user.get("name", ""),
+                "email": user.get("email", ""),
+                "fitness_level": profile.get("fitnessLevel", user.get("fitnessLevel", "intermediate")),
+                "fitnessLevel": profile.get("fitnessLevel", user.get("fitnessLevel", "intermediate")),
                 "experience": user.get("experience"),
-                "age": user.get("age"),
-                "weight": user.get("weight"),
-                "height": user.get("height"),
-                "preferences": user.get("preferences", {}),
-                "available_equipment": user.get("availableEquipment", [])
+                "age": profile.get("age", user.get("age")),
+                "weight": profile.get("weight", user.get("weight")),
+                "height": profile.get("height", user.get("height")),
+                "gender": profile.get("gender"),
+                "units": settings.get("units", "metric"),
+                "preferences": profile.get("preferences", user.get("preferences", {})),
+                "available_equipment": profile.get("preferences", {}).get("equipment", user.get("availableEquipment", [])),
+                "equipment": profile.get("preferences", {}).get("equipment", user.get("availableEquipment", [])),
+                "workoutDuration": profile.get("preferences", {}).get("workoutDuration"),
+                "workoutDays": profile.get("preferences", {}).get("workoutDays", []),
+                "injuries": profile.get("injuries", []),
+                "goals": profile.get("goals", [])
             }
         except Exception as e:
             logger.error(f"Error loading user profile: {e}")
