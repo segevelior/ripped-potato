@@ -52,6 +52,14 @@ const memoriesRoutes = require('./routes/memories');
 const integrationRoutes = require('./routes/integrations');
 const webhookRoutes = require('./routes/webhooks');
 
+// Log Strava config on startup (helps debug production issues)
+console.log('==============================================');
+console.log('[STRAVA CONFIG] Client ID:', process.env.STRAVA_CLIENT_ID ? `${process.env.STRAVA_CLIENT_ID.substring(0, 5)}...` : 'NOT SET');
+console.log('[STRAVA CONFIG] Client Secret:', process.env.STRAVA_CLIENT_SECRET ? 'SET' : 'NOT SET');
+console.log('[STRAVA CONFIG] Redirect URI:', process.env.STRAVA_REDIRECT_URI || 'NOT SET');
+console.log('[STRAVA CONFIG] Webhook Verify Token:', process.env.STRAVA_WEBHOOK_VERIFY_TOKEN ? 'SET' : 'NOT SET');
+console.log('==============================================');
+
 const app = express();
 
 // Trust proxy for production deployment behind reverse proxy
