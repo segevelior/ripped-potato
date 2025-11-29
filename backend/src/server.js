@@ -51,6 +51,7 @@ const feedbackRoutes = require('./routes/feedback');
 const memoriesRoutes = require('./routes/memories');
 const integrationRoutes = require('./routes/integrations');
 const webhookRoutes = require('./routes/webhooks');
+const workoutLogRoutes = require('./routes/workoutLogs');
 
 // Log Strava config on startup (helps debug production issues)
 console.log('==============================================');
@@ -196,6 +197,7 @@ const mongooseOptions = {
 };
 
 const { ensureIndexes, createSearchIndexes } = require('./utils/ensureIndexes');
+const jobScheduler = require('./jobs/scheduler');
 
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ripped-potato', mongooseOptions)
 .then(async () => {
@@ -210,6 +212,12 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ripped-po
     logger.info('✅ Database indexes verified');
   } catch (indexErr) {
     logger.warn('⚠️ Index verification had issues (non-fatal)', { error: indexErr.message });
+  }
+
+  // Start background job scheduler (only in production to avoid running during development)
+  if (process.env.NODE_ENV === 'production' || process.env.ENABLE_JOB_SCHEDULER === 'true') {
+    jobScheduler.start();
+    logger.info('✅ Job scheduler started');
   }
 })
 .catch(err => {
@@ -252,6 +260,7 @@ app.use('/api/v1/feedback', feedbackRoutes);
 app.use('/api/v1/memories', memoriesRoutes);
 app.use('/api/v1/integrations', integrationRoutes);
 app.use('/api/v1/webhooks', webhookRoutes);
+app.use('/api/v1/workout-logs', workoutLogRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -318,6 +327,7 @@ const server = app.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
+  jobScheduler.stop();
   server.close(() => {
     logger.info('HTTP server closed');
     mongoose.connection.close(false, () => {
@@ -329,6 +339,7 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   logger.info('SIGINT received, shutting down gracefully');
+  jobScheduler.stop();
   server.close(() => {
     logger.info('HTTP server closed');
     mongoose.connection.close(false, () => {

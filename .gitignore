@@ -95,3 +95,6 @@ dump.rdb
 # Docs
 /docs/
 docs/
+
+# Claude Code
+CLAUDE.md

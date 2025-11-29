@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { CalendarEvent, Plan, ExternalActivity } from "@/api/entities";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Activity } from "lucide-react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, startOfWeek, endOfWeek, parseISO, isValid, isToday, addWeeks, subWeeks, addDays, isSameDay } from "date-fns";
+import { CalendarEvent, Plan } from "@/api/entities";
+import { ChevronLeft, ChevronRight, Plus, Check } from "lucide-react";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, startOfWeek, endOfWeek, parseISO, isValid, isToday, isSameDay } from "date-fns";
 
 import WorkoutSelectionModal from "../components/calendar/WorkoutSelectionModal";
-import ExternalActivityModal from "../components/calendar/ExternalActivityModal";
+import CalendarEventDetailModal from "../components/calendar/CalendarEventDetailModal";
 
 // Helper to get user's week start preference from localStorage
 const getWeekStartDay = () => {
@@ -14,14 +14,6 @@ const getWeekStartDay = () => {
   } catch {
     return 0;
   }
-};
-
-// External activity colors - Strava orange theme
-const EXTERNAL_ACTIVITY_STYLE = {
-  bg: 'bg-orange-50',
-  dot: 'bg-[#FC4C02]',
-  text: 'text-orange-700',
-  border: 'border-orange-200'
 };
 
 // Color palette for workout types - using design system colors
@@ -95,130 +87,16 @@ const getEventTypeColor = (eventType) => {
   }
 };
 
-// Selected Day Panel Component - shows below the calendar
-const SelectedDayPanel = ({ date, events, externalActivities = [], onAddClick, onEditEvent, onDeleteEvent, onExternalActivityClick, getEventColor }) => {
-  const isCurrentDay = isToday(date);
-  const completedCount = events.filter(e => e.status === 'completed').length;
-  const totalActivities = events.length + externalActivities.length;
-
-  return (
-    <div className={`bg-white rounded-xl shadow-sm p-6 ${isCurrentDay ? 'ring-2 ring-[#FE5334]/20' : ''}`}>
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h3 className={`text-lg font-bold ${isCurrentDay ? 'text-[#FE5334]' : 'text-gray-900'}`}>
-            {format(date, 'EEEE, MMMM d')}
-            {isCurrentDay && <span className="ml-2 text-sm font-medium bg-[#FEE1DC] px-2 py-0.5 rounded-full">Today</span>}
-          </h3>
-          <p className="text-sm text-gray-500">
-            {completedCount > 0
-              ? `${completedCount}/${events.length} completed`
-              : totalActivities > 0
-                ? `${events.length} scheduled${externalActivities.length > 0 ? ` • ${externalActivities.length} recorded` : ''}`
-                : 'No activities'
-            }
-          </p>
-        </div>
-        <button
-          onClick={() => onAddClick(date)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#FE5334] text-white rounded-lg hover:bg-[#E84A2D] transition-colors text-sm font-semibold"
-        >
-          <Plus className="w-4 h-4" />
-          Add Workout
-        </button>
-      </div>
-
-      {totalActivities > 0 ? (
-        <div className="space-y-3">
-          {/* Regular scheduled events */}
-          {events.map((event, idx) => {
-            const colors = getEventColor(event);
-            const status = event.status || 'scheduled';
-            const statusStyle = STATUS_STYLES[status] || STATUS_STYLES.scheduled;
-            return (
-              <div key={event.id || idx} className={`group relative ${statusStyle.cardOverlay}`}>
-                <div
-                  className={`p-4 rounded-xl cursor-pointer hover:shadow-md transition-all ${colors.bg} border ${colors.border}`}
-                  onClick={() => onEditEvent(event)}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`w-3 h-3 rounded-full ${colors.dot} ${statusStyle.dotStyle}`}></div>
-                    <p className={`font-bold text-base ${colors.text} ${status === 'skipped' ? 'line-through opacity-60' : ''}`}>
-                      {event.title}
-                    </p>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusStyle.badge}`}>
-                      {statusStyle.label}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600 ml-6">
-                    {event.workoutDetails?.exercises?.length || 0} exercises • {event.workoutDetails?.estimatedDuration || 60}min
-                  </p>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteEvent(event.id);
-                  }}
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white text-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  ×
-                </button>
-              </div>
-            );
-          })}
-
-          {/* External activities */}
-          {externalActivities.map((activity, idx) => {
-            const durationMins = activity.movingTime ? Math.round(activity.movingTime / 60) : null;
-            const distanceKm = activity.distance ? (activity.distance / 1000).toFixed(1) : null;
-            return (
-              <div
-                key={`ext-${activity.id || idx}`}
-                className="p-4 rounded-xl cursor-pointer hover:shadow-md transition-all bg-orange-50 border border-orange-200"
-                onClick={() => onExternalActivityClick(activity)}
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-3 h-3 rounded-full bg-[#FC4C02] ring-2 ring-[#FC4C02]/30 ring-offset-1"></div>
-                  <p className="font-bold text-base text-orange-700">
-                    {activity.name}
-                  </p>
-                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-600">
-                    {activity.sportType}
-                  </span>
-                  {activity.source === 'strava' && (
-                    <svg className="w-4 h-4 ml-auto" viewBox="0 0 24 24" fill="#FC4C02">
-                      <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
-                    </svg>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600 ml-6">
-                  {[
-                    durationMins && `${durationMins}min`,
-                    distanceKm && `${distanceKm}km`,
-                    activity.avgHeartRate && `${Math.round(activity.avgHeartRate)} bpm`
-                  ].filter(Boolean).join(' • ') || 'External activity'}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-xl">
-          <Calendar className="w-10 h-10 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No workouts scheduled for this day</p>
-          <p className="text-xs text-gray-400 mt-1">Click "Add Workout" to schedule one</p>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Figma-style Calendar View Component
-const CalendarView = ({ events, externalActivities, activePlans, view, currentDate, onDateChange, onAddEvent, onEditEvent, onDeleteEvent, onMoveEvent, onExternalActivityClick, weekStartDay }) => {
+// Figma-style Calendar View Component (Month View Only)
+const CalendarView = ({ events, activePlans, currentDate, onDateChange, onAddEvent, onEditEvent, onDeleteEvent, onMoveEvent, weekStartDay }) => {
   const [selectedDate, setSelectedDate] = useState(new Date()); // Default to today
   const [showWorkoutModal, setShowWorkoutModal] = useState(false);
-  const [editingEvent, setEditingEvent] = useState(null);
+  const [showEventDetailModal, setShowEventDetailModal] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [viewingEvent, setViewingEvent] = useState(null);
   const [draggedEvent, setDraggedEvent] = useState(null);
   const [hoveredDate, setHoveredDate] = useState(null);
+  const [pickerYear, setPickerYear] = useState(currentDate.getFullYear());
 
   // Create a stable type-to-color mapping based on workoutDetails.type
   const workoutTypeMap = new Map();
@@ -242,34 +120,26 @@ const CalendarView = ({ events, externalActivities, activePlans, view, currentDa
   // Click + button to add workout
   const handleAddClick = (date) => {
     setSelectedDate(date);
-    setEditingEvent(null);
     setShowWorkoutModal(true);
   };
 
-  const handleEditEvent = (event) => {
+  // View existing event details (not edit)
+  const handleViewEvent = (event) => {
     if (!event || !event.date) return;
     const eventDate = typeof event.date === 'string' ? parseISO(event.date) : new Date(event.date);
     if (isValid(eventDate)) {
-      setEditingEvent(event);
+      setViewingEvent(event);
       setSelectedDate(eventDate);
-      setShowWorkoutModal(true);
+      setShowEventDetailModal(true);
     }
   };
 
   const handleApplyWorkout = (workoutData) => {
-    if (editingEvent) {
-      onEditEvent(editingEvent.id, {
-        ...workoutData,
-        date: format(selectedDate, 'yyyy-MM-dd')
-      });
-    } else {
-      onAddEvent({
-        ...workoutData,
-        date: format(selectedDate, 'yyyy-MM-dd')
-      });
-    }
+    onAddEvent({
+      ...workoutData,
+      date: format(selectedDate, 'yyyy-MM-dd')
+    });
     setShowWorkoutModal(false);
-    setEditingEvent(null);
   };
 
   // Drag and Drop handlers
@@ -304,12 +174,7 @@ const CalendarView = ({ events, externalActivities, activePlans, view, currentDa
       const eventDate = typeof e.date === 'string' ? e.date.split('T')[0] : format(new Date(e.date), 'yyyy-MM-dd');
       return eventDate === dateStr;
     });
-    // Filter external activities for this date
-    const dayExternalActivities = (externalActivities || []).filter(a => {
-      const activityDate = typeof a.startDate === 'string' ? a.startDate.split('T')[0] : format(new Date(a.startDate), 'yyyy-MM-dd');
-      return activityDate === dateStr;
-    });
-    return { events: dayEvents, externalActivities: dayExternalActivities };
+    return dayEvents;
   };
 
   const getEventColor = (event) => {
@@ -322,362 +187,32 @@ const CalendarView = ({ events, externalActivities, activePlans, view, currentDa
   };
 
   const navigate = (direction) => {
-    if (view === 'month') {
-      onDateChange(direction > 0 ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
-    } else if (view === 'week') {
-      onDateChange(direction > 0 ? addWeeks(currentDate, 1) : subWeeks(currentDate, 1));
-    } else if (view === 'day') {
-      onDateChange(direction > 0 ? addDays(currentDate, 1) : addDays(currentDate, -1));
-    }
+    onDateChange(direction > 0 ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
   };
 
   const getDateRange = () => {
-    if (view === 'month') {
-      const firstDay = startOfWeek(startOfMonth(currentDate), { weekStartsOn: weekStartDay });
-      const lastDay = endOfWeek(endOfMonth(currentDate), { weekStartsOn: weekStartDay });
-      return eachDayOfInterval({ start: firstDay, end: lastDay });
-    } else if (view === 'week') {
-      const weekStart = startOfWeek(currentDate, { weekStartsOn: weekStartDay });
-      const weekEnd = endOfWeek(currentDate, { weekStartsOn: weekStartDay });
-      return eachDayOfInterval({ start: weekStart, end: weekEnd });
-    } else {
-      return [currentDate];
-    }
+    const firstDay = startOfWeek(startOfMonth(currentDate), { weekStartsOn: weekStartDay });
+    const lastDay = endOfWeek(endOfMonth(currentDate), { weekStartsOn: weekStartDay });
+    return eachDayOfInterval({ start: firstDay, end: lastDay });
   };
 
   const dates = getDateRange();
-  const selectedDayData = getDayData(selectedDate);
-  const selectedDayEvents = selectedDayData.events;
-  const selectedDayExternalActivities = selectedDayData.externalActivities;
+  const selectedDayEvents = getDayData(selectedDate);
 
-  // Day View - full day display
-  if (view === 'day') {
-    const { events: dayEvents, externalActivities: dayExternalActivities } = getDayData(currentDate);
-    const isCurrentDay = isToday(currentDate);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-    return (
-      <>
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-gray-900">Calendar</h2>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-bold text-gray-900">
-                {format(currentDate, "MMMM d, yyyy")}
-              </span>
-              <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                <ChevronLeft className="w-5 h-5 text-gray-400" />
-              </button>
-              <button onClick={() => navigate(1)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                <ChevronRight className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-          </div>
+  const handleMonthSelect = (monthIndex) => {
+    const newDate = new Date(pickerYear, monthIndex, 1);
+    onDateChange(newDate);
+    setShowMonthPicker(false);
+  };
 
-          {/* Day Content */}
-          <div
-            className={`p-6 rounded-xl min-h-[400px] ${isCurrentDay ? 'bg-[#FEE1DC]' : 'bg-gray-50'}`}
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, currentDate)}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className={`text-xl font-bold ${isCurrentDay ? 'text-[#FE5334]' : 'text-gray-900'}`}>
-                {format(currentDate, 'EEEE')}
-                {isCurrentDay && <span className="ml-2 text-sm font-medium">(Today)</span>}
-              </h3>
-              <button
-                onClick={() => handleAddClick(currentDate)}
-                className="flex items-center gap-2 px-4 py-2 bg-[#FE5334] text-white rounded-lg hover:bg-[#E84A2D] transition-colors text-sm font-semibold"
-              >
-                <Plus className="w-4 h-4" />
-                Add Workout
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {/* Regular scheduled events */}
-              {dayEvents.map((event, idx) => {
-                const colors = getEventColor(event);
-                const status = event.status || 'scheduled';
-                const statusStyle = STATUS_STYLES[status] || STATUS_STYLES.scheduled;
-                return (
-                  <div key={event.id || idx} className={`group relative ${statusStyle.cardOverlay}`}>
-                    <div
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, event)}
-                      className={`p-4 rounded-xl cursor-move hover:shadow-md transition-all ${colors.bg} border ${colors.border}`}
-                      onClick={() => handleEditEvent(event)}
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className={`w-3 h-3 rounded-full ${colors.dot} ${statusStyle.dotStyle}`}></div>
-                        <p className={`font-bold text-base ${colors.text} ${status === 'skipped' ? 'line-through opacity-60' : ''}`}>
-                          {event.title}
-                        </p>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusStyle.badge}`}>
-                          {statusStyle.label}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 ml-6">
-                        {event.workoutDetails?.exercises?.length || 0} exercises • {event.workoutDetails?.estimatedDuration || 60}min
-                      </p>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteEvent(event.id);
-                      }}
-                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white text-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      ×
-                    </button>
-                  </div>
-                );
-              })}
-
-              {/* External activities (Strava, etc.) */}
-              {dayExternalActivities.map((activity, idx) => {
-                const durationMins = activity.movingTime ? Math.round(activity.movingTime / 60) : null;
-                const distanceKm = activity.distance ? (activity.distance / 1000).toFixed(1) : null;
-                return (
-                  <div
-                    key={`ext-${activity.id || idx}`}
-                    className="p-4 rounded-xl cursor-pointer hover:shadow-md transition-all bg-orange-50 border border-orange-200"
-                    onClick={() => onExternalActivityClick(activity)}
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-3 h-3 rounded-full bg-[#FC4C02] ring-2 ring-[#FC4C02]/30 ring-offset-1"></div>
-                      <p className="font-bold text-base text-orange-700">
-                        {activity.name}
-                      </p>
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-600">
-                        {activity.sportType}
-                      </span>
-                      {activity.source === 'strava' && (
-                        <svg className="w-3.5 h-3.5 ml-auto" viewBox="0 0 24 24" fill="#FC4C02">
-                          <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
-                        </svg>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 ml-6">
-                      {[
-                        durationMins && `${durationMins}min`,
-                        distanceKm && `${distanceKm}km`,
-                        activity.avgHeartRate && `${Math.round(activity.avgHeartRate)} bpm`
-                      ].filter(Boolean).join(' • ') || 'External activity'}
-                    </p>
-                  </div>
-                );
-              })}
-
-              {/* Empty state */}
-              {dayEvents.length === 0 && dayExternalActivities.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
-                  <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">No workouts scheduled</p>
-                  <button
-                    onClick={() => handleAddClick(currentDate)}
-                    className="mt-4 flex items-center gap-2 mx-auto px-4 py-2 bg-[#FE5334] text-white rounded-lg hover:bg-[#E84A2D] transition-colors text-sm font-semibold"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Workout
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {showWorkoutModal && (
-          <WorkoutSelectionModal
-            date={selectedDate}
-            onClose={() => {
-              setShowWorkoutModal(false);
-              setEditingEvent(null);
-            }}
-            editingWorkout={editingEvent}
-            onApplyWorkout={handleApplyWorkout}
-          />
-        )}
-      </>
-    );
-  }
-
-  // Week View
-  if (view === 'week') {
-    return (
-      <>
-        <div className="space-y-4">
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-gray-900">Calendar</h2>
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-bold text-gray-900">
-                  {format(startOfWeek(currentDate, { weekStartsOn: weekStartDay }), 'MMM d')} - {format(endOfWeek(currentDate, { weekStartsOn: weekStartDay }), 'MMM d, yyyy')}
-                </span>
-                <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                  <ChevronLeft className="w-5 h-5 text-gray-400" />
-                </button>
-                <button onClick={() => navigate(1)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                </button>
-              </div>
-            </div>
-
-            {/* Week Grid */}
-            <div className="grid grid-cols-7 gap-2">
-              {dates.map((day, index) => {
-                const { events: dayEvents, externalActivities: dayExtActivities } = getDayData(day);
-                const isCurrentDay = isToday(day);
-                const isSelected = isSameDay(day, selectedDate);
-                const isDragTarget = hoveredDate && hoveredDate.getTime() === day.getTime();
-                const allItems = [...dayEvents, ...dayExtActivities.map(a => ({ ...a, isExternal: true }))];
-
-                return (
-                  <div key={index} className="flex flex-col">
-                    {/* Day Header */}
-                    <div className="text-center mb-2">
-                      <div className="text-xs font-medium text-gray-400 mb-1">
-                        {weekDays[index]}
-                      </div>
-                      <div
-                        onClick={() => handleDateClick(day)}
-                        className={`w-10 h-10 mx-auto flex items-center justify-center rounded-lg text-base font-semibold cursor-pointer transition-all ${
-                          isSelected
-                            ? 'bg-[#FE5334] text-white'
-                            : isCurrentDay
-                              ? 'bg-[#FEE1DC] text-[#FE5334]'
-                              : 'text-gray-900 hover:bg-gray-100'
-                        }`}
-                      >
-                        {format(day, 'd')}
-                      </div>
-                    </div>
-
-                    {/* Day Content */}
-                    <div
-                      className={`flex-1 rounded-lg p-2 min-h-[140px] transition-colors relative group cursor-pointer ${
-                        isSelected ? 'bg-[#FFF2F0] ring-2 ring-[#FE5334]' :
-                        isCurrentDay ? 'bg-[#FFF8F7]' : 'bg-gray-50 hover:bg-gray-100'
-                      } ${isDragTarget ? 'ring-2 ring-[#FE5334] bg-[#FFF2F0]' : ''}`}
-                      onClick={() => handleDateClick(day)}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, day)}
-                      onDragEnter={() => setHoveredDate(day)}
-                      onDragLeave={() => setHoveredDate(null)}
-                    >
-                      {/* + button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAddClick(day);
-                        }}
-                        className="absolute top-1 right-1 w-6 h-6 bg-[#FE5334] text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-[#E84A2D]"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-
-                      <div className="space-y-1.5">
-                        {/* Regular events */}
-                        {dayEvents.slice(0, 2).map((event, idx) => {
-                          const colors = getEventColor(event);
-                          return (
-                            <div key={event.id || idx} className="group/event relative">
-                              <div
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, event)}
-                                className={`p-2 rounded-lg cursor-move text-xs ${colors.bg} border ${colors.border}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditEvent(event);
-                                }}
-                              >
-                                <div className="flex items-center gap-1.5 mb-0.5">
-                                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${colors.dot}`}></div>
-                                  <p className={`font-semibold truncate ${colors.text}`}>
-                                    {event.title}
-                                  </p>
-                                </div>
-                                <p className="text-gray-500 text-[10px] ml-3.5">
-                                  {event.workoutDetails?.estimatedDuration || 60}min
-                                </p>
-                              </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onDeleteEvent(event.id);
-                                }}
-                                className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center opacity-0 group-hover/event:opacity-100 transition-opacity"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          );
-                        })}
-                        {/* External activities */}
-                        {dayExtActivities.slice(0, dayEvents.length >= 2 ? 1 : 2).map((activity, idx) => {
-                          const durationMins = activity.movingTime ? Math.round(activity.movingTime / 60) : null;
-                          return (
-                            <div
-                              key={`ext-${activity.id || idx}`}
-                              className="p-2 rounded-lg cursor-pointer text-xs bg-orange-50 border border-orange-200"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onExternalActivityClick(activity);
-                              }}
-                            >
-                              <div className="flex items-center gap-1.5 mb-0.5">
-                                <div className="w-2 h-2 rounded-full flex-shrink-0 bg-[#FC4C02]"></div>
-                                <p className="font-semibold truncate text-orange-700">
-                                  {activity.name}
-                                </p>
-                              </div>
-                              <p className="text-gray-500 text-[10px] ml-3.5">
-                                {durationMins ? `${durationMins}min` : activity.sportType}
-                              </p>
-                            </div>
-                          );
-                        })}
-                        {allItems.length > 3 && (
-                          <div className="text-[10px] text-gray-500 text-center py-1">
-                            +{allItems.length - 3} more
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Selected Day Panel */}
-          <SelectedDayPanel
-            date={selectedDate}
-            events={selectedDayEvents}
-            externalActivities={selectedDayExternalActivities}
-            onAddClick={handleAddClick}
-            onEditEvent={handleEditEvent}
-            onDeleteEvent={onDeleteEvent}
-            onExternalActivityClick={onExternalActivityClick}
-            getEventColor={getEventColor}
-          />
-        </div>
-
-        {showWorkoutModal && (
-          <WorkoutSelectionModal
-            date={selectedDate}
-            onClose={() => {
-              setShowWorkoutModal(false);
-              setEditingEvent(null);
-            }}
-            editingWorkout={editingEvent}
-            onApplyWorkout={handleApplyWorkout}
-          />
-        )}
-      </>
-    );
-  }
+  const goToToday = () => {
+    const today = new Date();
+    onDateChange(today);
+    setSelectedDate(today);
+    setShowMonthPicker(false);
+  };
 
   // Month View (Compact)
   return (
@@ -686,10 +221,25 @@ const CalendarView = ({ events, externalActivities, activePlans, view, currentDa
         <div className="bg-white rounded-xl shadow-sm p-3">
           {/* Header */}
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-bold text-gray-900">
-              {format(currentDate, "MMMM yyyy")}
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setPickerYear(currentDate.getFullYear());
+                  setShowMonthPicker(!showMonthPicker);
+                }}
+                className="text-sm font-bold text-gray-900 hover:bg-gray-100 px-2 py-1 rounded-lg transition-colors flex items-center gap-1"
+              >
+                {format(currentDate, "MMMM yyyy")}
+                <ChevronLeft className={`w-3 h-3 text-gray-400 transition-transform ${showMonthPicker ? 'rotate-90' : '-rotate-90'}`} />
+              </button>
+            </div>
             <div className="flex items-center gap-1">
+              <button
+                onClick={goToToday}
+                className="px-2 py-1 text-xs font-medium text-[#FE5334] hover:bg-[#FEE1DC] rounded-lg transition-colors"
+              >
+                Today
+              </button>
               <button onClick={() => navigate(-1)} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
                 <ChevronLeft className="w-4 h-4 text-gray-400" />
               </button>
@@ -698,6 +248,51 @@ const CalendarView = ({ events, externalActivities, activePlans, view, currentDa
               </button>
             </div>
           </div>
+
+          {/* Month/Year Picker Dropdown */}
+          {showMonthPicker && (
+            <div className="mb-3 p-3 bg-gray-50 rounded-xl">
+              {/* Year Navigation */}
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  onClick={() => setPickerYear(pickerYear - 1)}
+                  className="p-1 hover:bg-white rounded-lg transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4 text-gray-500" />
+                </button>
+                <span className="text-sm font-bold text-gray-900">{pickerYear}</span>
+                <button
+                  onClick={() => setPickerYear(pickerYear + 1)}
+                  className="p-1 hover:bg-white rounded-lg transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Month Grid */}
+              <div className="grid grid-cols-4 gap-1">
+                {months.map((month, idx) => {
+                  const isCurrentMonth = idx === currentDate.getMonth() && pickerYear === currentDate.getFullYear();
+                  const isThisMonth = idx === new Date().getMonth() && pickerYear === new Date().getFullYear();
+                  return (
+                    <button
+                      key={month}
+                      onClick={() => handleMonthSelect(idx)}
+                      className={`py-2 px-1 text-xs font-medium rounded-lg transition-colors ${
+                        isCurrentMonth
+                          ? 'bg-[#FE5334] text-white'
+                          : isThisMonth
+                            ? 'bg-[#FEE1DC] text-[#FE5334] hover:bg-[#FDD]'
+                            : 'text-gray-700 hover:bg-white'
+                      }`}
+                    >
+                      {month}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Day Headers */}
           <div className="grid grid-cols-7 mb-1">
@@ -711,12 +306,12 @@ const CalendarView = ({ events, externalActivities, activePlans, view, currentDa
           {/* Calendar Grid - Compact */}
           <div className="grid grid-cols-7 gap-px bg-gray-100 rounded-lg overflow-hidden">
             {dates.map((day, i) => {
-              const { events: dayEvents, externalActivities: dayExtActivities } = getDayData(day);
+              const dayEvents = getDayData(day);
               const isCurrentMonth = day.getMonth() === currentDate.getMonth();
               const isCurrentDay = isToday(day);
               const isSelected = isSameDay(day, selectedDate);
               const isDragTarget = hoveredDate && hoveredDate.getTime() === day.getTime();
-              const hasEvents = dayEvents.length > 0 || dayExtActivities.length > 0;
+              const hasEvents = dayEvents.length > 0;
 
               return (
                 <div
@@ -761,41 +356,26 @@ const CalendarView = ({ events, externalActivities, activePlans, view, currentDa
                   {/* Event Indicators - Horizontal bars with status */}
                   {hasEvents && (
                     <div className="space-y-0.5 px-0.5">
-                      {/* Regular events */}
-                      {dayEvents.slice(0, 2).map((event, idx) => {
+                      {dayEvents.slice(0, 3).map((event, idx) => {
                         const colors = getEventColor(event);
                         const status = event.status || 'scheduled';
                         const isCompleted = status === 'completed';
                         const isSkipped = status === 'skipped';
+                        const isPastAndNotDone = !isCompleted && !isSkipped && new Date(event.date) < new Date().setHours(0,0,0,0);
+                        const isStrava = event.externalActivityId || event.workoutDetails?.source === 'strava';
                         return (
                           <div
                             key={event.id || idx}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, event)}
-                            className={`h-1 w-full rounded-full cursor-move ${colors.dot} ${isSkipped ? 'opacity-30' : ''} ${isCompleted ? 'ring-1 ring-emerald-400' : ''}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditEvent(event);
-                            }}
+                            className={`pointer-events-none ${isSkipped || isPastAndNotDone ? 'opacity-40' : ''}`}
                             title={`${event.title} (${STATUS_STYLES[status]?.label || 'Scheduled'})`}
-                          />
+                          >
+                            <div className={`h-1 rounded-full ${isStrava ? 'bg-[#FC4C02]' : colors.dot}`} />
+                          </div>
                         );
                       })}
-                      {/* External activities */}
-                      {dayExtActivities.slice(0, dayEvents.length >= 2 ? 1 : 2).map((activity, idx) => (
-                        <div
-                          key={`ext-${activity.id || idx}`}
-                          className="h-1 w-full rounded-full cursor-pointer bg-[#FC4C02]"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onExternalActivityClick(activity);
-                          }}
-                          title={`${activity.name} (${activity.sportType})`}
-                        />
-                      ))}
-                      {(dayEvents.length + dayExtActivities.length) > 3 && (
+                      {dayEvents.length > 3 && (
                         <div className="text-[8px] text-gray-400 text-center leading-none">
-                          +{(dayEvents.length + dayExtActivities.length) - 3}
+                          +{dayEvents.length - 3}
                         </div>
                       )}
                     </div>
@@ -807,73 +387,105 @@ const CalendarView = ({ events, externalActivities, activePlans, view, currentDa
         </div>
 
         {/* Compact Workout List for Selected Day */}
-        {(selectedDayEvents.length > 0 || selectedDayExternalActivities.length > 0) && (
-          <div className="bg-white rounded-xl shadow-sm p-3 mt-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-semibold text-gray-900">
-                {format(selectedDate, 'MMM d')} {isToday(selectedDate) && <span className="text-[#FE5334] text-xs ml-1">(Today)</span>}
-              </span>
+        {selectedDayEvents.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm p-4 mt-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">
+                  {format(selectedDate, 'EEEE, MMM d')}
+                </h3>
+                {isToday(selectedDate) && (
+                  <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#FEE1DC] text-[#FE5334]">Today</span>
+                )}
+              </div>
               <button
                 onClick={() => handleAddClick(selectedDate)}
-                className="w-6 h-6 bg-[#FE5334] text-white rounded-full flex items-center justify-center hover:bg-[#E84A2D] transition-colors"
+                className="w-8 h-8 bg-[#FE5334] text-white rounded-full flex items-center justify-center hover:bg-[#E84A2D] transition-colors shadow-sm"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
               </button>
             </div>
-            <div className="space-y-1.5">
-              {/* Regular events */}
+            <div className="space-y-2">
               {selectedDayEvents.map((event, idx) => {
                 const colors = getEventColor(event);
                 const status = event.status || 'scheduled';
                 const statusStyle = STATUS_STYLES[status] || STATUS_STYLES.scheduled;
+                const workoutType = event.workoutDetails?.type || event.eventType || 'Workout';
+                const isCompleted = status === 'completed';
+                const isSkipped = status === 'skipped';
+                const isPastAndNotDone = !isCompleted && !isSkipped && new Date(event.date) < new Date().setHours(0,0,0,0);
+                const isStrava = event.externalActivityId || event.workoutDetails?.source === 'strava';
+                const stravaData = event.workoutDetails?.stravaData;
                 return (
                   <div
                     key={event.id || idx}
-                    className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:opacity-80 transition-opacity ${colors.bg} ${statusStyle.cardOverlay}`}
-                    onClick={() => handleEditEvent(event)}
+                    className={`group bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden border ${
+                      isStrava
+                        ? 'border-l-4 border-l-[#FC4C02] border-t-orange-100 border-r-orange-100 border-b-orange-100'
+                        : isCompleted
+                          ? 'border-l-4 border-l-emerald-500 border-t-gray-100 border-r-gray-100 border-b-gray-100'
+                          : isPastAndNotDone
+                            ? 'border-l-4 border-l-gray-300 border-t-gray-100 border-r-gray-100 border-b-gray-100 opacity-60'
+                            : colors.border
+                    } ${statusStyle.cardOverlay}`}
+                    onClick={() => handleViewEvent(event)}
                   >
-                    <div className={`w-1.5 h-6 rounded-full ${colors.dot} ${statusStyle.dotStyle}`}></div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className={`text-xs font-semibold truncate ${colors.text} ${status === 'skipped' ? 'line-through opacity-60' : ''}`}>{event.title}</p>
-                        {status === 'completed' && (
-                          <span className="text-emerald-500 text-[10px]">✓</span>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-gray-500">{event.workoutDetails?.estimatedDuration || 60}min</p>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteEvent(event.id);
-                      }}
-                      className="w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity"
-                    >
-                      ×
-                    </button>
-                  </div>
-                );
-              })}
-              {/* External activities */}
-              {selectedDayExternalActivities.map((activity, idx) => {
-                const durationMins = activity.movingTime ? Math.round(activity.movingTime / 60) : null;
-                return (
-                  <div
-                    key={`ext-${activity.id || idx}`}
-                    className="flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:opacity-80 transition-opacity bg-orange-50"
-                    onClick={() => onExternalActivityClick(activity)}
-                  >
-                    <div className="w-1.5 h-6 rounded-full bg-[#FC4C02]"></div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-xs font-semibold truncate text-orange-700">{activity.name}</p>
-                        {activity.source === 'strava' && (
-                          <svg className="w-2.5 h-2.5 flex-shrink-0" viewBox="0 0 24 24" fill="#FC4C02">
+                    <div className="p-3">
+                      {/* Type Badge */}
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold text-white ${isStrava ? 'bg-[#FC4C02]' : colors.dot}`}>
+                          {isStrava ? (stravaData?.sportType || workoutType) : (workoutType.charAt(0).toUpperCase() + workoutType.slice(1))}
+                        </span>
+                        {isStrava && (
+                          <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="#FC4C02">
                             <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
                           </svg>
                         )}
+                        {isCompleted && !isStrava && (
+                          <span className="flex items-center gap-0.5 text-emerald-600">
+                            <Check className="w-3 h-3" />
+                          </span>
+                        )}
+                        {isPastAndNotDone && !isStrava && (
+                          <span className="text-[10px] text-gray-400 font-medium">Missed</span>
+                        )}
                       </div>
-                      <p className="text-[10px] text-gray-500">{durationMins ? `${durationMins}min` : activity.sportType}</p>
+
+                      {/* Title and Status */}
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className={`text-sm font-bold text-gray-900 line-clamp-1 ${isSkipped ? 'line-through opacity-60' : ''} ${isPastAndNotDone && !isStrava ? 'text-gray-500' : ''}`}>
+                          {event.title}
+                        </h4>
+                        <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                          isStrava ? 'bg-orange-100 text-orange-700' : isPastAndNotDone ? 'bg-gray-100 text-gray-400' : statusStyle.badge
+                        }`}>
+                          {isStrava ? 'Synced' : isPastAndNotDone ? 'Missed' : statusStyle.label}
+                        </span>
+                      </div>
+
+                      {/* Duration */}
+                      <p className={`text-xs mt-1 ${isPastAndNotDone && !isStrava ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {event.workoutDetails?.durationMinutes || event.workoutDetails?.estimatedDuration || 60} min
+                        {stravaData?.distance && ` • ${(stravaData.distance / 1000).toFixed(1)} km`}
+                      </p>
+
+                      {/* Mood & Feedback (for completed workouts) */}
+                      {isCompleted && event.workoutDetails?.mood && (
+                        <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-2">
+                          <span className="text-base" title={event.workoutDetails.mood}>
+                            {event.workoutDetails.mood === 'great' && '😄'}
+                            {event.workoutDetails.mood === 'good' && '🙂'}
+                            {event.workoutDetails.mood === 'okay' && '😐'}
+                            {event.workoutDetails.mood === 'tired' && '😕'}
+                            {event.workoutDetails.mood === 'exhausted' && '😢'}
+                          </span>
+                          {event.workoutDetails.feedback && (
+                            <span className="text-xs text-gray-500 line-clamp-1 flex-1">
+                              {event.workoutDetails.feedback}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -886,12 +498,23 @@ const CalendarView = ({ events, externalActivities, activePlans, view, currentDa
       {showWorkoutModal && (
         <WorkoutSelectionModal
           date={selectedDate}
-          onClose={() => {
-            setShowWorkoutModal(false);
-            setEditingEvent(null);
-          }}
-          editingWorkout={editingEvent}
+          onClose={() => setShowWorkoutModal(false)}
           onApplyWorkout={handleApplyWorkout}
+        />
+      )}
+
+      {showEventDetailModal && viewingEvent && (
+        <CalendarEventDetailModal
+          event={viewingEvent}
+          onClose={() => {
+            setShowEventDetailModal(false);
+            setViewingEvent(null);
+          }}
+          onDelete={(eventId) => {
+            onDeleteEvent(eventId);
+            setShowEventDetailModal(false);
+            setViewingEvent(null);
+          }}
         />
       )}
     </>
@@ -901,34 +524,20 @@ const CalendarView = ({ events, externalActivities, activePlans, view, currentDa
 export default function CalendarPage() {
   const [activePlans, setActivePlans] = useState([]);
   const [events, setEvents] = useState([]);
-  const [externalActivities, setExternalActivities] = useState([]);
-  const [selectedExternalActivity, setSelectedExternalActivity] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [view, setView] = useState('month'); // 'day', 'week', 'month'
   const [currentDate, setCurrentDate] = useState(new Date());
   const [weekStartDay, setWeekStartDay] = useState(getWeekStartDay());
 
-  // Calculate date range for current view
-  const getViewDateRange = (date, viewType) => {
-    if (viewType === 'month') {
-      const firstDay = startOfWeek(startOfMonth(date), { weekStartsOn: weekStartDay });
-      const lastDay = endOfWeek(endOfMonth(date), { weekStartsOn: weekStartDay });
-      return { startDate: format(firstDay, 'yyyy-MM-dd'), endDate: format(lastDay, 'yyyy-MM-dd') };
-    } else if (viewType === 'week') {
-      const weekStart = startOfWeek(date, { weekStartsOn: weekStartDay });
-      const weekEnd = endOfWeek(date, { weekStartsOn: weekStartDay });
-      return { startDate: format(weekStart, 'yyyy-MM-dd'), endDate: format(weekEnd, 'yyyy-MM-dd') };
-    } else {
-      // Day view - get a week around the day for context
-      const start = addDays(date, -3);
-      const end = addDays(date, 3);
-      return { startDate: format(start, 'yyyy-MM-dd'), endDate: format(end, 'yyyy-MM-dd') };
-    }
+  // Calculate date range for month view
+  const getViewDateRange = (date) => {
+    const firstDay = startOfWeek(startOfMonth(date), { weekStartsOn: weekStartDay });
+    const lastDay = endOfWeek(endOfMonth(date), { weekStartsOn: weekStartDay });
+    return { startDate: format(firstDay, 'yyyy-MM-dd'), endDate: format(lastDay, 'yyyy-MM-dd') };
   };
 
   useEffect(() => {
     loadData();
-  }, [currentDate, view]);
+  }, [currentDate]);
 
   // Listen for storage changes to update weekStartDay when user changes settings
   useEffect(() => {
@@ -942,22 +551,19 @@ export default function CalendarPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const { startDate, endDate } = getViewDateRange(currentDate, view);
+      const { startDate, endDate } = getViewDateRange(currentDate);
 
-      const [plans, calendarEvents, extActivities] = await Promise.all([
+      const [plans, calendarEvents] = await Promise.all([
         Plan.active().catch(() => []),
-        CalendarEvent.list(startDate, endDate).catch(() => []),
-        ExternalActivity.byDateRange(startDate, endDate).catch(() => [])
+        CalendarEvent.list(startDate, endDate).catch(() => [])
       ]);
 
       setActivePlans(Array.isArray(plans) ? plans : []);
       setEvents(Array.isArray(calendarEvents) ? calendarEvents : []);
-      setExternalActivities(Array.isArray(extActivities) ? extActivities : []);
     } catch (error) {
       console.error("Error loading calendar data:", error);
       setEvents([]);
       setActivePlans([]);
-      setExternalActivities([]);
     }
     setIsLoading(false);
   };
@@ -1052,57 +658,18 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-2">
-      {/* Compact Header Controls */}
-      <div className="flex items-center justify-between bg-white px-3 py-2 rounded-xl shadow-sm">
-        {/* View Toggle - Compact */}
-        <div className="flex items-center bg-gray-100 p-0.5 rounded-lg">
-          {['Day', 'Week', 'Month'].map((v) => (
-            <button
-              key={v}
-              onClick={() => setView(v.toLowerCase())}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                view === v.toLowerCase()
-                  ? 'bg-gray-900 text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              {v}
-            </button>
-          ))}
-        </div>
-
-        {/* Today Button */}
-        <button
-          onClick={goToToday}
-          className="px-4 py-1.5 bg-[#FE5334] text-white rounded-full font-semibold hover:bg-[#E84A2D] transition-colors text-xs"
-        >
-          Today
-        </button>
-      </div>
-
       {/* Calendar View */}
       <CalendarView
         events={events}
-        externalActivities={externalActivities}
         activePlans={activePlans}
-        view={view}
         currentDate={currentDate}
         onDateChange={setCurrentDate}
         onAddEvent={handleAddEvent}
         onEditEvent={handleEditEvent}
         onDeleteEvent={handleDeleteEvent}
         onMoveEvent={handleMoveEvent}
-        onExternalActivityClick={setSelectedExternalActivity}
         weekStartDay={weekStartDay}
       />
-
-      {/* External Activity Modal */}
-      {selectedExternalActivity && (
-        <ExternalActivityModal
-          activity={selectedExternalActivity}
-          onClose={() => setSelectedExternalActivity(null)}
-        />
-      )}
     </div>
   );
 }

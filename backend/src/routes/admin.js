@@ -5,6 +5,7 @@ const { adminAuth } = require('../middleware/admin');
 const Exercise = require('../models/Exercise');
 const Goal = require('../models/Goal');
 const PredefinedWorkout = require('../models/PredefinedWorkout');
+const CalendarConsistencyJob = require('../jobs/calendarConsistencyJob');
 
 // All routes require authentication and admin role
 router.use(auth);
@@ -274,34 +275,84 @@ router.delete('/predefined-workouts/:id', async (req, res) => {
 router.post('/users/:userId/role', async (req, res) => {
   try {
     const { role } = req.body;
-    
+
     if (!['user', 'admin'].includes(role)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid role. Must be "user" or "admin"'
       });
     }
-    
+
     const User = require('../models/User');
     const user = await User.findByIdAndUpdate(
       req.params.userId,
       { role },
       { new: true }
     ).select('-password');
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
-    
+
     res.json({
       success: true,
       data: user
     });
   } catch (error) {
     res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// @route   POST /api/v1/admin/jobs/calendar-consistency
+// @desc    Run calendar consistency job (sync CalendarEvent with WorkoutLog and ExternalActivity)
+// @access  Admin only
+router.post('/jobs/calendar-consistency', async (req, res) => {
+  try {
+    const job = new CalendarConsistencyJob(console);
+    const result = await job.run();
+
+    res.json({
+      success: result.success,
+      message: result.success ? 'Calendar consistency job completed' : 'Job completed with errors',
+      data: {
+        duration: `${result.duration}ms`,
+        stats: result.stats
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// @route   POST /api/v1/admin/jobs/calendar-consistency/user/:userId
+// @desc    Run calendar consistency job for a specific user
+// @access  Admin only
+router.post('/jobs/calendar-consistency/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const job = new CalendarConsistencyJob(console);
+    const result = await job.runForUser(userId);
+
+    res.json({
+      success: result.success,
+      message: result.success ? 'Calendar consistency job completed for user' : 'Job completed with errors',
+      data: {
+        userId,
+        duration: `${result.duration}ms`,
+        stats: result.stats
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
       success: false,
       message: error.message
     });

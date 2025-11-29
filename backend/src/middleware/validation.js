@@ -65,8 +65,8 @@ const validateWorkout = [
     .isISO8601()
     .withMessage('Please provide a valid date'),
   body('type')
-    .isIn(['strength', 'cardio', 'hybrid', 'recovery', 'hiit', 'flexibility', 'calisthenics', 'mobility'])
-    .withMessage('Workout type must be strength, cardio, hybrid, recovery, hiit, flexibility, calisthenics, or mobility'),
+    .notEmpty()
+    .withMessage('Workout type is required'),
   body('status')
     .optional()
     .isIn(['planned', 'in_progress', 'completed', 'skipped'])

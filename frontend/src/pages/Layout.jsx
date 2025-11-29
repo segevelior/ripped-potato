@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot, TrendingUp, Settings, MessageSquare, Shield } from "lucide-react";
+import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot, TrendingUp, Settings, MessageSquare, Shield, Cog } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -169,17 +169,30 @@ export default function Layout({ children }) {
                   Settings
                 </Link>
                 {JSON.parse(localStorage.getItem('authUser') || '{}')?.role === 'superAdmin' && (
-                  <Link
-                    to="/Admin/Feedback"
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all text-sm font-medium ${
-                      location.pathname === '/Admin/Feedback'
-                        ? 'bg-amber-100 text-amber-900'
-                        : 'text-amber-600 hover:bg-amber-50 hover:text-amber-900'
-                    }`}
-                  >
-                    <Shield className="w-5 h-5" />
-                    Feedback Admin
-                  </Link>
+                  <>
+                    <Link
+                      to="/Admin/Feedback"
+                      className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all text-sm font-medium ${
+                        location.pathname === '/Admin/Feedback'
+                          ? 'bg-amber-100 text-amber-900'
+                          : 'text-amber-600 hover:bg-amber-50 hover:text-amber-900'
+                      }`}
+                    >
+                      <Shield className="w-5 h-5" />
+                      Feedback Admin
+                    </Link>
+                    <Link
+                      to="/Admin/Jobs"
+                      className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all text-sm font-medium ${
+                        location.pathname === '/Admin/Jobs'
+                          ? 'bg-amber-100 text-amber-900'
+                          : 'text-amber-600 hover:bg-amber-50 hover:text-amber-900'
+                      }`}
+                    >
+                      <Cog className="w-5 h-5" />
+                      Admin Jobs
+                    </Link>
+                  </>
                 )}
                 <div className="flex items-center gap-3">
                   <Link to={createPageUrl("Settings")} className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center hover:bg-primary-600 transition-colors">

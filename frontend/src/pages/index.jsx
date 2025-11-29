@@ -40,6 +40,8 @@ import Onboarding from "./Onboarding";
 
 import AdminFeedback from "./AdminFeedback";
 
+import AdminJobs from "./AdminJobs";
+
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 
 const PAGES = {
@@ -151,6 +153,8 @@ function PagesContent() {
                 <Route path="/Settings/Memories" element={<MemoriesSettings />} />
 
                 <Route path="/Admin/Feedback" element={<AdminFeedback />} />
+
+                <Route path="/Admin/Jobs" element={<AdminJobs />} />
             </Route>
             <Route path="*" element={<Navigate to="/auth" replace />} />
         </Routes>
