@@ -529,7 +529,7 @@ export default function LiveWorkout() {
   const allCurrentSetsComplete = currentExercise.sets.every(s => s.is_completed);
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+    <div className="bg-gray-50">
       {/* Rest Timer Overlay */}
       {showRestTimer && (
         <RestTimer duration={restDuration} onSkip={handleRestTimerSkip} onAdjust={handleRestTimerAdjust} />
@@ -578,8 +578,8 @@ export default function LiveWorkout() {
         </div>
       )}
 
-      {/* Header - Compact */}
-      <header className="bg-white px-3 py-2 border-b shrink-0">
+      {/* Header - Sticky at top */}
+      <header className="bg-white px-3 py-2 border-b sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <button onClick={() => setShowFinishConfirm(true)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
             <ArrowLeft className="w-4 h-4" />
@@ -605,106 +605,105 @@ export default function LiveWorkout() {
         </div>
       </header>
 
-      {/* Current Exercise Panel - Compact */}
-      <div className="flex-1 bg-white px-3 py-2 flex flex-col min-h-0">
-        {/* Exercise Header - Compact */}
-        <div className="flex items-center justify-between mb-2 shrink-0">
-          <button
-            onClick={goToPrevExercise}
-            disabled={currentExerciseIndex === 0}
-            className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center disabled:opacity-30"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
+      {/* Main content - padding for fixed buttons + nav bar */}
+      <div className="pb-36">
+        {/* Current Exercise Panel */}
+        <div className="bg-white px-3 py-2">
+          {/* Exercise Header */}
+          <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={goToPrevExercise}
+              disabled={currentExerciseIndex === 0}
+              className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center disabled:opacity-30"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
 
-          <div className="text-center flex-1 px-2">
-            <h2 className="text-base font-bold text-gray-900 leading-tight">
-              {currentExercise.exercise_name}
-            </h2>
-            <p className="text-xs text-gray-500">
-              Set {Math.min(completedSets + 1, totalSets)} of {totalSets}
+            <div className="text-center flex-1 px-2">
+              <h2 className="text-base font-bold text-gray-900 leading-tight">
+                {currentExercise.exercise_name}
+              </h2>
+              <p className="text-xs text-gray-500">
+                Set {Math.min(completedSets + 1, totalSets)} of {totalSets}
+              </p>
+            </div>
+
+            {/* Complete All Button */}
+            <button
+              onClick={handleCompleteAllSets}
+              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                allCurrentSetsComplete
+                  ? 'bg-green-500 text-white'
+                  : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-600'
+              }`}
+              title={allCurrentSetsComplete ? "Undo all" : "Complete all sets"}
+            >
+              <CheckCircle className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={goToNextExercise}
+              disabled={isLastExercise}
+              className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center disabled:opacity-30 ml-1"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Sets Header */}
+          <div className="flex items-center h-6 px-2 text-[10px] text-gray-400 font-medium">
+            <div className="w-7 shrink-0 text-center">SET</div>
+            <div className="flex-1 text-center">WEIGHT</div>
+            <div className="flex-1 text-center">REPS</div>
+            <div className="w-[72px] shrink-0"></div>
+          </div>
+
+          {/* Sets List */}
+          <div className="space-y-1.5">
+            {currentExercise.sets.map((set, setIndex) => (
+              <SetRow
+                key={setIndex}
+                setData={set}
+                setIndex={setIndex}
+                onUpdate={(newData) => handleSetUpdate(currentExerciseIndex, setIndex, newData)}
+                onComplete={handleSetComplete}
+                onStartRest={handleStartRest}
+              />
+            ))}
+          </div>
+
+          {/* Notes */}
+          {currentExercise.notes && (
+            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-xs text-yellow-800">{currentExercise.notes}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Exercise List */}
+        <div className="bg-gray-100 border-t mt-2">
+          <div className="px-3 py-1.5 border-b bg-white">
+            <p className="text-[10px] text-gray-500 font-medium">
+              {totalExercisesDone}/{workout.exercises.length} Exercises
             </p>
           </div>
-
-          {/* Complete All Button */}
-          <button
-            onClick={handleCompleteAllSets}
-            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
-              allCurrentSetsComplete
-                ? 'bg-green-500 text-white'
-                : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-600'
-            }`}
-            title={allCurrentSetsComplete ? "Undo all" : "Complete all sets"}
-          >
-            <CheckCircle className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={goToNextExercise}
-            disabled={isLastExercise}
-            className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center disabled:opacity-30 ml-1"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Sets Header */}
-        <div className="flex items-center h-8 px-2 text-xs text-gray-400 font-medium shrink-0">
-          <div className="w-7 shrink-0 text-center">SET</div>
-          <div className="flex-1 text-center">WEIGHT</div>
-          <div className="flex-1 text-center">REPS</div>
-          <div className="w-[72px] shrink-0"></div>
-        </div>
-
-        {/* Sets List - Scrollable */}
-        <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
-          {currentExercise.sets.map((set, setIndex) => (
-            <SetRow
-              key={setIndex}
-              setData={set}
-              setIndex={setIndex}
-              onUpdate={(newData) => handleSetUpdate(currentExerciseIndex, setIndex, newData)}
-              onComplete={handleSetComplete}
-              onStartRest={handleStartRest}
-            />
-          ))}
-        </div>
-
-        {/* Notes */}
-        {currentExercise.notes && (
-          <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg shrink-0">
-            <p className="text-xs text-yellow-800">{currentExercise.notes}</p>
+          <div ref={exerciseListRef} className="divide-y divide-gray-100">
+            {workout.exercises.map((ex, idx) => (
+              <ExerciseListItem
+                key={idx}
+                exercise={ex}
+                index={idx}
+                isActive={idx === currentExerciseIndex}
+                isCompleted={ex.sets.every(s => s.is_completed)}
+                onClick={() => setCurrentExerciseIndex(idx)}
+              />
+            ))}
           </div>
-        )}
-      </div>
-
-      {/* Exercise List - Compact */}
-      <div className="bg-gray-100 border-t shrink-0" style={{ height: '130px' }}>
-        <div className="px-3 py-1.5 border-b bg-white">
-          <p className="text-[10px] text-gray-500 font-medium">
-            {totalExercisesDone}/{workout.exercises.length} Exercises
-          </p>
-        </div>
-        <div
-          ref={exerciseListRef}
-          className="overflow-y-auto divide-y divide-gray-100"
-          style={{ height: 'calc(130px - 28px)' }}
-        >
-          {workout.exercises.map((ex, idx) => (
-            <ExerciseListItem
-              key={idx}
-              exercise={ex}
-              index={idx}
-              isActive={idx === currentExerciseIndex}
-              isCompleted={ex.sets.every(s => s.is_completed)}
-              onClick={() => setCurrentExerciseIndex(idx)}
-            />
-          ))}
         </div>
       </div>
 
-      {/* Bottom Action - Two buttons */}
-      <div className="px-3 py-2 bg-white border-t shrink-0">
+      {/* Bottom Action - Fixed above nav bar (bottom-20 like other pages) */}
+      <div className="fixed bottom-20 left-0 right-0 px-3 py-2 bg-white border-t z-20">
         {isLastExercise ? (
           <button
             onClick={() => setShowFinishConfirm(true)}
@@ -714,6 +713,13 @@ export default function LiveWorkout() {
           </button>
         ) : (
           <div className="flex gap-2">
+            {/* Skip - just moves to next */}
+            <button
+              onClick={goToNextExercise}
+              className="px-4 bg-gray-100 text-gray-600 font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 active:bg-gray-200 text-sm"
+            >
+              Skip
+            </button>
             {/* Complete and Continue - marks all sets done and goes to next */}
             <button
               onClick={() => {
@@ -730,13 +736,6 @@ export default function LiveWorkout() {
               className="flex-1 bg-green-600 text-white font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 active:bg-green-700 text-sm"
             >
               <CheckCircle className="w-4 h-4" /> Complete & Continue
-            </button>
-            {/* Next Exercise - just moves to next */}
-            <button
-              onClick={goToNextExercise}
-              className="flex-1 bg-primary-500 text-white font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 active:bg-primary-600 text-sm"
-            >
-              Next <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         )}
