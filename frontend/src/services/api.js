@@ -28,11 +28,14 @@ class APIService {
         console.log(`API Request: ${options.method || 'GET'} ${url}`);
       }
 
+      // Always read fresh token from localStorage to handle OAuth callbacks
+      const token = localStorage.getItem('authToken') || this.token;
+
       const response = await fetch(url, {
         ...options,
         headers: {
           'Content-Type': 'application/json',
-          ...(this.token && { 'Authorization': `Bearer ${this.token}` }),
+          ...(token && { 'Authorization': `Bearer ${token}` }),
           ...options.headers
         }
       });

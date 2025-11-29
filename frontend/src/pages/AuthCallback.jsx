@@ -32,7 +32,7 @@ export default function AuthCallback() {
           if (response.ok) {
             const data = await response.json();
             localStorage.setItem('authUser', JSON.stringify(data.data.user));
-            navigate('/dashboard');
+            navigate('/Dashboard');
           } else {
             throw new Error('Failed to fetch profile');
           }
