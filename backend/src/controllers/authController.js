@@ -145,6 +145,7 @@ const getProfile = async (req, res) => {
           address: req.user.address,
           profilePicture: req.user.profilePicture,
           authProvider: req.user.authProvider,
+          role: req.user.role,
           profile: req.user.profile,
           settings: req.user.settings,
           createdAt: req.user.createdAt,
@@ -207,6 +208,7 @@ const updateProfile = async (req, res) => {
           dateOfBirth: user.dateOfBirth,
           address: user.address,
           profilePicture: user.profilePicture,
+          role: user.role,
           profile: user.profile,
           settings: user.settings
         }

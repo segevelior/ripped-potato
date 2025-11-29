@@ -186,7 +186,7 @@ function RestTimer({ duration, onSkip, onAdjust }) {
   );
 }
 
-// Compact Set Row Component - single line with smaller controls
+// Set Row Component - Clean horizontal table-like layout (inspired by Strong/Hevy)
 function SetRow({ setData, setIndex, onUpdate, onComplete, onStartRest }) {
   const { target_reps, reps, weight, is_completed, rest_seconds } = setData;
 
@@ -201,73 +201,87 @@ function SetRow({ setData, setIndex, onUpdate, onComplete, onStartRest }) {
   };
 
   return (
-    <div className={`flex items-center gap-2 py-1.5 px-2 rounded-lg transition-all ${
-      is_completed ? 'bg-green-50' : 'bg-white'
+    <div className={`flex items-center h-12 px-2 rounded-lg transition-all ${
+      is_completed ? 'bg-green-50' : 'bg-gray-50'
     }`}>
       {/* Set Number */}
-      <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
-        is_completed ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700'
+      <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
+        is_completed ? 'bg-green-500 text-white' : 'bg-white text-gray-600 border border-gray-200'
       }`}>
-        {is_completed ? <Check className="w-3 h-3" /> : setIndex + 1}
+        {is_completed ? <Check className="w-4 h-4" /> : setIndex + 1}
       </div>
 
-      {/* Weight */}
-      <div className="flex items-center gap-0.5 flex-1 justify-center">
-        <button onClick={() => handleWeightChange(-2.5)} className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center active:bg-gray-200">
-          <Minus className="w-3 h-3" />
+      {/* Weight Input Group */}
+      <div className="flex items-center flex-1 justify-center">
+        <button
+          onClick={() => handleWeightChange(-2.5)}
+          className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600"
+        >
+          <Minus className="w-4 h-4" />
         </button>
-        <div className="w-12 text-center">
+        <div className="flex items-baseline gap-0.5">
           <input
             type="number"
             value={weight || ''}
             onChange={(e) => onUpdate({ ...setData, weight: parseFloat(e.target.value) || 0 })}
-            className="w-full text-center font-bold text-sm bg-transparent"
+            className="w-12 text-center font-semibold text-base bg-transparent focus:outline-none"
             placeholder="0"
           />
-          <span className="text-[8px] text-gray-400 uppercase">kg</span>
+          <span className="text-xs text-gray-400">kg</span>
         </div>
-        <button onClick={() => handleWeightChange(2.5)} className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center active:bg-gray-200">
-          <Plus className="w-3 h-3" />
+        <button
+          onClick={() => handleWeightChange(2.5)}
+          className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600"
+        >
+          <Plus className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Reps */}
-      <div className="flex items-center gap-0.5 flex-1 justify-center">
-        <button onClick={() => handleRepsChange(-1)} className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center active:bg-gray-200">
-          <Minus className="w-3 h-3" />
+      {/* Reps Input Group */}
+      <div className="flex items-center flex-1 justify-center">
+        <button
+          onClick={() => handleRepsChange(-1)}
+          className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600"
+        >
+          <Minus className="w-4 h-4" />
         </button>
-        <div className="w-10 text-center">
+        <div className="flex items-baseline gap-0.5">
           <input
             type="number"
             value={reps || target_reps || ''}
             onChange={(e) => onUpdate({ ...setData, reps: parseInt(e.target.value) || 0 })}
-            className="w-full text-center font-bold text-sm bg-transparent"
+            className="w-10 text-center font-semibold text-base bg-transparent focus:outline-none"
             placeholder={target_reps?.toString() || '0'}
           />
-          <span className="text-[8px] text-gray-400 uppercase">reps</span>
+          <span className="text-xs text-gray-400">reps</span>
         </div>
-        <button onClick={() => handleRepsChange(1)} className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center active:bg-gray-200">
-          <Plus className="w-3 h-3" />
+        <button
+          onClick={() => handleRepsChange(1)}
+          className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600"
+        >
+          <Plus className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Timer Button */}
-      <button
-        onClick={() => onStartRest(rest_seconds || 90)}
-        className="w-7 h-7 rounded-full flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-gray-200 shrink-0"
-      >
-        <Clock className="w-3.5 h-3.5" />
-      </button>
-
-      {/* Complete Button */}
-      <button
-        onClick={() => onComplete(setIndex)}
-        className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-95 shrink-0 ${
-          is_completed ? 'bg-green-500 text-white' : 'bg-primary-500 text-white'
-        }`}
-      >
-        {is_completed ? <RotateCcw className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
-      </button>
+      {/* Action Buttons */}
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          onClick={() => onStartRest(rest_seconds || 90)}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-200 active:bg-gray-300"
+        >
+          <Clock className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onComplete(setIndex)}
+          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 ${
+            is_completed
+              ? 'bg-green-500 text-white'
+              : 'bg-primary-500 text-white'
+          }`}
+        >
+          {is_completed ? <RotateCcw className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+        </button>
+      </div>
     </div>
   );
 }
@@ -515,7 +529,7 @@ export default function LiveWorkout() {
   const allCurrentSetsComplete = currentExercise.sets.every(s => s.is_completed);
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+    <div className="bg-gray-50">
       {/* Rest Timer Overlay */}
       {showRestTimer && (
         <RestTimer duration={restDuration} onSkip={handleRestTimerSkip} onAdjust={handleRestTimerAdjust} />
@@ -564,8 +578,8 @@ export default function LiveWorkout() {
         </div>
       )}
 
-      {/* Header - Compact */}
-      <header className="bg-white px-3 py-2 border-b shrink-0">
+      {/* Header - Sticky at top */}
+      <header className="bg-white px-3 py-2 border-b sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <button onClick={() => setShowFinishConfirm(true)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
             <ArrowLeft className="w-4 h-4" />
@@ -591,98 +605,105 @@ export default function LiveWorkout() {
         </div>
       </header>
 
-      {/* Current Exercise Panel - Compact */}
-      <div className="flex-1 bg-white px-3 py-2 flex flex-col min-h-0">
-        {/* Exercise Header - Compact */}
-        <div className="flex items-center justify-between mb-2 shrink-0">
-          <button
-            onClick={goToPrevExercise}
-            disabled={currentExerciseIndex === 0}
-            className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center disabled:opacity-30"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
+      {/* Main content - padding for fixed buttons + nav bar */}
+      <div className="pb-36">
+        {/* Current Exercise Panel */}
+        <div className="bg-white px-3 py-2">
+          {/* Exercise Header */}
+          <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={goToPrevExercise}
+              disabled={currentExerciseIndex === 0}
+              className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center disabled:opacity-30"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
 
-          <div className="text-center flex-1 px-2">
-            <h2 className="text-base font-bold text-gray-900 leading-tight">
-              {currentExercise.exercise_name}
-            </h2>
-            <p className="text-xs text-gray-500">
-              Set {Math.min(completedSets + 1, totalSets)} of {totalSets}
+            <div className="text-center flex-1 px-2">
+              <h2 className="text-base font-bold text-gray-900 leading-tight">
+                {currentExercise.exercise_name}
+              </h2>
+              <p className="text-xs text-gray-500">
+                Set {Math.min(completedSets + 1, totalSets)} of {totalSets}
+              </p>
+            </div>
+
+            {/* Complete All Button */}
+            <button
+              onClick={handleCompleteAllSets}
+              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                allCurrentSetsComplete
+                  ? 'bg-green-500 text-white'
+                  : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-600'
+              }`}
+              title={allCurrentSetsComplete ? "Undo all" : "Complete all sets"}
+            >
+              <CheckCircle className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={goToNextExercise}
+              disabled={isLastExercise}
+              className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center disabled:opacity-30 ml-1"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Sets Header */}
+          <div className="flex items-center h-6 px-2 text-[10px] text-gray-400 font-medium">
+            <div className="w-7 shrink-0 text-center">SET</div>
+            <div className="flex-1 text-center">WEIGHT</div>
+            <div className="flex-1 text-center">REPS</div>
+            <div className="w-[72px] shrink-0"></div>
+          </div>
+
+          {/* Sets List */}
+          <div className="space-y-1.5">
+            {currentExercise.sets.map((set, setIndex) => (
+              <SetRow
+                key={setIndex}
+                setData={set}
+                setIndex={setIndex}
+                onUpdate={(newData) => handleSetUpdate(currentExerciseIndex, setIndex, newData)}
+                onComplete={handleSetComplete}
+                onStartRest={handleStartRest}
+              />
+            ))}
+          </div>
+
+          {/* Notes */}
+          {currentExercise.notes && (
+            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-xs text-yellow-800">{currentExercise.notes}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Exercise List */}
+        <div className="bg-gray-100 border-t mt-2">
+          <div className="px-3 py-1.5 border-b bg-white">
+            <p className="text-[10px] text-gray-500 font-medium">
+              {totalExercisesDone}/{workout.exercises.length} Exercises
             </p>
           </div>
-
-          {/* Complete All Button */}
-          <button
-            onClick={handleCompleteAllSets}
-            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
-              allCurrentSetsComplete
-                ? 'bg-green-500 text-white'
-                : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-600'
-            }`}
-            title={allCurrentSetsComplete ? "Undo all" : "Complete all sets"}
-          >
-            <CheckCircle className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={goToNextExercise}
-            disabled={isLastExercise}
-            className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center disabled:opacity-30 ml-1"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Sets List - Scrollable */}
-        <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
-          {currentExercise.sets.map((set, setIndex) => (
-            <SetRow
-              key={setIndex}
-              setData={set}
-              setIndex={setIndex}
-              onUpdate={(newData) => handleSetUpdate(currentExerciseIndex, setIndex, newData)}
-              onComplete={handleSetComplete}
-              onStartRest={handleStartRest}
-            />
-          ))}
-        </div>
-
-        {/* Notes */}
-        {currentExercise.notes && (
-          <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg shrink-0">
-            <p className="text-xs text-yellow-800">{currentExercise.notes}</p>
+          <div ref={exerciseListRef} className="divide-y divide-gray-100">
+            {workout.exercises.map((ex, idx) => (
+              <ExerciseListItem
+                key={idx}
+                exercise={ex}
+                index={idx}
+                isActive={idx === currentExerciseIndex}
+                isCompleted={ex.sets.every(s => s.is_completed)}
+                onClick={() => setCurrentExerciseIndex(idx)}
+              />
+            ))}
           </div>
-        )}
-      </div>
-
-      {/* Exercise List - Compact */}
-      <div className="bg-gray-100 border-t shrink-0" style={{ height: '130px' }}>
-        <div className="px-3 py-1.5 border-b bg-white">
-          <p className="text-[10px] text-gray-500 font-medium">
-            {totalExercisesDone}/{workout.exercises.length} Exercises
-          </p>
-        </div>
-        <div
-          ref={exerciseListRef}
-          className="overflow-y-auto divide-y divide-gray-100"
-          style={{ height: 'calc(130px - 28px)' }}
-        >
-          {workout.exercises.map((ex, idx) => (
-            <ExerciseListItem
-              key={idx}
-              exercise={ex}
-              index={idx}
-              isActive={idx === currentExerciseIndex}
-              isCompleted={ex.sets.every(s => s.is_completed)}
-              onClick={() => setCurrentExerciseIndex(idx)}
-            />
-          ))}
         </div>
       </div>
 
-      {/* Bottom Action - Two buttons */}
-      <div className="px-3 py-2 bg-white border-t shrink-0">
+      {/* Bottom Action - Fixed above nav bar (bottom-20 like other pages) */}
+      <div className="fixed bottom-20 left-0 right-0 px-3 py-2 bg-white border-t z-20">
         {isLastExercise ? (
           <button
             onClick={() => setShowFinishConfirm(true)}
@@ -692,6 +713,13 @@ export default function LiveWorkout() {
           </button>
         ) : (
           <div className="flex gap-2">
+            {/* Skip - just moves to next */}
+            <button
+              onClick={goToNextExercise}
+              className="px-4 bg-gray-100 text-gray-600 font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 active:bg-gray-200 text-sm"
+            >
+              Skip
+            </button>
             {/* Complete and Continue - marks all sets done and goes to next */}
             <button
               onClick={() => {
@@ -708,13 +736,6 @@ export default function LiveWorkout() {
               className="flex-1 bg-green-600 text-white font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 active:bg-green-700 text-sm"
             >
               <CheckCircle className="w-4 h-4" /> Complete & Continue
-            </button>
-            {/* Next Exercise - just moves to next */}
-            <button
-              onClick={goToNextExercise}
-              className="flex-1 bg-primary-500 text-white font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 active:bg-primary-600 text-sm"
-            >
-              Next <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         )}

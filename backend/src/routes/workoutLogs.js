@@ -1,9 +1,53 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const { body, validationResult } = require('express-validator');
 const WorkoutLog = require('../models/WorkoutLog');
 const CalendarEvent = require('../models/CalendarEvent');
+const Exercise = require('../models/Exercise');
 const { auth } = require('../middleware/auth');
+
+// Helper to validate MongoDB ObjectId format
+const isValidObjectId = (id) => {
+  if (!id || typeof id !== 'string') return false;
+  return mongoose.Types.ObjectId.isValid(id) && /^[0-9a-fA-F]{24}$/.test(id);
+};
+
+// Helper to normalize exercise name for matching
+const normalizeExerciseName = (name) => {
+  if (!name) return '';
+  return name.toLowerCase().trim();
+};
+
+/**
+ * Resolves exerciseId for a given exercise.
+ * - If valid ObjectId is provided and exists in DB, use it
+ * - Otherwise, try to find exercise by name (case-insensitive)
+ * - Returns the ObjectId or null if not found
+ */
+const resolveExerciseId = async (exerciseId, exerciseName) => {
+  // If valid ObjectId provided, verify it exists
+  if (isValidObjectId(exerciseId)) {
+    const exists = await Exercise.exists({ _id: exerciseId });
+    if (exists) {
+      return new mongoose.Types.ObjectId(exerciseId);
+    }
+  }
+
+  // Try to find by name (case-insensitive)
+  if (exerciseName) {
+    const exercise = await Exercise.findOne({
+      name: { $regex: new RegExp(`^${normalizeExerciseName(exerciseName).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+    }).select('_id');
+
+    if (exercise) {
+      return exercise._id;
+    }
+  }
+
+  // Exercise not found - return null (exerciseName will still be stored)
+  return null;
+};
 
 // Validation for creating workout log
 const validateWorkoutLog = [
@@ -126,6 +170,20 @@ router.post('/', auth, validateWorkoutLog, async (req, res) => {
       createCalendarEvent = true
     } = req.body;
 
+    // Resolve exercise IDs - lookup by name if ID is missing/invalid
+    const resolvedExercises = await Promise.all(
+      exercises.map(async (ex, i) => {
+        const resolvedId = await resolveExerciseId(ex.exerciseId, ex.exerciseName);
+        return {
+          exerciseId: resolvedId, // Will be null if not found (that's OK)
+          exerciseName: ex.exerciseName,
+          order: i,
+          sets: ex.sets || [],
+          notes: ex.notes
+        };
+      })
+    );
+
     // Create the workout log
     const workoutLog = new WorkoutLog({
       userId: req.user._id,
@@ -134,13 +192,7 @@ router.post('/', auth, validateWorkoutLog, async (req, res) => {
       startedAt: new Date(startedAt),
       completedAt: completedAt ? new Date(completedAt) : new Date(),
       actualDuration: actualDuration || Math.round((new Date(completedAt || Date.now()) - new Date(startedAt)) / 60000),
-      exercises: exercises.map((ex, i) => ({
-        exerciseId: ex.exerciseId,
-        exerciseName: ex.exerciseName,
-        order: i,
-        sets: ex.sets || [],
-        notes: ex.notes
-      })),
+      exercises: resolvedExercises,
       perceivedDifficulty,
       mood,
       notes
@@ -161,8 +213,8 @@ router.post('/', auth, validateWorkoutLog, async (req, res) => {
         workoutDetails: {
           type: type.toLowerCase(),
           durationMinutes: workoutLog.actualDuration,
-          exercises: exercises.map(ex => ({
-            exerciseId: ex.exerciseId,
+          exercises: resolvedExercises.map(ex => ({
+            exerciseId: ex.exerciseId, // Already resolved
             exerciseName: ex.exerciseName,
             sets: ex.sets
           })),
