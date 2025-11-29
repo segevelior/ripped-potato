@@ -490,10 +490,14 @@ class StravaIntegrationService {
     }
 
     try {
+      // Get a valid (non-expired) access token - Strava requires this for deauthorization
+      const accessToken = await this.getValidAccessToken(userId);
+
       // Revoke access on Strava's side
       await axios.post(`${STRAVA_OAUTH_BASE}/deauthorize`, null, {
-        headers: { Authorization: `Bearer ${credential.accessToken}` }
+        headers: { Authorization: `Bearer ${accessToken}` }
       });
+      console.log(`Successfully deauthorized Strava for user ${userId}`);
     } catch (error) {
       // Continue even if revoke fails (token might already be invalid)
       console.error('Failed to revoke Strava token:', error.message);
