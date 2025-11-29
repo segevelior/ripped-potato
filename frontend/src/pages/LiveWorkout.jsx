@@ -186,7 +186,7 @@ function RestTimer({ duration, onSkip, onAdjust }) {
   );
 }
 
-// Compact Set Row Component - single line with smaller controls
+// Set Row Component - Clean horizontal table-like layout (inspired by Strong/Hevy)
 function SetRow({ setData, setIndex, onUpdate, onComplete, onStartRest }) {
   const { target_reps, reps, weight, is_completed, rest_seconds } = setData;
 
@@ -201,73 +201,87 @@ function SetRow({ setData, setIndex, onUpdate, onComplete, onStartRest }) {
   };
 
   return (
-    <div className={`flex items-center gap-2 py-1.5 px-2 rounded-lg transition-all ${
-      is_completed ? 'bg-green-50' : 'bg-white'
+    <div className={`flex items-center h-12 px-2 rounded-lg transition-all ${
+      is_completed ? 'bg-green-50' : 'bg-gray-50'
     }`}>
       {/* Set Number */}
-      <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
-        is_completed ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700'
+      <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
+        is_completed ? 'bg-green-500 text-white' : 'bg-white text-gray-600 border border-gray-200'
       }`}>
-        {is_completed ? <Check className="w-3 h-3" /> : setIndex + 1}
+        {is_completed ? <Check className="w-4 h-4" /> : setIndex + 1}
       </div>
 
-      {/* Weight */}
-      <div className="flex items-center gap-0.5 flex-1 justify-center">
-        <button onClick={() => handleWeightChange(-2.5)} className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center active:bg-gray-200">
-          <Minus className="w-3 h-3" />
+      {/* Weight Input Group */}
+      <div className="flex items-center flex-1 justify-center">
+        <button
+          onClick={() => handleWeightChange(-2.5)}
+          className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600"
+        >
+          <Minus className="w-4 h-4" />
         </button>
-        <div className="w-12 text-center">
+        <div className="flex items-baseline gap-0.5">
           <input
             type="number"
             value={weight || ''}
             onChange={(e) => onUpdate({ ...setData, weight: parseFloat(e.target.value) || 0 })}
-            className="w-full text-center font-bold text-sm bg-transparent"
+            className="w-12 text-center font-semibold text-base bg-transparent focus:outline-none"
             placeholder="0"
           />
-          <span className="text-[8px] text-gray-400 uppercase">kg</span>
+          <span className="text-xs text-gray-400">kg</span>
         </div>
-        <button onClick={() => handleWeightChange(2.5)} className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center active:bg-gray-200">
-          <Plus className="w-3 h-3" />
+        <button
+          onClick={() => handleWeightChange(2.5)}
+          className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600"
+        >
+          <Plus className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Reps */}
-      <div className="flex items-center gap-0.5 flex-1 justify-center">
-        <button onClick={() => handleRepsChange(-1)} className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center active:bg-gray-200">
-          <Minus className="w-3 h-3" />
+      {/* Reps Input Group */}
+      <div className="flex items-center flex-1 justify-center">
+        <button
+          onClick={() => handleRepsChange(-1)}
+          className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600"
+        >
+          <Minus className="w-4 h-4" />
         </button>
-        <div className="w-10 text-center">
+        <div className="flex items-baseline gap-0.5">
           <input
             type="number"
             value={reps || target_reps || ''}
             onChange={(e) => onUpdate({ ...setData, reps: parseInt(e.target.value) || 0 })}
-            className="w-full text-center font-bold text-sm bg-transparent"
+            className="w-10 text-center font-semibold text-base bg-transparent focus:outline-none"
             placeholder={target_reps?.toString() || '0'}
           />
-          <span className="text-[8px] text-gray-400 uppercase">reps</span>
+          <span className="text-xs text-gray-400">reps</span>
         </div>
-        <button onClick={() => handleRepsChange(1)} className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center active:bg-gray-200">
-          <Plus className="w-3 h-3" />
+        <button
+          onClick={() => handleRepsChange(1)}
+          className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600"
+        >
+          <Plus className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Timer Button */}
-      <button
-        onClick={() => onStartRest(rest_seconds || 90)}
-        className="w-7 h-7 rounded-full flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-gray-200 shrink-0"
-      >
-        <Clock className="w-3.5 h-3.5" />
-      </button>
-
-      {/* Complete Button */}
-      <button
-        onClick={() => onComplete(setIndex)}
-        className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-95 shrink-0 ${
-          is_completed ? 'bg-green-500 text-white' : 'bg-primary-500 text-white'
-        }`}
-      >
-        {is_completed ? <RotateCcw className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
-      </button>
+      {/* Action Buttons */}
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          onClick={() => onStartRest(rest_seconds || 90)}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-200 active:bg-gray-300"
+        >
+          <Clock className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onComplete(setIndex)}
+          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 ${
+            is_completed
+              ? 'bg-green-500 text-white'
+              : 'bg-primary-500 text-white'
+          }`}
+        >
+          {is_completed ? <RotateCcw className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+        </button>
+      </div>
     </div>
   );
 }
@@ -634,8 +648,16 @@ export default function LiveWorkout() {
           </button>
         </div>
 
+        {/* Sets Header */}
+        <div className="flex items-center h-8 px-2 text-xs text-gray-400 font-medium shrink-0">
+          <div className="w-7 shrink-0 text-center">SET</div>
+          <div className="flex-1 text-center">WEIGHT</div>
+          <div className="flex-1 text-center">REPS</div>
+          <div className="w-[72px] shrink-0"></div>
+        </div>
+
         {/* Sets List - Scrollable */}
-        <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
+        <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
           {currentExercise.sets.map((set, setIndex) => (
             <SetRow
               key={setIndex}
