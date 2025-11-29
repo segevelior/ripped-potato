@@ -58,8 +58,8 @@ const workoutLogSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['strength', 'cardio', 'hybrid', 'recovery', 'hiit', 'flexibility', 'calisthenics', 'mobility'],
     required: true
+    // No enum restriction - allow any workout type
   },
   // Timing
   startedAt: {

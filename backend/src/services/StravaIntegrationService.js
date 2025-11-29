@@ -2,6 +2,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const StravaCredential = require('../models/StravaCredential');
 const ExternalActivity = require('../models/ExternalActivity');
+const CalendarEvent = require('../models/CalendarEvent');
 
 const STRAVA_API_BASE = 'https://www.strava.com/api/v3';
 const STRAVA_OAUTH_BASE = 'https://www.strava.com/oauth';
@@ -308,6 +309,83 @@ class StravaIntegrationService {
   }
 
   /**
+   * Map Strava sport type to our workout type
+   */
+  static mapStravaTypeToWorkoutType(sportType) {
+    const typeMap = {
+      'Run': 'running',
+      'Trail Run': 'running',
+      'Virtual Run': 'running',
+      'Ride': 'cycling',
+      'Mountain Bike Ride': 'cycling',
+      'Gravel Ride': 'cycling',
+      'Virtual Ride': 'cycling',
+      'E-Bike Ride': 'cycling',
+      'E-Mountain Bike Ride': 'cycling',
+      'Swim': 'swimming',
+      'Walk': 'walking',
+      'Hike': 'walking',
+      'Yoga': 'yoga',
+      'Weight Training': 'strength',
+      'Workout': 'strength',
+      'CrossFit': 'hiit',
+      'HIIT': 'hiit',
+      'Rock Climbing': 'climbing',
+      'Bouldering': 'climbing',
+      'Meditation': 'meditation',
+      'Stretching': 'flexibility',
+      'Pilates': 'flexibility',
+      'Cardio': 'cardio',
+      'Elliptical': 'cardio',
+      'Rowing': 'cardio',
+      'Stair Stepper': 'cardio'
+    };
+    return typeMap[sportType] || 'other';
+  }
+
+  /**
+   * Create or update CalendarEvent from Strava activity
+   */
+  static async syncCalendarEvent(externalActivity, userId) {
+    const eventData = {
+      userId,
+      date: externalActivity.startDate,
+      title: externalActivity.name,
+      type: 'workout',
+      status: 'completed',
+      externalActivityId: externalActivity._id,
+      workoutDetails: {
+        type: this.mapStravaTypeToWorkoutType(externalActivity.sportType),
+        durationMinutes: Math.round((externalActivity.movingTime || externalActivity.elapsedTime || 0) / 60),
+        source: 'strava',
+        stravaData: {
+          sportType: externalActivity.sportType,
+          distance: externalActivity.distance,
+          elevationGain: externalActivity.elevationGain,
+          avgHeartRate: externalActivity.avgHeartRate,
+          calories: externalActivity.calories,
+          stravaUrl: externalActivity.stravaUrl
+        }
+      },
+      completedAt: externalActivity.startDate
+    };
+
+    // Upsert based on externalActivityId
+    await CalendarEvent.findOneAndUpdate(
+      { userId, externalActivityId: externalActivity._id },
+      eventData,
+      { upsert: true, new: true }
+    );
+  }
+
+  /**
+   * Delete CalendarEvent when Strava activity is deleted
+   */
+  static async deleteCalendarEventForActivity(externalActivityId) {
+    await CalendarEvent.findOneAndDelete({ externalActivityId });
+  }
+
+  /**
    * Sync activities for a user
    * @param {string} userId - User ID
    * @param {Object} options - Sync options
@@ -371,14 +449,18 @@ class StravaIntegrationService {
 
             const activityData = this.transformActivity(stravaActivity, userId);
 
+            let externalActivity;
             if (existing) {
               // Update existing
-              await ExternalActivity.findByIdAndUpdate(existing._id, activityData);
+              externalActivity = await ExternalActivity.findByIdAndUpdate(existing._id, activityData, { new: true });
             } else {
               // Create new
-              await ExternalActivity.create(activityData);
+              externalActivity = await ExternalActivity.create(activityData);
               totalSynced++;
             }
+
+            // Create/update CalendarEvent for this activity
+            await this.syncCalendarEvent(externalActivity, userId);
           } catch (activityError) {
             // Log the error but continue processing other activities
             console.error(`Failed to sync activity ${stravaActivity.id}:`, activityError.message);
@@ -451,20 +533,29 @@ class StravaIntegrationService {
           const activityData = this.transformActivity(stravaActivity, credential.userId);
 
           // Upsert activity
-          await ExternalActivity.findOneAndUpdate(
+          const externalActivity = await ExternalActivity.findOneAndUpdate(
             { source: 'strava', externalId: object_id.toString() },
             activityData,
             { upsert: true, new: true }
           );
 
+          // Create/update CalendarEvent for this activity
+          await this.syncCalendarEvent(externalActivity, credential.userId);
+
           return { handled: true, action: aspect_type, activityId: object_id };
         }
 
         case 'delete': {
-          await ExternalActivity.findOneAndDelete({
+          // Find and delete the external activity
+          const deletedActivity = await ExternalActivity.findOneAndDelete({
             source: 'strava',
             externalId: object_id.toString()
           });
+
+          // Also delete the associated CalendarEvent
+          if (deletedActivity) {
+            await this.deleteCalendarEventForActivity(deletedActivity._id);
+          }
 
           return { handled: true, action: 'delete', activityId: object_id };
         }

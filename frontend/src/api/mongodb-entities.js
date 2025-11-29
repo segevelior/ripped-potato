@@ -158,6 +158,16 @@ export const CalendarEvent = {
   skipWorkout: async (id, reason) => apiService.calendar.skipWorkout(id, reason)
 };
 
+// WorkoutLog entity (completed workouts from TrainNow)
+export const WorkoutLog = {
+  list: async (params) => normalizeArray(await apiService.workoutLogs.list(params)),
+  get: async (id) => normalizeId(await apiService.workoutLogs.get(id)),
+  stats: async (days) => apiService.workoutLogs.stats(days),
+  create: async (data) => normalizeId(await apiService.workoutLogs.create(data)),
+  update: async (id, data) => normalizeId(await apiService.workoutLogs.update(id, data)),
+  delete: async (id) => apiService.workoutLogs.delete(id)
+};
+
 // Aliases for compatibility
 export const TrainingPlan = Plan;
 export const WorkoutTemplate = PredefinedWorkout;

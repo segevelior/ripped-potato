@@ -479,6 +479,44 @@ class APIService {
     })
   };
 
+  // Workout Logs endpoints (completed workouts from TrainNow)
+  workoutLogs = {
+    list: async (params = {}) => {
+      const queryString = new URLSearchParams(params).toString();
+      const response = await this.request(`/workout-logs${queryString ? `?${queryString}` : ''}`);
+      return response.logs || response;
+    },
+    get: async (id) => {
+      const response = await this.request(`/workout-logs/${id}`);
+      return response.log || response;
+    },
+    stats: async (days = 30) => {
+      const response = await this.request(`/workout-logs/stats?days=${days}`);
+      return response.stats || response;
+    },
+    create: (data) => this.request('/workout-logs', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+    update: (id, data) => this.request(`/workout-logs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+    delete: (id) => this.request(`/workout-logs/${id}`, {
+      method: 'DELETE'
+    })
+  };
+
+  // Admin Jobs endpoints
+  adminJobs = {
+    runCalendarConsistency: () => this.request('/admin/jobs/calendar-consistency', {
+      method: 'POST'
+    }),
+    runCalendarConsistencyForUser: (userId) => this.request(`/admin/jobs/calendar-consistency/user/${userId}`, {
+      method: 'POST'
+    })
+  };
+
   // Alias endpoints for naming compatibility
   trainingPlans = this.plans;  // TrainingPlan -> Plan
   workoutTemplates = this.predefinedWorkouts;  // WorkoutTemplate -> PredefinedWorkout

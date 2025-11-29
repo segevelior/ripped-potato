@@ -36,10 +36,11 @@ const calendarEventSchema = new mongoose.Schema({
   // Workout details (can be from template or custom)
   workoutDetails: {
     type: {
-      type: String,
-      enum: ['strength', 'cardio', 'hybrid', 'recovery', 'hiit', 'flexibility', 'calisthenics', 'mobility', 'meditation']
+      type: String
+      // No enum restriction - allow any workout type
     },
     estimatedDuration: Number, // in minutes
+    durationMinutes: Number, // actual duration after completion
     exercises: [{
       exerciseId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -49,13 +50,26 @@ const calendarEventSchema = new mongoose.Schema({
       targetSets: Number,
       targetReps: Number,
       targetWeight: Number,
-      notes: String
+      notes: String,
+      // Actual workout data (populated after completion)
+      sets: [{
+        weight: Number,
+        actualReps: Number,
+        targetReps: Number,
+        isCompleted: Boolean
+      }]
     }]
   },
-  // Link to workout log after completion
+  completedAt: Date,
+  // Link to workout log after completion (from TrainNow)
   workoutLogId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'WorkoutLog'
+  },
+  // Link to external activity (from Strava, etc.)
+  externalActivityId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ExternalActivity'
   },
   // For plan-based events
   planId: {
@@ -87,6 +101,7 @@ const calendarEventSchema = new mongoose.Schema({
 calendarEventSchema.index({ userId: 1, date: 1 });
 calendarEventSchema.index({ userId: 1, date: 1, status: 1 });
 calendarEventSchema.index({ userId: 1, planId: 1 });
+calendarEventSchema.index({ userId: 1, externalActivityId: 1 }); // For Strava sync
 
 // Static method to get events for a date range
 calendarEventSchema.statics.getByDateRange = function(userId, startDate, endDate) {
