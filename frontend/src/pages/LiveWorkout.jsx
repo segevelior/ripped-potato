@@ -186,7 +186,7 @@ function RestTimer({ duration, onSkip, onAdjust }) {
   );
 }
 
-// Set Row Component - Clean horizontal table-like layout (inspired by Strong/Hevy)
+// Set Row Component - Ultra compact layout with stacked +/- buttons
 function SetRow({ setData, setIndex, onUpdate, onComplete, onStartRest }) {
   const { target_reps, reps, weight, is_completed, rest_seconds } = setData;
 
@@ -201,92 +201,96 @@ function SetRow({ setData, setIndex, onUpdate, onComplete, onStartRest }) {
   };
 
   return (
-    <div className={`flex items-center h-12 px-2 rounded-lg transition-all ${
+    <div className={`flex items-center gap-1 py-1.5 px-1.5 rounded-lg transition-all ${
       is_completed ? 'bg-green-50' : 'bg-gray-50'
     }`}>
       {/* Set Number */}
-      <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
+      <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${
         is_completed ? 'bg-green-500 text-white' : 'bg-white text-gray-600 border border-gray-200'
       }`}>
-        {is_completed ? <Check className="w-4 h-4" /> : setIndex + 1}
+        {is_completed ? <Check className="w-2.5 h-2.5" /> : setIndex + 1}
       </div>
 
-      {/* Weight Input Group */}
-      <div className="flex items-center flex-1 justify-center">
-        <button
-          onClick={() => handleWeightChange(-2.5)}
-          className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600"
-        >
-          <Minus className="w-4 h-4" />
-        </button>
-        <div className="flex items-baseline gap-0.5">
+      {/* Weight Input Group - Stacked buttons */}
+      <div className="flex items-center flex-1 min-w-0">
+        <div className="flex flex-col shrink-0">
+          <button
+            onClick={() => handleWeightChange(2.5)}
+            className="w-5 h-4 flex items-center justify-center text-gray-400 active:text-gray-600 bg-white rounded-t border border-gray-200 border-b-0"
+          >
+            <Plus className="w-2.5 h-2.5" />
+          </button>
+          <button
+            onClick={() => handleWeightChange(-2.5)}
+            className="w-5 h-4 flex items-center justify-center text-gray-400 active:text-gray-600 bg-white rounded-b border border-gray-200"
+          >
+            <Minus className="w-2.5 h-2.5" />
+          </button>
+        </div>
+        <div className="flex items-baseline ml-0.5">
           <input
             type="number"
             value={weight || ''}
             onChange={(e) => onUpdate({ ...setData, weight: parseFloat(e.target.value) || 0 })}
-            className="w-12 text-center font-semibold text-base bg-transparent focus:outline-none"
+            className="w-7 text-center font-semibold text-xs bg-transparent focus:outline-none"
             placeholder="0"
           />
-          <span className="text-xs text-gray-400">kg</span>
+          <span className="text-[9px] text-gray-400">kg</span>
         </div>
-        <button
-          onClick={() => handleWeightChange(2.5)}
-          className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
       </div>
 
-      {/* Reps Input Group */}
-      <div className="flex items-center flex-1 justify-center">
-        <button
-          onClick={() => handleRepsChange(-1)}
-          className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600"
-        >
-          <Minus className="w-4 h-4" />
-        </button>
-        <div className="flex items-baseline gap-0.5">
+      {/* Reps Input Group - Stacked buttons */}
+      <div className="flex items-center flex-1 min-w-0">
+        <div className="flex flex-col shrink-0">
+          <button
+            onClick={() => handleRepsChange(1)}
+            className="w-5 h-4 flex items-center justify-center text-gray-400 active:text-gray-600 bg-white rounded-t border border-gray-200 border-b-0"
+          >
+            <Plus className="w-2.5 h-2.5" />
+          </button>
+          <button
+            onClick={() => handleRepsChange(-1)}
+            className="w-5 h-4 flex items-center justify-center text-gray-400 active:text-gray-600 bg-white rounded-b border border-gray-200"
+          >
+            <Minus className="w-2.5 h-2.5" />
+          </button>
+        </div>
+        <div className="flex items-baseline ml-0.5">
           <input
             type="number"
             value={reps || target_reps || ''}
             onChange={(e) => onUpdate({ ...setData, reps: parseInt(e.target.value) || 0 })}
-            className="w-10 text-center font-semibold text-base bg-transparent focus:outline-none"
+            className="w-6 text-center font-semibold text-xs bg-transparent focus:outline-none"
             placeholder={target_reps?.toString() || '0'}
           />
-          <span className="text-xs text-gray-400">reps</span>
+          <span className="text-[9px] text-gray-400">reps</span>
         </div>
-        <button
-          onClick={() => handleRepsChange(1)}
-          className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex items-center gap-1 shrink-0">
+      {/* Action Buttons - Stacked */}
+      <div className="flex flex-col shrink-0">
         <button
           onClick={() => onStartRest(rest_seconds || 90)}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-200 active:bg-gray-300"
+          className="w-6 h-5 rounded-t flex items-center justify-center text-gray-400 hover:bg-gray-200 active:bg-gray-300 bg-white border border-gray-200 border-b-0"
         >
-          <Clock className="w-4 h-4" />
+          <Clock className="w-2.5 h-2.5" />
         </button>
         <button
           onClick={() => onComplete(setIndex)}
-          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 ${
+          className={`w-6 h-5 rounded-b flex items-center justify-center transition-all active:scale-95 ${
             is_completed
               ? 'bg-green-500 text-white'
               : 'bg-primary-500 text-white'
           }`}
         >
-          {is_completed ? <RotateCcw className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+          {is_completed ? <RotateCcw className="w-2.5 h-2.5" /> : <Check className="w-2.5 h-2.5" />}
         </button>
       </div>
     </div>
   );
 }
 
-// Vertical Exercise List Item - Compact
+// Exercise List Item - Single line compact
 function ExerciseListItem({ exercise, index, isActive, isCompleted, onClick }) {
   const completedSets = exercise.sets.filter(s => s.is_completed).length;
   const totalSets = exercise.sets.length;
@@ -294,7 +298,7 @@ function ExerciseListItem({ exercise, index, isActive, isCompleted, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-2 py-1.5 px-3 border-l-3 transition-all ${
+      className={`w-full flex items-center gap-1.5 py-1 px-2 border-l-2 transition-all ${
         isActive
           ? 'border-l-primary-500 bg-primary-50'
           : isCompleted
@@ -302,19 +306,16 @@ function ExerciseListItem({ exercise, index, isActive, isCompleted, onClick }) {
             : 'border-l-gray-200 bg-white hover:bg-gray-50'
       }`}
     >
-      <div className="flex-1 text-left min-w-0">
-        <p className={`font-semibold text-xs truncate ${isActive ? 'text-primary-700' : isCompleted ? 'text-green-700' : 'text-gray-900'}`}>
-          {exercise.exercise_name}
-        </p>
-        <p className="text-[10px] text-gray-500">
-          {totalSets} sets × {exercise.sets[0]?.target_reps || '?'} reps
-        </p>
-      </div>
-
+      <p className={`font-medium text-[11px] truncate flex-1 text-left ${isActive ? 'text-primary-700' : isCompleted ? 'text-green-700' : 'text-gray-900'}`}>
+        {exercise.exercise_name}
+      </p>
+      <span className="text-[9px] text-gray-400 shrink-0">
+        {totalSets}×{exercise.sets[0]?.target_reps || '?'}
+      </span>
       {isCompleted ? (
-        <Check className="w-4 h-4 text-green-500 shrink-0" />
+        <Check className="w-3 h-3 text-green-500 shrink-0" />
       ) : (
-        <span className="text-[10px] text-gray-400 shrink-0">
+        <span className="text-[9px] text-gray-400 shrink-0 w-5 text-right">
           {completedSets}/{totalSets}
         </span>
       )}
@@ -649,15 +650,15 @@ export default function LiveWorkout() {
         </div>
 
         {/* Sets Header */}
-        <div className="flex items-center h-8 px-2 text-xs text-gray-400 font-medium shrink-0">
-          <div className="w-7 shrink-0 text-center">SET</div>
+        <div className="flex items-center gap-1 h-5 px-1.5 text-[9px] text-gray-400 font-medium shrink-0">
+          <div className="w-5 shrink-0 text-center">SET</div>
           <div className="flex-1 text-center">WEIGHT</div>
           <div className="flex-1 text-center">REPS</div>
-          <div className="w-[72px] shrink-0"></div>
+          <div className="w-6 shrink-0"></div>
         </div>
 
         {/* Sets List - Scrollable */}
-        <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+        <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
           {currentExercise.sets.map((set, setIndex) => (
             <SetRow
               key={setIndex}
