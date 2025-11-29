@@ -106,7 +106,36 @@ export const WorkoutType = {
 // ExternalActivity entity
 export const ExternalActivity = {
   list: async () => normalizeArray(await apiService.externalActivities.list()),
-  create: async (data) => normalizeId(await apiService.externalActivities.create(data))
+  get: async (id) => normalizeId(await apiService.externalActivities.get(id)),
+  create: async (data) => normalizeId(await apiService.externalActivities.create(data)),
+  byDateRange: async (startDate, endDate) => {
+    const response = await apiService.externalActivities.byDateRange(startDate, endDate);
+    return normalizeArray(response.data?.activities || response.activities || response);
+  },
+  stats: async (days = 30) => apiService.externalActivities.stats(days),
+  recent: async (limit = 20) => normalizeArray(await apiService.externalActivities.recent(limit)),
+  sportTypes: async () => apiService.externalActivities.sportTypes()
+};
+
+// Strava Integration entity
+export const StravaIntegration = {
+  getAuthUrl: async () => {
+    const response = await apiService.strava.getAuthUrl();
+    const data = response.data || response;
+    // Normalize the response - backend returns authorizationUrl, frontend expects url
+    return { url: data.authorizationUrl || data.url, state: data.state };
+  },
+  getStatus: async () => {
+    const response = await apiService.strava.getStatus();
+    // apiService already extracts data.data, so response is the status object directly
+    return response;
+  },
+  sync: async (fullSync = false, days = 30) => {
+    const response = await apiService.strava.sync(fullSync, days);
+    // apiService already extracts data.data, so response is the sync result directly
+    return response;
+  },
+  disconnect: async (deleteActivities = false) => apiService.strava.disconnect(deleteActivities)
 };
 
 // ProgressionPath - stub for now (not in backend yet)

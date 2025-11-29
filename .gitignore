@@ -91,3 +91,7 @@ ai-coach.log
 # Redis dump files
 dump.rdb
 *.rdb
+
+# Docs
+/docs/
+docs/

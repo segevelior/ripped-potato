@@ -302,8 +302,23 @@ class APIService {
     delete: (id) => this.request(`/external-activities/${id}`, {
       method: 'DELETE'
     }),
-    stats: () => this.request('/external-activities/stats/overview'),
-    byDateRange: (startDate, endDate) => this.request(`/external-activities/date-range/${startDate}/${endDate}`)
+    stats: (days = 30) => this.request(`/external-activities/stats?days=${days}`),
+    byDateRange: (startDate, endDate) => this.request(`/external-activities?startDate=${startDate}&endDate=${endDate}`),
+    recent: (limit = 20) => this.request(`/external-activities/recent?limit=${limit}`),
+    sportTypes: () => this.request('/external-activities/sport-types')
+  };
+
+  // Strava Integration endpoints
+  strava = {
+    getAuthUrl: () => this.request('/integrations/strava/authorize'),
+    getStatus: () => this.request('/integrations/strava/status'),
+    sync: (fullSync = false, days = 30) => this.request('/integrations/strava/sync', {
+      method: 'POST',
+      body: JSON.stringify({ fullSync, days })
+    }),
+    disconnect: (deleteActivities = false) => this.request(`/integrations/strava/disconnect?deleteActivities=${deleteActivities}`, {
+      method: 'DELETE'
+    })
   };
 
   // UserGoalProgress endpoints

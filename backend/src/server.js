@@ -49,6 +49,8 @@ const progressionRoutes = require('./routes/progressions');
 const calendarRoutes = require('./routes/calendar');
 const feedbackRoutes = require('./routes/feedback');
 const memoriesRoutes = require('./routes/memories');
+const integrationRoutes = require('./routes/integrations');
+const webhookRoutes = require('./routes/webhooks');
 
 const app = express();
 
@@ -240,6 +242,8 @@ app.use('/api/v1/progressions', progressionRoutes);
 app.use('/api/v1/calendar', calendarRoutes);
 app.use('/api/v1/feedback', feedbackRoutes);
 app.use('/api/v1/memories', memoriesRoutes);
+app.use('/api/v1/integrations', integrationRoutes);
+app.use('/api/v1/webhooks', webhookRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
