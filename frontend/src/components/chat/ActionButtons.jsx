@@ -4,6 +4,12 @@ import { createPageUrl } from '@/utils';
 import { format } from 'date-fns';
 import { CalendarEvent } from '@/api/entities';
 
+// Helper to validate MongoDB ObjectId format (24 hex characters)
+const isValidObjectId = (id) => {
+  if (!id || typeof id !== 'string') return false;
+  return /^[0-9a-fA-F]{24}$/.test(id);
+};
+
 /**
  * ActionButtons component displays special action buttons in chat messages.
  * These are different from quick replies - they perform specific actions
@@ -56,8 +62,11 @@ export function ActionButtons({ actions, disabled }) {
     }
 
     exerciseList.forEach((ex, index) => {
+      // Only include exercise_id if it's a valid MongoDB ObjectId (24 hex chars)
+      // Backend will resolve exercise by name if ID is missing/invalid
+      const rawExerciseId = ex.exercise_id || ex.exerciseId;
       const newExercise = {
-        exercise_id: ex.exercise_id || ex.exerciseId || ex.exercise_name?.toLowerCase().replace(/\s/g, '_'),
+        exercise_id: isValidObjectId(rawExerciseId) ? rawExerciseId : null,
         exercise_name: ex.exercise_name || ex.exerciseName || ex.name || "Exercise",
         notes: ex.notes || "",
         order: index,
