@@ -40,6 +40,7 @@ class DataReaderAgent(BaseAgent):
             "exercises": [],
             "workouts": [],
             "goals": [],
+            "external_activities": [],
             "formatted_context": ""
         }
         
@@ -62,7 +63,13 @@ class DataReaderAgent(BaseAgent):
         
         if data_needs.get("goals"):
             result["goals"] = await self._load_goals(user_id)
-        
+
+        if data_needs.get("external_activities"):
+            result["external_activities"] = await self._load_external_activities(
+                user_id,
+                days=data_needs.get("external_days", 7)
+            )
+
         # Format for LLM context
         result["formatted_context"] = await self._format_for_llm(result)
         
@@ -77,9 +84,11 @@ class DataReaderAgent(BaseAgent):
             "exercises": False,
             "workouts": False,
             "goals": False,
+            "external_activities": True,  # Always load recent external activities for context
             "muscle_groups": [],
             "equipment": [],
-            "days": 30
+            "days": 30,
+            "external_days": 7  # Only load last 7 days of external activities
         }
         
         # Check for exercise-related queries
@@ -261,11 +270,64 @@ class DataReaderAgent(BaseAgent):
                 })
             
             return formatted
-            
+
         except Exception as e:
             logger.error(f"Error loading goals: {e}")
             return []
-    
+
+    async def _load_external_activities(
+        self,
+        user_id: str,
+        days: int = 7
+    ) -> List[Dict[str, Any]]:
+        """Load recent external activities (e.g., from Strava) for the last N days"""
+        try:
+            user_oid = ObjectId(user_id)
+            cutoff_date = datetime.utcnow() - timedelta(days=days)
+
+            activities = await self.db.externalactivities.find(
+                {
+                    "userId": user_oid,
+                    "startDate": {"$gte": cutoff_date}
+                }
+            ).sort("startDate", -1).limit(20).to_list(20)
+
+            # Format activities for context
+            formatted = []
+            for activity in activities:
+                # Calculate duration in minutes
+                moving_time = activity.get("movingTime")
+                duration_mins = round(moving_time / 60) if moving_time else None
+
+                # Calculate distance in km
+                distance = activity.get("distance")
+                distance_km = round(distance / 1000, 2) if distance else None
+
+                # Format the activity date
+                start_date = activity.get("startDate")
+                date_str = start_date.strftime("%Y-%m-%d") if start_date else None
+
+                formatted.append({
+                    "date": date_str,
+                    "name": activity.get("name"),
+                    "sport_type": activity.get("sportType"),
+                    "source": activity.get("source", "unknown"),
+                    "duration_mins": duration_mins,
+                    "distance_km": distance_km,
+                    "avg_heart_rate": activity.get("avgHeartRate"),
+                    "max_heart_rate": activity.get("maxHeartRate"),
+                    "elevation_gain": activity.get("elevationGain"),
+                    "calories": activity.get("calories"),
+                    "avg_speed": activity.get("avgSpeed"),
+                    "avg_power": activity.get("avgPower")
+                })
+
+            return formatted
+
+        except Exception as e:
+            logger.error(f"Error loading external activities: {e}")
+            return []
+
     async def _format_for_llm(self, data: Dict[str, Any]) -> str:
         """Format all loaded data into a concise context string for LLM"""
         sections = []
@@ -296,5 +358,25 @@ class DataReaderAgent(BaseAgent):
             # List first 5 exercise names
             exercise_names = [ex["name"] for ex in data["exercises"][:5]]
             sections.append(f"Examples: {', '.join(exercise_names)}")
-        
+
+        # External activities (Strava, etc.)
+        if data.get("external_activities"):
+            ext_activities = data["external_activities"]
+            if ext_activities:
+                sections.append(f"\nRecent External Activities (last 7 days):")
+                for activity in ext_activities[:5]:  # Limit to 5 most recent
+                    activity_line = f"- {activity['date']}: {activity['sport_type']} - {activity['name']}"
+                    details = []
+                    if activity.get('duration_mins'):
+                        details.append(f"{activity['duration_mins']}min")
+                    if activity.get('distance_km'):
+                        details.append(f"{activity['distance_km']}km")
+                    if activity.get('avg_heart_rate'):
+                        details.append(f"avg HR {int(activity['avg_heart_rate'])}bpm")
+                    if activity.get('calories'):
+                        details.append(f"{int(activity['calories'])}kcal")
+                    if details:
+                        activity_line += f" ({', '.join(details)})"
+                    sections.append(activity_line)
+
         return "\n".join(sections) if sections else "No relevant data found"

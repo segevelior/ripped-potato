@@ -1,67 +1,87 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const ExternalActivity = require('../models/ExternalActivity');
 const { auth } = require('../middleware/auth');
+
 const router = express.Router();
 
-// GET /api/external-activities - Get user's external activities (authenticated)
+/**
+ * GET /api/v1/external-activities
+ * Get user's external activities with filters and pagination
+ */
 router.get('/', auth, async (req, res) => {
   try {
-    const { 
-      activityType, 
-      source, 
-      startDate, 
+    const {
+      source,
+      sportType,
+      startDate,
       endDate,
       limit = 20,
-      page = 1 
+      page = 1,
+      sort = '-startDate'
     } = req.query;
 
-    let query = { userId: req.user.id };
+    // Build query
+    const query = { userId: req.user.id };
 
-    // Apply filters
-    if (activityType) query.activityType = activityType;
     if (source) query.source = source;
-    
+    if (sportType) query.sportType = sportType;
+
     if (startDate || endDate) {
-      query.date = {};
-      if (startDate) query.date.$gte = new Date(startDate);
-      if (endDate) query.date.$lte = new Date(endDate);
+      query.startDate = {};
+      if (startDate) query.startDate.$gte = new Date(startDate);
+      if (endDate) query.startDate.$lte = new Date(endDate);
     }
 
+    // Execute query with pagination
     const activities = await ExternalActivity.find(query)
-      .sort({ date: -1 })
+      .sort(sort)
       .limit(parseInt(limit))
-      .skip((parseInt(page) - 1) * parseInt(limit));
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .select('-rawData'); // Exclude raw data for list view
 
     const total = await ExternalActivity.countDocuments(query);
 
     res.json({
-      activities,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit))
+      success: true,
+      data: {
+        activities,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / parseInt(limit))
+        }
       }
     });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Get external activities error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get activities',
+      error: error.message
+    });
   }
 });
 
-// GET /api/external-activities/stats/overview - Get user's activity statistics (authenticated)
-router.get('/stats/overview', auth, async (req, res) => {
+/**
+ * GET /api/v1/external-activities/stats
+ * Get activity statistics
+ */
+router.get('/stats', auth, async (req, res) => {
   try {
     const { days = 30 } = req.query;
-    
+
     const stats = await ExternalActivity.getUserStats(req.user.id, parseInt(days));
-    
-    // Calculate additional summary stats
-    const totalStats = await ExternalActivity.aggregate([
+
+    // Calculate totals
+    const totals = await ExternalActivity.aggregate([
       {
         $match: {
-          userId: req.user.id,
-          date: { 
-            $gte: new Date(Date.now() - parseInt(days) * 24 * 60 * 60 * 1000) 
+          userId: new mongoose.Types.ObjectId(req.user.id),
+          startDate: {
+            $gte: new Date(Date.now() - parseInt(days) * 24 * 60 * 60 * 1000)
           }
         }
       },
@@ -69,80 +89,112 @@ router.get('/stats/overview', auth, async (req, res) => {
         $group: {
           _id: null,
           totalActivities: { $sum: 1 },
-          totalDuration: { $sum: '$duration' },
+          totalMovingTime: { $sum: '$movingTime' },
           totalDistance: { $sum: '$distance' },
-          avgCalories: { $avg: '$metrics.calories' }
+          totalElevation: { $sum: '$elevationGain' },
+          totalCalories: { $sum: '$calories' }
         }
       }
     ]);
 
     res.json({
-      byType: stats,
-      summary: totalStats[0] || {
-        totalActivities: 0,
-        totalDuration: 0,
-        totalDistance: 0,
-        avgCalories: 0
+      success: true,
+      data: {
+        byType: stats,
+        totals: totals[0] || {
+          totalActivities: 0,
+          totalMovingTime: 0,
+          totalDistance: 0,
+          totalElevation: 0,
+          totalCalories: 0
+        },
+        period: {
+          days: parseInt(days),
+          startDate: new Date(Date.now() - parseInt(days) * 24 * 60 * 60 * 1000),
+          endDate: new Date()
+        }
       }
     });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Get activity stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get activity stats',
+      error: error.message
+    });
   }
 });
 
-// GET /api/external-activities/date-range/:startDate/:endDate - Get activities by date range (authenticated)
-router.get('/date-range/:startDate/:endDate', auth, async (req, res) => {
+/**
+ * GET /api/v1/external-activities/sport-types
+ * Get list of sport types with counts
+ */
+router.get('/sport-types', auth, async (req, res) => {
   try {
-    const { startDate, endDate } = req.params;
-    
-    const activities = await ExternalActivity.getByDateRange(
-      req.user.id,
-      new Date(startDate),
-      new Date(endDate)
-    );
-
-    res.json(activities);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// GET /api/external-activities/types/summary - Get activity types summary (authenticated)
-router.get('/types/summary', auth, async (req, res) => {
-  try {
-    const { days = 90 } = req.query;
-    
-    const summary = await ExternalActivity.aggregate([
-      {
-        $match: {
-          userId: req.user.id,
-          date: { 
-            $gte: new Date(Date.now() - parseInt(days) * 24 * 60 * 60 * 1000) 
-          }
-        }
-      },
+    const sportTypes = await ExternalActivity.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(req.user.id) } },
       {
         $group: {
-          _id: '$activityType',
+          _id: '$sportType',
           count: { $sum: 1 },
-          totalDuration: { $sum: '$duration' },
-          totalDistance: { $sum: '$distance' },
-          avgDuration: { $avg: '$duration' },
-          lastActivity: { $max: '$date' }
+          lastActivity: { $max: '$startDate' }
         }
       },
-      {
-        $sort: { count: -1 }
-      }
+      { $sort: { count: -1 } }
     ]);
 
-    res.json(summary);
+    res.json({
+      success: true,
+      data: sportTypes.map(st => ({
+        sportType: st._id,
+        count: st.count,
+        lastActivity: st.lastActivity
+      }))
+    });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Get sport types error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get sport types',
+      error: error.message
+    });
   }
 });
 
-// GET /api/external-activities/:id - Get specific external activity (authenticated)
+/**
+ * GET /api/v1/external-activities/recent
+ * Get recent activities (for AI context)
+ */
+router.get('/recent', auth, async (req, res) => {
+  try {
+    const { limit = 20 } = req.query;
+
+    const activities = await ExternalActivity.getRecentForContext(
+      req.user.id,
+      parseInt(limit)
+    );
+
+    res.json({
+      success: true,
+      data: activities
+    });
+
+  } catch (error) {
+    console.error('Get recent activities error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get recent activities',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/v1/external-activities/:id
+ * Get single activity by ID
+ */
 router.get('/:id', auth, async (req, res) => {
   try {
     const activity = await ExternalActivity.findOne({
@@ -151,72 +203,31 @@ router.get('/:id', auth, async (req, res) => {
     });
 
     if (!activity) {
-      return res.status(404).json({ error: 'External activity not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'Activity not found'
+      });
     }
 
-    res.json(activity);
+    res.json({
+      success: true,
+      data: activity
+    });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Get activity error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get activity',
+      error: error.message
+    });
   }
 });
 
-// POST /api/external-activities - Create new external activity (authenticated)
-router.post('/', auth, async (req, res) => {
-  try {
-    // Check for duplicates if not manual entry
-    if (req.body.source !== 'manual' && req.body.externalId) {
-      const existing = await ExternalActivity.findDuplicate(
-        req.body.source,
-        req.body.externalId,
-        req.user.id,
-        new Date(req.body.date)
-      );
-
-      if (existing) {
-        return res.status(400).json({ error: 'Activity already exists' });
-      }
-    }
-
-    const activityData = {
-      ...req.body,
-      userId: req.user.id
-    };
-
-    const activity = new ExternalActivity(activityData);
-    await activity.save();
-
-    res.status(201).json(activity);
-  } catch (error) {
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({ error: error.message });
-    }
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// PUT /api/external-activities/:id - Update external activity (authenticated)
-router.put('/:id', auth, async (req, res) => {
-  try {
-    const activity = await ExternalActivity.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user.id },
-      req.body,
-      { new: true, runValidators: true }
-    );
-
-    if (!activity) {
-      return res.status(404).json({ error: 'External activity not found' });
-    }
-
-    res.json(activity);
-  } catch (error) {
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({ error: error.message });
-    }
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// DELETE /api/external-activities/:id - Delete external activity (authenticated)
+/**
+ * DELETE /api/v1/external-activities/:id
+ * Delete an activity
+ */
 router.delete('/:id', auth, async (req, res) => {
   try {
     const activity = await ExternalActivity.findOneAndDelete({
@@ -225,35 +236,24 @@ router.delete('/:id', auth, async (req, res) => {
     });
 
     if (!activity) {
-      return res.status(404).json({ error: 'External activity not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'Activity not found'
+      });
     }
 
-    res.json({ message: 'External activity deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// POST /api/external-activities/:id/sync - Mark activity for sync (authenticated)
-router.post('/:id/sync', auth, async (req, res) => {
-  try {
-    const activity = await ExternalActivity.findOne({
-      _id: req.params.id,
-      userId: req.user.id
+    res.json({
+      success: true,
+      message: 'Activity deleted successfully'
     });
 
-    if (!activity) {
-      return res.status(404).json({ error: 'External activity not found' });
-    }
-
-    if (activity.source === 'manual') {
-      return res.status(400).json({ error: 'Manual activities cannot be synced' });
-    }
-
-    await activity.markForSync();
-    res.json({ message: 'Activity marked for sync', activity });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Delete activity error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete activity',
+      error: error.message
+    });
   }
 });
 
