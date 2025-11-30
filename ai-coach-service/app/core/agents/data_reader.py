@@ -147,6 +147,7 @@ class DataReaderAgent(BaseAgent):
                 "height": profile.get("height", user.get("height")),
                 "gender": profile.get("gender"),
                 "units": settings.get("units", "metric"),
+                "timezone": settings.get("timezone"),
                 "preferences": profile.get("preferences", user.get("preferences", {})),
                 "available_equipment": profile.get("preferences", {}).get("equipment", user.get("availableEquipment", [])),
                 "equipment": profile.get("preferences", {}).get("equipment", user.get("availableEquipment", [])),

@@ -13,7 +13,7 @@ const register = async (req, res) => {
       });
     }
 
-    const { email, password, name } = req.body;
+    const { email, password, name, timezone } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -24,8 +24,15 @@ const register = async (req, res) => {
       });
     }
 
-    // Create new user
-    const user = new User({ email, password, name });
+    // Create new user with timezone in settings
+    const user = new User({
+      email,
+      password,
+      name,
+      settings: {
+        timezone: timezone || 'UTC'
+      }
+    });
     await user.save();
 
     // Generate token
@@ -71,10 +78,10 @@ const login = async (req, res) => {
       });
     }
 
-    const { email, password } = req.body;
+    const { email, password, timezone } = req.body;
 
     // Find user and include password
-    const user = await User.findOne({ email }).select('+password');
+    let user = await User.findOne({ email }).select('+password');
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -97,6 +104,15 @@ const login = async (req, res) => {
         success: false,
         message: 'Invalid email or password'
       });
+    }
+
+    // Update timezone if provided (keeps it current with user's device)
+    if (timezone) {
+      user = await User.findByIdAndUpdate(
+        user._id,
+        { 'settings.timezone': timezone },
+        { new: true }
+      );
     }
 
     // Generate token

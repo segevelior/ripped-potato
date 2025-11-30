@@ -87,6 +87,9 @@ export default function Auth() {
     setErrors({});
 
     try {
+      // Auto-detect user's timezone
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/v1/auth/login`, {
         method: 'POST',
         headers: {
@@ -94,7 +97,8 @@ export default function Auth() {
         },
         body: JSON.stringify({
           email: signInData.email,
-          password: signInData.password
+          password: signInData.password,
+          timezone
         })
       });
 
@@ -128,6 +132,9 @@ export default function Auth() {
     setErrors({});
 
     try {
+      // Auto-detect user's timezone
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/v1/auth/register`, {
         method: 'POST',
         headers: {
@@ -136,7 +143,8 @@ export default function Auth() {
         body: JSON.stringify({
           name: signUpData.name,
           email: signUpData.email,
-          password: signUpData.password
+          password: signUpData.password,
+          timezone
         })
       });
 
