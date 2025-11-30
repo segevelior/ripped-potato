@@ -32,13 +32,10 @@ export default function ChatWithStreaming() {
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default
   const [pendingAutoSend, setPendingAutoSend] = useState(null); // For auto-sending messages from external sources
-  const [suggestions, setSuggestions] = useState([
-    "Create a 30-min HIIT workout",
-    "How do I improve my squat form?",
-    "Plan a weekly schedule for me",
-    "Explain progressive overload"
-  ]); // Default suggestions, will be replaced with personalized ones
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+
+  // Suggestions: use cache, or null (will fetch once if empty)
+  const [suggestions, setSuggestions] = useState(() => aiService.getCachedSuggestions());
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(!suggestions);
 
   // Refs
   const messagesEndRef = useRef(null);
@@ -65,11 +62,12 @@ export default function ChatWithStreaming() {
         setAuthToken(token);
 
         if (token) {
-          // Fetch history and personalized suggestions in parallel
-          await Promise.all([
-            fetchHistory(token),
-            fetchSuggestions(token)
-          ]);
+          await fetchHistory(token);
+
+          // If no cached suggestions, fetch once
+          if (!aiService.getCachedSuggestions()) {
+            fetchSuggestions(token);
+          }
         }
 
         // Check for pending prompt from localStorage (e.g., from WorkoutSelectionModal)
@@ -184,31 +182,28 @@ export default function ChatWithStreaming() {
     }
   };
 
-  // Fetch personalized suggestions - use cache first, then fetch if needed
+  // Fetch suggestions (only called if cache is empty)
   const fetchSuggestions = async (token) => {
-    // Check cache first (populated on login)
-    const cached = aiService.getCachedSuggestions();
-    if (cached) {
-      setSuggestions(cached);
-      console.log('✨ Using cached suggestions:', cached);
-      return;
-    }
-
-    // No cache - fetch fresh
-    setIsLoadingSuggestions(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/suggestions`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.suggestions?.length === 4) {
-          setSuggestions(data.suggestions);
-          console.log('✨ Fetched personalized suggestions:', data.suggestions);
-        }
+      const result = await aiService.prefetchChatSuggestions(token);
+      if (result) {
+        setSuggestions(result);
+      } else {
+        // Fetch failed - use defaults
+        setSuggestions([
+          "Create a 30-min HIIT workout",
+          "How do I improve my squat form?",
+          "Plan a weekly schedule for me",
+          "Explain progressive overload"
+        ]);
       }
-    } catch (error) {
-      console.error("Error fetching suggestions:", error);
+    } catch {
+      setSuggestions([
+        "Create a 30-min HIIT workout",
+        "How do I improve my squat form?",
+        "Plan a weekly schedule for me",
+        "Explain progressive overload"
+      ]);
     } finally {
       setIsLoadingSuggestions(false);
     }
@@ -451,21 +446,25 @@ export default function ChatWithStreaming() {
                   </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-lg">
-                  {suggestions.map((suggestion, i) => (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        setInput(suggestion);
-                        inputRef.current?.focus();
-                      }}
-                      disabled={isLoadingSuggestions}
-                      className={`p-3 text-sm text-left bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors ${
-                        isLoadingSuggestions ? 'animate-pulse' : ''
-                      }`}
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
+                  {isLoadingSuggestions ? (
+                    // Loading skeleton
+                    [...Array(4)].map((_, i) => (
+                      <div key={i} className="p-3 h-12 bg-gray-100 border border-gray-200 rounded-xl animate-pulse" />
+                    ))
+                  ) : suggestions ? (
+                    suggestions.map((suggestion, i) => (
+                      <button
+                        key={i}
+                        onClick={() => {
+                          setInput(suggestion);
+                          inputRef.current?.focus();
+                        }}
+                        className="p-3 text-sm text-left bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors"
+                      >
+                        {suggestion}
+                      </button>
+                    ))
+                  ) : null}
                 </div>
               </div>
             ) : (
