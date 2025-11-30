@@ -32,16 +32,10 @@ export default function ChatWithStreaming() {
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default
   const [pendingAutoSend, setPendingAutoSend] = useState(null); // For auto-sending messages from external sources
-  // Initialize suggestions from cache immediately, or use defaults
-  const [suggestions] = useState(() => {
-    const cached = aiService.getCachedSuggestions();
-    return cached || [
-      "Create a 30-min HIIT workout",
-      "How do I improve my squat form?",
-      "Plan a weekly schedule for me",
-      "Explain progressive overload"
-    ];
-  });
+
+  // Suggestions: use cache, or null (will fetch once if empty)
+  const [suggestions, setSuggestions] = useState(() => aiService.getCachedSuggestions());
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(!suggestions);
 
   // Refs
   const messagesEndRef = useRef(null);
@@ -69,6 +63,11 @@ export default function ChatWithStreaming() {
 
         if (token) {
           await fetchHistory(token);
+
+          // If no cached suggestions, fetch once
+          if (!aiService.getCachedSuggestions()) {
+            fetchSuggestions(token);
+          }
         }
 
         // Check for pending prompt from localStorage (e.g., from WorkoutSelectionModal)
@@ -180,6 +179,33 @@ export default function ChatWithStreaming() {
       }
     } catch (error) {
       console.error("Error fetching history:", error);
+    }
+  };
+
+  // Fetch suggestions (only called if cache is empty)
+  const fetchSuggestions = async (token) => {
+    try {
+      const result = await aiService.prefetchChatSuggestions(token);
+      if (result) {
+        setSuggestions(result);
+      } else {
+        // Fetch failed - use defaults
+        setSuggestions([
+          "Create a 30-min HIIT workout",
+          "How do I improve my squat form?",
+          "Plan a weekly schedule for me",
+          "Explain progressive overload"
+        ]);
+      }
+    } catch {
+      setSuggestions([
+        "Create a 30-min HIIT workout",
+        "How do I improve my squat form?",
+        "Plan a weekly schedule for me",
+        "Explain progressive overload"
+      ]);
+    } finally {
+      setIsLoadingSuggestions(false);
     }
   };
 
@@ -420,18 +446,25 @@ export default function ChatWithStreaming() {
                   </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-lg">
-                  {suggestions.map((suggestion, i) => (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        setInput(suggestion);
-                        inputRef.current?.focus();
-                      }}
-                      className="p-3 text-sm text-left bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
+                  {isLoadingSuggestions ? (
+                    // Loading skeleton
+                    [...Array(4)].map((_, i) => (
+                      <div key={i} className="p-3 h-12 bg-gray-100 border border-gray-200 rounded-xl animate-pulse" />
+                    ))
+                  ) : suggestions ? (
+                    suggestions.map((suggestion, i) => (
+                      <button
+                        key={i}
+                        onClick={() => {
+                          setInput(suggestion);
+                          inputRef.current?.focus();
+                        }}
+                        className="p-3 text-sm text-left bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors"
+                      >
+                        {suggestion}
+                      </button>
+                    ))
+                  ) : null}
                 </div>
               </div>
             ) : (
