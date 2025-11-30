@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { aiService } from '@/services/aiService';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -32,6 +33,8 @@ export default function AuthCallback() {
           if (response.ok) {
             const data = await response.json();
             localStorage.setItem('authUser', JSON.stringify(data.data.user));
+            // Pre-fetch chat suggestions in background
+            aiService.prefetchChatSuggestions(token);
             navigate('/Dashboard');
           } else {
             throw new Error('Failed to fetch profile');

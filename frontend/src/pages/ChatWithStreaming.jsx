@@ -11,6 +11,7 @@ import { FeedbackButtons } from "@/components/chat/FeedbackButtons";
 import { QuickReplies, parseQuickReplies } from "@/components/chat/QuickReplies";
 import { ActionButtons, parseActionButtons } from "@/components/chat/ActionButtons";
 import VideoEmbed from "@/components/chat/VideoEmbed";
+import { aiService } from "@/services/aiService";
 
 // API Base URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
@@ -31,6 +32,13 @@ export default function ChatWithStreaming() {
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default
   const [pendingAutoSend, setPendingAutoSend] = useState(null); // For auto-sending messages from external sources
+  const [suggestions, setSuggestions] = useState([
+    "Create a 30-min HIIT workout",
+    "How do I improve my squat form?",
+    "Plan a weekly schedule for me",
+    "Explain progressive overload"
+  ]); // Default suggestions, will be replaced with personalized ones
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   // Refs
   const messagesEndRef = useRef(null);
@@ -57,7 +65,11 @@ export default function ChatWithStreaming() {
         setAuthToken(token);
 
         if (token) {
-          await fetchHistory(token);
+          // Fetch history and personalized suggestions in parallel
+          await Promise.all([
+            fetchHistory(token),
+            fetchSuggestions(token)
+          ]);
         }
 
         // Check for pending prompt from localStorage (e.g., from WorkoutSelectionModal)
@@ -169,6 +181,36 @@ export default function ChatWithStreaming() {
       }
     } catch (error) {
       console.error("Error fetching history:", error);
+    }
+  };
+
+  // Fetch personalized suggestions - use cache first, then fetch if needed
+  const fetchSuggestions = async (token) => {
+    // Check cache first (populated on login)
+    const cached = aiService.getCachedSuggestions();
+    if (cached) {
+      setSuggestions(cached);
+      console.log('✨ Using cached suggestions:', cached);
+      return;
+    }
+
+    // No cache - fetch fresh
+    setIsLoadingSuggestions(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/suggestions`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.suggestions?.length === 4) {
+          setSuggestions(data.suggestions);
+          console.log('✨ Fetched personalized suggestions:', data.suggestions);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching suggestions:", error);
+    } finally {
+      setIsLoadingSuggestions(false);
     }
   };
 
@@ -409,19 +451,17 @@ export default function ChatWithStreaming() {
                   </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-lg">
-                  {[
-                    "Create a 30-min HIIT workout",
-                    "How do I improve my squat form?",
-                    "Plan a weekly schedule for me",
-                    "Explain progressive overload"
-                  ].map((suggestion, i) => (
+                  {suggestions.map((suggestion, i) => (
                     <button
                       key={i}
                       onClick={() => {
                         setInput(suggestion);
                         inputRef.current?.focus();
                       }}
-                      className="p-3 text-sm text-left bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors"
+                      disabled={isLoadingSuggestions}
+                      className={`p-3 text-sm text-left bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors ${
+                        isLoadingSuggestions ? 'animate-pulse' : ''
+                      }`}
                     >
                       {suggestion}
                     </button>
