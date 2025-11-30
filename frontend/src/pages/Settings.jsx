@@ -49,7 +49,8 @@ export default function Settings() {
       units: 'metric',
       notifications: true,
       theme: 'light',
-      weekStartDay: 0 // 0 = Sunday, 1 = Monday
+      weekStartDay: 0, // 0 = Sunday, 1 = Monday
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
     }
   });
 
@@ -106,7 +107,8 @@ export default function Settings() {
             units: userData.settings?.units || 'metric',
             notifications: userData.settings?.notifications ?? true,
             theme: userData.settings?.theme || 'light',
-            weekStartDay: userData.settings?.weekStartDay ?? 0
+            weekStartDay: userData.settings?.weekStartDay ?? 0,
+            timezone: userData.settings?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
           }
         });
       }
@@ -230,7 +232,6 @@ export default function Settings() {
     { key: 'email', label: 'Email', value: formData.email, type: 'email', disabled: true },
     { key: 'phone', label: 'Phone', value: formData.phone, type: 'tel', placeholder: '+1 202-555-0138' },
     { key: 'dateOfBirth', label: 'Date of birth', value: formData.dateOfBirth, displayValue: formatDate(formData.dateOfBirth), type: 'date', placeholder: 'Select date' },
-    { key: 'address', label: 'Address', value: formData.address, type: 'text', placeholder: 'Street address, P.O. box, company name' },
   ];
 
   const fitnessFields = [
@@ -552,6 +553,33 @@ export default function Settings() {
                   className="px-4 py-2 text-sm font-medium text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 rounded-lg hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
                 >
                   Switch
+                </button>
+              </div>
+            </div>
+
+            {/* Timezone Setting */}
+            <div className="py-4 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 mr-4">
+                  <p className="text-sm font-bold text-gray-500 dark:text-gray-400 tracking-wide">
+                    Timezone
+                  </p>
+                  <p className="text-base font-medium text-gray-900 dark:text-white mt-1">
+                    {formData.settings.timezone || 'Not set'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                    setFormData({
+                      ...formData,
+                      settings: { ...formData.settings, timezone: detectedTimezone }
+                    });
+                    handleSave();
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 rounded-lg hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
+                >
+                  Detect
                 </button>
               </div>
             </div>

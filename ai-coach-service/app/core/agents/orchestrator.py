@@ -3,6 +3,8 @@ Enhanced Agent Orchestrator - OpenAI with comprehensive fitness tools
 """
 
 import json
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from typing import Dict, Any, List, AsyncGenerator
 from openai import AsyncOpenAI
 import structlog
@@ -87,6 +89,7 @@ class AgentOrchestrator:
         units = user_profile.get('units', 'metric')
         weight = user_profile.get('weight')
         height = user_profile.get('height')
+        timezone = user_profile.get('timezone') or 'UTC'
 
         # Format weight and height with units
         weight_str = 'not set'
@@ -96,7 +99,22 @@ class AgentOrchestrator:
         if height:
             height_str = f"{height} {'cm' if units == 'metric' else 'in'}"
 
-        context_str = f"""USER PROFILE:
+        # Get current local time for user
+        try:
+            tz = ZoneInfo(timezone)
+            local_now = datetime.now(tz)
+            local_time_str = local_now.strftime('%A, %B %d, %Y at %I:%M %p')
+            today_date = local_now.strftime('%Y-%m-%d')
+        except Exception:
+            local_now = datetime.now()
+            local_time_str = local_now.strftime('%A, %B %d, %Y at %I:%M %p') + ' (UTC)'
+            today_date = local_now.strftime('%Y-%m-%d')
+
+        context_str = f"""CURRENT TIME:
+- User's local time: {local_time_str}
+- Today's date: {today_date}
+
+USER PROFILE:
 - Name: {user_name or 'not set'}
 - Fitness Level: {user_profile.get('fitnessLevel', 'not set')}
 - Weight: {weight_str}
@@ -266,6 +284,7 @@ USER DATA:
         units = user_profile.get('units', 'metric')
         weight = user_profile.get('weight')
         height = user_profile.get('height')
+        timezone = user_profile.get('timezone') or 'UTC'
 
         # Format weight and height with units
         weight_str = 'not set'
@@ -275,7 +294,22 @@ USER DATA:
         if height:
             height_str = f"{height} {'cm' if units == 'metric' else 'in'}"
 
-        context_str = f"""USER PROFILE:
+        # Get current local time for user
+        try:
+            tz = ZoneInfo(timezone)
+            local_now = datetime.now(tz)
+            local_time_str = local_now.strftime('%A, %B %d, %Y at %I:%M %p')
+            today_date = local_now.strftime('%Y-%m-%d')
+        except Exception:
+            local_now = datetime.now()
+            local_time_str = local_now.strftime('%A, %B %d, %Y at %I:%M %p') + ' (UTC)'
+            today_date = local_now.strftime('%Y-%m-%d')
+
+        context_str = f"""CURRENT TIME:
+- User's local time: {local_time_str}
+- Today's date: {today_date}
+
+USER PROFILE:
 - Name: {user_name or 'not set'}
 - Fitness Level: {user_profile.get('fitnessLevel', 'not set')}
 - Weight: {weight_str}
