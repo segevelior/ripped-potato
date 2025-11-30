@@ -32,13 +32,16 @@ export default function ChatWithStreaming() {
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default
   const [pendingAutoSend, setPendingAutoSend] = useState(null); // For auto-sending messages from external sources
-  const [suggestions, setSuggestions] = useState([
-    "Create a 30-min HIIT workout",
-    "How do I improve my squat form?",
-    "Plan a weekly schedule for me",
-    "Explain progressive overload"
-  ]); // Default suggestions, will be replaced with personalized ones
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  // Initialize suggestions from cache immediately, or use defaults
+  const [suggestions] = useState(() => {
+    const cached = aiService.getCachedSuggestions();
+    return cached || [
+      "Create a 30-min HIIT workout",
+      "How do I improve my squat form?",
+      "Plan a weekly schedule for me",
+      "Explain progressive overload"
+    ];
+  });
 
   // Refs
   const messagesEndRef = useRef(null);
@@ -65,11 +68,7 @@ export default function ChatWithStreaming() {
         setAuthToken(token);
 
         if (token) {
-          // Fetch history and personalized suggestions in parallel
-          await Promise.all([
-            fetchHistory(token),
-            fetchSuggestions(token)
-          ]);
+          await fetchHistory(token);
         }
 
         // Check for pending prompt from localStorage (e.g., from WorkoutSelectionModal)
@@ -181,36 +180,6 @@ export default function ChatWithStreaming() {
       }
     } catch (error) {
       console.error("Error fetching history:", error);
-    }
-  };
-
-  // Fetch personalized suggestions - use cache first, then fetch if needed
-  const fetchSuggestions = async (token) => {
-    // Check cache first (populated on login)
-    const cached = aiService.getCachedSuggestions();
-    if (cached) {
-      setSuggestions(cached);
-      console.log('✨ Using cached suggestions:', cached);
-      return;
-    }
-
-    // No cache - fetch fresh
-    setIsLoadingSuggestions(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/suggestions`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.suggestions?.length === 4) {
-          setSuggestions(data.suggestions);
-          console.log('✨ Fetched personalized suggestions:', data.suggestions);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching suggestions:", error);
-    } finally {
-      setIsLoadingSuggestions(false);
     }
   };
 
@@ -458,10 +427,7 @@ export default function ChatWithStreaming() {
                         setInput(suggestion);
                         inputRef.current?.focus();
                       }}
-                      disabled={isLoadingSuggestions}
-                      className={`p-3 text-sm text-left bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors ${
-                        isLoadingSuggestions ? 'animate-pulse' : ''
-                      }`}
+                      className="p-3 text-sm text-left bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors"
                     >
                       {suggestion}
                     </button>
