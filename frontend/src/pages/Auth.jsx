@@ -2,6 +2,7 @@ import { useState } from "react";
 import { User } from "@/api/entities";
 import { Eye, EyeOff, Mail, Lock, Loader2, User as UserIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { aiService } from "@/services/aiService";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -115,6 +116,9 @@ export default function Auth() {
       User.user = data.data.user;
       User.token = data.data.token;
 
+      // Pre-fetch personalized chat suggestions in background (don't await)
+      aiService.prefetchChatSuggestions(data.data.token);
+
       navigate('/');
     } catch (error) {
       console.error("Sign in error:", error);
@@ -160,6 +164,9 @@ export default function Auth() {
 
       User.user = registerData.data.user;
       User.token = registerData.data.token;
+
+      // Pre-fetch personalized chat suggestions in background (don't await)
+      aiService.prefetchChatSuggestions(registerData.data.token);
 
       navigate('/');
     } catch (error) {
