@@ -462,22 +462,13 @@ export default function AdminFeedback() {
 
   // Generate LLM analysis
   const handleGenerateAnalysis = async () => {
-    let selectedSiteFeedbacks = siteFeedbacks.filter(f => selectedSite.includes(f._id));
-    let selectedConvFeedbacks = convFeedbacks.filter(f =>
+    const selectedSiteFeedbacks = siteFeedbacks.filter(f => selectedSite.includes(f._id));
+    const selectedConvFeedbacks = convFeedbacks.filter(f =>
       selectedConv.includes(`${f.conversation_id}:${f.message_index}`)
     );
 
     if (selectedSiteFeedbacks.length === 0 && selectedConvFeedbacks.length === 0) {
-      // Use all feedbacks if none selected
-      if (activeTab === 'site' && siteFeedbacks.length > 0) {
-        selectedSiteFeedbacks = [...siteFeedbacks];
-      } else if (activeTab === 'conversation' && convFeedbacks.length > 0) {
-        selectedConvFeedbacks = [...convFeedbacks];
-      }
-    }
-
-    if (selectedSiteFeedbacks.length === 0 && selectedConvFeedbacks.length === 0) {
-      setError('No feedbacks to analyze');
+      setError('Please select feedbacks to analyze');
       return;
     }
 
@@ -1185,7 +1176,7 @@ export default function AdminFeedback() {
                 </div>
               </div>
 
-              <TabsContent value="analysis" className="flex-1 flex flex-col m-0 p-4 pt-0 min-h-0 overflow-hidden data-[state=active]:flex">
+              <TabsContent value="analysis" className="flex-1 flex-col m-0 p-4 pt-0 min-h-0 overflow-hidden hidden data-[state=active]:flex">
                 {isAnalyzing ? (
                   <div className="flex-1 flex items-center justify-center">
                     <div className="text-center">
@@ -1267,14 +1258,14 @@ export default function AdminFeedback() {
                   <div className="flex-1 flex items-center justify-center">
                     <div className="text-center text-gray-500">
                       <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                      <p className="text-sm">Select feedbacks and click "Analyze"</p>
-                      <p className="text-xs mt-1">or analyze all visible feedbacks</p>
+                      <p className="text-sm">Select feedbacks using checkboxes</p>
+                      <p className="text-xs mt-1">then click "Analyze"</p>
                     </div>
                   </div>
                 )}
               </TabsContent>
 
-              <TabsContent value="conversation" className="flex-1 flex flex-col m-0 p-4 pt-0 min-h-0 overflow-hidden data-[state=active]:flex">
+              <TabsContent value="conversation" className="flex-1 flex-col m-0 p-4 pt-0 min-h-0 overflow-hidden hidden data-[state=active]:flex">
                 {isLoadingConversation ? (
                   <div className="flex-1 flex items-center justify-center">
                     <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
