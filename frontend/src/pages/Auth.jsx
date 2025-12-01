@@ -116,8 +116,9 @@ export default function Auth() {
       User.user = data.data.user;
       User.token = data.data.token;
 
-      // Pre-fetch personalized chat suggestions in background (don't await)
+      // Pre-fetch personalized suggestions in background (don't await)
       aiService.prefetchChatSuggestions(data.data.token);
+      aiService.prefetchTodayWorkout(data.data.token);
 
       navigate('/');
     } catch (error) {
@@ -165,8 +166,9 @@ export default function Auth() {
       User.user = registerData.data.user;
       User.token = registerData.data.token;
 
-      // Pre-fetch personalized chat suggestions in background (don't await)
+      // Pre-fetch personalized suggestions in background (don't await)
       aiService.prefetchChatSuggestions(registerData.data.token);
+      aiService.prefetchTodayWorkout(registerData.data.token);
 
       navigate('/');
     } catch (error) {

@@ -53,6 +53,7 @@ const memoriesRoutes = require('./routes/memories');
 const integrationRoutes = require('./routes/integrations');
 const webhookRoutes = require('./routes/webhooks');
 const workoutLogRoutes = require('./routes/workoutLogs');
+const trainNowRoutes = require('./routes/trainNow');
 
 // Log Strava config on startup (helps debug production issues)
 console.log('==============================================');
@@ -263,6 +264,7 @@ app.use('/api/v1/memories', memoriesRoutes);
 app.use('/api/v1/integrations', integrationRoutes);
 app.use('/api/v1/webhooks', webhookRoutes);
 app.use('/api/v1/workout-logs', workoutLogRoutes);
+app.use('/api/v1/train-now', trainNowRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

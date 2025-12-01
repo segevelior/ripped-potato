@@ -315,6 +315,128 @@ class AIService {
   clearCachedSuggestions() {
     localStorage.removeItem('chatSuggestions');
   }
+
+  /**
+   * Pre-fetch today's workout suggestion and cache it in localStorage
+   * Always fetches a fresh suggestion on login (clears old cache first)
+   * @param {string} token - Auth token (optional, uses stored token if not provided)
+   * @returns {Promise<Object|null>} Workout suggestion or null
+   */
+  async prefetchTodayWorkout(token = null) {
+    console.log('🚀 [Prefetch] prefetchTodayWorkout called');
+    const authToken = token || this.getAuthToken();
+    if (!authToken) {
+      console.warn('[Prefetch] No auth token available for prefetching today workout');
+      return null;
+    }
+
+    // Always clear old cache on login to get fresh suggestion
+    console.log('🔄 [Prefetch] Clearing old workout cache on login...');
+    this.clearCachedTodayWorkout();
+
+    try {
+      // Skip calendar check - always fetch fresh AI suggestion on login
+      console.log('🤖 [Prefetch] Fetching fresh AI suggestion...');
+      const response = await fetch(`${this.baseURL}/api/v1/train-now`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+
+      console.log('🤖 [Prefetch] AI response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🤖 [Prefetch] AI response:', {
+          success: data.success,
+          hasSuggestion: !!data.suggestion,
+          suggestionName: data.suggestion?.name,
+          error: data.error
+        });
+
+        if (data.success && data.suggestion) {
+          // Cache suggestion with timestamp
+          localStorage.setItem('todayWorkoutSuggestion', JSON.stringify({
+            suggestion: data.suggestion,
+            source: data.source,
+            timestamp: Date.now()
+          }));
+          console.log('✅ [Prefetch] Cached today\'s workout:', data.suggestion.name);
+          return data.suggestion;
+        } else {
+          console.log('⚠️ [Prefetch] AI returned no suggestion:', data.error || 'No error message');
+        }
+      } else {
+        const errorText = await response.text();
+        console.log('❌ [Prefetch] AI request failed:', response.status, errorText);
+      }
+      return null;
+    } catch (error) {
+      console.error('❌ [Prefetch] Error pre-fetching today workout:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get cached today's workout suggestion from localStorage
+   * Returns null if cache is stale (older than 1 hour) or missing
+   * @returns {Object|null} Cached suggestion or null
+   */
+  getCachedTodayWorkout() {
+    console.log('📦 [Cache] getCachedTodayWorkout called');
+    try {
+      const cached = localStorage.getItem('todayWorkoutSuggestion');
+      console.log('📦 [Cache] Raw localStorage value:', cached ? `${cached.substring(0, 100)}...` : 'null');
+
+      if (!cached) {
+        console.log('📦 [Cache] No cache found in localStorage');
+        return null;
+      }
+
+      const parsed = JSON.parse(cached);
+      const { suggestion, source, timestamp } = parsed;
+      const ONE_HOUR = 60 * 60 * 1000;
+      const age = Date.now() - timestamp;
+      const ageMinutes = Math.round(age / 60000);
+
+      console.log('📦 [Cache] Parsed cache:', {
+        hasSuggestion: !!suggestion,
+        suggestionName: suggestion?.name,
+        source,
+        ageMinutes,
+        isStale: age >= ONE_HOUR
+      });
+
+      // Check if cache is still fresh (less than 1 hour old)
+      if (age < ONE_HOUR && suggestion) {
+        console.log('✅ [Cache] Returning valid cache:', suggestion.name);
+        return { suggestion, source };
+      }
+
+      // Cache is stale, clear it
+      console.log('⚠️ [Cache] Cache is stale, clearing...');
+      localStorage.removeItem('todayWorkoutSuggestion');
+      return null;
+    } catch (error) {
+      console.error('❌ [Cache] Error reading cache:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Clear cached today's workout (call on logout or when calendar changes)
+   */
+  clearCachedTodayWorkout() {
+    localStorage.removeItem('todayWorkoutSuggestion');
+  }
+
+  /**
+   * Clear all cached data (call on logout)
+   */
+  clearAllCache() {
+    this.clearCachedSuggestions();
+    this.clearCachedTodayWorkout();
+  }
 }
 
 // Export singleton instance

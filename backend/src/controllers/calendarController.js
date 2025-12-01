@@ -406,7 +406,25 @@ const skipWorkout = async (req, res) => {
 // Get today's events
 const getTodayEvents = async (req, res) => {
   try {
+    // Debug logging
+    const now = new Date();
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    console.log('📅 [getTodayEvents] Server time:', now.toISOString());
+    console.log('📅 [getTodayEvents] Query range:', {
+      startOfDay: startOfDay.toISOString(),
+      endOfDay: endOfDay.toISOString()
+    });
+
     const events = await CalendarEvent.getToday(req.user._id);
+
+    console.log('📅 [getTodayEvents] Found events:', events.length);
+    events.forEach(e => {
+      console.log(`📅 [getTodayEvents] Event: "${e.title}" | date: ${e.date?.toISOString()} | type: ${e.type} | status: ${e.status}`);
+    });
 
     res.json({
       success: true,
