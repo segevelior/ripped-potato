@@ -62,15 +62,18 @@ class ConversationService:
             return False
 
     def _extract_clean_title(self, message: str) -> str:
-        """Extract a clean title from a message, removing hidden prompts"""
+        """Extract a clean title from a message, removing hidden prompts and force flags"""
         if not message:
             return "New Conversation"
 
+        # Strip force flags from title (but keep in message for AI context)
+        clean_message = re.sub(r'^\[(WEB_SEARCH|DEEP_RESEARCH)\]\s*', '', message)
+
         # Check if this is a workout request with hidden context
-        if message.startswith("[WORKOUT REQUEST"):
+        if clean_message.startswith("[WORKOUT REQUEST"):
             # Try to extract the user's actual input
             # Pattern: "Here's what I'm looking for: <user input>"
-            user_input_match = re.search(r"Here's what I'm looking for:\s*(.+?)(?:\n|Please)", message, re.DOTALL)
+            user_input_match = re.search(r"Here's what I'm looking for:\s*(.+?)(?:\n|Please)", clean_message, re.DOTALL)
             if user_input_match:
                 clean_title = user_input_match.group(1).strip()
                 return clean_title[:100] if clean_title else "Workout planning"
@@ -78,7 +81,7 @@ class ConversationService:
             return "Workout planning"
 
         # For regular messages, just use the first part
-        return message[:100].strip()
+        return clean_message[:100].strip()
 
     async def create_conversation(
         self,

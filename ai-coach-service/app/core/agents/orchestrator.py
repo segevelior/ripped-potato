@@ -240,8 +240,10 @@ USER DATA:
             # Calendar tools
             "schedule_to_calendar": f"Scheduling {function_args.get('title', 'event')} for {function_args.get('date', 'your calendar')}",
             "get_calendar_events": "Checking your calendar",
-            # Web search
+            # Web search & research
             "web_search": f"Searching the web for: {function_args.get('query', 'fitness info')}",
+            "read_url": f"Reading content from: {function_args.get('url', 'webpage')[:50]}...",
+            "research": f"Researching: {function_args.get('topic', 'fitness topic')}",
             # Memory
             "save_memory": f"Remembering: {function_args.get('content', 'information')[:50]}...",
             "delete_memory": f"Forgetting: {function_args.get('search_text', 'memory')}",
@@ -469,22 +471,134 @@ USER DATA:
                             "content": tool_result["content"]
                         })
 
-                    # Stream the final response after tool execution
+                    # Stream the final response after tool execution - with tools enabled for chaining
                     logger.info("Getting final response after tool execution...")
-                    final_stream = await self.client.chat.completions.create(
-                        model=self.settings.openai_model,
-                        messages=messages,
-                        temperature=0.7,
-                        max_tokens=500,
-                        stream=True
-                    )
 
-                    async for final_chunk in final_stream:
-                        final_choice = final_chunk.choices[0] if final_chunk.choices else None
-                        if final_choice and final_choice.delta.content:
-                            token = final_choice.delta.content
-                            full_response.append(token)
-                            yield {"type": "token", "content": token}
+                    # Loop to allow multiple rounds of tool calls
+                    max_tool_rounds = 5  # Prevent infinite loops
+                    tool_round = 0
+
+                    while tool_round < max_tool_rounds:
+                        tool_round += 1
+                        logger.info(f"Tool response round {tool_round}...")
+
+                        final_stream = await self.client.chat.completions.create(
+                            model=self.settings.openai_model,
+                            messages=messages,
+                            tools=self.get_tools(),  # Keep tools available for chaining
+                            tool_choice="auto",
+                            temperature=0.7,
+                            max_tokens=1500,
+                            stream=True
+                        )
+
+                        follow_up_tool_calls = {}
+
+                        async for final_chunk in final_stream:
+                            final_choice = final_chunk.choices[0] if final_chunk.choices else None
+                            if not final_choice:
+                                continue
+
+                            delta = final_choice.delta
+
+                            # Stream content tokens
+                            if delta.content:
+                                token = delta.content
+                                full_response.append(token)
+                                yield {"type": "token", "content": token}
+
+                            # Accumulate any follow-up tool calls
+                            if delta.tool_calls:
+                                for tool_call_chunk in delta.tool_calls:
+                                    index = tool_call_chunk.index
+                                    if index not in follow_up_tool_calls:
+                                        follow_up_tool_calls[index] = {
+                                            "id": "",
+                                            "function": {"name": "", "arguments": ""}
+                                        }
+                                    if tool_call_chunk.id:
+                                        follow_up_tool_calls[index]["id"] = tool_call_chunk.id
+                                    if tool_call_chunk.function:
+                                        if tool_call_chunk.function.name:
+                                            follow_up_tool_calls[index]["function"]["name"] += tool_call_chunk.function.name
+                                        if tool_call_chunk.function.arguments:
+                                            follow_up_tool_calls[index]["function"]["arguments"] += tool_call_chunk.function.arguments
+
+                            # Check for finish reason
+                            if final_choice.finish_reason == "tool_calls" and follow_up_tool_calls:
+                                logger.info(f"Follow-up round {tool_round}: Executing {len(follow_up_tool_calls)} additional tool calls...")
+
+                                # Add newline before tool execution
+                                yield {"type": "token", "content": "\n\n"}
+
+                                # Execute each follow-up tool call
+                                follow_up_results = []
+                                for idx in sorted(follow_up_tool_calls.keys()):
+                                    tool_data = follow_up_tool_calls[idx]
+                                    function_name = tool_data["function"]["name"]
+                                    function_args = json.loads(tool_data["function"]["arguments"])
+
+                                    logger.info(f"Follow-up executing {function_name} with args: {function_args}")
+
+                                    # Yield tool start event
+                                    tool_description = self._get_tool_description(function_name, function_args)
+                                    yield {
+                                        "type": "tool_start",
+                                        "tool": function_name,
+                                        "description": tool_description
+                                    }
+
+                                    # Execute tool
+                                    result = await self._execute_tool(user_id, function_name, function_args)
+                                    logger.info(f"Follow-up tool {function_name} result: {result}")
+
+                                    follow_up_results.append({
+                                        "tool_call_id": tool_data["id"],
+                                        "role": "tool",
+                                        "content": json.dumps(result)
+                                    })
+
+                                    # Yield tool complete event
+                                    yield {
+                                        "type": "tool_complete",
+                                        "tool": function_name,
+                                        "success": result.get("success", False),
+                                        "message": result.get("message", "")
+                                    }
+
+                                # Add to messages for next round
+                                messages.append({
+                                    "role": "assistant",
+                                    "tool_calls": [
+                                        {
+                                            "id": follow_up_tool_calls[i]["id"],
+                                            "type": "function",
+                                            "function": {
+                                                "name": follow_up_tool_calls[i]["function"]["name"],
+                                                "arguments": follow_up_tool_calls[i]["function"]["arguments"]
+                                            }
+                                        }
+                                        for i in sorted(follow_up_tool_calls.keys())
+                                    ]
+                                })
+
+                                for result in follow_up_results:
+                                    messages.append({
+                                        "role": "tool",
+                                        "tool_call_id": result["tool_call_id"],
+                                        "content": result["content"]
+                                    })
+
+                                # Continue the loop to process more tool calls
+                                break
+
+                            elif final_choice.finish_reason in ["stop", "length"]:
+                                # No more tool calls, we're done
+                                tool_round = max_tool_rounds  # Exit the loop
+                                break
+                        else:
+                            # Stream finished without tool_calls finish reason
+                            break
 
             # Yield completion event with full response
             yield {
@@ -523,8 +637,10 @@ USER DATA:
             # Calendar tools
             "schedule_to_calendar": self.calendar_service.schedule_to_calendar,
             "get_calendar_events": self.calendar_service.get_calendar_events,
-            # Web search
+            # Web search & research
             "web_search": self.search_service.web_search,
+            "read_url": self.search_service.read_url,
+            "research": self.search_service.research,
             # Memory
             "save_memory": self.memory_service.save_memory,
             "delete_memory": self.memory_service.delete_memory,

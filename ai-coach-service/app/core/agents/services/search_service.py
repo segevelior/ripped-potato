@@ -147,3 +147,219 @@ class SearchService:
         except Exception as e:
             logger.error(f"Error in web search: {e}")
             return {"success": False, "message": f"Search failed: {str(e)}"}
+
+    async def read_url(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Read and extract full content from a specific URL using Tavily Extract"""
+        try:
+            url = args.get("url")
+            if not url:
+                return {"success": False, "message": "URL is required"}
+
+            # Validate URL format
+            if not url.startswith(("http://", "https://")):
+                return {"success": False, "message": "Invalid URL format. Must start with http:// or https://"}
+
+            # Warn about YouTube URLs (they don't have useful text content)
+            is_youtube = "youtube.com" in url or "youtu.be" in url
+            if is_youtube:
+                return {
+                    "success": False,
+                    "message": "YouTube URLs don't have readable text content. Use web_search to find and embed videos instead."
+                }
+
+            max_length = min(args.get("max_length", 5000), 10000)  # Cap at 10k
+
+            # Check if Tavily API key is configured
+            if not self.tavily_api_key:
+                return {
+                    "success": False,
+                    "message": "URL reading is not configured. Please add TAVILY_API_KEY to your environment."
+                }
+
+            # Initialize Tavily client and extract content
+            tavily = TavilyClient(api_key=self.tavily_api_key)
+
+            logger.info(f"Reading URL for user {user_id}: {url}")
+            response = tavily.extract(urls=[url])
+
+            # Get the extracted content
+            results = response.get("results", [])
+            if not results:
+                return {
+                    "success": False,
+                    "message": f"Could not extract content from {url}. The page may be blocked or require authentication."
+                }
+
+            content = results[0].get("raw_content", "")
+            if not content:
+                return {
+                    "success": False,
+                    "message": f"No readable content found at {url}."
+                }
+
+            # Truncate if needed
+            truncated = len(content) > max_length
+            if truncated:
+                content = content[:max_length] + "\n\n[Content truncated...]"
+
+            return {
+                "success": True,
+                "message": f"Successfully read content from {url}",
+                "content": content,
+                "url": url,
+                "truncated": truncated,
+                "original_length": len(results[0].get("raw_content", ""))
+            }
+
+        except Exception as e:
+            logger.error(f"Error reading URL: {e}")
+            return {"success": False, "message": f"Failed to read URL: {str(e)}"}
+
+    async def research(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Conduct deep research on a topic by searching and reading multiple sources"""
+        try:
+            topic = args.get("topic")
+            if not topic:
+                return {"success": False, "message": "Research topic is required"}
+
+            max_sources = min(args.get("max_sources", 3), 5)  # Cap at 5
+            focus = args.get("focus", "general")
+
+            # Check if Tavily API key is configured
+            if not self.tavily_api_key:
+                return {
+                    "success": False,
+                    "message": "Research is not configured. Please add TAVILY_API_KEY to your environment."
+                }
+
+            tavily = TavilyClient(api_key=self.tavily_api_key)
+
+            # Enhance query based on focus
+            enhanced_topic = topic
+            focus_domains = None
+
+            if focus == "scientific":
+                enhanced_topic = f"{topic} research study evidence science"
+                focus_domains = ["pubmed.ncbi.nlm.nih.gov", "ncbi.nlm.nih.gov", "examine.com",
+                                "strongerbyscience.com", "renaissanceperiodization.com"]
+            elif focus == "practical":
+                enhanced_topic = f"{topic} practical guide tips how to"
+                focus_domains = ["t-nation.com", "bodybuilding.com", "strongerbyscience.com",
+                                "strengthlog.com", "fitnessvolt.com"]
+            elif focus == "programs":
+                enhanced_topic = f"{topic} program routine template workout plan"
+                focus_domains = ["liftvault.com", "strengthlog.com", "t-nation.com",
+                                "muscleandstrength.com", "bodybuilding.com"]
+
+            logger.info(f"Research for user {user_id}: {enhanced_topic} (focus: {focus})")
+
+            # Step 1: Search for relevant sources
+            search_response = tavily.search(
+                query=enhanced_topic,
+                max_results=max_sources + 2,  # Get extra in case some fail
+                search_depth="advanced",  # Use advanced for research
+                include_answer=True,
+                include_domains=focus_domains
+            )
+
+            search_results = search_response.get("results", [])
+            ai_summary = search_response.get("answer", "")
+
+            if not search_results:
+                return {
+                    "success": False,
+                    "message": f"No sources found for topic: {topic}"
+                }
+
+            # Step 2: Filter out YouTube URLs and collect article URLs
+            article_urls = []
+            video_results = []
+
+            for result in search_results:
+                url = result.get("url", "")
+                if "youtube.com" in url or "youtu.be" in url:
+                    # Save video info but don't try to read it
+                    video_id = None
+                    patterns = [r'(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)']
+                    for pattern in patterns:
+                        match = re.search(pattern, url)
+                        if match:
+                            video_id = match.group(1)
+                            break
+                    video_results.append({
+                        "title": result.get("title", ""),
+                        "url": url,
+                        "video_id": video_id
+                    })
+                else:
+                    article_urls.append({
+                        "url": url,
+                        "title": result.get("title", ""),
+                        "snippet": result.get("content", "")[:200]
+                    })
+
+            # Step 3: Read full content from article URLs (up to max_sources)
+            sources = []
+            urls_to_extract = [a["url"] for a in article_urls[:max_sources]]
+
+            if urls_to_extract:
+                try:
+                    extract_response = tavily.extract(urls=urls_to_extract)
+                    extracted = extract_response.get("results", [])
+
+                    for i, ext in enumerate(extracted):
+                        raw_content = ext.get("raw_content", "")
+                        # Limit content per source to avoid token explosion
+                        content_preview = raw_content[:3000] if raw_content else ""
+
+                        sources.append({
+                            "url": ext.get("url", urls_to_extract[i] if i < len(urls_to_extract) else ""),
+                            "title": article_urls[i]["title"] if i < len(article_urls) else "",
+                            "content": content_preview,
+                            "full_length": len(raw_content)
+                        })
+                except Exception as extract_error:
+                    logger.warning(f"Extract failed, using snippets: {extract_error}")
+                    # Fall back to using snippets from search
+                    for article in article_urls[:max_sources]:
+                        sources.append({
+                            "url": article["url"],
+                            "title": article["title"],
+                            "content": article["snippet"],
+                            "full_length": len(article["snippet"])
+                        })
+
+            # Build the research response
+            research_content = f"## Research: {topic}\n\n"
+
+            if ai_summary:
+                research_content += f"### Quick Summary\n{ai_summary}\n\n"
+
+            research_content += f"### Detailed Findings ({len(sources)} sources analyzed)\n\n"
+
+            for i, source in enumerate(sources, 1):
+                research_content += f"**Source {i}: [{source['title']}]({source['url']})**\n"
+                research_content += f"{source['content']}\n\n"
+                research_content += "---\n\n"
+
+            # Add video references if any
+            if video_results:
+                research_content += "### Related Videos\n"
+                for video in video_results[:2]:  # Max 2 videos
+                    if video["video_id"]:
+                        research_content += f"<video-embed videoid=\"{video['video_id']}\" title=\"{video['title']}\" />\n\n"
+
+            return {
+                "success": True,
+                "message": research_content,
+                "topic": topic,
+                "focus": focus,
+                "sources_count": len(sources),
+                "sources": sources,
+                "videos": video_results,
+                "ai_summary": ai_summary
+            }
+
+        except Exception as e:
+            logger.error(f"Error in research: {e}")
+            return {"success": False, "message": f"Research failed: {str(e)}"}

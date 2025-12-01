@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { User } from "@/api/entities";
-import { Send, Sparkles, Menu, ArrowLeft, Square } from "lucide-react";
+import { Send, Sparkles, Menu, ArrowLeft, Square, Globe, Brain } from "lucide-react";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
@@ -32,6 +32,8 @@ export default function ChatWithStreaming() {
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default
   const [pendingAutoSend, setPendingAutoSend] = useState(null); // For auto-sending messages from external sources
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false); // Force web search
+  const [deepResearchEnabled, setDeepResearchEnabled] = useState(false); // Force deep research
 
   // Suggestions: use cache, or null (will fetch once if empty)
   const [suggestions, setSuggestions] = useState(() => aiService.getCachedSuggestions());
@@ -312,10 +314,28 @@ export default function ChatWithStreaming() {
     e.preventDefault();
     if (!input.trim() || isStreaming) return;
 
+    // Show clean message to user (without force flags)
     const userMessage = { role: "user", content: input };
     setMessages(prev => [...prev, userMessage]);
-    const currentInput = input;
+
+    // Add force flags as prefixes for AI processing (not shown to user)
+    let messageToSend = input;
+    if (deepResearchEnabled) {
+      messageToSend = `[DEEP_RESEARCH] ${messageToSend}`;
+    } else if (webSearchEnabled) {
+      messageToSend = `[WEB_SEARCH] ${messageToSend}`;
+    }
+
     setInput("");
+
+    // Reset toggles after sending
+    setWebSearchEnabled(false);
+    setDeepResearchEnabled(false);
+
+    // Reset textarea height
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+    }
 
     // Optimistic UI update for new conversation
     if (!currentConversationId) {
@@ -327,7 +347,7 @@ export default function ChatWithStreaming() {
       setMessages(prev => [...prev, { role: "assistant", content: "", isStreaming: true }]);
 
       const newConversationId = await sendStreamingMessage(
-        currentInput,
+        messageToSend,
         authToken,
         currentConversationId
       );
@@ -636,15 +656,73 @@ export default function ChatWithStreaming() {
         {/* Input Area */}
         <div className="bg-white border-t border-gray-100 p-4 md:p-6">
           <div className="max-w-3xl mx-auto relative">
-            <form onSubmit={handleSendMessage} className="relative">
-              <input
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Message your Sensei..."
-                className="w-full pl-5 pr-14 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all shadow-sm text-gray-800 placeholder-gray-400"
+            {/* Web Search / Deep Research Toggle Buttons */}
+            <div className="flex items-center gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setWebSearchEnabled(!webSearchEnabled);
+                  if (!webSearchEnabled) setDeepResearchEnabled(false);
+                }}
                 disabled={isStreaming}
+                className={`
+                  inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all
+                  ${webSearchEnabled
+                    ? 'bg-green-100 text-green-700 border border-green-300'
+                    : 'bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200'
+                  }
+                  ${isStreaming ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                `}
+              >
+                <Globe className={`h-3.5 w-3.5 ${webSearchEnabled ? 'text-green-600' : 'text-gray-400'}`} />
+                <span>Search web</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDeepResearchEnabled(!deepResearchEnabled);
+                  if (!deepResearchEnabled) setWebSearchEnabled(false);
+                }}
+                disabled={isStreaming}
+                className={`
+                  inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all
+                  ${deepResearchEnabled
+                    ? 'bg-purple-100 text-purple-700 border border-purple-300'
+                    : 'bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200'
+                  }
+                  ${isStreaming ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                `}
+              >
+                <Brain className={`h-3.5 w-3.5 ${deepResearchEnabled ? 'text-purple-600' : 'text-gray-400'}`} />
+                <span>Deep research</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSendMessage} className="relative">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  // Auto-resize textarea
+                  e.target.style.height = 'auto';
+                  e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
+                }}
+                onKeyDown={(e) => {
+                  // Enter without shift = send message
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (input.trim() && !isStreaming) {
+                      handleSendMessage(e);
+                    }
+                  }
+                  // Shift+Enter = new line (default behavior, no need to handle)
+                }}
+                placeholder="Message your Sensei..."
+                className="w-full pl-5 pr-14 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all shadow-sm text-gray-800 placeholder-gray-400 resize-none overflow-hidden min-h-[56px] max-h-[150px]"
+                disabled={isStreaming}
+                rows={1}
               />
               {isStreaming ? (
                 <button

@@ -29,10 +29,11 @@ async def generate_sse_stream(
 ) -> AsyncGenerator[str, None]:
     """
     Convert orchestrator streaming events to Server-Sent Events (SSE) format.
-    Handles conversation persistence.
+    Handles conversation persistence with tool call markers.
     """
     start_time = time.time()
-    full_response = ""
+    response_parts = []  # Track all parts including tool markers
+    active_tools = {}  # Track tool descriptions by name for completion matching
 
     try:
         # Stream events from orchestrator
@@ -43,15 +44,32 @@ async def generate_sse_stream(
         ):
             event_type = event.get("type")
 
-            if event_type == "complete":
-                # Capture full response for saving
-                full_response = event.get("full_response", "")
+            if event_type == "token":
+                # Track token content
+                response_parts.append(event.get("content", ""))
+                yield f"data: {json.dumps(event)}\n\n"
+
+            elif event_type == "tool_start":
+                # Track tool start and inject marker into saved response
+                tool_name = event.get("tool", "")
+                description = event.get("description", "")
+                active_tools[tool_name] = description
+                response_parts.append(f"\n\n<tool-complete>{description}</tool-complete>\n\n")
+                yield f"data: {json.dumps(event)}\n\n"
+
+            elif event_type == "tool_complete":
+                # Tool completed - marker already added at start (as complete since we save after)
+                yield f"data: {json.dumps(event)}\n\n"
+
+            elif event_type == "complete":
+                # Build full response with tool markers
+                full_response = "".join(response_parts)
 
                 # Calculate response time
                 response_time_ms = int((time.time() - start_time) * 1000)
 
-                # Save AI response to conversation
-                if full_response:
+                # Save AI response to conversation (includes tool markers)
+                if full_response.strip():
                     await conversation_service.add_message(
                         conversation_id=conversation_id,
                         role="ai",
@@ -64,7 +82,7 @@ async def generate_sse_stream(
                 yield f"data: {json.dumps({'type': 'complete', 'conversation_id': conversation_id})}\n\n"
 
             else:
-                # Forward all other events (token, tool_start, tool_complete, error) as-is
+                # Forward other events (error, reasoning) as-is
                 yield f"data: {json.dumps(event)}\n\n"
 
         logger.info(f"Stream completed successfully for conversation {conversation_id}")
@@ -116,6 +134,9 @@ async def chat_stream(
     # Get or create conversation and retrieve history
     conversation_id = request.conversation_id
     conversation_history = []
+
+    # Keep force flags in saved messages so AI can see research intent in history
+    # Title extraction handles stripping flags for display purposes
 
     if conversation_id:
         # Verify conversation exists and belongs to user
