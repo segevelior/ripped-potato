@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Workout, WorkoutLog } from "@/api/entities";
-import {
-  ArrowLeft, Play, Pause, Square, ChevronLeft, ChevronRight,
-  Timer, Check, RotateCcw, Plus, Minus, SkipForward, Trash2, Save, Clock, CheckCircle, X
-} from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { WorkoutLog } from "@/api/entities";
+import { ArrowLeft, Square, Play, Pause, Plus, Minus, Check, X, Save, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+
+// Format seconds to MM:SS
+const formatTime = (seconds) => {
+  const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const secs = (seconds % 60).toString().padStart(2, '0');
+  return `${mins}:${secs}`;
+};
 
 // Mood options for feedback
 const MOOD_OPTIONS = [
@@ -16,15 +20,9 @@ const MOOD_OPTIONS = [
 ];
 
 // Workout Feedback Modal Component
-function FeedbackModal({ onSubmit, onCancel, workoutStats }) {
+function FeedbackModal({ onSubmit, onDiscard, onCancel, workoutStats, isSaving }) {
   const [selectedMood, setSelectedMood] = useState(null);
   const [notes, setNotes] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-    await onSubmit(selectedMood, notes);
-  };
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -85,110 +83,63 @@ function FeedbackModal({ onSubmit, onCancel, workoutStats }) {
           />
         </div>
 
-        {/* Submit Button */}
-        <button
-          onClick={handleSubmit}
-          disabled={isSubmitting}
-          className="w-full py-3 rounded-xl font-semibold bg-green-600 text-white flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          {isSubmitting ? (
-            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <>
-              <Save className="w-5 h-5" /> Save Workout
-            </>
-          )}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-const formatTime = (seconds) => {
-  const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
-  const secs = (seconds % 60).toString().padStart(2, '0');
-  return `${mins}:${secs}`;
-};
-
-// Rest Timer Overlay Component
-function RestTimer({ duration, onSkip, onAdjust }) {
-  const [timeLeft, setTimeLeft] = useState(duration);
-  const [isPaused, setIsPaused] = useState(false);
-
-  useEffect(() => {
-    setTimeLeft(duration);
-    setIsPaused(false);
-  }, [duration]);
-
-  useEffect(() => {
-    if (isPaused || timeLeft <= 0) return;
-
-    const interval = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-          onSkip();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isPaused, timeLeft, onSkip]);
-
-  const progress = ((duration - timeLeft) / duration) * 100;
-
-  return (
-    <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-6">
-      <div className="relative w-48 h-48 mb-4">
-        <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r="45" fill="none" stroke="#374151" strokeWidth="6" />
-          <circle
-            cx="50" cy="50" r="45"
-            fill="none" stroke="#FE5334" strokeWidth="6"
-            strokeDasharray={`${progress * 2.83} 283`}
-            strokeLinecap="round"
-            className="transition-all duration-1000"
-          />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-4xl font-bold text-white">{formatTime(timeLeft)}</span>
-          <span className="text-gray-400 mt-1 text-xs">Rest</span>
+        {/* Buttons */}
+        <div className="space-y-3">
+          <button
+            onClick={() => onSubmit(selectedMood, notes)}
+            disabled={isSaving}
+            className="w-full py-3 rounded-xl font-semibold bg-green-600 text-white flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {isSaving ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <Save className="w-5 h-5" /> Save Workout
+              </>
+            )}
+          </button>
+          <button
+            onClick={onDiscard}
+            className="w-full py-3 rounded-xl font-semibold bg-red-50 text-red-600 flex items-center justify-center gap-2"
+          >
+            <Trash2 className="w-5 h-5" /> Discard
+          </button>
         </div>
       </div>
-
-      <div className="flex items-center gap-3 mb-4">
-        <button
-          onClick={() => { onAdjust(-15); setTimeLeft(prev => Math.max(0, prev - 15)); }}
-          className="bg-gray-800 text-white px-3 py-2 rounded-xl font-medium flex items-center gap-1 text-sm"
-        >
-          <Minus className="w-3 h-3" /> 15s
-        </button>
-        <button
-          onClick={() => setIsPaused(!isPaused)}
-          className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center"
-        >
-          {isPaused ? <Play className="w-6 h-6 text-white" /> : <Pause className="w-6 h-6 text-white" />}
-        </button>
-        <button
-          onClick={() => { onAdjust(15); setTimeLeft(prev => prev + 15); }}
-          className="bg-gray-800 text-white px-3 py-2 rounded-xl font-medium flex items-center gap-1 text-sm"
-        >
-          <Plus className="w-3 h-3" /> 15s
-        </button>
-      </div>
-
-      <button onClick={onSkip} className="text-gray-400 font-medium flex items-center gap-2 text-sm">
-        <SkipForward className="w-4 h-4" /> Skip
-      </button>
     </div>
   );
 }
 
-// Set Row Component - Clean horizontal table-like layout (inspired by Strong/Hevy)
-function SetRow({ setData, setIndex, onUpdate, onComplete, onStartRest }) {
-  const { target_reps, reps, weight, is_completed, rest_seconds } = setData;
+// Swipeable Set Row - swipe right to mark as done
+function SwipeableSetRow({ setData, setIndex, onUpdate, onComplete }) {
+  const { target_reps, reps, weight, is_completed } = setData;
+  const [translateX, setTranslateX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const startXRef = useRef(0);
+  const SWIPE_THRESHOLD = 80;
+
+  const handleStart = (clientX) => {
+    setIsDragging(true);
+    startXRef.current = clientX;
+  };
+
+  const handleMove = (clientX) => {
+    if (!isDragging) return;
+    const diff = clientX - startXRef.current;
+    // Only allow swiping right (positive values)
+    const newTranslate = Math.max(0, Math.min(diff, 120));
+    setTranslateX(newTranslate);
+  };
+
+  const handleEnd = () => {
+    setIsDragging(false);
+    if (translateX > SWIPE_THRESHOLD) {
+      // Mark as done
+      onComplete(setIndex);
+      if (navigator.vibrate) navigator.vibrate(50);
+    }
+    setTranslateX(0);
+  };
 
   const handleWeightChange = (delta) => {
     const newWeight = Math.max(0, (weight || 0) + delta);
@@ -200,142 +151,261 @@ function SetRow({ setData, setIndex, onUpdate, onComplete, onStartRest }) {
     onUpdate({ ...setData, reps: newReps });
   };
 
+  const handleTouchStart = (e) => {
+    e.stopPropagation();
+    handleStart(e.touches[0].clientX);
+  };
+
+  const handleTouchMove = (e) => {
+    if (isDragging) {
+      e.stopPropagation();
+      handleMove(e.touches[0].clientX);
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    e.stopPropagation();
+    handleEnd();
+  };
+
   return (
-    <div className={`flex items-center h-12 px-2 rounded-lg transition-all ${
-      is_completed ? 'bg-green-50' : 'bg-gray-50'
-    }`}>
-      {/* Set Number */}
-      <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
-        is_completed ? 'bg-green-500 text-white' : 'bg-white text-gray-600 border border-gray-200'
-      }`}>
-        {is_completed ? <Check className="w-4 h-4" /> : setIndex + 1}
+    <div className="relative overflow-hidden rounded-xl">
+      {/* Swipe background - green checkmark area */}
+      <div className="absolute inset-y-0 left-0 w-full bg-green-500 flex items-center pl-4">
+        <Check className="w-6 h-6 text-white" />
       </div>
 
-      {/* Weight Input Group */}
-      <div className="flex items-center flex-1 justify-center">
-        <button
-          onClick={() => handleWeightChange(-2.5)}
-          className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600"
-        >
-          <Minus className="w-4 h-4" />
-        </button>
-        <div className="flex items-baseline gap-0.5">
-          <input
-            type="number"
-            value={weight || ''}
-            onChange={(e) => onUpdate({ ...setData, weight: parseFloat(e.target.value) || 0 })}
-            className="w-12 text-center font-semibold text-base bg-transparent focus:outline-none"
-            placeholder="0"
-          />
-          <span className="text-xs text-gray-400">kg</span>
+      {/* Set row content */}
+      <div
+        className={`relative flex items-center h-14 px-3 transition-transform ${
+          is_completed ? 'bg-green-50' : 'bg-gray-50'
+        }`}
+        style={{
+          transform: `translateX(${translateX}px)`,
+          transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleStart(e.clientX); }}
+        onMouseMove={(e) => { if (isDragging) { e.stopPropagation(); handleMove(e.clientX); }}}
+        onMouseUp={(e) => { e.stopPropagation(); handleEnd(); }}
+        onMouseLeave={() => isDragging && handleEnd()}
+      >
+        {/* Set Number */}
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
+          is_completed ? 'bg-green-500 text-white' : 'bg-white text-gray-600 border border-gray-200'
+        }`}>
+          {is_completed ? <Check className="w-4 h-4" /> : setIndex + 1}
         </div>
-        <button
-          onClick={() => handleWeightChange(2.5)}
-          className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-      </div>
 
-      {/* Reps Input Group */}
-      <div className="flex items-center flex-1 justify-center">
-        <button
-          onClick={() => handleRepsChange(-1)}
-          className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600"
-        >
-          <Minus className="w-4 h-4" />
-        </button>
-        <div className="flex items-baseline gap-0.5">
-          <input
-            type="number"
-            value={reps || target_reps || ''}
-            onChange={(e) => onUpdate({ ...setData, reps: parseInt(e.target.value) || 0 })}
-            className="w-10 text-center font-semibold text-base bg-transparent focus:outline-none"
-            placeholder={target_reps?.toString() || '0'}
-          />
-          <span className="text-xs text-gray-400">reps</span>
+        {/* Weight Input */}
+        <div className="flex items-center flex-1 justify-center">
+          <button
+            onClick={() => handleWeightChange(-2.5)}
+            className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600 active:bg-gray-200 rounded-full"
+          >
+            <Minus className="w-4 h-4" />
+          </button>
+          <div className="flex items-baseline gap-0.5 min-w-[60px] justify-center">
+            <input
+              type="number"
+              value={weight || ''}
+              onChange={(e) => onUpdate({ ...setData, weight: parseFloat(e.target.value) || 0 })}
+              className="w-12 text-center font-semibold text-base bg-transparent focus:outline-none"
+              placeholder="0"
+            />
+            <span className="text-xs text-gray-400">kg</span>
+          </div>
+          <button
+            onClick={() => handleWeightChange(2.5)}
+            className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600 active:bg-gray-200 rounded-full"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
         </div>
-        <button
-          onClick={() => handleRepsChange(1)}
-          className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-      </div>
 
-      {/* Action Buttons */}
-      <div className="flex items-center gap-1 shrink-0">
-        <button
-          onClick={() => onStartRest(rest_seconds || 90)}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-200 active:bg-gray-300"
-        >
-          <Clock className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => onComplete(setIndex)}
-          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 ${
-            is_completed
-              ? 'bg-green-500 text-white'
-              : 'bg-primary-500 text-white'
-          }`}
-        >
-          {is_completed ? <RotateCcw className="w-4 h-4" /> : <Check className="w-4 h-4" />}
-        </button>
+        {/* Reps Input */}
+        <div className="flex items-center flex-1 justify-center">
+          <button
+            onClick={() => handleRepsChange(-1)}
+            className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600 active:bg-gray-200 rounded-full"
+          >
+            <Minus className="w-4 h-4" />
+          </button>
+          <div className="flex items-baseline gap-0.5 min-w-[50px] justify-center">
+            <input
+              type="number"
+              value={reps || target_reps || ''}
+              onChange={(e) => onUpdate({ ...setData, reps: parseInt(e.target.value) || 0 })}
+              className="w-10 text-center font-semibold text-base bg-transparent focus:outline-none"
+              placeholder={target_reps?.toString() || '0'}
+            />
+            <span className="text-xs text-gray-400">reps</span>
+          </div>
+          <button
+            onClick={() => handleRepsChange(1)}
+            className="w-8 h-8 flex items-center justify-center text-gray-400 active:text-gray-600 active:bg-gray-200 rounded-full"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-// Vertical Exercise List Item - Compact
-function ExerciseListItem({ exercise, index, isActive, isCompleted, onClick }) {
+// Swipeable Exercise Card - swipe right to complete all sets
+function SwipeableExerciseCard({ exercise, exerciseIndex, onSetUpdate, onSetComplete, onCompleteAll }) {
+  const [translateX, setTranslateX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const startXRef = useRef(0);
+  const SWIPE_THRESHOLD = 100;
+
   const completedSets = exercise.sets.filter(s => s.is_completed).length;
   const totalSets = exercise.sets.length;
+  const isFullyComplete = completedSets === totalSets;
+
+  const handleStart = (clientX) => {
+    setIsDragging(true);
+    startXRef.current = clientX;
+  };
+
+  const handleMove = (clientX) => {
+    if (!isDragging) return;
+    const diff = clientX - startXRef.current;
+    // Only allow swiping right
+    const newTranslate = Math.max(0, Math.min(diff, 150));
+    setTranslateX(newTranslate);
+  };
+
+  const handleEnd = () => {
+    setIsDragging(false);
+    if (translateX > SWIPE_THRESHOLD) {
+      onCompleteAll(exerciseIndex);
+      if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+    }
+    setTranslateX(0);
+  };
 
   return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-2 py-1.5 px-3 border-l-3 transition-all ${
-        isActive
-          ? 'border-l-primary-500 bg-primary-50'
-          : isCompleted
-            ? 'border-l-green-500 bg-green-50/50'
-            : 'border-l-gray-200 bg-white hover:bg-gray-50'
-      }`}
-    >
-      <div className="flex-1 text-left min-w-0">
-        <p className={`font-semibold text-xs truncate ${isActive ? 'text-primary-700' : isCompleted ? 'text-green-700' : 'text-gray-900'}`}>
-          {exercise.exercise_name}
-        </p>
-        <p className="text-[10px] text-gray-500">
-          {totalSets} sets × {exercise.sets[0]?.target_reps || '?'} reps
-        </p>
+    <div className="relative overflow-hidden rounded-3xl shadow-sm">
+      {/* Swipe background */}
+      <div className="absolute inset-0 bg-green-500 flex items-center pl-6">
+        <div className="flex items-center gap-2 text-white">
+          <Check className="w-8 h-8" />
+          <span className="font-semibold">Complete All</span>
+        </div>
       </div>
 
-      {isCompleted ? (
-        <Check className="w-4 h-4 text-green-500 shrink-0" />
-      ) : (
-        <span className="text-[10px] text-gray-400 shrink-0">
-          {completedSets}/{totalSets}
-        </span>
-      )}
-    </button>
+      {/* Card content */}
+      <div
+        className={`relative bg-white rounded-3xl overflow-hidden transition-transform ${
+          isFullyComplete ? 'ring-2 ring-green-500' : ''
+        }`}
+        style={{
+          transform: `translateX(${translateX}px)`,
+          transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+        }}
+        onTouchStart={(e) => handleStart(e.touches[0].clientX)}
+        onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+        onTouchEnd={handleEnd}
+        onMouseDown={(e) => { e.preventDefault(); handleStart(e.clientX); }}
+        onMouseMove={(e) => isDragging && handleMove(e.clientX)}
+        onMouseUp={handleEnd}
+        onMouseLeave={() => isDragging && handleEnd()}
+      >
+        {/* Exercise Header */}
+        <div className={`p-4 ${isFullyComplete ? 'bg-green-50' : 'bg-white'}`}>
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-lg font-bold text-gray-900">{exercise.exercise_name}</h3>
+            <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
+              isFullyComplete
+                ? 'bg-green-500 text-white'
+                : 'bg-gray-100 text-gray-600'
+            }`}>
+              {completedSets}/{totalSets}
+            </div>
+          </div>
+          {exercise.notes && (
+            <p className="text-sm text-gray-500">{exercise.notes}</p>
+          )}
+        </div>
+
+        {/* Sets Header */}
+        <div className="flex items-center h-8 px-4 bg-gray-100 text-xs text-gray-500 font-medium">
+          <div className="w-8 shrink-0 text-center">SET</div>
+          <div className="flex-1 text-center">WEIGHT</div>
+          <div className="flex-1 text-center">REPS</div>
+        </div>
+
+        {/* Sets List */}
+        <div className="p-2 space-y-2">
+          {exercise.sets.map((set, setIndex) => (
+            <SwipeableSetRow
+              key={setIndex}
+              setData={set}
+              setIndex={setIndex}
+              onUpdate={(newData) => onSetUpdate(exerciseIndex, setIndex, newData)}
+              onComplete={(idx) => onSetComplete(exerciseIndex, idx)}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Global Stopwatch Component
+function Stopwatch({ seconds, isRunning, onToggle }) {
+  return (
+    <div className="bg-black rounded-2xl px-6 py-4 flex items-center justify-center gap-4">
+      <span className="text-white text-4xl font-mono font-bold tracking-wider">
+        {formatTime(seconds)}
+      </span>
+      <button
+        onClick={onToggle}
+        className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center"
+      >
+        {isRunning ? (
+          <Pause className="w-5 h-5 text-white" />
+        ) : (
+          <Play className="w-5 h-5 text-white ml-0.5" />
+        )}
+      </button>
+    </div>
   );
 }
 
 export default function LiveWorkout() {
   const navigate = useNavigate();
   const [workout, setWorkout] = useState(null);
-  const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [totalWorkoutTime, setTotalWorkoutTime] = useState(0);
   const [isWorkoutRunning, setIsWorkoutRunning] = useState(true);
-  const [showRestTimer, setShowRestTimer] = useState(false);
-  const [restDuration, setRestDuration] = useState(90);
-  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [workoutStartTime] = useState(new Date());
+  const [isSaving, setIsSaving] = useState(false);
 
-  const exerciseListRef = useRef(null);
+  // Calculate workout stats for feedback modal
+  const getWorkoutStats = () => {
+    if (!workout) return { duration: 0, exercisesDone: 0, setsCompleted: 0 };
 
+    const exercisesDone = workout.exercises.filter(ex =>
+      ex.sets.every(s => s.is_completed)
+    ).length;
+
+    const setsCompleted = workout.exercises.reduce((total, ex) =>
+      total + ex.sets.filter(s => s.is_completed).length, 0
+    );
+
+    return {
+      duration: Math.ceil(totalWorkoutTime / 60),
+      exercisesDone,
+      setsCompleted
+    };
+  };
+
+  // Load workout data
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('id');
@@ -357,16 +427,7 @@ export default function LiveWorkout() {
     }
   }, [navigate]);
 
-  // Scroll to active exercise in list
-  useEffect(() => {
-    if (exerciseListRef.current) {
-      const activeItem = exerciseListRef.current.children[currentExerciseIndex];
-      if (activeItem) {
-        activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-    }
-  }, [currentExerciseIndex]);
-
+  // Timer
   useEffect(() => {
     let interval;
     if (isWorkoutRunning) {
@@ -383,98 +444,37 @@ export default function LiveWorkout() {
     setWorkout(newWorkout);
   };
 
-  // Just marks as complete, no auto rest timer
-  const handleSetComplete = (setIndex) => {
+  const handleSetComplete = (exIndex, setIndex) => {
     const newWorkout = { ...workout };
-    const set = newWorkout.exercises[currentExerciseIndex].sets[setIndex];
+    const set = newWorkout.exercises[exIndex].sets[setIndex];
     set.is_completed = !set.is_completed;
-    if (navigator.vibrate && set.is_completed) navigator.vibrate(50);
     setWorkout(newWorkout);
   };
 
-  // Separate function to start rest timer
-  const handleStartRest = (duration) => {
-    setRestDuration(duration);
-    setShowRestTimer(true);
-  };
-
-  // Complete all sets for current exercise
-  const handleCompleteAllSets = () => {
+  const handleCompleteAllSets = (exIndex) => {
     const newWorkout = { ...workout };
-    const allComplete = newWorkout.exercises[currentExerciseIndex].sets.every(s => s.is_completed);
-
-    newWorkout.exercises[currentExerciseIndex].sets.forEach(set => {
+    const allComplete = newWorkout.exercises[exIndex].sets.every(s => s.is_completed);
+    newWorkout.exercises[exIndex].sets.forEach(set => {
       set.is_completed = !allComplete;
     });
-
-    if (navigator.vibrate) navigator.vibrate(allComplete ? 30 : [50, 30, 50]);
     setWorkout(newWorkout);
   };
 
-  const handleRestTimerSkip = useCallback(() => {
-    setShowRestTimer(false);
-  }, []);
+  // Check if all exercises are complete
+  const isWorkoutComplete = workout?.exercises?.every(ex =>
+    ex.sets.every(s => s.is_completed)
+  );
 
-  const handleRestTimerAdjust = useCallback((delta) => {
-    setRestDuration(prev => Math.max(0, prev + delta));
-  }, []);
-
-  const goToNextExercise = () => {
-    if (currentExerciseIndex < workout.exercises.length - 1) {
-      setCurrentExerciseIndex(prev => prev + 1);
-    }
-  };
-
-  const goToPrevExercise = () => {
-    if (currentExerciseIndex > 0) {
-      setCurrentExerciseIndex(prev => prev - 1);
-    }
-  };
-
-  // Get workout type - just log a warning if it's an unknown type
   const getWorkoutType = (type) => {
-    if (!type) {
-      console.warn('LiveWorkout: No workout type provided, defaulting to "strength"');
-      return 'strength';
-    }
-    const normalized = type.toLowerCase().trim();
-    const knownTypes = ['strength', 'cardio', 'hybrid', 'recovery', 'hiit', 'flexibility', 'calisthenics', 'mobility', 'meditation', 'climbing', 'running', 'cycling', 'yoga', 'swimming', 'walking', 'other'];
-    if (!knownTypes.includes(normalized)) {
-      console.warn(`LiveWorkout: Unknown workout type "${type}", using as-is`);
-    }
-    return normalized;
+    if (!type) return 'strength';
+    return type.toLowerCase().trim();
   };
 
-  // Calculate workout stats for feedback modal
-  const getWorkoutStats = () => {
-    if (!workout) return { duration: 0, exercisesDone: 0, setsCompleted: 0 };
-
-    const exercisesDone = workout.exercises.filter(ex =>
-      ex.sets.every(s => s.is_completed)
-    ).length;
-
-    const setsCompleted = workout.exercises.reduce((total, ex) =>
-      total + ex.sets.filter(s => s.is_completed).length, 0
-    );
-
-    return {
-      duration: Math.ceil(totalWorkoutTime / 60),
-      exercisesDone,
-      setsCompleted
-    };
-  };
-
-  // Show feedback modal when user clicks "Save Workout"
-  const handleShowFeedback = () => {
-    setShowFinishConfirm(false);
-    setShowFeedbackModal(true);
-  };
-
-  // Save workout with feedback to WorkoutLog
   const saveAndExit = async (mood, notes) => {
-    if (!workout) return;
+    if (!workout || isSaving) return;
+    setIsSaving(true);
+
     try {
-      // Build workout log data
       const workoutLogData = {
         title: workout.title || 'Workout',
         type: getWorkoutType(workout.type),
@@ -497,15 +497,18 @@ export default function LiveWorkout() {
         })),
         mood: mood || undefined,
         notes: notes || undefined,
-        createCalendarEvent: true // Backend will create linked calendar event
+        createCalendarEvent: true
       };
 
-      await WorkoutLog.create(workoutLogData);
+      console.log('Saving workout log:', workoutLogData);
+      const result = await WorkoutLog.create(workoutLogData);
+      console.log('Workout saved successfully:', result);
       if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]);
       navigate(-1);
     } catch (error) {
       console.error("Failed to save workout:", error);
       alert(`Failed to save workout: ${error.message}`);
+      setIsSaving(false);
     }
   };
 
@@ -521,224 +524,76 @@ export default function LiveWorkout() {
     );
   }
 
-  const currentExercise = workout.exercises[currentExerciseIndex];
-  const completedSets = currentExercise.sets.filter(s => s.is_completed).length;
-  const totalSets = currentExercise.sets.length;
-  const totalExercisesDone = workout.exercises.filter(ex => ex.sets.every(s => s.is_completed)).length;
-  const isLastExercise = currentExerciseIndex === workout.exercises.length - 1;
-  const allCurrentSetsComplete = currentExercise.sets.every(s => s.is_completed);
-
   return (
-    <div className="bg-gray-50">
-      {/* Rest Timer Overlay */}
-      {showRestTimer && (
-        <RestTimer duration={restDuration} onSkip={handleRestTimerSkip} onAdjust={handleRestTimerAdjust} />
-      )}
-
+    <div className="min-h-screen bg-gray-100 pb-32">
       {/* Feedback Modal */}
       {showFeedbackModal && (
         <FeedbackModal
           onSubmit={saveAndExit}
+          onDiscard={discardAndExit}
           onCancel={() => setShowFeedbackModal(false)}
           workoutStats={getWorkoutStats()}
+          isSaving={isSaving}
         />
       )}
 
-      {/* Finish Confirm Modal - Centered */}
-      {showFinishConfirm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-            <h3 className="text-xl font-bold text-center mb-2">Finish Workout?</h3>
-            <p className="text-gray-600 text-center mb-6">
-              {totalExercisesDone}/{workout.exercises.length} exercises completed
-              <br />
-              <span className="text-sm text-gray-400">Duration: {formatTime(totalWorkoutTime)}</span>
-            </p>
-            <div className="space-y-3">
-              <button
-                onClick={handleShowFeedback}
-                className="w-full py-3 rounded-xl font-semibold bg-green-600 text-white flex items-center justify-center gap-2"
-              >
-                <Save className="w-5 h-5" /> Save Workout
-              </button>
-              <button
-                onClick={discardAndExit}
-                className="w-full py-3 rounded-xl font-semibold bg-red-50 text-red-600 flex items-center justify-center gap-2"
-              >
-                <Trash2 className="w-5 h-5" /> Discard
-              </button>
-              <button
-                onClick={() => setShowFinishConfirm(false)}
-                className="w-full py-3 rounded-xl font-semibold text-gray-600"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Header - Sticky at top */}
-      <header className="bg-white px-3 py-2 border-b sticky top-0 z-10">
+      {/* Header */}
+      <header className="bg-white px-4 py-3 border-b sticky top-0 z-10">
         <div className="flex items-center justify-between">
-          <button onClick={() => setShowFinishConfirm(true)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-            <ArrowLeft className="w-4 h-4" />
+          <button
+            onClick={() => setShowFeedbackModal(true)}
+            className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center"
+          >
+            <ArrowLeft className="w-5 h-5" />
           </button>
 
-          <div className="text-center flex-1">
-            <h1 className="font-bold text-gray-900 uppercase tracking-wide text-xs">{workout.title}</h1>
-            <div className="flex items-center justify-center gap-1.5 text-gray-500">
-              <Timer className="w-3 h-3" />
-              <span className="font-mono text-xs">{formatTime(totalWorkoutTime)}</span>
-              <button onClick={() => setIsWorkoutRunning(!isWorkoutRunning)} className="ml-0.5">
-                {isWorkoutRunning ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-              </button>
-            </div>
-          </div>
+          <h1 className="font-bold text-gray-900 text-lg">{workout.title}</h1>
 
           <button
-            onClick={() => setShowFinishConfirm(true)}
-            className="w-8 h-8 border-2 border-primary-500 text-primary-500 rounded-lg flex items-center justify-center"
+            onClick={() => setShowFeedbackModal(true)}
+            className="w-10 h-10 border-2 border-gray-900 rounded-xl flex items-center justify-center"
           >
-            <Square className="w-3 h-3" />
+            <Square className="w-4 h-4" />
           </button>
         </div>
       </header>
 
-      {/* Main content - padding for fixed buttons + nav bar */}
-      <div className="pb-36">
-        {/* Current Exercise Panel */}
-        <div className="bg-white px-3 py-2">
-          {/* Exercise Header */}
-          <div className="flex items-center justify-between mb-2">
-            <button
-              onClick={goToPrevExercise}
-              disabled={currentExerciseIndex === 0}
-              className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center disabled:opacity-30"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            <div className="text-center flex-1 px-2">
-              <h2 className="text-base font-bold text-gray-900 leading-tight">
-                {currentExercise.exercise_name}
-              </h2>
-              <p className="text-xs text-gray-500">
-                Set {Math.min(completedSets + 1, totalSets)} of {totalSets}
-              </p>
-            </div>
-
-            {/* Complete All Button */}
-            <button
-              onClick={handleCompleteAllSets}
-              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
-                allCurrentSetsComplete
-                  ? 'bg-green-500 text-white'
-                  : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-600'
-              }`}
-              title={allCurrentSetsComplete ? "Undo all" : "Complete all sets"}
-            >
-              <CheckCircle className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={goToNextExercise}
-              disabled={isLastExercise}
-              className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center disabled:opacity-30 ml-1"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Sets Header */}
-          <div className="flex items-center h-6 px-2 text-[10px] text-gray-400 font-medium">
-            <div className="w-7 shrink-0 text-center">SET</div>
-            <div className="flex-1 text-center">WEIGHT</div>
-            <div className="flex-1 text-center">REPS</div>
-            <div className="w-[72px] shrink-0"></div>
-          </div>
-
-          {/* Sets List */}
-          <div className="space-y-1.5">
-            {currentExercise.sets.map((set, setIndex) => (
-              <SetRow
-                key={setIndex}
-                setData={set}
-                setIndex={setIndex}
-                onUpdate={(newData) => handleSetUpdate(currentExerciseIndex, setIndex, newData)}
-                onComplete={handleSetComplete}
-                onStartRest={handleStartRest}
-              />
-            ))}
-          </div>
-
-          {/* Notes */}
-          {currentExercise.notes && (
-            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-xs text-yellow-800">{currentExercise.notes}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Exercise List */}
-        <div className="bg-gray-100 border-t mt-2">
-          <div className="px-3 py-1.5 border-b bg-white">
-            <p className="text-[10px] text-gray-500 font-medium">
-              {totalExercisesDone}/{workout.exercises.length} Exercises
-            </p>
-          </div>
-          <div ref={exerciseListRef} className="divide-y divide-gray-100">
-            {workout.exercises.map((ex, idx) => (
-              <ExerciseListItem
-                key={idx}
-                exercise={ex}
-                index={idx}
-                isActive={idx === currentExerciseIndex}
-                isCompleted={ex.sets.every(s => s.is_completed)}
-                onClick={() => setCurrentExerciseIndex(idx)}
-              />
-            ))}
-          </div>
-        </div>
+      {/* Stopwatch */}
+      <div className="px-4 py-4">
+        <Stopwatch
+          seconds={totalWorkoutTime}
+          isRunning={isWorkoutRunning}
+          onToggle={() => setIsWorkoutRunning(!isWorkoutRunning)}
+        />
       </div>
 
-      {/* Bottom Action - Fixed above nav bar (bottom-20 like other pages) */}
-      <div className="fixed bottom-20 left-0 right-0 px-3 py-2 bg-white border-t z-20">
-        {isLastExercise ? (
-          <button
-            onClick={() => setShowFinishConfirm(true)}
-            className="w-full bg-green-600 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 active:bg-green-700"
-          >
-            <Check className="w-4 h-4" /> Complete Workout
-          </button>
-        ) : (
-          <div className="flex gap-2">
-            {/* Skip - just moves to next */}
-            <button
-              onClick={goToNextExercise}
-              className="px-4 bg-gray-100 text-gray-600 font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 active:bg-gray-200 text-sm"
-            >
-              Skip
-            </button>
-            {/* Complete and Continue - marks all sets done and goes to next */}
-            <button
-              onClick={() => {
-                // Mark all sets complete
-                const newWorkout = { ...workout };
-                newWorkout.exercises[currentExerciseIndex].sets.forEach(set => {
-                  set.is_completed = true;
-                });
-                setWorkout(newWorkout);
-                if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
-                // Go to next
-                goToNextExercise();
-              }}
-              className="flex-1 bg-green-600 text-white font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 active:bg-green-700 text-sm"
-            >
-              <CheckCircle className="w-4 h-4" /> Complete & Continue
-            </button>
-          </div>
-        )}
+      {/* Exercise Cards List */}
+      <div className="px-4 space-y-4">
+        {workout.exercises.map((exercise, index) => (
+          <SwipeableExerciseCard
+            key={index}
+            exercise={exercise}
+            exerciseIndex={index}
+            onSetUpdate={handleSetUpdate}
+            onSetComplete={handleSetComplete}
+            onCompleteAll={handleCompleteAllSets}
+          />
+        ))}
+      </div>
+
+      {/* Done Workout Button - Fixed at bottom */}
+      <div className="fixed bottom-20 left-0 right-0 px-4 py-3 bg-white border-t z-20">
+        <button
+          onClick={() => setShowFeedbackModal(true)}
+          className={`w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${
+            isWorkoutComplete
+              ? 'bg-green-600 text-white'
+              : 'bg-gray-900 text-white'
+          }`}
+        >
+          <Check className="w-6 h-6" />
+          Done Workout
+        </button>
       </div>
     </div>
   );
