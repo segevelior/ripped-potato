@@ -265,6 +265,24 @@ class MemoryService:
             for mem in memories:
                 content_lower = mem.get("content", "").lower()
                 if search_text in content_lower:
+                    # Preserve old content in history for audit trail
+                    old_content = mem.get("content", "")
+                    old_category = mem.get("category")
+                    old_importance = mem.get("importance")
+
+                    history_entry = {
+                        "content": old_content,
+                        "category": old_category,
+                        "importance": old_importance,
+                        "changedAt": datetime.utcnow()
+                    }
+
+                    # Initialize history array if it doesn't exist
+                    if "history" not in mem:
+                        mem["history"] = []
+                    mem["history"].append(history_entry)
+
+                    # Update the memory with new values
                     mem["content"] = new_content.strip()[:500]
                     mem["updatedAt"] = datetime.utcnow()
                     if new_category:
@@ -294,10 +312,11 @@ class MemoryService:
             )
 
             if result.modified_count > 0:
-                logger.info(f"Updated memory for user {user_id}")
+                logger.info(f"Updated memory for user {user_id} (history preserved)")
                 return {
                     "success": True,
-                    "message": f"Memory updated! New content: **{new_content[:100]}{'...' if len(new_content) > 100 else ''}**"
+                    "message": f"Memory updated! New content: **{new_content[:100]}{'...' if len(new_content) > 100 else ''}**",
+                    "history_preserved": True
                 }
             else:
                 return {"success": False, "message": "Failed to update memory"}
