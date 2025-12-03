@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { X, Clock, Target, Calendar, MoreVertical, ChevronDown, ChevronUp, Dumbbell, Zap, Users, Timer, Star, Bookmark, Pencil, Trash2 } from "lucide-react";
+import { X, Clock, Target, Calendar, MoreVertical, ChevronDown, ChevronUp, Dumbbell, Zap, Users, Timer, Star, Bookmark, Pencil, Trash2, Play } from "lucide-react";
 
 const intensityColors = {
   low: "bg-green-100 text-green-800",
@@ -49,7 +49,7 @@ const throttle = (func, limit) => {
   }
 };
 
-export default function WorkoutDetailModal({ workout, exercises, onClose, onApply, onEdit, onDelete }) {
+export default function WorkoutDetailModal({ workout, exercises, onClose, onApply, onEdit, onDelete, onStart }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [expandedBlocks, setExpandedBlocks] = useState(new Set([0])); // First block expanded by default
   const [expandedExercises, setExpandedExercises] = useState(new Set());
@@ -479,6 +479,22 @@ export default function WorkoutDetailModal({ workout, exercises, onClose, onAppl
         </div>
 
       </div>
+
+        {/* Start Workout Button - Fixed at Bottom */}
+        {onStart && (
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pt-8">
+            <button
+              onClick={() => {
+                onStart(workout);
+                onClose();
+              }}
+              className="w-full bg-accent hover:bg-accent/90 text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-lg"
+            >
+              <Play className="w-5 h-5 fill-white" />
+              Start Workout
+            </button>
+          </div>
+        )}
 
       {/* Delete Confirmation Dialog */}
       {showDeleteConfirm && (
