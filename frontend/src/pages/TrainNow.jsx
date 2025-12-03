@@ -692,7 +692,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
           exercises={exercises}
           onClose={() => setWorkoutToView(null)}
           onApply={applyToCalendar}
-          onDuplicate={() => {}}
+          onStart={startWorkout}
         />
       )}
     </div>

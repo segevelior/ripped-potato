@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { PredefinedWorkout, Exercise } from "@/api/entities";
 import { Search, Plus, Filter } from "lucide-react";
 import WorkoutDetailModal from "@/components/predefined/WorkoutDetailModal";
 import CreateWorkoutModal from "@/components/predefined/CreateWorkoutModal";
 import WorkoutCard from "@/components/predefined/WorkoutCard";
+import { createPageUrl } from "@/utils";
+import { toast } from "@/components/ui/use-toast";
 
 // Helper function to get available categories from workouts
 const getAvailableCategories = (workouts) => {
@@ -40,6 +43,7 @@ const getAvailableCategories = (workouts) => {
 };
 
 export default function PredefinedWorkouts() {
+  const navigate = useNavigate();
   const [predefinedWorkouts, setPredefinedWorkouts] = useState([]);
   const [exercises, setExercises] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -151,7 +155,10 @@ export default function PredefinedWorkouts() {
 
   const handleApplyToCalendar = (workout, date) => {
     console.log("Apply workout to calendar:", workout, date);
-    alert(`Workout "${workout.name}" will be added to your calendar on ${date}`);
+    toast({
+      title: "Added to Calendar",
+      description: `"${workout.name}" scheduled for ${new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`,
+    });
   };
 
   const handleBookmark = (workout, isBookmarked) => {
@@ -163,6 +170,58 @@ export default function PredefinedWorkouts() {
     }
     setBookmarkedWorkouts(updatedBookmarks);
     localStorage.setItem('bookmarkedWorkouts', JSON.stringify(updatedBookmarks));
+  };
+
+  const startWorkout = (workout) => {
+    const sessionData = {
+      title: workout.name,
+      type: workout.primary_disciplines?.[0] || "strength",
+      duration_minutes: workout.estimated_duration || 60,
+      exercises: []
+    };
+
+    workout.blocks?.forEach(block => {
+      block.exercises?.forEach(ex => {
+        const newExercise = {
+          exercise_id: ex.exercise_id || ex.exercise_name?.toLowerCase().replace(/\s/g, '_'),
+          exercise_name: ex.exercise_name,
+          notes: ex.notes || "",
+          sets: []
+        };
+
+        const volume = ex.volume || "3x10";
+        let numSets = 3;
+        let numReps = 10;
+
+        if (volume.includes('x')) {
+          const [setsStr, repsStr] = volume.split('x');
+          numSets = parseInt(setsStr) || 3;
+          numReps = parseInt(repsStr) || 10;
+        }
+
+        let restSeconds = 90;
+        if (ex.rest) {
+          const restMatch = ex.rest.match(/\d+/);
+          if (restMatch) restSeconds = parseInt(restMatch[0]);
+        }
+
+        for (let i = 0; i < numSets; i++) {
+          newExercise.sets.push({
+            target_reps: numReps,
+            reps: 0,
+            weight: 0,
+            rest_seconds: restSeconds,
+            is_completed: false
+          });
+        }
+
+        sessionData.exercises.push(newExercise);
+      });
+    });
+
+    const tempId = `temp_${Date.now()}`;
+    sessionStorage.setItem(tempId, JSON.stringify(sessionData));
+    navigate(createPageUrl(`LiveWorkout?id=${tempId}`));
   };
 
   // Filter workouts based on search and category
@@ -274,6 +333,8 @@ export default function PredefinedWorkouts() {
               isBookmarked={bookmarkedWorkouts.includes(workout.id)}
               onDelete={handleDelete}
               onEdit={handleEdit}
+              onStart={startWorkout}
+              onCalendar={handleApplyToCalendar}
             />
           ))}
         </div>
@@ -302,6 +363,7 @@ export default function PredefinedWorkouts() {
             handleEdit(workout);
           }}
           onDelete={handleDelete}
+          onStart={startWorkout}
         />
       )}
 

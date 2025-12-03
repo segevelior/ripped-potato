@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Clock, Bookmark, Star } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Clock, Bookmark, Star, Play, Calendar } from 'lucide-react';
 import { getDisciplineClass } from '@/styles/designTokens';
 import SwipeableCard from '@/components/common/SwipeableCard';
 
@@ -21,8 +21,9 @@ const getWorkoutImage = (workout) => {
   return workout.image || imageMap[discipline] || imageMap.strength;
 };
 
-export default function WorkoutCard({ workout, onView, onBookmark, isBookmarked: initialBookmarked, onDelete, onEdit }) {
+export default function WorkoutCard({ workout, onView, onBookmark, isBookmarked: initialBookmarked, onDelete, onEdit, onStart, onCalendar }) {
   const [bookmarked, setBookmarked] = useState(initialBookmarked || false);
+  const dateInputRef = useRef(null);
 
   useEffect(() => {
     setBookmarked(initialBookmarked || false);
@@ -39,6 +40,28 @@ export default function WorkoutCard({ workout, onView, onBookmark, isBookmarked:
   const handleCardClick = () => {
     if (onView) {
       onView(workout);
+    }
+  };
+
+  const handleStartClick = (e) => {
+    e.stopPropagation();
+    if (onStart) {
+      onStart(workout);
+    } else if (onView) {
+      // Fallback to opening detail view if no start handler
+      onView(workout);
+    }
+  };
+
+  const handleCalendarClick = (e) => {
+    e.stopPropagation();
+    dateInputRef.current?.showPicker();
+  };
+
+  const handleDateChange = (e) => {
+    const selectedDate = e.target.value;
+    if (onCalendar) {
+      onCalendar(workout, selectedDate);
     }
   };
 
@@ -103,25 +126,56 @@ export default function WorkoutCard({ workout, onView, onBookmark, isBookmarked:
         )}
 
         {/* Metadata Row */}
-        <div className="flex items-center gap-4 text-sm text-gray-500">
-          {/* Duration */}
-          {workout.estimated_duration && (
-            <div className="flex items-center gap-1.5">
-              <Clock className="w-4 h-4" />
-              <span className="font-medium">{workout.estimated_duration} min</span>
-            </div>
-          )}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4 text-sm text-gray-500">
+            {/* Duration */}
+            {workout.estimated_duration && (
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-4 h-4" />
+                <span className="font-medium">{workout.estimated_duration} min</span>
+              </div>
+            )}
 
-          {/* Difficulty */}
-          {workout.difficulty_level && (
-            <div className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${workout.difficulty_level.toLowerCase() === 'beginner' ? 'bg-green-500' :
-                  workout.difficulty_level.toLowerCase() === 'intermediate' ? 'bg-orange-500' :
-                    'bg-red-500'
-                }`} />
-              <span className="font-medium capitalize">{workout.difficulty_level}</span>
-            </div>
-          )}
+            {/* Difficulty */}
+            {workout.difficulty_level && (
+              <div className="flex items-center gap-1.5">
+                <div className={`w-2 h-2 rounded-full ${workout.difficulty_level.toLowerCase() === 'beginner' ? 'bg-green-500' :
+                    workout.difficulty_level.toLowerCase() === 'intermediate' ? 'bg-orange-500' :
+                      'bg-red-500'
+                  }`} />
+                <span className="font-medium capitalize">{workout.difficulty_level}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            {/* Calendar Button */}
+            <button
+              onClick={handleCalendarClick}
+              className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+              title="Add to Calendar"
+            >
+              <Calendar className="w-4 h-4 text-gray-600" />
+            </button>
+            {/* Hidden date input */}
+            <input
+              ref={dateInputRef}
+              type="date"
+              defaultValue={new Date().toISOString().split('T')[0]}
+              onChange={handleDateChange}
+              className="sr-only"
+            />
+
+            {/* Play Button */}
+            <button
+              onClick={handleStartClick}
+              className="w-9 h-9 rounded-full bg-coral-brand hover:bg-coral-brand/90 flex items-center justify-center transition-colors shadow-sm"
+              title="Start Workout"
+            >
+              <Play className="w-4 h-4 text-white fill-white" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

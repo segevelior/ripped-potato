@@ -45,7 +45,7 @@ def get_memory_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "delete_memory",
-                "description": "Delete a memory about the user. Use when user asks to forget something, says information is outdated, or wants to remove a previously saved memory.",
+                "description": "Delete a memory about the user. CAUTION: Use sparingly! Only when user EXPLICITLY asks to forget/delete something. For health memories (illness, injury), PREFER update_memory to preserve history (e.g., 'User was sick Dec 1-5, recovered' is more valuable than deleting). Health history helps understand recovery patterns.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -84,7 +84,7 @@ def get_memory_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "update_memory",
-                "description": "Update an existing memory with new information. Use when user wants to modify a previously saved memory.",
+                "description": "Update an existing memory with new information. PREFERRED over delete for health conditions! When user recovers from illness/injury, UPDATE the memory to include the full timeline (e.g., 'Was sick Nov 28 - Dec 3, now recovered') rather than deleting. This preserves valuable health history.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -94,7 +94,7 @@ def get_memory_tools() -> List[Dict[str, Any]]:
                         },
                         "new_content": {
                             "type": "string",
-                            "description": "The new content to replace the old memory with."
+                            "description": "The new content to replace the old memory with. For health recoveries, include the full timeline: 'User had flu Dec 1-5, 2025. Now recovered.'"
                         },
                         "category": {
                             "type": "string",
@@ -104,7 +104,7 @@ def get_memory_tools() -> List[Dict[str, Any]]:
                         "importance": {
                             "type": "string",
                             "enum": ["high", "medium", "low"],
-                            "description": "Optional: New importance level"
+                            "description": "Optional: New importance level. Can lower from 'high' to 'medium' after recovery."
                         }
                     },
                     "required": ["search_text", "new_content"]
