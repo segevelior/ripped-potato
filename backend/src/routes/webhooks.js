@@ -12,9 +12,13 @@ const router = express.Router();
  */
 router.get('/strava', async (req, res) => {
   try {
-    const { 'hub.mode': hubMode, 'hub.challenge': hubChallenge, 'hub.verify_token': hubVerifyToken } = req.query;
+    // Handle both flat query params (hub.mode) and nested parsing (hub: { mode })
+    // Express may parse "hub.mode" as nested object depending on query parser settings
+    const hubMode = req.query['hub.mode'] || req.query.hub?.mode;
+    const hubChallenge = req.query['hub.challenge'] || req.query.hub?.challenge;
+    const hubVerifyToken = req.query['hub.verify_token'] || req.query.hub?.verify_token;
 
-    console.log('Strava webhook validation request:', { hubMode, hubVerifyToken });
+    console.log('Strava webhook validation request:', { hubMode, hubVerifyToken, rawQuery: req.query });
 
     const response = StravaIntegrationService.verifyWebhookSubscription(
       hubMode,

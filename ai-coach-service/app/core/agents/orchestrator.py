@@ -141,10 +141,11 @@ USER DATA:
                 memory_str += f"\n{prefix}[{category}] {content}"
             context_str += memory_str
 
-        # Use the shared system prompt constant
+        # Inject context into system prompt for consistent date awareness
+        system_prompt_with_context = f"{SYSTEM_PROMPT}\n\n{context_str}"
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"{context_str}\n\nUser: {message}"}
+            {"role": "system", "content": system_prompt_with_context},
+            {"role": "user", "content": message}
         ]
 
         try:
@@ -335,26 +336,28 @@ USER DATA:
             context_str += memory_str
 
         # Build messages array with conversation history
+        # IMPORTANT: Inject context into system prompt so it's always at the top
+        # This ensures the AI sees the current date BEFORE any conversation history
+        system_prompt_with_context = f"{SYSTEM_PROMPT}\n\n{context_str}"
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt_with_context},
         ]
 
         # Add conversation history if available
         if conversation_history:
-            logger.info(f"[SENSEI DEBUG STREAMING] Has conversation history ({len(conversation_history)} messages) - NOT injecting context")
+            logger.info(f"[SENSEI DEBUG STREAMING] Has conversation history ({len(conversation_history)} messages)")
             for hist_msg in conversation_history:
                 role = "user" if hist_msg.get("role") == "human" else "assistant"
                 messages.append({
                     "role": role,
                     "content": hist_msg.get("content", "")
                 })
-            # Add current message without context prefix (history provides context)
+            # Add current message (context is already in system prompt)
             messages.append({"role": "user", "content": message})
         else:
-            # First message - include context
-            logger.info(f"[SENSEI DEBUG STREAMING] No conversation history - injecting full context")
-            logger.info(f"[SENSEI DEBUG STREAMING] Context being injected:\n{context_str}")
-            messages.append({"role": "user", "content": f"{context_str}\n\nUser: {message}"})
+            # First message (context is already in system prompt)
+            logger.info(f"[SENSEI DEBUG STREAMING] No conversation history")
+            messages.append({"role": "user", "content": message})
 
         # Track the full response
         full_response = []
