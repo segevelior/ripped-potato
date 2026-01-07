@@ -1,14 +1,15 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Calendar, Plus } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { format } from 'date-fns';
 import { CalendarEvent } from '@/api/entities';
-
-// Helper to validate MongoDB ObjectId format (24 hex characters)
-const isValidObjectId = (id) => {
-  if (!id || typeof id !== 'string') return false;
-  return /^[0-9a-fA-F]{24}$/.test(id);
-};
+import {
+  getActiveWorkout,
+  startWorkoutSession,
+  clearActiveWorkout,
+  parseWorkoutToSessionData
+} from '@/utils/workoutSession';
 
 /**
  * ActionButtons component displays special action buttons in chat messages.
@@ -21,6 +22,9 @@ const isValidObjectId = (id) => {
  */
 export function ActionButtons({ actions, disabled }) {
   const navigate = useNavigate();
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [activeWorkout, setActiveWorkout] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null);
 
   if (!actions || actions.length === 0) return null;
 
@@ -29,6 +33,14 @@ export function ActionButtons({ actions, disabled }) {
 
     switch (action.type) {
       case 'train-now':
+        // Check for existing active workout
+        const existing = getActiveWorkout();
+        if (existing) {
+          setActiveWorkout(existing);
+          setPendingAction(action);
+          setShowConflictModal(true);
+          return;
+        }
         // First save to calendar, then start the workout
         await saveWorkoutToCalendarAndStart(action.workout, action.date);
         break;
@@ -40,87 +52,24 @@ export function ActionButtons({ actions, disabled }) {
     }
   };
 
-  // Build session data in the format LiveWorkout expects
-  const buildSessionData = (workout) => {
-    const sessionData = {
-      title: workout.title || workout.name || "AI Workout",
-      type: workout.type || workout.primary_disciplines?.[0] || "strength",
-      duration_minutes: workout.duration_minutes || workout.estimated_duration || 60,
-      exercises: []
-    };
+  const resumeWorkout = () => {
+    setShowConflictModal(false);
+    setPendingAction(null);
+    navigate(createPageUrl('LiveWorkout'));
+  };
 
-    // Parse exercises - handle both flat array and blocks format
-    const exerciseList = workout.exercises || [];
-
-    // If it's in blocks format, flatten it
-    if (workout.blocks) {
-      workout.blocks.forEach(block => {
-        block.exercises?.forEach(ex => {
-          exerciseList.push(ex);
-        });
-      });
+  const discardAndStartNew = async () => {
+    clearActiveWorkout();
+    setShowConflictModal(false);
+    if (pendingAction) {
+      await saveWorkoutToCalendarAndStart(pendingAction.workout, pendingAction.date);
+      setPendingAction(null);
     }
+  };
 
-    exerciseList.forEach((ex, index) => {
-      // Only include exercise_id if it's a valid MongoDB ObjectId (24 hex chars)
-      // Backend will resolve exercise by name if ID is missing/invalid
-      const rawExerciseId = ex.exercise_id || ex.exerciseId;
-      const newExercise = {
-        exercise_id: isValidObjectId(rawExerciseId) ? rawExerciseId : null,
-        exercise_name: ex.exercise_name || ex.exerciseName || ex.name || "Exercise",
-        notes: ex.notes || "",
-        order: index,
-        sets: []
-      };
-
-      // Parse volume/sets
-      let numSets = 3;
-      let numReps = 10;
-      let restSeconds = 90;
-
-      // Handle different formats
-      if (ex.sets && Array.isArray(ex.sets)) {
-        // Already has sets array
-        newExercise.sets = ex.sets.map(set => ({
-          target_reps: set.target_reps || set.targetReps || set.reps || 10,
-          reps: 0,
-          weight: set.weight || 0,
-          rest_seconds: set.rest_seconds || set.restSeconds || 90,
-          is_completed: false
-        }));
-      } else {
-        // Parse from volume string like "3x10"
-        const volume = ex.volume || ex.sets_reps || "3x10";
-        if (typeof volume === 'string' && volume.includes('x')) {
-          const [setsStr, repsStr] = volume.split('x');
-          numSets = parseInt(setsStr) || 3;
-          numReps = parseInt(repsStr) || 10;
-        }
-
-        // Parse rest time
-        if (ex.rest) {
-          const restMatch = ex.rest.match(/\d+/);
-          if (restMatch) restSeconds = parseInt(restMatch[0]);
-        }
-
-        // Create sets
-        for (let i = 0; i < numSets; i++) {
-          newExercise.sets.push({
-            target_reps: numReps,
-            reps: 0,
-            weight: 0,
-            rest_seconds: restSeconds,
-            is_completed: false
-          });
-        }
-      }
-
-      if (newExercise.sets.length > 0) {
-        sessionData.exercises.push(newExercise);
-      }
-    });
-
-    return sessionData;
+  const cancelConflictModal = () => {
+    setShowConflictModal(false);
+    setPendingAction(null);
   };
 
   // Save workout to calendar AND start live workout
@@ -145,13 +94,20 @@ export function ActionButtons({ actions, disabled }) {
         workout = workoutData;
       }
 
-      if (!workout || !workout.title) {
+      if (!workout || (!workout.title && !workout.name)) {
         console.error('Invalid workout object:', workout);
         alert('The workout data appears to be incomplete. Please ask Sensei to create the workout again.');
         return;
       }
 
-      const sessionData = buildSessionData(workout);
+      let sessionData;
+      try {
+        sessionData = parseWorkoutToSessionData(workout);
+      } catch (parseError) {
+        console.error('Failed to parse workout data:', parseError);
+        alert(parseError.message || 'The workout data is invalid. Please ask Sensei to create the workout again.');
+        return;
+      }
 
       // Use provided date or default to today
       const workoutDate = dateStr || format(new Date(), 'yyyy-MM-dd');
@@ -170,14 +126,14 @@ export function ActionButtons({ actions, disabled }) {
         'hybrid': 'hybrid'
       };
 
-      const rawType = (workout.type || workout.primary_disciplines?.[0] || "strength").toLowerCase();
-      const workoutType = disciplineToType[rawType] || 'strength';
+      const rawType = workout.type || workout.primary_disciplines?.[0];
+      const workoutType = rawType ? (disciplineToType[rawType.toLowerCase()] || rawType.toLowerCase()) : null;
 
       // Build exercises for calendar format (must match CalendarEvent schema)
       const calendarExercises = sessionData.exercises.map((ex) => ({
         exerciseName: ex.exercise_name,
         targetSets: ex.sets.length,
-        targetReps: ex.sets[0]?.target_reps || 10,
+        targetReps: ex.sets[0]?.target_reps,
         notes: ex.notes || ""
       }));
 
@@ -206,10 +162,9 @@ export function ActionButtons({ actions, disabled }) {
         console.warn('Continuing to start workout despite calendar save failure');
       }
 
-      // Store in sessionStorage and navigate to LiveWorkout
-      const tempId = `temp_${Date.now()}`;
-      sessionStorage.setItem(tempId, JSON.stringify(sessionData));
-      navigate(createPageUrl(`LiveWorkout?id=${tempId}`));
+      // Store in localStorage using the new workout session utility and navigate
+      startWorkoutSession(sessionData);
+      navigate(createPageUrl('LiveWorkout'));
     } catch (error) {
       console.error('Error starting workout:', error);
       alert('Failed to start workout. Please try again.');
@@ -254,24 +209,64 @@ export function ActionButtons({ actions, disabled }) {
   };
 
   return (
-    <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100">
-      {actions.map((action, index) => (
-        <button
-          key={index}
-          onClick={() => handleAction(action)}
-          disabled={disabled}
-          className={`
-            flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl
-            border transition-all duration-150
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ${getButtonStyle(action.type)}
-          `}
-        >
-          {getButtonIcon(action.type)}
-          {action.label}
-        </button>
-      ))}
-    </div>
+    <>
+      {/* Conflict Modal - shown when trying to start new workout with existing one */}
+      {showConflictModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Unfinished Workout</h3>
+            <p className="text-gray-600 mb-1">
+              You have an unfinished workout:
+            </p>
+            <p className="font-semibold text-gray-900 mb-4">
+              {activeWorkout?.data?.title}
+            </p>
+            <p className="text-gray-600 mb-6">
+              Would you like to resume it or start a new workout?
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={resumeWorkout}
+                className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors"
+              >
+                Resume Workout
+              </button>
+              <button
+                onClick={discardAndStartNew}
+                className="w-full py-3 bg-red-50 text-red-700 font-semibold rounded-xl hover:bg-red-100 transition-colors"
+              >
+                Discard & Start New
+              </button>
+              <button
+                onClick={cancelConflictModal}
+                className="w-full py-2 text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100">
+        {actions.map((action, index) => (
+          <button
+            key={index}
+            onClick={() => handleAction(action)}
+            disabled={disabled}
+            className={`
+              flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl
+              border transition-all duration-150
+              disabled:opacity-50 disabled:cursor-not-allowed
+              ${getButtonStyle(action.type)}
+            `}
+          >
+            {getButtonIcon(action.type)}
+            {action.label}
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
 

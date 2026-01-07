@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PredefinedWorkout, Exercise } from "@/api/entities";
-import { Search, Plus, Filter } from "lucide-react";
+import { Search, Plus, Filter, Play } from "lucide-react";
 import WorkoutDetailModal from "@/components/predefined/WorkoutDetailModal";
 import CreateWorkoutModal from "@/components/predefined/CreateWorkoutModal";
 import WorkoutCard from "@/components/predefined/WorkoutCard";
 import { createPageUrl } from "@/utils";
 import { toast } from "@/components/ui/use-toast";
+import {
+  getActiveWorkout,
+  startWorkoutSession,
+  clearActiveWorkout,
+  parseWorkoutToSessionData
+} from "@/utils/workoutSession";
 
 // Helper function to get available categories from workouts
 const getAvailableCategories = (workouts) => {
@@ -61,7 +67,14 @@ export default function PredefinedWorkouts() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  // Active workout state (for resume/conflict handling)
+  const [activeWorkout, setActiveWorkout] = useState(null);
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [pendingNewWorkout, setPendingNewWorkout] = useState(null);
+
   useEffect(() => {
+    // Check for active workout on mount
+    setActiveWorkout(getActiveWorkout());
     loadData();
   }, []);
 
@@ -173,55 +186,46 @@ export default function PredefinedWorkouts() {
   };
 
   const startWorkout = (workout) => {
-    const sessionData = {
-      title: workout.name,
-      type: workout.primary_disciplines?.[0] || "strength",
-      duration_minutes: workout.estimated_duration || 60,
-      exercises: []
-    };
+    // Check for existing active workout
+    if (activeWorkout) {
+      setPendingNewWorkout(workout);
+      setShowConflictModal(true);
+      return;
+    }
+    doStartWorkout(workout);
+  };
 
-    workout.blocks?.forEach(block => {
-      block.exercises?.forEach(ex => {
-        const newExercise = {
-          exercise_id: ex.exercise_id || ex.exercise_name?.toLowerCase().replace(/\s/g, '_'),
-          exercise_name: ex.exercise_name,
-          notes: ex.notes || "",
-          sets: []
-        };
+  const doStartWorkout = (workout) => {
+    try {
+      const sessionData = parseWorkoutToSessionData(workout);
+      startWorkoutSession(sessionData);
+      navigate(createPageUrl('LiveWorkout')); // No ID param needed
+    } catch (error) {
+      console.error('[PredefinedWorkouts] Failed to start workout:', error);
+      alert(`Failed to start workout: ${error.message}`);
+    }
+  };
 
-        const volume = ex.volume || "3x10";
-        let numSets = 3;
-        let numReps = 10;
+  const resumeWorkout = () => {
+    setShowConflictModal(false);
+    setPendingNewWorkout(null);
+    navigate(createPageUrl('LiveWorkout'));
+  };
 
-        if (volume.includes('x')) {
-          const [setsStr, repsStr] = volume.split('x');
-          numSets = parseInt(setsStr) || 3;
-          numReps = parseInt(repsStr) || 10;
-        }
+  const discardAndStartNew = () => {
+    clearActiveWorkout();
+    setActiveWorkout(null);
+    setShowConflictModal(false);
 
-        let restSeconds = 90;
-        if (ex.rest) {
-          const restMatch = ex.rest.match(/\d+/);
-          if (restMatch) restSeconds = parseInt(restMatch[0]);
-        }
+    if (pendingNewWorkout) {
+      doStartWorkout(pendingNewWorkout);
+      setPendingNewWorkout(null);
+    }
+  };
 
-        for (let i = 0; i < numSets; i++) {
-          newExercise.sets.push({
-            target_reps: numReps,
-            reps: 0,
-            weight: 0,
-            rest_seconds: restSeconds,
-            is_completed: false
-          });
-        }
-
-        sessionData.exercises.push(newExercise);
-      });
-    });
-
-    const tempId = `temp_${Date.now()}`;
-    sessionStorage.setItem(tempId, JSON.stringify(sessionData));
-    navigate(createPageUrl(`LiveWorkout?id=${tempId}`));
+  const cancelConflictModal = () => {
+    setShowConflictModal(false);
+    setPendingNewWorkout(null);
   };
 
   // Filter workouts based on search and category
@@ -255,6 +259,68 @@ export default function PredefinedWorkouts() {
 
   return (
     <div className="space-y-6 pb-8">
+      {/* Conflict Modal - shown when trying to start new workout with existing one */}
+      {showConflictModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Unfinished Workout</h3>
+            <p className="text-gray-600 mb-1">
+              You have an unfinished workout:
+            </p>
+            <p className="font-semibold text-gray-900 mb-4">
+              {activeWorkout?.data?.title}
+            </p>
+            <p className="text-gray-600 mb-6">
+              Would you like to resume it or start a new workout?
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={resumeWorkout}
+                className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors"
+              >
+                Resume Workout
+              </button>
+              <button
+                onClick={discardAndStartNew}
+                className="w-full py-3 bg-red-50 text-red-700 font-semibold rounded-xl hover:bg-red-100 transition-colors"
+              >
+                Discard & Start New
+              </button>
+              <button
+                onClick={cancelConflictModal}
+                className="w-full py-2 text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resume Workout Banner - shown when active workout exists */}
+      {activeWorkout && (
+        <div className="p-4 bg-green-50 border border-green-200 rounded-2xl">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+              <Play className="w-6 h-6 text-green-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-green-900">Workout in Progress</p>
+              <p className="text-sm text-green-700 truncate">{activeWorkout.data?.title}</p>
+              <p className="text-xs text-green-600">
+                {Math.floor(activeWorkout.totalWorkoutTime / 60)} min elapsed
+              </p>
+            </div>
+            <button
+              onClick={resumeWorkout}
+              className="px-4 py-2 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors"
+            >
+              Resume
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
