@@ -470,10 +470,11 @@ router.post('/stream', authMiddleware, aiRateLimit, async (req, res) => {
       res.end();
     });
 
-    // Send the request body - include conversation_id for message continuity
+    // Send the request body - include conversation_id and file_content for multimodal messages
     const requestBody = JSON.stringify({
       message,
-      conversation_id: req.body.conversation_id || null
+      conversation_id: req.body.conversation_id || null,
+      file_content: req.body.file_content || null
     });
     proxyReq.write(requestBody);
     proxyReq.end();

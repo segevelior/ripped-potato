@@ -34,12 +34,13 @@ async def chat(
         "username": current_user.get("username"),
         "schema": request.context.get("schema") if request.context else None
     }
-    
+
     try:
         # Process request through agent orchestrator
         result = await orchestrator.process_request(
             request.message,
-            user_context
+            user_context,
+            file_content=request.file_content
         )
         
         # Build response with pending change support
@@ -97,8 +98,16 @@ async def simple_chat(
             context_str += f"\nGoals: {', '.join(user_context['goals'][:3])}"
         messages[0]["content"] += context_str
     
-    # Add current message
-    messages.append({"role": "user", "content": request.message})
+    # Add current message (with optional file content for multimodal)
+    if request.file_content:
+        # Build multimodal message with text and file content
+        user_content = [
+            {"type": "text", "text": request.message},
+            request.file_content
+        ]
+        messages.append({"role": "user", "content": user_content})
+    else:
+        messages.append({"role": "user", "content": request.message})
     
     try:
         response = await client.chat.completions.create(

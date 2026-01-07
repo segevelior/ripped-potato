@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { User } from "@/api/entities";
-import { Send, Sparkles, Menu, ArrowLeft, Square, Globe, Brain } from "lucide-react";
+import { Send, Sparkles, Menu, ArrowLeft, Square, Globe, Brain, FileText, Image as ImageIcon } from "lucide-react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
+import { FileUpload } from "@/components/chat/FileUpload";
+import { uploadDocument } from "@/api/documents";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import { useStreamingChat } from "@/hooks/useStreamingChat";
@@ -34,6 +37,10 @@ export default function ChatWithStreaming() {
   const [pendingAutoSend, setPendingAutoSend] = useState(null); // For auto-sending messages from external sources
   const [webSearchEnabled, setWebSearchEnabled] = useState(false); // Force web search
   const [deepResearchEnabled, setDeepResearchEnabled] = useState(false); // Force deep research
+  const [selectedFile, setSelectedFile] = useState(null); // For file upload
+  const [fileContent, setFileContent] = useState(null); // Processed file content for API
+  const [filePreviewUrl, setFilePreviewUrl] = useState(null); // Local preview URL for images
+  const [isUploadingFile, setIsUploadingFile] = useState(false); // File upload in progress
 
   // Suggestions: use cache, or null (will fetch once if empty)
   const [suggestions, setSuggestions] = useState(() => aiService.getCachedSuggestions());
@@ -226,12 +233,34 @@ export default function ChatWithStreaming() {
 
       if (response.ok) {
         const data = await response.json();
-        // Transform backend messages to UI format
-        const uiMessages = data.messages.map(msg => ({
-          role: msg.role === 'human' ? 'user' : 'assistant',
-          content: msg.content,
-          timestamp: msg.timestamp
-        }));
+        // Transform backend messages to UI format, parsing attachment markers
+        const uiMessages = data.messages.map(msg => {
+          const baseMsg = {
+            role: msg.role === 'human' ? 'user' : 'assistant',
+            content: msg.content,
+            timestamp: msg.timestamp
+          };
+
+          // Parse attachment markers from saved messages (user messages only)
+          if (baseMsg.role === 'user') {
+            const attachmentMatch = msg.content.match(/^\[ATTACHMENT:(IMAGE|FILE):([^\]]+)\]\n/);
+            if (attachmentMatch) {
+              const [, type, name] = attachmentMatch;
+              // Remove the attachment marker from displayed content
+              baseMsg.content = msg.content.replace(/^\[ATTACHMENT:[^\]]+\]\n/, '');
+
+              if (type === 'IMAGE') {
+                // For images, we can't restore the preview (blob URLs don't persist)
+                // Show a placeholder indicating an image was attached
+                baseMsg.imagePreview = { name, type: 'image/*', url: null };
+              } else {
+                baseMsg.attachment = { name, type: 'application/pdf' };
+              }
+            }
+          }
+
+          return baseMsg;
+        });
         setMessages(uiMessages);
       }
     } catch (error) {
@@ -309,13 +338,51 @@ export default function ChatWithStreaming() {
     }
   };
 
+  // Handle file selection
+  const handleFileSelect = async (file) => {
+    setSelectedFile(file);
+
+    // Create local preview URL for images
+    if (file && file.type.startsWith('image/')) {
+      const previewUrl = URL.createObjectURL(file);
+      setFilePreviewUrl(previewUrl);
+    } else {
+      setFilePreviewUrl(null);
+    }
+  };
+
+  // Handle file removal
+  const handleFileRemove = () => {
+    // Revoke the preview URL to free memory
+    if (filePreviewUrl) {
+      URL.revokeObjectURL(filePreviewUrl);
+    }
+    setSelectedFile(null);
+    setFileContent(null);
+    setFilePreviewUrl(null);
+  };
+
   // Send Message
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim() || isStreaming) return;
+    if (!input.trim() || isStreaming || isUploadingFile) return;
 
-    // Show clean message to user (without force flags)
-    const userMessage = { role: "user", content: input };
+    // Build user message with optional image preview
+    const userMessage = {
+      role: "user",
+      content: input,
+      // Include image data for display if it's an image file
+      imagePreview: selectedFile?.type.startsWith('image/') ? {
+        url: filePreviewUrl,
+        name: selectedFile.name,
+        type: selectedFile.type
+      } : null,
+      // Include PDF indicator if it's a PDF
+      attachment: selectedFile && !selectedFile.type.startsWith('image/') ? {
+        name: selectedFile.name,
+        type: selectedFile.type
+      } : null
+    };
     setMessages(prev => [...prev, userMessage]);
 
     // Add force flags as prefixes for AI processing (not shown to user)
@@ -326,7 +393,20 @@ export default function ChatWithStreaming() {
       messageToSend = `[WEB_SEARCH] ${messageToSend}`;
     }
 
+    // Add attachment marker for persistence (parsed when loading old conversations)
+    if (selectedFile) {
+      const attachmentType = selectedFile.type.startsWith('image/') ? 'IMAGE' : 'FILE';
+      messageToSend = `[ATTACHMENT:${attachmentType}:${selectedFile.name}]\n${messageToSend}`;
+    }
+
+    const messageInput = input;
+    const fileToUpload = selectedFile;
+
     setInput("");
+    setSelectedFile(null);
+    setFileContent(null);
+    // Don't revoke the preview URL yet - it's now stored in the message for display
+    setFilePreviewUrl(null);
 
     // Reset toggles after sending
     setWebSearchEnabled(false);
@@ -337,19 +417,48 @@ export default function ChatWithStreaming() {
       inputRef.current.style.height = 'auto';
     }
 
-    // Optimistic UI update for new conversation
-    if (!currentConversationId) {
-      // We'll let the streaming hook return the new ID
-    }
-
     try {
       // Add placeholder for AI response
       setMessages(prev => [...prev, { role: "assistant", content: "", isStreaming: true }]);
 
+      // If there's a file, upload it first
+      let uploadedFileContent = null;
+      if (fileToUpload) {
+        setIsUploadingFile(true);
+        try {
+          const uploadResult = await uploadDocument(fileToUpload, messageInput);
+          uploadedFileContent = uploadResult.file_content;
+        } catch (uploadError) {
+          console.error("File upload error:", uploadError);
+          toast.error(uploadError.message || "Failed to upload file");
+          // Update the user message to indicate file upload failed
+          setMessages(prev => {
+            const newMessages = [...prev];
+            // Find the user message we just added (second to last, before AI placeholder)
+            const userMsgIndex = newMessages.length - 2;
+            if (userMsgIndex >= 0 && newMessages[userMsgIndex].role === 'user') {
+              newMessages[userMsgIndex] = {
+                ...newMessages[userMsgIndex],
+                imagePreview: newMessages[userMsgIndex].imagePreview
+                  ? { ...newMessages[userMsgIndex].imagePreview, failed: true }
+                  : null,
+                attachment: newMessages[userMsgIndex].attachment
+                  ? { ...newMessages[userMsgIndex].attachment, failed: true }
+                  : null
+              };
+            }
+            return newMessages;
+          });
+        } finally {
+          setIsUploadingFile(false);
+        }
+      }
+
       const newConversationId = await sendStreamingMessage(
         messageToSend,
         authToken,
-        currentConversationId
+        currentConversationId,
+        uploadedFileContent
       );
 
       // If we started a new conversation, refresh history and set ID
@@ -641,7 +750,43 @@ export default function ChatWithStreaming() {
                           );
                         })()
                       ) : (
-                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                        <div className="space-y-2">
+                          {/* Image preview for user messages */}
+                          {msg.imagePreview && (
+                            <div className={`relative ${msg.imagePreview.failed ? 'opacity-50' : ''}`}>
+                              {msg.imagePreview.url ? (
+                                // Live preview (current session)
+                                <img
+                                  src={msg.imagePreview.url}
+                                  alt={msg.imagePreview.name}
+                                  className="max-w-full max-h-64 rounded-lg object-contain"
+                                />
+                              ) : (
+                                // Placeholder for loaded conversations (image not available)
+                                <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg">
+                                  <ImageIcon className="w-5 h-5 text-blue-500" />
+                                  <span className="text-sm text-gray-600">{msg.imagePreview.name}</span>
+                                  <span className="text-xs text-gray-400">(image sent)</span>
+                                </div>
+                              )}
+                              {msg.imagePreview.failed && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg">
+                                  <span className="text-xs text-red-600 bg-white px-2 py-1 rounded">Upload failed</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {/* PDF/file attachment indicator */}
+                          {msg.attachment && (
+                            <div className={`flex items-center gap-2 text-sm ${msg.attachment.failed ? 'text-red-500' : 'text-gray-600'}`}>
+                              <FileText className="w-4 h-4" />
+                              <span>{msg.attachment.name}</span>
+                              {msg.attachment.failed && <span className="text-xs">(upload failed)</span>}
+                            </div>
+                          )}
+                          {/* Message text */}
+                          {msg.content && <div className="whitespace-pre-wrap">{msg.content}</div>}
+                        </div>
                       )}
                     </div>
 
@@ -697,6 +842,14 @@ export default function ChatWithStreaming() {
                 <Brain className={`h-3.5 w-3.5 ${deepResearchEnabled ? 'text-purple-600' : 'text-gray-400'}`} />
                 <span>Deep research</span>
               </button>
+
+              {/* File Upload */}
+              <FileUpload
+                onFileSelect={handleFileSelect}
+                onFileRemove={handleFileRemove}
+                disabled={isStreaming}
+                isUploading={isUploadingFile}
+              />
             </div>
 
             <form onSubmit={handleSendMessage} className="relative">

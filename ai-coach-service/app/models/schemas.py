@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 
@@ -9,7 +9,7 @@ class ChatMessage(BaseModel):
     
     role: str = Field(..., pattern="^(user|assistant|system)$")
     content: str
-    timestamp: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    timestamp: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: Optional[Dict[str, Any]] = None
 
 
@@ -18,6 +18,7 @@ class ChatRequest(BaseModel):
     context: Optional[Dict[str, Any]] = None
     conversation_history: Optional[List[ChatMessage]] = []
     conversation_id: Optional[str] = None  # For continuing existing conversations
+    file_content: Optional[Dict[str, Any]] = None  # For multimodal messages (PDF/image)
 
 
 class ChatResponse(BaseModel):
