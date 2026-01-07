@@ -25,7 +25,8 @@ async def generate_sse_stream(
     user_context: Dict[str, Any],
     conversation_service: ConversationService,
     conversation_id: str,
-    conversation_history: list = None
+    conversation_history: list = None,
+    file_content: Dict[str, Any] = None
 ) -> AsyncGenerator[str, None]:
     """
     Convert orchestrator streaming events to Server-Sent Events (SSE) format.
@@ -40,7 +41,8 @@ async def generate_sse_stream(
         async for event in orchestrator.process_request_streaming(
             message=message,
             user_context=user_context,
-            conversation_history=conversation_history
+            conversation_history=conversation_history,
+            file_content=file_content
         ):
             event_type = event.get("type")
 
@@ -184,7 +186,8 @@ async def chat_stream(
         user_context=user_context,
         conversation_service=conversation_service,
         conversation_id=conversation_id,
-        conversation_history=conversation_history
+        conversation_history=conversation_history,
+        file_content=request.file_content
     )
 
     return StreamingResponse(

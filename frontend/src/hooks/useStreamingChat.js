@@ -30,7 +30,7 @@ export function useStreamingChat() {
     setActiveTools([]);
   }, []);
 
-  const sendStreamingMessage = useCallback(async (message, authToken, conversationId = null) => {
+  const sendStreamingMessage = useCallback(async (message, authToken, conversationId = null, fileContent = null) => {
     // Cancel any existing stream
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -58,7 +58,8 @@ export function useStreamingChat() {
         },
         body: JSON.stringify({
           message,
-          conversation_id: conversationId
+          conversation_id: conversationId,
+          file_content: fileContent
         }),
         signal: abortControllerRef.current.signal
       });

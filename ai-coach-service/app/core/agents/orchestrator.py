@@ -71,7 +71,12 @@ class AgentOrchestrator:
         return get_all_tools()
 
 
-    async def process_request(self, message: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+    async def process_request(
+        self,
+        message: str,
+        user_context: Dict[str, Any],
+        file_content: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """Process user request with OpenAI function calling"""
 
         user_id = user_context.get("user_id")
@@ -143,9 +148,19 @@ USER DATA:
 
         # Inject context into system prompt for consistent date awareness
         system_prompt_with_context = f"{SYSTEM_PROMPT}\n\n{context_str}"
+
+        # Build user message - multimodal if file_content provided
+        if file_content:
+            user_message_content = [
+                {"type": "text", "text": message},
+                file_content
+            ]
+        else:
+            user_message_content = message
+
         messages = [
             {"role": "system", "content": system_prompt_with_context},
-            {"role": "user", "content": message}
+            {"role": "user", "content": user_message_content}
         ]
 
         try:
@@ -257,7 +272,8 @@ USER DATA:
         self,
         message: str,
         user_context: Dict[str, Any],
-        conversation_history: List[Dict[str, Any]] = None
+        conversation_history: List[Dict[str, Any]] = None,
+        file_content: Dict[str, Any] = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Process user request with streaming, yielding events for real-time UI updates.
@@ -343,6 +359,16 @@ USER DATA:
             {"role": "system", "content": system_prompt_with_context},
         ]
 
+        # Build current user message - multimodal if file_content provided
+        if file_content:
+            current_user_message = [
+                {"type": "text", "text": message},
+                file_content
+            ]
+            logger.info(f"[SENSEI DEBUG STREAMING] Multimodal message with file content type: {file_content.get('type')}")
+        else:
+            current_user_message = message
+
         # Add conversation history if available
         if conversation_history:
             logger.info(f"[SENSEI DEBUG STREAMING] Has conversation history ({len(conversation_history)} messages)")
@@ -353,11 +379,11 @@ USER DATA:
                     "content": hist_msg.get("content", "")
                 })
             # Add current message (context is already in system prompt)
-            messages.append({"role": "user", "content": message})
+            messages.append({"role": "user", "content": current_user_message})
         else:
             # First message (context is already in system prompt)
             logger.info(f"[SENSEI DEBUG STREAMING] No conversation history")
-            messages.append({"role": "user", "content": message})
+            messages.append({"role": "user", "content": current_user_message})
 
         # Track the full response
         full_response = []
