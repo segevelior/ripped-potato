@@ -2,6 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { WorkoutLog } from "@/api/entities";
 import { ArrowLeft, Square, Play, Pause, Plus, Minus, Check, X, Save, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import {
+  getActiveWorkout,
+  saveWorkoutProgress,
+  clearActiveWorkout,
+  startWorkoutSession
+} from "@/utils/workoutSession";
 
 // Format seconds to MM:SS
 const formatTime = (seconds) => {
@@ -405,13 +411,14 @@ export default function LiveWorkout() {
     };
   };
 
-  // Load workout data
+  // Load workout data from localStorage (or legacy sessionStorage)
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const id = urlParams.get('id');
-    const workoutData = sessionStorage.getItem(id);
-    if (workoutData) {
-      const parsed = JSON.parse(workoutData);
+    const activeWorkout = getActiveWorkout();
+
+    if (activeWorkout) {
+      const parsed = activeWorkout.data;
+
+      // Normalize exercise sets
       if (parsed.exercises) {
         parsed.exercises = parsed.exercises.map(ex => ({
           ...ex,
@@ -421,10 +428,51 @@ export default function LiveWorkout() {
           }))
         }));
       }
+
       setWorkout(parsed);
-    } else {
-      navigate(-1);
+
+      // Restore elapsed time and keep timer running
+      if (activeWorkout.totalWorkoutTime > 0) {
+        setTotalWorkoutTime(activeWorkout.totalWorkoutTime);
+      }
+      // Timer continues running (isWorkoutRunning defaults to true)
+      return;
     }
+
+    // No valid active workout - check for legacy sessionStorage (backwards compat)
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id');
+    if (id) {
+      const legacyData = sessionStorage.getItem(id);
+      if (legacyData) {
+        try {
+          const parsed = JSON.parse(legacyData);
+          if (parsed.exercises) {
+            parsed.exercises = parsed.exercises.map(ex => ({
+              ...ex,
+              sets: ex.sets.map(set => ({
+                ...set,
+                reps: set.reps || set.target_reps || 0
+              }))
+            }));
+          }
+          setWorkout(parsed);
+
+          // Migrate to new localStorage format
+          startWorkoutSession(parsed);
+          sessionStorage.removeItem(id); // Clean up old storage
+
+          // Remove ?id param from URL
+          window.history.replaceState({}, '', window.location.pathname);
+          return;
+        } catch (e) {
+          console.error('Failed to parse legacy workout data:', e);
+        }
+      }
+    }
+
+    // No workout found at all
+    navigate(-1);
   }, [navigate]);
 
   // Timer
@@ -437,6 +485,18 @@ export default function LiveWorkout() {
     }
     return () => clearInterval(interval);
   }, [isWorkoutRunning]);
+
+  // Auto-save progress whenever workout state or time changes
+  useEffect(() => {
+    if (!workout) return;
+
+    // Debounce saves to avoid excessive writes
+    const timeoutId = setTimeout(() => {
+      saveWorkoutProgress(workout, totalWorkoutTime);
+    }, 500); // Save 500ms after last change
+
+    return () => clearTimeout(timeoutId);
+  }, [workout, totalWorkoutTime]);
 
   const handleSetUpdate = (exIndex, setIndex, newSetData) => {
     const newWorkout = { ...workout };
@@ -503,6 +563,7 @@ export default function LiveWorkout() {
       console.log('Saving workout log:', workoutLogData);
       const result = await WorkoutLog.create(workoutLogData);
       console.log('Workout saved successfully:', result);
+      clearActiveWorkout(); // Clear active workout from localStorage
       if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]);
       navigate(-1);
     } catch (error) {
@@ -513,6 +574,7 @@ export default function LiveWorkout() {
   };
 
   const discardAndExit = () => {
+    clearActiveWorkout(); // Clear active workout from localStorage
     navigate(-1);
   };
 

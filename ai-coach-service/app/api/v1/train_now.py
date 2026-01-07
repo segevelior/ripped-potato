@@ -31,20 +31,23 @@ logger = structlog.get_logger()
 TRAIN_NOW_PROMPT = """Based on the user's profile, fitness data, calendar, and memories provided above, decide what the user should do TODAY.
 
 You have TWO options:
-1. SUGGEST A WORKOUT - if the user should train today
-2. SUGGEST A REST DAY - if the user should recover today
+1. SUGGEST A WORKOUT - if the user should train today (THIS IS THE DEFAULT)
+2. SUGGEST A REST DAY - ONLY if there's a clear reason to rest
+
+CRITICAL: DEFAULT TO SUGGESTING A WORKOUT. The user is on a "Train Now" page because they WANT to train.
+- If there's NO recent workout history or it's empty/minimal, SUGGEST A WORKOUT
+- If you see "NO WORKOUT SCHEDULED FOR TODAY", this means the user SHOULD train - suggest a workout!
+- Only suggest rest if you have CONCRETE evidence from the data that they need it
 
 IMPORTANT RULES:
 1. If there's already a workout scheduled for today in the calendar, DO NOT suggest it again - the system will handle that.
 2. Consider what muscles were trained recently to avoid overlap (e.g., if they did chest yesterday, don't suggest chest today)
-3. RECOMMEND REST if:
-   - They've trained 3+ days in a row without rest
-   - Their recent workouts were high intensity and muscles need recovery
-   - They mentioned fatigue, soreness, or injury in their memories
-   - It's strategically better for their training plan (recovery is part of progress!)
+3. ONLY RECOMMEND REST if ALL of these conditions are met:
+   - You can see 3+ CONSECUTIVE days of completed workouts in the recent history, OR
+   - The user EXPLICITLY mentioned current fatigue, soreness, or injury in their memories (not just historical injuries)
 4. Match any workout to their fitness level and available equipment
 5. Respect their preferred workout duration
-6. Consider any injuries or limitations from their memories
+6. Consider any injuries or limitations from their memories when designing the workout (but still suggest a workout)
 
 IF SUGGESTING A WORKOUT, return:
 {
@@ -321,6 +324,23 @@ CALENDAR CONTEXT:
                 if details:
                     activity_line += f" ({', '.join(details)})"
                 context_str += f"\n{activity_line}"
+
+        # DEBUG: Log the full context being sent to the AI
+        logger.info("=" * 60)
+        logger.info("TRAIN-NOW DEBUG: Full context being sent to AI")
+        logger.info("=" * 60)
+        logger.info(f"USER ID: {user_id}")
+        logger.info(f"CALENDAR DATA: today_events={len(calendar_data.get('today_events', []))}, "
+                   f"week_events={len(calendar_data.get('week_events', []))}, "
+                   f"recent_workouts={len(calendar_data.get('recent_workouts', []))}")
+        logger.info(f"RECENT WORKOUTS DETAIL: {[w.get('title', 'unknown') for w in calendar_data.get('recent_workouts', [])]}")
+        logger.info(f"TRAINING PLANS: {len(training_plans)}")
+        logger.info(f"USER MEMORIES COUNT: {len(user_memories)}")
+        logger.info(f"USER MEMORIES: {[m.get('content', '')[:50] for m in user_memories]}")
+        logger.info(f"EXTERNAL ACTIVITIES: {len(data_context.get('external_activities', []))}")
+        logger.info("-" * 60)
+        logger.info(f"FULL CONTEXT STRING:\n{context_str}")
+        logger.info("=" * 60)
 
         # Call OpenAI to generate suggestion
         messages = [

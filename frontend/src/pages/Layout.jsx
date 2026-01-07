@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot, TrendingUp, Settings, MessageSquare, Shield, Cog } from "lucide-react";
+import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot, TrendingUp, Settings, MessageSquare, Shield, Cog, Play } from "lucide-react";
+import { hasActiveWorkout } from "@/utils/workoutSession";
 import {
   Sidebar,
   SidebarContent,
@@ -81,11 +82,26 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const [isNavVisible, setIsNavVisible] = useState(true);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showLiveWorkoutTab, setShowLiveWorkoutTab] = useState(false);
   const lastScrollY = useRef(0);
   const mainContentRef = useRef(null);
 
   // Check if we're on the chat page - it has its own full-screen layout
   const isChatPage = location.pathname === '/chat' || location.pathname === '/Chat';
+
+  // Check for active workout on mount and route changes
+  useEffect(() => {
+    const checkActive = () => {
+      setShowLiveWorkoutTab(hasActiveWorkout());
+    };
+
+    checkActive();
+
+    // Listen for storage events (cross-tab sync)
+    window.addEventListener('storage', checkActive);
+
+    return () => window.removeEventListener('storage', checkActive);
+  }, [location.pathname]); // Re-check on route change
 
   useEffect(() => {
     const handleScroll = throttle(() => {
@@ -130,6 +146,23 @@ export default function Layout({ children }) {
             </SidebarHeader>
             <SidebarContent>
               <div className="flex flex-col gap-1 p-2">
+                {/* Live Workout tab - only shown when active */}
+                {showLiveWorkoutTab && (
+                  <Link
+                    to={createPageUrl('LiveWorkout')}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all text-sm font-medium mb-2 ${
+                      location.pathname.toLowerCase().includes('liveworkout')
+                        ? 'bg-green-100 text-green-900 ring-2 ring-green-500'
+                        : 'bg-green-50 text-green-700 hover:bg-green-100'
+                    }`}
+                  >
+                    <div className="relative">
+                      <Play className="w-5 h-5" />
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    </div>
+                    Live Workout
+                  </Link>
+                )}
                 {navigationItems.map((item, index) => {
                   const isActive = location.pathname === item.url;
                   return (
@@ -256,11 +289,29 @@ export default function Layout({ children }) {
             `}
           >
             <div className="flex items-center justify-around h-14 px-2">
+              {/* Live Workout tab - shown first when active */}
+              {showLiveWorkoutTab && (
+                <Link
+                  to={createPageUrl('LiveWorkout')}
+                  className={`flex flex-col items-center justify-center min-w-[64px] h-full gap-0.5 px-1 ${
+                    location.pathname.toLowerCase().includes('liveworkout')
+                      ? 'text-green-600'
+                      : 'text-green-500'
+                  }`}
+                >
+                  <div className="relative">
+                    <Play className="w-5 h-5 fill-current" strokeWidth={2.5} />
+                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                  </div>
+                  <span className="text-[10px] font-semibold whitespace-nowrap">Live</span>
+                </Link>
+              )}
+              {/* Existing nav items - hide Exercises when Live is shown */}
               {[
                 navigationItems.find(i => i.title === "Goals"),
                 navigationItems.find(i => i.title === "Plans"),
                 navigationItems.find(i => i.title === "Workouts"),
-                navigationItems.find(i => i.title === "Exercises")
+                !showLiveWorkoutTab && navigationItems.find(i => i.title === "Exercises")
               ].filter(Boolean).map((item, index) => {
                 const isActive = location.pathname === item.url;
                 return (
