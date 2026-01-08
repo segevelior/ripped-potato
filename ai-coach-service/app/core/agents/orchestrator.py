@@ -2,7 +2,9 @@
 Enhanced Agent Orchestrator - OpenAI with comprehensive fitness tools
 """
 
+import asyncio
 import json
+import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from typing import Dict, Any, List, AsyncGenerator
@@ -14,6 +16,8 @@ from app.config import get_settings
 from app.core.agents.data_reader import DataReaderAgent
 from app.core.agents.prompts import SYSTEM_PROMPT
 from app.core.agents.tool_definitions import get_all_tools
+from app.core.agents.reflection_config import REFLECTION_CONFIG
+from app.core.agents.reflection_prompt import REFLECTION_SYSTEM_PROMPT, REFLECTION_USER_PROMPT
 from app.core.agents.services import (
     ExerciseService,
     WorkoutService,
@@ -163,6 +167,9 @@ USER DATA:
             {"role": "user", "content": user_message_content}
         ]
 
+        # Track tools used during this request for reflection triggering
+        tools_used = []
+
         try:
             # Call OpenAI with function calling
             response = await self.client.chat.completions.create(
@@ -181,6 +188,7 @@ USER DATA:
 
                 for tool_call in response_message.tool_calls:
                     function_name = tool_call.function.name
+                    tools_used.append(function_name)  # Track tool usage
                     function_args = json.loads(tool_call.function.arguments)
 
                     logger.info(f"Executing tool: {function_name}")
@@ -208,15 +216,48 @@ USER DATA:
                     temperature=0.7
                 )
 
+                final_content = final_response.choices[0].message.content
+
+                # === REFLECTION FOR TOOL EXECUTION PATH ===
+                if self._requires_reflection(final_content, tools_used):
+                    logger.info("Triggering reflection for tool execution response")
+                    reflection_result = await self._reflect_on_response(
+                        original_response=final_content,
+                        user_memories=user_memories,
+                        user_profile=user_profile,
+                        data_context=data_context,
+                    )
+
+                    if reflection_result["needs_revision"] and reflection_result["revised_response"]:
+                        final_content = reflection_result["revised_response"]
+                        logger.info(f"Response revised. Issues fixed: {reflection_result['issues']}")
+
                 return {
-                    "message": final_response.choices[0].message.content,
+                    "message": final_content,
                     "type": "tool_execution",
                     "confidence": 0.95
                 }
             else:
                 # No tool use, just conversation
+                final_content = response_message.content
+
+                # === REFLECTION FOR CONVERSATION PATH ===
+                # Note: tools_used will be empty here, so reflection won't trigger
+                # This is intentional - pure conversation doesn't need reflection
+                if self._requires_reflection(final_content, tools_used):
+                    logger.info("Triggering reflection for conversation response")
+                    reflection_result = await self._reflect_on_response(
+                        original_response=final_content,
+                        user_memories=user_memories,
+                        user_profile=user_profile,
+                        data_context=data_context,
+                    )
+
+                    if reflection_result["needs_revision"] and reflection_result["revised_response"]:
+                        final_content = reflection_result["revised_response"]
+
                 return {
-                    "message": response_message.content,
+                    "message": final_content,
                     "type": "conversation",
                     "confidence": 0.9
                 }
@@ -385,8 +426,9 @@ USER DATA:
             logger.info(f"[SENSEI DEBUG STREAMING] No conversation history")
             messages.append({"role": "user", "content": current_user_message})
 
-        # Track the full response
+        # Track the full response and tools used for reflection
         full_response = []
+        tools_used = []
 
         try:
             # Create streaming completion with tools
@@ -449,6 +491,7 @@ USER DATA:
                         function_args = json.loads(tool_data["function"]["arguments"])
 
                         logger.info(f"Executing {function_name} with args: {function_args}")
+                        tools_used.append(function_name)  # Track for reflection
 
                         # Yield tool start event
                         tool_description = self._get_tool_description(function_name, function_args)
@@ -568,6 +611,7 @@ USER DATA:
                                     function_args = json.loads(tool_data["function"]["arguments"])
 
                                     logger.info(f"Follow-up executing {function_name} with args: {function_args}")
+                                    tools_used.append(function_name)  # Track for reflection
 
                                     # Yield tool start event
                                     tool_description = self._get_tool_description(function_name, function_args)
@@ -629,15 +673,195 @@ USER DATA:
                             # Stream finished without tool_calls finish reason
                             break
 
-            # Yield completion event with full response
+            # === REFLECTION FOR STREAMING PATH ===
+            accumulated_content = "".join(full_response)
+
+            if self._requires_reflection(accumulated_content, tools_used):
+                logger.info("Triggering reflection for streaming response")
+
+                # Yield a "status" event to show reflection is happening
+                yield {
+                    "type": "status",
+                    "message": "Reviewing plan for safety and quality..."
+                }
+
+                reflection_result = await self._reflect_on_response(
+                    original_response=accumulated_content,
+                    user_memories=user_memories,
+                    user_profile=user_profile,
+                    data_context=data_context,
+                )
+
+                if reflection_result["needs_revision"] and reflection_result["revised_response"]:
+                    logger.info(f"Response revised. Issues fixed: {reflection_result['issues']}")
+
+                    # Yield the revised response
+                    yield {
+                        "type": "revision",
+                        "content": reflection_result["revised_response"],
+                        "issues_fixed": reflection_result["issues"]
+                    }
+                    accumulated_content = reflection_result["revised_response"]
+
+            # Yield completion event with final content
             yield {
                 "type": "complete",
-                "full_response": "".join(full_response)
+                "full_response": accumulated_content
             }
 
         except Exception as e:
             logger.error(f"Streaming error: {e}", exc_info=True)
             yield {"type": "error", "message": str(e)}
+
+    def _requires_reflection(self, response_content: str | None, tools_used: List[str]) -> bool:
+        """
+        Determine if response needs self-reflection.
+        Triggers on:
+        1. Tool-based detection (when plan/workout creation tools are used)
+        2. Content-based detection (when response contains workout/plan patterns)
+        """
+        if not REFLECTION_CONFIG["enabled"]:
+            return False
+
+        # Handle None or empty response content
+        if not response_content:
+            return False
+
+        # Skip short responses
+        if len(response_content) < REFLECTION_CONFIG["min_response_length"]:
+            return False
+
+        # Check 1: Trigger if plan/workout creation tools were used
+        trigger_tools = REFLECTION_CONFIG["trigger_tools"]
+        if any(tool in trigger_tools for tool in tools_used):
+            logger.info("Reflection triggered by tool usage", tools=tools_used)
+            return True
+
+        # Check 2: Trigger if response contains workout/plan content patterns
+        content_lower = response_content.lower()
+        trigger_patterns = REFLECTION_CONFIG.get("trigger_content_patterns", [])
+        for pattern in trigger_patterns:
+            if pattern.lower() in content_lower:
+                logger.info("Reflection triggered by content pattern", pattern=pattern)
+                return True
+
+        return False
+
+    async def _reflect_on_response(
+        self,
+        original_response: str,
+        user_memories: List[Dict[str, Any]],
+        user_profile: Dict[str, Any],
+        data_context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Perform self-reflection on a response.
+        Uses JSON mode for reliable parsing.
+        Includes timeout and error handling.
+        """
+        start_time = time.time()
+
+        # Default response if reflection fails - return original unchanged
+        default_result = {
+            "needs_revision": False,
+            "issues": [],
+            "revised_response": None,
+            "reflection_latency_ms": 0,
+        }
+
+        try:
+            # Extract context using correct field names
+            health_memories = [m for m in user_memories if m.get("category") == "health"]
+            equipment = user_profile.get("equipment", [])
+            fitness_level = user_profile.get("fitnessLevel", "not set")
+            goals = data_context.get("goals", [])
+
+            # Handle unknown fitness level conservatively
+            fitness_level_display = (
+                fitness_level if fitness_level != "not set"
+                else "Unknown - BE CONSERVATIVE, assume beginner limitations"
+            )
+
+            # Build reflection prompt
+            reflection_prompt = REFLECTION_USER_PROMPT.format(
+                health_memories=self._format_memories_for_reflection(health_memories) or "None specified",
+                equipment=", ".join(equipment) if equipment else "Not specified",
+                fitness_level=fitness_level_display,
+                goals=self._format_goals_for_reflection(goals) or "None specified",
+                original_response=original_response,
+            )
+
+            # Call LLM with timeout
+            async with asyncio.timeout(REFLECTION_CONFIG["timeout_seconds"]):
+                reflection_response = await self.client.chat.completions.create(
+                    model=REFLECTION_CONFIG["model"],
+                    messages=[
+                        {"role": "system", "content": REFLECTION_SYSTEM_PROMPT},
+                        {"role": "user", "content": reflection_prompt}
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=REFLECTION_CONFIG["temperature"],
+                    max_tokens=REFLECTION_CONFIG["max_tokens"],
+                )
+
+            # Parse JSON response
+            reflection_text = reflection_response.choices[0].message.content
+            reflection_data = json.loads(reflection_text)
+
+            latency_ms = int((time.time() - start_time) * 1000)
+
+            result = {
+                "needs_revision": reflection_data.get("issues_found", False),
+                "issues": reflection_data.get("issues", []),
+                "revised_response": reflection_data.get("revised_response"),
+                "reflection_latency_ms": latency_ms,
+            }
+
+            # Log metrics if enabled
+            if REFLECTION_CONFIG["log_metrics"]:
+                logger.info(
+                    "Reflection completed",
+                    issues_found=result["needs_revision"],
+                    latency_ms=latency_ms,
+                    issues=result["issues"]
+                )
+
+            return result
+
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"Reflection timed out after {REFLECTION_CONFIG['timeout_seconds']}s, returning original"
+            )
+            return default_result
+        except json.JSONDecodeError as e:
+            logger.error(f"Reflection JSON parse error: {e}")
+            return default_result
+        except Exception as e:
+            logger.error(f"Reflection failed: {e}")
+            return default_result
+
+    def _format_memories_for_reflection(self, memories: List[Dict[str, Any]]) -> str:
+        """Format health memories for reflection prompt.
+
+        Note: This method receives pre-filtered health memories only,
+        so we don't include the category prefix to avoid redundancy.
+        """
+        if not memories:
+            return ""
+        return "\n".join([
+            f"- {m.get('content', '')}"
+            for m in memories
+        ])
+
+    def _format_goals_for_reflection(self, goals: List[Dict[str, Any]]) -> str:
+        """Format goals for reflection prompt."""
+        if not goals:
+            return ""
+        max_goals = REFLECTION_CONFIG["max_goals_in_context"]
+        return "\n".join([
+            f"- {g.get('name', 'Goal')}: {g.get('description', '')}"
+            for g in goals[:max_goals]
+        ])
 
     async def _execute_tool(self, user_id: str, function_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Route tool calls to appropriate service handlers"""
