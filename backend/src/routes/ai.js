@@ -843,6 +843,141 @@ router.get('/status', async (req, res) => {
   res.json(status);
 });
 
+// Document upload configuration
+const DOCUMENT_UPLOAD_MAX_SIZE = 32 * 1024 * 1024; // 32MB - match Python service limit
+const DOCUMENT_UPLOAD_TIMEOUT_MS = 60000; // 60 seconds for large file uploads
+
+// Document upload proxy endpoint - forwards to Python AI Coach service
+router.post('/documents/upload', authMiddleware, aiRateLimit, async (req, res) => {
+  try {
+    console.log('[DOCUMENT UPLOAD] Proxying document upload to AI Coach service');
+
+    // Get the raw body and content-type header to forward as-is
+    const contentType = req.headers['content-type'];
+
+    if (!contentType || !contentType.includes('multipart/form-data')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Content-Type must be multipart/form-data'
+      });
+    }
+
+    // Validate extraction_prompt is provided
+    const extractionPrompt = req.query.extraction_prompt;
+    if (!extractionPrompt) {
+      return res.status(400).json({
+        success: false,
+        message: 'extraction_prompt query parameter is required'
+      });
+    }
+
+    // Forward to Python AI service
+    const urlParts = new URL(`${AI_SERVICE_URL}/api/v1/documents/upload`);
+    urlParts.searchParams.set('extraction_prompt', extractionPrompt);
+
+    const isHttps = urlParts.protocol === 'https:';
+    const http = require(isHttps ? 'https' : 'http');
+
+    // Collect raw body chunks with size limit
+    const chunks = [];
+    let totalSize = 0;
+    let aborted = false;
+
+    req.on('data', chunk => {
+      if (aborted) return;
+
+      totalSize += chunk.length;
+      if (totalSize > DOCUMENT_UPLOAD_MAX_SIZE) {
+        aborted = true;
+        req.destroy();
+        return res.status(413).json({
+          success: false,
+          message: 'File too large. Maximum size is 32MB'
+        });
+      }
+      chunks.push(chunk);
+    });
+
+    req.on('end', () => {
+      if (aborted) return;
+
+      const rawBody = Buffer.concat(chunks);
+
+      const options = {
+        hostname: urlParts.hostname,
+        port: urlParts.port || (isHttps ? 443 : 80),
+        path: `${urlParts.pathname}?${urlParts.searchParams.toString()}`,
+        method: 'POST',
+        headers: {
+          'Content-Type': contentType,
+          'Authorization': req.headers.authorization,
+          'Content-Length': rawBody.length
+        }
+      };
+
+      const proxyReq = http.request(options, (proxyRes) => {
+        let data = '';
+
+        proxyRes.on('data', (chunk) => {
+          data += chunk;
+        });
+
+        proxyRes.on('end', () => {
+          // Set CORS headers
+          const origin = req.headers.origin;
+          if (origin) {
+            res.set('Access-Control-Allow-Origin', origin);
+            res.set('Access-Control-Allow-Credentials', 'true');
+          }
+
+          res.status(proxyRes.statusCode);
+          res.set('Content-Type', proxyRes.headers['content-type'] || 'application/json');
+
+          try {
+            const jsonData = JSON.parse(data);
+            res.json(jsonData);
+          } catch (e) {
+            res.send(data);
+          }
+        });
+      });
+
+      // Add timeout for the proxy request
+      proxyReq.setTimeout(DOCUMENT_UPLOAD_TIMEOUT_MS, () => {
+        proxyReq.destroy();
+        if (!res.headersSent) {
+          res.status(504).json({
+            success: false,
+            message: 'AI service timeout. Please try again.'
+          });
+        }
+      });
+
+      proxyReq.on('error', (error) => {
+        console.error('[DOCUMENT UPLOAD] Proxy request error:', error);
+        if (!res.headersSent) {
+          res.status(500).json({
+            success: false,
+            message: 'Failed to connect to AI service',
+            error: error.message
+          });
+        }
+      });
+
+      proxyReq.write(rawBody);
+      proxyReq.end();
+    });
+
+  } catch (error) {
+    console.error('[DOCUMENT UPLOAD] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process document upload',
+      error: error.message
+    });
+  }
+});
+
 // Pending changes endpoints (proxy to Python AI Coach service)
 router.post('/pending/confirm', authMiddleware, async (req, res) => {
   try {
