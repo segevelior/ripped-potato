@@ -3,7 +3,7 @@
  * Handles file uploads for AI document processing (PDFs and images)
  */
 
-const API_BASE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 const UPLOAD_TIMEOUT_MS = 60000; // 60 seconds for large file uploads
 
 /**
@@ -29,7 +29,7 @@ export async function uploadDocument(file, extractionPrompt) {
 
   try {
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/documents/upload?${params}`,
+      `${API_BASE_URL}/api/v1/ai/documents/upload?${params}`,
       {
         method: 'POST',
         headers: {
@@ -43,7 +43,8 @@ export async function uploadDocument(file, extractionPrompt) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.detail || `Upload failed: ${response.statusText}`;
+      // Handle both Python service (detail) and Node.js proxy (message) error formats
+      const errorMessage = errorData.detail || errorData.message || `Upload failed: ${response.statusText}`;
       throw new Error(errorMessage);
     }
 
