@@ -460,7 +460,7 @@ class TestReflectionConfig:
         assert REFLECTION_CONFIG["min_response_length"] >= 100
         assert REFLECTION_CONFIG["min_response_length"] <= 2000
         assert REFLECTION_CONFIG["timeout_seconds"] >= 5
-        assert REFLECTION_CONFIG["timeout_seconds"] <= 30
+        assert REFLECTION_CONFIG["timeout_seconds"] <= 60
         assert REFLECTION_CONFIG["temperature"] >= 0
         assert REFLECTION_CONFIG["temperature"] <= 1
         assert REFLECTION_CONFIG["max_tokens"] >= 500

@@ -38,7 +38,7 @@ REFLECTION_CONFIG = {
     "min_response_length": 500,
 
     # Limits to prevent runaway costs and latency
-    "timeout_seconds": 10,
+    "timeout_seconds": 30,
 
     # LLM parameters for reflection calls
     "temperature": 0.3,
