@@ -125,7 +125,22 @@ class WorkoutService:
 
             results = []
             for w in workouts:
-                total_exercises = sum(len(b.get("exercises", [])) for b in w.get("blocks", []))
+                blocks = w.get("blocks") or []
+                total_exercises = sum(len(b.get("exercises", [])) for b in blocks)
+                # Include the actual exercises (flattened from blocks, keeping the
+                # block name) so the coach can reason about and swap specific
+                # exercises instead of only seeing a count.
+                exercises = [
+                    {
+                        "block": b.get("name"),
+                        "name": ex.get("exercise_name"),
+                        "volume": ex.get("volume"),
+                        "rest": ex.get("rest"),
+                        "notes": ex.get("notes"),
+                    }
+                    for b in blocks
+                    for ex in (b.get("exercises") or [])
+                ]
                 results.append({
                     "id": str(w["_id"]),
                     "name": w["name"],
@@ -133,7 +148,8 @@ class WorkoutService:
                     "difficulty": w.get("difficulty_level"),
                     "duration": w.get("estimated_duration"),
                     "disciplines": w.get("primary_disciplines", []),
-                    "total_exercises": total_exercises
+                    "total_exercises": total_exercises,
+                    "exercises": exercises
                 })
 
             return {
@@ -258,6 +274,26 @@ class WorkoutService:
 
             results = []
             for w in workouts:
+                raw_exercises = w.get("exercises") or []
+                # Include the actual exercises with their sets (trimmed to the
+                # meaningful fields) so the coach can reason about what the user
+                # really did, not just how many exercises there were.
+                exercises = [
+                    {
+                        "name": ex.get("exerciseName"),
+                        "sets": [
+                            {
+                                "targetReps": s.get("targetReps"),
+                                "actualReps": s.get("actualReps"),
+                                "weight": s.get("weight"),
+                                "rpe": s.get("rpe"),
+                            }
+                            for s in (ex.get("sets") or [])
+                        ],
+                        "notes": ex.get("notes"),
+                    }
+                    for ex in raw_exercises
+                ]
                 results.append({
                     "id": str(w["_id"]),
                     "title": w["title"],
@@ -265,7 +301,8 @@ class WorkoutService:
                     "type": w.get("type"),
                     "status": w.get("status"),
                     "duration": w.get("durationMinutes"),
-                    "exercise_count": len(w.get("exercises", []))
+                    "exercise_count": len(raw_exercises),
+                    "exercises": exercises
                 })
 
             return {

@@ -92,7 +92,7 @@ def get_workout_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "list_workout_templates",
-                "description": "List available workout templates (PredefinedWorkouts) that can be used in training plans.",
+                "description": "List available workout templates (PredefinedWorkouts) that can be used in training plans. Returns each template's full exercise list (block, name, volume, rest) — you do NOT need to ask the user what's in a workout.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -195,7 +195,7 @@ def get_workout_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "get_workout_history",
-                "description": "Get the user's recent workout history to analyze progress and patterns.",
+                "description": "Get the user's recent workout history to analyze progress and patterns. Returns each workout's full exercise list with sets (target/actual reps, weight, RPE).",
                 "parameters": {
                     "type": "object",
                     "properties": {

@@ -7,6 +7,8 @@ import structlog
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 
+from app.config import get_settings
+
 logger = structlog.get_logger()
 
 COLLECTION_NAME = "chatConversations"
@@ -108,9 +110,10 @@ class ConversationService:
                 "metadata": {
                     "user_id": user_id
                 },
+                # Record the ACTUAL configured model, not a hardcoded label.
                 "model_info": model_info or {
                     "llm_provider": "openai",
-                    "llm_model": "gpt-4o"
+                    "llm_model": get_settings().openai_model
                 },
                 "feedback": [],
                 "createdAt": now,

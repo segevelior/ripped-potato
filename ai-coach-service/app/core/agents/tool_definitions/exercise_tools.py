@@ -156,7 +156,7 @@ def get_exercise_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "grep_workouts",
-                "description": "Fast pattern-matching search across ALL workout templates available to the user (both common/public and user's custom workouts). Use this to find workouts by name or goal patterns. Supports regex patterns and bulk searching.",
+                "description": "Fast pattern-matching search across ALL workout templates available to the user (both common/public and user's custom workouts). Use this to find workouts by name or goal patterns. Supports regex patterns and bulk searching. Each match includes the workout's full exercise list (block, name, volume, rest).",
                 "parameters": {
                     "type": "object",
                     "properties": {

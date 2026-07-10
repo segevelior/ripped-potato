@@ -4,6 +4,7 @@ Enhanced Agent Orchestrator - OpenAI with comprehensive fitness tools
 
 import asyncio
 import json
+import re
 import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -35,6 +36,25 @@ from app.core.agents.skills import (
 )
 
 logger = structlog.get_logger()
+
+# Messages that reference the user's OWN plan/calendar/workouts must be grounded
+# in their real data — force at least one tool call on the first LLM round so the
+# model reads the data instead of answering generically (see prompts.py principle 1).
+_GROUNDING_INTENT_RE = re.compile(
+    r"\bmy\s+(plan|plans|workout|workouts|program|calendar|schedule|training|routine|session|sessions|history|week)\b"
+    r"|\b(scheduled|swap|replace|substitute|reschedule|move|skip)\b"
+    r"|\bbased on my\b"
+    r"|\bwhat('s| is) (on |in )?(my|the) (calendar|schedule)\b"
+    r"|\b(today|tomorrow|this week|next week|sunday|monday|tuesday|wednesday|thursday|friday|saturday)('s)? workout\b"
+    r"|\bworkout (for |on )?(today|tomorrow|this week|sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b",
+    re.IGNORECASE,
+)
+
+
+def _needs_grounding(message: str) -> bool:
+    """True when the message references the user's own data and the first
+    LLM round should be forced to call a tool (tool_choice='required')."""
+    return bool(_GROUNDING_INTENT_RE.search(message or ""))
 
 
 class AgentOrchestrator:
@@ -149,7 +169,10 @@ class AgentOrchestrator:
             local_time_str = local_now.strftime('%A, %B %d, %Y at %I:%M %p') + ' (UTC)'
             today_date = local_now.strftime('%Y-%m-%d')
 
-        context_str = f"""CURRENT TIME:
+        context_str = f"""RUNTIME:
+- You are powered by the OpenAI model: {self.settings.openai_model} (say so if asked which model you are)
+
+CURRENT TIME:
 - User's local time: {local_time_str}
 - Today's date: {today_date}
 
@@ -201,12 +224,17 @@ USER DATA:
         tools_used = []
 
         try:
-            # Call OpenAI with function calling
+            # Call OpenAI with function calling. If the user referenced their own
+            # plan/calendar/workouts, force at least one tool call so the answer is
+            # grounded in their real data instead of generic advice.
+            first_tool_choice = "required" if _needs_grounding(message) else "auto"
+            if first_tool_choice == "required":
+                logger.info("Grounding intent detected — forcing tool use on first round")
             response = await self.client.chat.completions.create(
                 model=self.settings.openai_model,
                 messages=messages,
                 tools=self.get_tools(),
-                tool_choice="auto",
+                tool_choice=first_tool_choice,
                 temperature=0.7
             )
 
@@ -395,7 +423,10 @@ USER DATA:
             local_time_str = local_now.strftime('%A, %B %d, %Y at %I:%M %p') + ' (UTC)'
             today_date = local_now.strftime('%Y-%m-%d')
 
-        context_str = f"""CURRENT TIME:
+        context_str = f"""RUNTIME:
+- You are powered by the OpenAI model: {self.settings.openai_model} (say so if asked which model you are)
+
+CURRENT TIME:
 - User's local time: {local_time_str}
 - Today's date: {today_date}
 
@@ -461,13 +492,19 @@ USER DATA:
         tools_used = []
 
         try:
-            # Create streaming completion with tools
-            logger.info(f"Calling OpenAI API with model: {self.settings.openai_model} and {len(self.get_tools())} tools")
+            # Create streaming completion with tools. If the user referenced their
+            # own plan/calendar/workouts, force at least one tool call so the answer
+            # is grounded in their real data instead of generic advice.
+            first_tool_choice = "required" if _needs_grounding(message) else "auto"
+            logger.info(
+                f"Calling OpenAI API with model: {self.settings.openai_model} and "
+                f"{len(self.get_tools())} tools (tool_choice={first_tool_choice})"
+            )
             stream = await self.client.chat.completions.create(
                 model=self.settings.openai_model,
                 messages=messages,
                 tools=self.get_tools(),
-                tool_choice="auto",
+                tool_choice=first_tool_choice,
                 temperature=0.7,
                 max_completion_tokens=2500,
                 stream=True
@@ -824,7 +861,7 @@ USER DATA:
             # Call LLM with timeout
             async with asyncio.timeout(REFLECTION_CONFIG["timeout_seconds"]):
                 reflection_response = await self.client.chat.completions.create(
-                    model=REFLECTION_CONFIG["model"],
+                    model=REFLECTION_CONFIG["model"] or self.settings.openai_model_fast,
                     messages=[
                         {"role": "system", "content": REFLECTION_SYSTEM_PROMPT},
                         {"role": "user", "content": reflection_prompt}

@@ -29,9 +29,11 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379"
     redis_ttl: int = 3600
 
-    # AI Model Configuration
+    # AI Model Configuration — required, set in .env (OPENAI_MODEL / OPENAI_MODEL_FAST)
     openai_api_key: str
-    openai_model: str = "gpt-4o-mini"
+    openai_model: str
+    # Model for auxiliary calls (suggestions, train-now, reflection).
+    openai_model_fast: str
 
     # Security
     jwt_secret_key: str

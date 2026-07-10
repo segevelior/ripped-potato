@@ -370,7 +370,8 @@ class ExerciseService:
                 {"name": 1, "goal": 1, "difficulty_level": 1, "estimated_duration": 1, "tags": 1, "blocks": 1, "_id": 1}
             ).to_list(None)
 
-            # Build lookup
+            # Build lookup — include the actual exercises (flattened from blocks)
+            # so the coach can name specific exercises instead of only a count.
             all_workouts = [
                 {
                     "id": str(w["_id"]),
@@ -379,7 +380,18 @@ class ExerciseService:
                     "difficulty": w.get("difficulty_level"),
                     "duration": w.get("estimated_duration"),
                     "tags": w.get("tags", []),
-                    "exercise_count": sum(len(b.get("exercises", [])) for b in w.get("blocks", []))
+                    "exercise_count": sum(len(b.get("exercises", [])) for b in w.get("blocks", [])),
+                    "exercises": [
+                        {
+                            "block": b.get("name"),
+                            "name": ex.get("exercise_name"),
+                            "volume": ex.get("volume"),
+                            "rest": ex.get("rest"),
+                            "notes": ex.get("notes"),
+                        }
+                        for b in (w.get("blocks") or [])
+                        for ex in (b.get("exercises") or [])
+                    ]
                 }
                 for w in workouts
             ]

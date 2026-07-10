@@ -240,6 +240,20 @@ class CalendarService:
             # Format events for response
             formatted_events = []
             for event in events:
+                workout_details = event.get("workoutDetails") or {}
+                raw_exercises = workout_details.get("exercises") or []
+                # Include the actual exercise-by-exercise list (not just a count) so
+                # the coach can reason about, and swap, specific exercises. Keep it
+                # compact to control tokens.
+                exercises = [
+                    {
+                        "name": ex.get("exerciseName"),
+                        "targetSets": ex.get("targetSets"),
+                        "targetReps": ex.get("targetReps"),
+                        "notes": ex.get("notes"),
+                    }
+                    for ex in raw_exercises
+                ]
                 formatted_events.append({
                     "id": str(event["_id"]),
                     "date": event["date"].strftime("%Y-%m-%d"),
@@ -247,8 +261,9 @@ class CalendarService:
                     "title": event.get("title", "Untitled"),
                     "type": event.get("type", "workout"),
                     "status": event.get("status", "scheduled"),
-                    "duration": event.get("workoutDetails", {}).get("estimatedDuration"),
-                    "exerciseCount": len(event.get("workoutDetails", {}).get("exercises", [])),
+                    "duration": workout_details.get("estimatedDuration"),
+                    "exerciseCount": len(raw_exercises),
+                    "exercises": exercises,
                     "notes": event.get("notes", "")
                 })
 
