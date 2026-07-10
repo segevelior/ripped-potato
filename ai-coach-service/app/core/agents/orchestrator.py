@@ -27,6 +27,12 @@ from app.core.agents.services import (
     SearchService,
     MemoryService,
 )
+# Importing the skills package registers every skill via the @skill decorator.
+from app.core.agents.skills import (
+    SkillContext,
+    get_skill_definitions,
+    get_skill_handler,
+)
 
 logger = structlog.get_logger()
 
@@ -52,8 +58,21 @@ class AgentOrchestrator:
         self.search_service = SearchService(self.settings.tavily_api_key)
         self.memory_service = MemoryService(db)
 
+        # Shared context handed to every registered skill handler.
+        self.skill_context = SkillContext(
+            db=self.db,
+            settings=self.settings,
+            exercise_service=self.exercise_service,
+            workout_service=self.workout_service,
+            plan_service=self.plan_service,
+            goal_service=self.goal_service,
+            calendar_service=self.calendar_service,
+            search_service=self.search_service,
+            memory_service=self.memory_service,
+        )
+
         # Log configuration
-        tools = get_all_tools()
+        tools = self.get_tools()
         logger.info(
             "AgentOrchestrator initialized",
             model=self.settings.openai_model,
@@ -71,8 +90,18 @@ class AgentOrchestrator:
         )
         
     def get_tools(self) -> List[Dict[str, Any]]:
-        """Define available tools for the LLM - comprehensive fitness management"""
-        return get_all_tools()
+        """Available tools for the LLM: legacy tool_definitions + registered skills.
+
+        Skills take precedence: if a skill shares a name with a legacy tool, the
+        legacy definition is dropped so the tool isn't listed twice.
+        """
+        skill_definitions = get_skill_definitions()
+        skill_names = {d["function"]["name"] for d in skill_definitions}
+        legacy_tools = [
+            t for t in get_all_tools()
+            if t["function"]["name"] not in skill_names
+        ]
+        return legacy_tools + skill_definitions
 
 
     async def process_request(
@@ -865,6 +894,12 @@ USER DATA:
 
     async def _execute_tool(self, user_id: str, function_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Route tool calls to appropriate service handlers"""
+        # Registered skills take precedence over legacy tools.
+        skill_handler = get_skill_handler(function_name)
+        if skill_handler:
+            logger.info("Executing skill", skill=function_name)
+            return await skill_handler(self.skill_context, user_id, args)
+
         tool_handlers = {
             # Exercise tools
             "add_exercise": self.exercise_service.add_exercise,
