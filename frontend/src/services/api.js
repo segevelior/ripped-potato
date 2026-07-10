@@ -80,7 +80,13 @@ class APIService {
       this.updateToken(null);
       return Promise.resolve();
     },
-    me: () => this.request('/auth/profile')
+    me: () => this.request('/auth/profile'),
+    // Set (Google-only account) or change the account password.
+    // `currentPassword` is only needed when the account already has one.
+    setPassword: (newPassword, currentPassword) => this.request('/auth/set-password', {
+      method: 'POST',
+      body: JSON.stringify({ newPassword, ...(currentPassword ? { currentPassword } : {}) })
+    })
   };
 
   // Exercise endpoints
