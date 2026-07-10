@@ -34,6 +34,12 @@ class PlanService:
                     "workouts": [],
                     "restDays": []
                 }
+                # Rolling-materialization flags: only set when the caller provides
+                # them (missing = resolved, the legacy/back-compat convention).
+                if "resolved" in week_data:
+                    week["resolved"] = bool(week_data["resolved"])
+                    if week_data.get("resolvedAt"):
+                        week["resolvedAt"] = week_data["resolvedAt"]
 
                 # Process workouts for this week
                 for workout in week_data.get("workouts", []):

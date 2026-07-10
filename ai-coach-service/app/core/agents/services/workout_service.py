@@ -116,7 +116,12 @@ class WorkoutService:
             else:
                 query = ownership_filter
 
-            limit = args.get("limit", 10)
+            limit = args.get("limit", 50)
+
+            # Count before limiting so the model can tell a filtered/truncated
+            # view from the full library (prevents contradictory answers across
+            # calls with different filters).
+            total_matching = await self.db.predefinedworkouts.count_documents(query)
 
             workouts = await self.db.predefinedworkouts.find(
                 query,
@@ -155,11 +160,84 @@ class WorkoutService:
             return {
                 "success": True,
                 "count": len(results),
+                "total_matching": total_matching,
+                "truncated": total_matching > len(results),
+                "filter_used": {
+                    "include_common": include_common,
+                    "name": args.get("name"),
+                    "discipline": args.get("discipline"),
+                    "difficulty_level": args.get("difficulty_level"),
+                    "limit": limit,
+                },
                 "workouts": results
             }
 
         except Exception as e:
             logger.error(f"Error listing workout templates: {e}")
+            return {"success": False, "message": str(e)}
+
+    async def delete_workout_template(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Delete the user's own workout templates (never common/public ones).
+
+        Two-step: without confirm=true this only previews what would be deleted
+        (and which keep_only names matched nothing). Matching is case-insensitive.
+        """
+        try:
+            user_oid = ObjectId(user_id)
+            # Only the user's own templates are ever eligible.
+            own_filter: Dict[str, Any] = {"createdBy": user_oid, "isCommon": {"$ne": True}}
+
+            keep_only = [str(n).strip() for n in (args.get("keep_only") or []) if str(n).strip()]
+            template_id = args.get("template_id")
+            name = (args.get("name") or "").strip()
+
+            if not (keep_only or template_id or name):
+                return {"success": False,
+                        "message": "Tell me which template(s) to delete: a template_id, a name, or keep_only=[names to keep]."}
+
+            own = await self.db.predefinedworkouts.find(
+                own_filter, {"name": 1, "createdAt": 1}
+            ).to_list(None)
+
+            unmatched_keeps: List[str] = []
+            if keep_only:
+                keep_lower = {k.lower() for k in keep_only}
+                matched_keeps = {t["name"].lower() for t in own if t.get("name", "").lower() in keep_lower}
+                unmatched_keeps = [k for k in keep_only if k.lower() not in matched_keeps]
+                targets = [t for t in own if t.get("name", "").lower() not in keep_lower]
+            elif template_id:
+                try:
+                    tid = ObjectId(template_id)
+                except Exception:
+                    return {"success": False, "message": "Invalid template_id."}
+                targets = [t for t in own if t["_id"] == tid]
+            else:
+                targets = [t for t in own if t.get("name", "").lower() == name.lower()]
+
+            if not targets:
+                return {"success": True, "deleted": 0,
+                        "message": "No matching templates of yours found (common/public templates can't be deleted)."}
+
+            preview = [{"id": str(t["_id"]), "name": t.get("name", "")} for t in targets]
+
+            if not args.get("confirm", False):
+                msg = f"This would delete {len(targets)} template(s): " + ", ".join(t["name"] for t in preview) + "."
+                if unmatched_keeps:
+                    msg += (f" ⚠️ Note: keep name(s) {unmatched_keeps} matched nothing in your library — "
+                            "double-check them before confirming.")
+                msg += " Confirm to delete."
+                return {"success": True, "needs_confirmation": True, "would_delete": preview,
+                        "unmatched_keep_names": unmatched_keeps, "message": msg}
+
+            result = await self.db.predefinedworkouts.delete_many(
+                {**own_filter, "_id": {"$in": [t["_id"] for t in targets]}}
+            )
+            logger.info(f"Deleted {result.deleted_count} workout template(s) for user {user_id}")
+            return {"success": True, "deleted": result.deleted_count,
+                    "message": f"Deleted {result.deleted_count} template(s): " + ", ".join(t["name"] for t in preview) + "."}
+
+        except Exception as e:
+            logger.error(f"Error deleting workout template: {e}")
             return {"success": False, "message": str(e)}
 
     async def log_workout(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:

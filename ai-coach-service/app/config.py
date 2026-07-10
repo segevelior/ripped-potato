@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     openai_model: str
     # Model for auxiliary calls (suggestions, train-now, reflection).
     openai_model_fast: str
+    # Optional stronger model for plan generation only (macro/periodization
+    # reasoning). None = fall back to openai_model; resolve at the call site.
+    openai_model_planner: Optional[str] = None
 
     # Security
     jwt_secret_key: str
@@ -45,17 +48,25 @@ class Settings(BaseSettings):
     # Tavily Web Search API
     tavily_api_key: Optional[str] = None
 
+    # YouTube Data API v3 — used to find and quality-rank exercise-demo videos.
+    # Env: YOUTUBE_API_KEY. Optional: without it, video search falls back to Tavily.
+    youtube_api_key: Optional[str] = None
+
     @property
     def cors_origins(self) -> List[str]:
         return [origin.strip() for origin in self.allowed_origins.split(",")]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # Try to load Tavily API key from Render secret file if not set
+        # Try to load API keys from Render secret files if not set via env
         if not self.tavily_api_key:
             secret_key = read_secret_file("TAVILY_API_KEY")
             if secret_key:
                 object.__setattr__(self, 'tavily_api_key', secret_key)
+        if not self.youtube_api_key:
+            secret_key = read_secret_file("YOUTUBE_API_KEY")
+            if secret_key:
+                object.__setattr__(self, 'youtube_api_key', secret_key)
 
 
 @lru_cache()

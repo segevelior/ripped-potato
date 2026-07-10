@@ -193,6 +193,9 @@ class TestReflectionExecution:
             orch = AgentOrchestrator.__new__(AgentOrchestrator)
             orch.db = mock_db
             orch.client = AsyncMock()
+            # Reflection resolves its model from settings (REFLECTION_CONFIG["model"]
+            # falls back to settings.openai_model_fast).
+            orch.settings = MagicMock(openai_model_fast="gpt-5.4-mini")
             return orch
 
     @pytest.mark.asyncio
@@ -344,7 +347,8 @@ class TestReflectionExecution:
         # GPT-5 models require max_completion_tokens (see commit #69); the value
         # still comes from the config's max_tokens entry.
         assert call_kwargs["max_completion_tokens"] == REFLECTION_CONFIG["max_tokens"]
-        assert call_kwargs["model"] == REFLECTION_CONFIG["model"]
+        # Model comes from config if pinned, else falls back to settings.openai_model_fast.
+        assert call_kwargs["model"] == (REFLECTION_CONFIG["model"] or orchestrator.settings.openai_model_fast)
 
     @pytest.mark.asyncio
     async def test_handles_unknown_fitness_level(self, orchestrator):

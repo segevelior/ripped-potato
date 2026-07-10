@@ -128,6 +128,64 @@ def validate_plan_doc(plan: Dict[str, Any], goal_category: str) -> Dict[str, Any
     }
 
 
+def validate_skeleton(skeleton: Dict[str, Any], goal_category: str, weeks_total: int) -> Dict[str, Any]:
+    """Pure structural/quality checks over a plan skeleton (macro layer).
+    Complements validate_plan_doc, which only sees materialized weeks."""
+    violations: List[str] = []
+    suggestions: List[str] = []
+    phases = skeleton.get("phases") or []
+
+    if not phases:
+        return {"valid": False, "violations": ["The skeleton has no phases."], "suggestions": []}
+
+    # Coverage: contiguous phases over 1..weeks_total (normalize_skeleton should
+    # guarantee this; validating catches regressions).
+    covered = set()
+    for p in phases:
+        covered.update(range(int(p.get("startWeek", 0)), int(p.get("endWeek", -1)) + 1))
+    missing = [w for w in range(1, weeks_total + 1) if w not in covered]
+    if missing:
+        violations.append(f"Weeks not covered by any phase: {missing}.")
+
+    # Frequency: per-phase discipline sessions vs the goal minimum.
+    min_sessions = tk.min_sessions_for_goal(goal_category)
+    for p in phases:
+        total = sum(int(d.get("sessionsPerWeek", 0) or 0) for d in (p.get("disciplines") or []))
+        if total and total < min_sessions:
+            violations.append(
+                f"Phase '{p.get('name')}' plans {total} sessions/week; a {goal_category} goal needs at least {min_sessions}."
+            )
+
+    # Deload cadence for long plans.
+    if tk.expects_deload(weeks_total) and not skeleton.get("deloadWeeks"):
+        suggestions.append(
+            f"Plans of {weeks_total} weeks benefit from a deload every "
+            f"{tk.DELOAD_EVERY_WEEKS_MIN}–{tk.DELOAD_EVERY_WEEKS_MAX} weeks; none is marked."
+        )
+
+    # Ramp: week-intent multiplier jumps beyond the hard flag.
+    intents = sorted(skeleton.get("weekIntents") or [], key=lambda i: i.get("weekNumber", 0))
+    for i in range(1, len(intents)):
+        prev = float(intents[i - 1].get("volumeMultiplier", 1.0) or 1.0)
+        cur = float(intents[i].get("volumeMultiplier", 1.0) or 1.0)
+        if prev > 0 and not intents[i - 1].get("deload") and cur > prev * tk.WEEKLY_RAMP_HARD_FLAG:
+            violations.append(
+                f"Week {intents[i].get('weekNumber')} volume intent jumps "
+                f"{((cur / prev) - 1) * 100:.0f}% over the prior week (aggressive)."
+            )
+
+    # Goal specificity: aerobic-oriented goals need aerobic blueprints somewhere.
+    if goal_category.lower() in {"endurance", "health", "weight"}:
+        has_aerobic = any(
+            ((bp.get("type") or "").lower() in tk.AEROBIC_WORKOUT_TYPES)
+            for p in phases for bp in (p.get("sessionBlueprints") or [])
+        )
+        if not has_aerobic:
+            suggestions.append(f"A {goal_category} goal should include aerobic/cardio sessions.")
+
+    return {"valid": len(violations) == 0, "violations": violations, "suggestions": suggestions}
+
+
 async def _resolve_goal_category(ctx: SkillContext, plan: Dict[str, Any], user_oid: Any) -> str:
     """Best-effort goal category from the plan's linked goal; default 'general'."""
     goal_id = plan.get("goalId")
@@ -170,7 +228,25 @@ async def validate_plan(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -
         return {"success": False, "message": "Plan not found."}
 
     goal_category = await _resolve_goal_category(ctx, plan, user_oid)
-    report = validate_plan_doc(plan, goal_category)
+
+    # Skeleton-based plans: check materialized weeks only (stubs are intent-only
+    # by design) and add the macro-layer checks.
+    skeleton = plan.get("skeleton")
+    if skeleton:
+        resolved = [w for w in (plan.get("weeks") or []) if w.get("resolved") is not False]
+        report = validate_plan_doc(
+            {"schedule": {**(plan.get("schedule") or {}), "weeksTotal": len(resolved)}, "weeks": resolved},
+            goal_category,
+        )
+        skel_report = validate_skeleton(
+            skeleton, goal_category,
+            (plan.get("schedule") or {}).get("weeksTotal") or len(plan.get("weeks") or []),
+        )
+        report["violations"] += skel_report["violations"]
+        report["suggestions"] += skel_report["suggestions"]
+        report["valid"] = report["valid"] and skel_report["valid"]
+    else:
+        report = validate_plan_doc(plan, goal_category)
 
     if report["valid"]:
         msg = f"✅ Plan looks solid ({report['metrics']['avg_sessions_per_week']} sessions/wk, ~{report['metrics']['avg_weekly_sets']} sets/wk)."

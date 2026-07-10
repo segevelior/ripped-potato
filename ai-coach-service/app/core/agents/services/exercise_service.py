@@ -62,6 +62,68 @@ class ExerciseService:
             logger.error(f"Error adding exercise: {e}")
             return {"success": False, "message": str(e)}
 
+    async def save_exercise_video(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Attach the video we just SHOWED the user to an exercise as its curated demo.
+
+        The coach passes only semantics — the exercise name and (optionally) which of
+        the shown options ('best' or 'alternative'). We resolve the real YouTube id
+        DETERMINISTICALLY from what we actually showed (uservideocontext); the LLM
+        never handles the id or URL, so it can't save the wrong video.
+        """
+        try:
+            name = (args.get("exercise_name") or "").strip()
+            if not name:
+                return {"success": False, "message": "exercise_name is required."}
+
+            which = (args.get("which") or "best").lower()
+
+            # Look up what we last showed this user for this exercise.
+            key = re.sub(r"[^a-z0-9]", "", name.lower())
+            ctx = await self.db["uservideocontext"].find_one({"user_id": user_id, "query": key})
+            if not ctx:
+                # fall back to this user's most recent video context (e.g. "save that one")
+                ctx = await self.db["uservideocontext"].find_one(
+                    {"user_id": user_id}, sort=[("updatedAt", -1)]
+                )
+            if not ctx:
+                return {"success": False, "message": "Search for a demo first, then tell me to save it."}
+
+            last_shown = ctx.get("last_shown") or ctx.get("shown_ids") or []
+            if which in ("alternative", "alt", "second", "other") and len(last_shown) >= 2:
+                video_id = last_shown[1]
+            else:
+                video_id = ctx.get("top_id") or (last_shown[0] if last_shown else None)
+
+            if not video_id:
+                return {"success": False, "message": "I couldn't tell which video to save — search for a demo first."}
+
+            url = f"https://www.youtube.com/watch?v={video_id}"
+
+            # Find the exercise: prefer common, then user-owned, by exact-ish name.
+            name_regex = {"$regex": f"^{re.escape(name)}$", "$options": "i"}
+            exercise = await self.db.exercises.find_one({"name": name_regex, "isCommon": True})
+            if not exercise:
+                exercise = await self.db.exercises.find_one({"name": name_regex, "createdBy": ObjectId(user_id)})
+            if not exercise:
+                exercise = await self.db.exercises.find_one({"name": name_regex})
+            if not exercise:
+                return {"success": False, "message": f"I couldn't find an exercise named '{name}' to attach the video to."}
+
+            await self.db.exercises.update_one(
+                {"_id": exercise["_id"]},
+                {"$set": {"mediaUrls.video": url, "updatedAt": datetime.utcnow()}},
+            )
+            logger.info(f"Saved curated video {video_id} for exercise '{exercise.get('name')}'")
+            return {
+                "success": True,
+                "message": f"Saved that video as the demo for **{exercise.get('name')}** 👍",
+                "exercise_id": str(exercise["_id"]),
+                "video_url": url,
+            }
+        except Exception as e:
+            logger.error(f"Error saving exercise video: {e}")
+            return {"success": False, "message": str(e)}
+
     async def list_exercises(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """List exercises from the database with optional filters"""
         try:
