@@ -54,6 +54,8 @@ const integrationRoutes = require('./routes/integrations');
 const webhookRoutes = require('./routes/webhooks');
 const workoutLogRoutes = require('./routes/workoutLogs');
 const trainNowRoutes = require('./routes/trainNow');
+const mcpAuthRoutes = require('./routes/mcpAuth');
+const mcpRoutes = require('./routes/mcp');
 
 // Log Strava config on startup (helps debug production issues)
 console.log('==============================================');
@@ -132,32 +134,44 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',') 
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',')
   : [process.env.FRONTEND_URL || 'http://localhost:5173'];
 
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    
-    const msg = `CORS policy violation: Origin ${origin} not allowed`;
-    logger.warn(msg);
-    return callback(new Error(msg), false);
-  },
-  credentials: true,
-  optionsSuccessStatus: 200 // Support legacy browsers
+// MCP connector + OAuth paths are public API surfaces (Claude calls them
+// server-side; MCP Inspector and other browser clients call them cross-origin).
+// They must not go through the SPA origin allowlist.
+const MCP_PUBLIC_PREFIXES = ['/mcp', '/.well-known', '/authorize', '/token', '/register', '/revoke', '/oauth/consent'];
+const isMcpPublicPath = (path) =>
+  MCP_PUBLIC_PREFIXES.some((p) => path === p || path.startsWith(p + '/'));
+
+app.use(cors((req, callback) => {
+  // Permissive CORS for MCP/OAuth endpoints; expose WWW-Authenticate so browser
+  // clients can read the 401 challenge.
+  if (isMcpPublicPath(req.path)) {
+    return callback(null, {
+      origin: true,
+      credentials: false,
+      exposedHeaders: ['WWW-Authenticate'],
+      optionsSuccessStatus: 200
+    });
+  }
+
+  // Existing SPA behaviour for all other paths.
+  const origin = req.header('Origin');
+  if (!origin || allowedOrigins.includes(origin)) {
+    return callback(null, { origin: true, credentials: true, optionsSuccessStatus: 200 });
+  }
+  const msg = `CORS policy violation: Origin ${origin} not allowed`;
+  logger.warn(msg);
+  return callback(new Error(msg), { credentials: true, optionsSuccessStatus: 200 });
 }));
 
 // Compression middleware - skip for SSE streaming endpoints
 app.use(compression({
   filter: (req, res) => {
-    // Don't compress SSE/streaming responses
-    if (req.path === '/api/v1/ai/stream' || req.headers['x-no-compression']) {
+    // Don't compress SSE/streaming responses (AI stream + MCP Streamable HTTP)
+    if (req.path === '/api/v1/ai/stream' || req.path === '/mcp' || req.headers['x-no-compression']) {
       return false;
     }
     return compression.filter(req, res);
@@ -265,6 +279,11 @@ app.use('/api/v1/integrations', integrationRoutes);
 app.use('/api/v1/webhooks', webhookRoutes);
 app.use('/api/v1/workout-logs', workoutLogRoutes);
 app.use('/api/v1/train-now', trainNowRoutes);
+
+// MCP connector: OAuth authorization-server routes (mounted at root — the
+// `.well-known` discovery documents are origin-rooted) and the /mcp endpoint.
+app.use(mcpAuthRoutes);
+app.use('/mcp', mcpRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

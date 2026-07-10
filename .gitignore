@@ -101,3 +101,7 @@ CLAUDE.md
 
 # MCP config contains DB credentials
 .mcp.json
+
+#development
+/development/
+development/

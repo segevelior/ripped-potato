@@ -14,6 +14,10 @@ const Workout = require('../models/Workout');
 const Plan = require('../models/Plan');
 const Goal = require('../models/Goal');
 const User = require('../models/User');
+const OAuthClient = require('../models/OAuthClient');
+const OAuthAuthorizationCode = require('../models/OAuthAuthorizationCode');
+const OAuthToken = require('../models/OAuthToken');
+const OAuthPendingAuthorization = require('../models/OAuthPendingAuthorization');
 
 /**
  * Ensure all collection indexes are created
@@ -32,7 +36,11 @@ async function ensureIndexes(logger) {
       { name: 'Workout', model: Workout },
       { name: 'Plan', model: Plan },
       { name: 'Goal', model: Goal },
-      { name: 'User', model: User }
+      { name: 'User', model: User },
+      { name: 'OAuthClient', model: OAuthClient },
+      { name: 'OAuthAuthorizationCode', model: OAuthAuthorizationCode },
+      { name: 'OAuthToken', model: OAuthToken },
+      { name: 'OAuthPendingAuthorization', model: OAuthPendingAuthorization }
     ];
 
     const results = [];

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Camera, Moon, Sun, Loader2, Brain, Link, Unlink, RefreshCw, CheckCircle, AlertCircle, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Camera, Moon, Sun, Loader2, Brain, Link, Unlink, RefreshCw, CheckCircle, AlertCircle, Trash2, Copy, Sparkles } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -678,6 +678,37 @@ export default function Settings() {
                       Connect
                     </button>
                   )}
+                </div>
+              </div>
+            </div>
+
+            {/* Claude Connector (MCP) */}
+            <div className="py-4 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/30">
+                  <Sparkles className="w-5 h-5 text-primary-500 dark:text-primary-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-gray-500 dark:text-gray-400 tracking-wide">
+                    Claude (Model Context Protocol)
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                    Manage your workouts from Claude on any device. In Claude, open
+                    Settings → Connectors → Add custom connector, then paste this URL
+                    and sign in with your SynergyFit account:
+                  </p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <code className="flex-1 px-3 py-2 text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white overflow-x-auto whitespace-nowrap">
+                      {`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/mcp`}
+                    </code>
+                    <button
+                      onClick={() => navigator.clipboard?.writeText(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/mcp`)}
+                      className="p-2 text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 rounded-lg hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
+                      title="Copy connector URL"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
