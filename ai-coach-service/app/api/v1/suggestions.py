@@ -143,7 +143,7 @@ USER DATA:
             model="gpt-4o-mini",  # Use faster/cheaper model for suggestions
             messages=messages,
             temperature=0.8,  # Slightly higher for variety
-            max_tokens=200
+            max_completion_tokens=200
         )
 
         response_text = response.choices[0].message.content.strip()

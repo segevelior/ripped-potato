@@ -439,7 +439,7 @@ USER DATA:
                 tools=self.get_tools(),
                 tool_choice="auto",
                 temperature=0.7,
-                max_tokens=2500,
+                max_completion_tokens=2500,
                 stream=True
             )
 
@@ -560,7 +560,7 @@ USER DATA:
                             tools=self.get_tools(),  # Keep tools available for chaining
                             tool_choice="auto",
                             temperature=0.7,
-                            max_tokens=1500,
+                            max_completion_tokens=1500,
                             stream=True
                         )
 
@@ -801,7 +801,7 @@ USER DATA:
                     ],
                     response_format={"type": "json_object"},
                     temperature=REFLECTION_CONFIG["temperature"],
-                    max_tokens=REFLECTION_CONFIG["max_tokens"],
+                    max_completion_tokens=REFLECTION_CONFIG["max_tokens"],
                 )
 
             # Parse JSON response

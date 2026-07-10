@@ -77,7 +77,7 @@ async def suggest_exercise(request: ExerciseSuggestionRequest) -> ExerciseSugges
                 {"role": "user", "content": prompt}
             ],
             temperature=0.3,  # Lower temperature for more consistent/accurate responses
-            max_tokens=800
+            max_completion_tokens=800
         )
 
         content = response.choices[0].message.content.strip()
@@ -176,7 +176,7 @@ async def stream_exercise_suggestions(exercise_name: str):
                 {"role": "user", "content": prompt}
             ],
             temperature=0.3,
-            max_tokens=800,
+            max_completion_tokens=800,
             stream=True
         )
 

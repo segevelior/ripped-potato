@@ -141,7 +141,7 @@ async def suggest_progression(request: ProgressionSuggestionRequest) -> Progress
                 {"role": "user", "content": prompt}
             ],
             temperature=0.4,
-            max_tokens=1500
+            max_completion_tokens=1500
         )
 
         content = response.choices[0].message.content.strip()
@@ -251,7 +251,7 @@ async def stream_progression_suggestion(goal_exercise: str, current_level: str, 
                 {"role": "user", "content": prompt}
             ],
             temperature=0.4,
-            max_tokens=1500,
+            max_completion_tokens=1500,
             stream=True
         )
 
