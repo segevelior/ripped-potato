@@ -113,8 +113,8 @@ async def simple_chat(
         response = await client.chat.completions.create(
             model=settings.openai_model,
             messages=messages,
-            temperature=0.7,
-            max_completion_tokens=500
+            max_completion_tokens=500,
+            **settings.llm_tuning_params(temperature=0.7)
         )
         
         return ChatResponse(

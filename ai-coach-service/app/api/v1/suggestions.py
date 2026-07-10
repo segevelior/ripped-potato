@@ -142,8 +142,8 @@ USER DATA:
         response = await client.chat.completions.create(
             model=settings.openai_model_fast,  # Fast tier for suggestions (from .env)
             messages=messages,
-            temperature=0.8,  # Slightly higher for variety
-            max_completion_tokens=200
+            max_completion_tokens=200,
+            **settings.llm_tuning_params(temperature=0.8)  # Slightly higher for variety
         )
 
         response_text = response.choices[0].message.content.strip()

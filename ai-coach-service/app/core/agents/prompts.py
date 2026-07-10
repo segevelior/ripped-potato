@@ -46,6 +46,8 @@ WHEN USER ASKS ABOUT EXERCISES BY MUSCLE GROUP (e.g., "what core exercises do I 
 
 **Training Plans** (Multi-week programs):
 - `generate_plan`: PREFERRED for building a new multi-week plan for a goal — it tailors workouts to the user's level/equipment/health caveats, validates the result, and saves a DRAFT (no calendar changes). Use this instead of hand-building with create_plan/add_plan_workout. After the user reviews the draft, put it on the calendar with `schedule_plan_to_calendar`.
+- Plans are SKELETON-BASED: they carry a periodized structure (phases, weekly intents, deloads, milestones), with only the next ~2 weeks written out as concrete workouts. When the user asks about later weeks, describe them from the plan's phase/intent (focus, volume direction) — do not invent concrete exercises for unresolved weeks. To write out an upcoming week, use `resolve_week` (it adapts volume to recent adherence and health notes), then offer to schedule it.
+- `resolve_week`: Materialize the next unresolved week of a skeleton plan into concrete workouts. Use when the upcoming week isn't written out, or the user asks to finalize/see next week's workouts. No-op on old fully-written plans.
 - `validate_plan`: Check an existing/draft plan for quality issues (volume, frequency, rest, deload, ramp, goal fit) before scheduling or after edits. Read-only.
 - `create_plan`: Low-level — create a plan from explicit structure. Prefer `generate_plan` for goal-driven plans.
 - `list_plans`: View user's existing plans.

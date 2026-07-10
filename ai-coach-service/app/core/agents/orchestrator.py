@@ -252,7 +252,7 @@ USER DATA:
                 messages=messages,
                 tools=self.get_tools(),
                 tool_choice=first_tool_choice,
-                temperature=0.7
+                **self.settings.llm_tuning_params(temperature=0.7)
             )
 
             response_message = response.choices[0].message
@@ -288,7 +288,7 @@ USER DATA:
                 final_response = await self.client.chat.completions.create(
                     model=self.settings.openai_model,
                     messages=messages,
-                    temperature=0.7
+                    **self.settings.llm_tuning_params(temperature=0.7)
                 )
 
                 final_content = final_response.choices[0].message.content
@@ -532,9 +532,9 @@ USER DATA:
                 messages=messages,
                 tools=self.get_tools(),
                 tool_choice=first_tool_choice,
-                temperature=0.7,
                 max_completion_tokens=2500,
-                stream=True
+                stream=True,
+                **self.settings.llm_tuning_params(temperature=0.7)
             )
 
             tool_calls_data = {}  # Accumulate tool call chunks by index
@@ -654,9 +654,9 @@ USER DATA:
                             messages=messages,
                             tools=self.get_tools(),  # Keep tools available for chaining
                             tool_choice="auto",
-                            temperature=0.7,
                             max_completion_tokens=1500,
-                            stream=True
+                            stream=True,
+                            **self.settings.llm_tuning_params(temperature=0.7)
                         )
 
                         follow_up_tool_calls = {}
@@ -909,8 +909,8 @@ USER DATA:
                         {"role": "user", "content": reflection_prompt}
                     ],
                     response_format={"type": "json_object"},
-                    temperature=REFLECTION_CONFIG["temperature"],
                     max_completion_tokens=REFLECTION_CONFIG["max_tokens"],
+                    **self.settings.llm_tuning_params(temperature=REFLECTION_CONFIG["temperature"]),
                 )
 
             # Parse JSON response

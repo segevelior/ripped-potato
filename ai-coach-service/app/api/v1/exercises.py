@@ -76,8 +76,8 @@ async def suggest_exercise(request: ExerciseSuggestionRequest) -> ExerciseSugges
                 {"role": "system", "content": "You are a fitness expert. Respond only with valid JSON."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.3,  # Lower temperature for more consistent/accurate responses
-            max_completion_tokens=800
+            max_completion_tokens=800,
+            **settings.llm_tuning_params(temperature=0.3)  # Lower temperature for more consistent/accurate responses
         )
 
         content = response.choices[0].message.content.strip()
@@ -175,9 +175,9 @@ async def stream_exercise_suggestions(exercise_name: str):
                 {"role": "system", "content": "You are a fitness expert. Respond only with valid JSON."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.3,
             max_completion_tokens=800,
-            stream=True
+            stream=True,
+            **settings.llm_tuning_params(temperature=0.3)
         )
 
         full_content = ""

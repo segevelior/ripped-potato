@@ -13,6 +13,7 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from app.config import Settings
 from app.core.agents.orchestrator import AgentOrchestrator
 from app.core.agents.reflection_config import REFLECTION_CONFIG
 
@@ -195,7 +196,13 @@ class TestReflectionExecution:
             orch.client = AsyncMock()
             # Reflection resolves its model from settings (REFLECTION_CONFIG["model"]
             # falls back to settings.openai_model_fast).
-            orch.settings = MagicMock(openai_model_fast="gpt-5.4-mini")
+            orch.settings = MagicMock(
+                openai_model_fast="gpt-5.4-mini",
+                openai_reasoning_effort="medium",
+            )
+            # Bind the real tuning helper so reasoning/temperature kwargs are
+            # built from the mocked attributes instead of a bare MagicMock.
+            orch.settings.llm_tuning_params = Settings.llm_tuning_params.__get__(orch.settings)
             return orch
 
     @pytest.mark.asyncio
@@ -343,7 +350,13 @@ class TestReflectionExecution:
 
         # Verify the call used config values
         call_kwargs = orchestrator.client.chat.completions.create.call_args.kwargs
-        assert call_kwargs["temperature"] == REFLECTION_CONFIG["temperature"]
+        # Tuning comes from settings: reasoning_effort when enabled, else the
+        # config temperature.
+        if orchestrator.settings.openai_reasoning_effort != "none":
+            assert call_kwargs["reasoning_effort"] == orchestrator.settings.openai_reasoning_effort
+            assert "temperature" not in call_kwargs
+        else:
+            assert call_kwargs["temperature"] == REFLECTION_CONFIG["temperature"]
         # GPT-5 models require max_completion_tokens (see commit #69); the value
         # still comes from the config's max_tokens entry.
         assert call_kwargs["max_completion_tokens"] == REFLECTION_CONFIG["max_tokens"]
