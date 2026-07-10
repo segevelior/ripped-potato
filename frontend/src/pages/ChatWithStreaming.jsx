@@ -638,7 +638,7 @@ export default function ChatWithStreaming() {
                                 <ReactMarkdown
                                   rehypePlugins={
                                     msg.isStreaming && isLastMessage
-                                      ? [rehypeRaw, rehypeAnimateWords()]
+                                      ? [rehypeRaw, rehypeAnimateWords]
                                       : [rehypeRaw]
                                   }
                                   components={{

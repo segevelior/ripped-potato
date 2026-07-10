@@ -9,6 +9,11 @@
  *
  * Zero runtime deps — operates directly on HAST node shapes.
  *
+ * Usage: this is a unified plugin *attacher*. Pass it to `rehypePlugins`
+ * WITHOUT calling it — e.g. `rehypePlugins={[rehypeRaw, rehypeAnimateWords]}`.
+ * (Passing `rehypeAnimateWords()` would hand unified the transformer as the
+ * attacher and crash at freeze time with `undefined.children`.)
+ *
  * Must run AFTER rehype-raw so custom raw-HTML elements (tool-executing,
  * video-embed, ...) already exist as HAST elements and can be skipped.
  */
@@ -53,7 +58,7 @@ function wrapTextNode(node) {
 }
 
 function visit(node) {
-  if (!node.children || node.children.length === 0) return;
+  if (!node || !node.children || node.children.length === 0) return;
   if (node.type === 'element' && SKIP_TAGS.has(node.tagName)) return;
 
   const newChildren = [];
