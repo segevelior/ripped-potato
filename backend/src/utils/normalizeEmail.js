@@ -1,37 +1,27 @@
-const validator = require('validator');
-
 /**
  * Canonical email normalization used across EVERY auth path
  * (register, login, and Google OAuth) so the same human's address resolves to
  * one account no matter which path created it.
  *
- * It delegates to `validator.normalizeEmail` with the library defaults — the
- * SAME canonicalization express-validator's `.normalizeEmail()` applied before
- * this refactor. That means:
- *   - lowercases the address,
- *   - for Gmail/Googlemail: strips dots and `+subaddress` (foo.bar+x@gmail.com
- *     → foobar@gmail.com) — these are literally the same inbox, so this
- *     collapses same-inbox duplicates,
- *   - strips `+subaddress` for outlook/yahoo/icloud,
- *   - leaves other providers' local parts untouched (dots preserved).
+ * It only **trims and lowercases** — deliberately NOT stripping Gmail dots or
+ * `+subaddress`. This is the key property: the normalized value equals what
+ * the schema stores (the User email field is `lowercase: true` + `trim`), so a
+ * login lookup for `segev.elior@gmail.com` matches an account stored as
+ * `segev.elior@gmail.com`.
  *
- * TRADEOFF (intentional): the stored/displayed email is the *canonical* form,
- * not necessarily the exact string the user typed (e.g. a Gmail user who typed
- * `John.Doe@gmail.com` is stored as `johndoe@gmail.com`). We accept this
- * because consistent canonicalization is what prevents duplicate accounts, and
- * because it also keeps `+tag` addresses valid against the User schema's email
- * regex (which rejects `+`). Using a lighter normalizer in only some paths is
- * exactly what caused Google and local sign-in to create two separate accounts.
+ * An earlier version delegated to `validator.normalizeEmail`, which canonicalizes
+ * Gmail addresses by stripping dots (`segev.elior@gmail.com` → `segevelior@…`).
+ * That broke sign-in: the lookup was canonicalized but the stored email was not,
+ * so they never matched. Applying the SAME light rule everywhere still fixes the
+ * original bug (Google vs. local creating two accounts), because both paths now
+ * produce the identical stored/queried string.
  *
- * NOTE: `normalizeEmail` returns `false` for input it considers invalid; in
- * that case we fall back to a trimmed-lowercase value so downstream `isEmail`
- * validation / schema validation produces the real error message.
+ * TRADEOFF (accepted): Gmail dot-variants (`foo.bar@gmail.com` vs
+ * `foobar@gmail.com`) are treated as distinct addresses. In practice each user
+ * types their address consistently, so this is a minor, defensible edge case —
+ * and far less harmful than canonicalizing lookups away from stored data.
  *
  * @param {string} email
  * @returns {string}
  */
-module.exports = (email) => {
-  const raw = String(email || '').trim();
-  const normalized = validator.normalizeEmail(raw);
-  return normalized === false ? raw.toLowerCase() : normalized;
-};
+module.exports = (email) => String(email || '').trim().toLowerCase();
