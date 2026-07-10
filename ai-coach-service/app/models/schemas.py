@@ -52,9 +52,13 @@ class ConversationMessage(BaseModel):
 
 
 class ModelInfo(BaseModel):
-    """Information about the LLM used for the conversation."""
+    """Information about the LLM used for the conversation.
+
+    llm_model defaults to "unknown" as a last resort — the service layer is
+    responsible for supplying the real configured model (settings.openai_model).
+    """
     llm_provider: str = "openai"
-    llm_model: str = "gpt-4o"
+    llm_model: str = "unknown"
     embedding_model: Optional[str] = None
     embedding_provider: Optional[str] = None
 

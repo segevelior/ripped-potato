@@ -10,8 +10,9 @@ REFLECTION_CONFIG = {
     # and revision logic are reworked.
     "enabled": False,
 
-    # Model selection (cheaper model for reflection to reduce cost)
-    "model": "gpt-4o-mini",
+    # Model selection: None = use settings.openai_model_fast (from .env).
+    # Set a literal string here only to pin reflection to a specific model.
+    "model": None,
 
     # Trigger conditions - tools that should trigger reflection
     "trigger_tools": [

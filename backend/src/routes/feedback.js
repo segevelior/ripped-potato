@@ -965,8 +965,8 @@ Remember to:
 4. Provide concrete, actionable recommendations
 5. Be thorough - this report will drive product decisions`;
 
-    // Use GPT-4o (OpenAI's most capable model) for feedback analysis - hardcoded for quality
-    const feedbackModel = 'gpt-4o';
+    // Model for feedback analysis — env-driven, defaults to the full 5.4 for quality
+    const feedbackModel = process.env.OPENAI_FEEDBACK_MODEL || 'gpt-5.4';
 
     const completion = await openai.chat.completions.create({
       model: feedbackModel,

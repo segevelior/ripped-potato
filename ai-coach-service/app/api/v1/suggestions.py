@@ -140,7 +140,7 @@ USER DATA:
         ]
 
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",  # Use faster/cheaper model for suggestions
+            model=settings.openai_model_fast,  # Fast tier for suggestions (from .env)
             messages=messages,
             temperature=0.8,  # Slightly higher for variety
             max_completion_tokens=200

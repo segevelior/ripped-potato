@@ -23,8 +23,10 @@ from app.core.agents.skills.registry import SkillContext, skill
 @skill(
     name="get_calendar_events",
     description=(
-        "Get the user's scheduled calendar events for a date range. "
-        "Use this to check what workouts are already planned."
+        "Get the user's scheduled calendar events for a date range, including each "
+        "workout's full exercise list (names, target sets/reps, notes). Use this to "
+        "check what workouts are already planned and reason about specific exercises "
+        "— you do NOT need to ask the user for their plan."
     ),
     parameters={
         "type": "object",
