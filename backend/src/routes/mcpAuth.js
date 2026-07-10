@@ -12,13 +12,26 @@
 
 const express = require('express');
 const rateLimit = require('express-rate-limit');
-const { mcpAuthRouter } = require('@modelcontextprotocol/sdk/server/auth/router.js');
+const { mcpAuthRouter, createOAuthMetadata } = require('@modelcontextprotocol/sdk/server/auth/router.js');
 
 const { provider, SCOPES } = require('../mcp/authProvider');
 const { MCP_BASE_URL, MCP_RESOURCE_URL } = require('../mcp/config');
 const consentController = require('../mcp/consentController');
 
 const router = express.Router();
+
+// Override the authorization-server metadata to advertise RFC 9207 issuer
+// identification (the SDK omits this field). Must be registered BEFORE the SDK
+// router so it wins for this path. Claude requires the `iss` param on the
+// auth-code redirect; advertising support here signals that to the client.
+const asMetadata = {
+  ...createOAuthMetadata({ provider, issuerUrl: new URL(MCP_BASE_URL), scopesSupported: SCOPES }),
+  authorization_response_iss_parameter_supported: true
+};
+router.get('/.well-known/oauth-authorization-server', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(asMetadata);
+});
 
 // SDK router: metadata + /authorize + /token + /register + /revoke.
 router.use(

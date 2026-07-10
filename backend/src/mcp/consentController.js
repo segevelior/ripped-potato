@@ -19,6 +19,7 @@ const OAuthAuthorizationCode = require('../models/OAuthAuthorizationCode');
 const OAuthPendingAuthorization = require('../models/OAuthPendingAuthorization');
 const { renderLoginConsent, renderGoogleConsent } = require('./consentPage');
 const { sha256, randomToken, CODE_TTL } = require('./authProvider');
+const { MCP_ISSUER } = require('./config');
 
 const CONSENT_TICKET_SECRET = process.env.MCP_CONSENT_TICKET_SECRET || process.env.JWT_SECRET;
 const CONSENT_TICKET_TTL = '5m';
@@ -69,6 +70,10 @@ async function issueCodeAndRedirect(res, { pending, userId }) {
   const url = new URL(pending.redirectUri);
   url.searchParams.set('code', code);
   if (pending.state) url.searchParams.set('state', pending.state);
+  // RFC 9207 issuer identification — must match the authorization-server
+  // metadata issuer exactly. Compliant OAuth clients (incl. claude.ai) may
+  // require this to accept the authorization response and proceed to /token.
+  url.searchParams.set('iss', MCP_ISSUER);
   res.redirect(302, url.href);
 }
 
