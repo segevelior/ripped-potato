@@ -49,8 +49,8 @@ SkillHandler = Callable[["SkillContext", str, Dict[str, Any]], Awaitable[Dict[st
 class SkillContext:
     """Shared resources handed to every skill handler.
 
-    Lets a skill reach the database, settings, and existing services without
-    re-wiring anything in the orchestrator.
+    Lets a skill reach the database, settings, existing services, and the shared
+    OpenAI client without re-wiring anything in the orchestrator.
     """
 
     db: "AsyncIOMotorDatabase"
@@ -62,6 +62,10 @@ class SkillContext:
     calendar_service: "CalendarService"
     search_service: "SearchService"
     memory_service: "MemoryService"
+    # Shared AsyncOpenAI client, for skills that make their own LLM calls
+    # (generate_plan, suggest_exercises, ...). Optional so DB-only skills and
+    # tests need not provide it.
+    openai_client: Any = None
 
 
 class SkillRegistry:

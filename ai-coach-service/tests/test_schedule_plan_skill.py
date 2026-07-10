@@ -260,6 +260,51 @@ class TestHandler:
         assert result["events_created"] == 3
 
     @pytest.mark.asyncio
+    async def test_conflict_with_other_event_warns_but_still_inserts(self):
+        plan = _sample_plan()
+        # An unrelated event (no planId) sits on the same day as week-1/day-0.
+        existing = [{
+            "date": datetime(2026, 7, 12), "title": "Doctor appt", "status": "scheduled",
+        }]
+        ctx = _make_ctx(plan, existing_events=existing)
+        preview = await schedule_plan_to_calendar(
+            ctx, str(plan["userId"]),
+            {"plan_id": str(plan["_id"]), "start_date": "2026-07-12"},
+        )
+        assert len(preview["conflicts"]) == 1
+        assert "alongside" in preview["message"]
+        # On write, the conflict is NOT dropped — all 4 events are inserted.
+        result = await schedule_plan_to_calendar(
+            ctx, str(plan["userId"]),
+            {"plan_id": str(plan["_id"]), "start_date": "2026-07-12", "dry_run": False},
+        )
+        assert result["events_created"] == 4
+
+    @pytest.mark.asyncio
+    async def test_reschedule_to_new_date_requires_overwrite(self):
+        plan = _sample_plan()
+        # Plan already scheduled: same slot (wk1/day0) but an OLD date.
+        existing = [{
+            "planId": plan["_id"], "planWeek": 1, "planDay": 0,
+            "date": datetime(2026, 7, 5), "title": "S&C (Jul 05)", "status": "scheduled",
+        }]
+        ctx = _make_ctx(plan, existing_events=existing)
+        # Moving to a new start date without overwrite -> guarded, no silent no-op.
+        guarded = await schedule_plan_to_calendar(
+            ctx, str(plan["userId"]),
+            {"plan_id": str(plan["_id"]), "start_date": "2026-07-12", "dry_run": False},
+        )
+        assert guarded.get("needs_confirmation") == "reschedule"
+        ctx.db.calendarevents.insert_many.assert_not_called()
+        # With overwrite -> clears all plan events, inserts the full new set.
+        result = await schedule_plan_to_calendar(
+            ctx, str(plan["userId"]),
+            {"plan_id": str(plan["_id"]), "start_date": "2026-07-12", "dry_run": False, "overwrite": True},
+        )
+        ctx.db.calendarevents.delete_many.assert_awaited_once()
+        assert result["events_created"] == 4
+
+    @pytest.mark.asyncio
     async def test_unknown_plan_returns_error(self):
         ctx = _make_ctx(plan=None)
         result = await schedule_plan_to_calendar(

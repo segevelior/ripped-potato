@@ -39,7 +39,13 @@ def _midnight(dt: datetime) -> datetime:
 
 def _parse_start_date(value: Any) -> Optional[datetime]:
     """Parse a start date. Accepts a datetime, 'today'/'tomorrow', ISO, or
-    YYYY-MM-DD. Returns a naive UTC-midnight datetime, or None if unparseable."""
+    YYYY-MM-DD. Returns a naive UTC-midnight datetime, or None if unparseable.
+
+    KNOWN v1 LIMITATION: dates are anchored to UTC midnight and 'today'/'tomorrow'
+    use UTC now — User.settings.timezone is intentionally ignored for now. A user
+    in a UTC-negative zone saying 'today' late in the evening can land a day early.
+    Revisit by threading the user's timezone through when we localize scheduling.
+    """
     if value is None:
         return None
     if isinstance(value, datetime):
@@ -220,6 +226,7 @@ def _format_preview(
     plan: Dict[str, Any],
     proposed: List[Dict[str, Any]],
     already_scheduled: List[Dict[str, Any]],
+    moved: List[Dict[str, Any]],
     conflicts: List[Dict[str, Any]],
     start_date: datetime,
 ) -> str:
@@ -235,9 +242,11 @@ def _format_preview(
         f"- From **{first.strftime('%b %d')}** to **{last.strftime('%b %d, %Y')}**",
     ]
     if already_scheduled:
-        lines.append(f"- {len(already_scheduled)} session(s) already on your calendar (will be skipped)")
+        lines.append(f"- {len(already_scheduled)} session(s) already scheduled on the same dates (will be skipped)")
+    if moved:
+        lines.append(f"- {len(moved)} session(s) are already scheduled on different dates — confirm to reschedule (replaces the old ones)")
     if conflicts:
-        lines.append(f"- ⚠️ {len(conflicts)} date(s) overlap existing events — I won't double-book")
+        lines.append(f"- Heads up: {len(conflicts)} date(s) already have another event; I'll add the workout alongside it")
     lines += ["", "Want me to add these to your calendar?"]
     return "\n".join(lines)
 
@@ -338,18 +347,30 @@ async def schedule_plan_to_calendar(ctx: SkillContext, user_id: str, args: Dict[
         "status": {"$ne": "cancelled"},
     }).to_list(None)
 
-    existing_plan_slots = {
-        (e.get("planWeek"), e.get("planDay"))
-        for e in existing
-        if e.get("planId") == plan_oid
-    }
+    # Index existing plan events by (week, day) so we can tell a true duplicate
+    # (same slot AND same date) from a move (same slot, different date — a
+    # reschedule to a new start date). Other-source events are tracked by date
+    # for a non-blocking heads-up.
+    existing_plan_by_slot: Dict[Any, Dict[str, Any]] = {}
     other_by_date: Dict[Any, List[str]] = {}
     for e in existing:
-        if e.get("planId") != plan_oid and e.get("date"):
+        if e.get("planId") == plan_oid:
+            existing_plan_by_slot[(e.get("planWeek"), e.get("planDay"))] = e
+        elif e.get("date"):
             other_by_date.setdefault(e["date"].date(), []).append(e.get("title", "event"))
 
-    already_scheduled = [e for e in proposed if (e["planWeek"], e["planDay"]) in existing_plan_slots]
-    to_insert = [e for e in proposed if (e["planWeek"], e["planDay"]) not in existing_plan_slots]
+    already_scheduled: List[Dict[str, Any]] = []  # same slot + same date -> skip
+    moved: List[Dict[str, Any]] = []              # same slot, different date -> reschedule
+    to_insert: List[Dict[str, Any]] = []
+    for e in proposed:
+        existing_e = existing_plan_by_slot.get((e["planWeek"], e["planDay"]))
+        if existing_e is None:
+            to_insert.append(e)
+        elif existing_e.get("date") and existing_e["date"].date() == e["date"].date():
+            already_scheduled.append(e)
+        else:
+            moved.append(e)
+
     conflicts = [
         {"date": e["date"].strftime("%Y-%m-%d"), "title": e["title"], "existing": other_by_date[e["date"].date()]}
         for e in proposed
@@ -360,20 +381,33 @@ async def schedule_plan_to_calendar(ctx: SkillContext, user_id: str, args: Dict[
         return {
             "success": True,
             "dry_run": True,
-            "message": _format_preview(plan, proposed, already_scheduled, conflicts, start_date),
+            "message": _format_preview(plan, proposed, already_scheduled, moved, conflicts, start_date),
             "proposed_count": len(proposed),
             "proposed_events": [_serialize_event(e) for e in proposed],
             "already_scheduled_count": len(already_scheduled),
+            "moved_count": len(moved),
             "conflicts": conflicts,
         }
 
     # --- Confirmed write ---
+    # A move (plan already scheduled at different dates) is a destructive
+    # reschedule — require an explicit overwrite rather than silently skipping
+    # (which would leave the old events in place and insert nothing).
+    if moved and not overwrite:
+        return {
+            "success": True,
+            "needs_confirmation": "reschedule",
+            "message": (
+                f"This plan is already on your calendar at different dates. To move "
+                f"{len(moved)} session(s) to start {start_date.strftime('%A, %B %d')}, "
+                f"confirm and I'll reschedule it (this replaces the existing plan events)."
+            ),
+        }
+
     if overwrite:
-        await ctx.db.calendarevents.delete_many({
-            "userId": user_oid,
-            "planId": plan_oid,
-            "date": {"$gte": min_d, "$lte": max_d},
-        })
+        # Clear ALL of this plan's events (not just the new range) so a shifted
+        # plan doesn't leave stragglers at the old dates.
+        await ctx.db.calendarevents.delete_many({"userId": user_oid, "planId": plan_oid})
         insert_list = proposed
     else:
         insert_list = to_insert
