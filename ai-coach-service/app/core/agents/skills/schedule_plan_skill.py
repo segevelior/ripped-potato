@@ -158,6 +158,11 @@ def _build_events(
     weeks = sorted(plan.get("weeks", []) or [], key=lambda w: w.get("weekNumber", 0))
     if weeks_cap:
         weeks = [w for w in weeks if w.get("weekNumber", 0) <= weeks_cap]
+    # Rolling-materialization plans: only resolved weeks have real workouts;
+    # intent-only stubs are scheduled later, week by week, via resolve_week.
+    # Missing `resolved` = resolved (legacy plans).
+    weeks = [w for w in weeks if w.get("resolved") is not False]
+    included_week_numbers = {w.get("weekNumber", 0) for w in weeks}
 
     for week in weeks:
         week_number = week.get("weekNumber", 1)
@@ -205,8 +210,41 @@ def _build_events(
                 "updatedAt": now,
             })
 
+    # Milestone checkpoints from the skeleton land on the closing day of their
+    # week (the slot key is type-qualified, so they coexist with a workout).
+    for m in (plan.get("skeleton") or {}).get("milestones", []) or []:
+        week_number = m.get("week")
+        if week_number not in included_week_numbers:
+            continue
+        date = _compute_event_date(start_date, week_number, 6)
+        events.append({
+            "userId": user_oid,
+            "planId": plan_oid,
+            "planWeek": week_number,
+            "planDay": 6,
+            "date": date,
+            "title": f"🎯 {m.get('title', 'Milestone')}",
+            "type": "milestone",
+            "status": "scheduled",
+            "notes": m.get("criteria", ""),
+            "createdAt": now,
+            "updatedAt": now,
+        })
+
     events.sort(key=lambda e: e["date"])
     return events
+
+
+def _slot_key(event: Dict[str, Any]) -> tuple:
+    """Idempotency key for a plan calendar event. Type-qualified so a milestone
+    and a workout on the same (week, day) don't evict each other; workout and
+    deload share a class (a re-planned deload week must MOVE the session, not
+    duplicate it)."""
+    etype = event.get("type")
+    # Missing type (legacy events) defaults to the workout class; workout and
+    # deload share it (a re-planned deload week moves the session, no duplicate).
+    type_class = "workout" if etype in ("workout", "deload", None) else etype
+    return (event.get("planWeek"), event.get("planDay"), type_class)
 
 
 def _serialize_event(event: Dict[str, Any]) -> Dict[str, Any]:
@@ -338,6 +376,11 @@ async def schedule_plan_to_calendar(ctx: SkillContext, user_id: str, args: Dict[
     if not proposed:
         return {"success": False, "message": "This plan has no workouts to schedule yet."}
 
+    unresolved_count = sum(
+        1 for w in (plan.get("weeks") or [])
+        if w.get("resolved") is False and (not weeks_cap or w.get("weekNumber", 0) <= weeks_cap)
+    )
+
     # Fetch existing events in range for dedup + conflict detection.
     min_d = proposed[0]["date"]
     max_d = proposed[-1]["date"]
@@ -355,7 +398,7 @@ async def schedule_plan_to_calendar(ctx: SkillContext, user_id: str, args: Dict[
     other_by_date: Dict[Any, List[str]] = {}
     for e in existing:
         if e.get("planId") == plan_oid:
-            existing_plan_by_slot[(e.get("planWeek"), e.get("planDay"))] = e
+            existing_plan_by_slot[_slot_key(e)] = e
         elif e.get("date"):
             other_by_date.setdefault(e["date"].date(), []).append(e.get("title", "event"))
 
@@ -363,7 +406,7 @@ async def schedule_plan_to_calendar(ctx: SkillContext, user_id: str, args: Dict[
     moved: List[Dict[str, Any]] = []              # same slot, different date -> reschedule
     to_insert: List[Dict[str, Any]] = []
     for e in proposed:
-        existing_e = existing_plan_by_slot.get((e["planWeek"], e["planDay"]))
+        existing_e = existing_plan_by_slot.get(_slot_key(e))
         if existing_e is None:
             to_insert.append(e)
         elif existing_e.get("date") and existing_e["date"].date() == e["date"].date():
@@ -377,11 +420,18 @@ async def schedule_plan_to_calendar(ctx: SkillContext, user_id: str, args: Dict[
         if e["date"].date() in other_by_date
     ]
 
+    preview_msg = _format_preview(plan, proposed, already_scheduled, moved, conflicts, start_date)
+    if unresolved_count:
+        preview_msg += (
+            f"\n\nNote: {unresolved_count} later week(s) aren't finalized yet — they follow the plan's "
+            "structure and get scheduled as each week is resolved from your actual training."
+        )
+
     if dry_run:
         return {
             "success": True,
             "dry_run": True,
-            "message": _format_preview(plan, proposed, already_scheduled, moved, conflicts, start_date),
+            "message": preview_msg,
             "proposed_count": len(proposed),
             "proposed_events": [_serialize_event(e) for e in proposed],
             "already_scheduled_count": len(already_scheduled),

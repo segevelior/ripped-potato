@@ -101,3 +101,21 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+  # Weekly resolver for skeleton training plans (Stage 3 auto-resolution).
+  # Calls the ai-coach service's internal endpoint every Sunday 06:00 UTC:
+  # advances plan weeks, materializes upcoming weeks from real adherence, and
+  # schedules them. AI_COACH_URL + INTERNAL_API_KEY are set in the dashboard
+  # (the ai-coach service itself is deployed out-of-band, not via this file).
+  - type: cron
+    name: ai-coach-weekly-resolver
+    env: node
+    schedule: "0 6 * * 0"
+    buildCommand: "true"
+    startCommand: >-
+      curl -sS -X POST "$AI_COACH_URL/api/v1/internal/resolve-weeks"
+      -H "X-Internal-Key: $INTERNAL_API_KEY" --max-time 300 --fail-with-body
+    envVars:
+      - key: AI_COACH_URL
+        sync: false  # e.g. https://<ai-coach-service>.onrender.com
+      - key: INTERNAL_API_KEY
+        sync: false  # must match the ai-coach service's INTERNAL_API_KEY

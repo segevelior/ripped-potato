@@ -29,6 +29,7 @@ const weeklyWorkoutSchema = new mongoose.Schema({
         ref: 'Exercise'
       },
       exerciseName: String,
+      notes: String, // pace/tempo/rest prescription (esp. cardio/timed work)
       sets: [{
         reps: Number,
         time: Number,
@@ -62,7 +63,12 @@ const weekSchema = new mongoose.Schema({
   deloadWeek: {
     type: Boolean,
     default: false
-  }
+  },
+  // Rolling materialization (ai-coach skeleton plans). Deliberately NO default:
+  // a missing flag means "resolved" (legacy fully-materialized plans), and a
+  // mongoose default would stamp values onto weeks the ai-coach service owns.
+  resolved: Boolean,
+  resolvedAt: Date
 }, { _id: true });
 
 const planSchema = new mongoose.Schema({
@@ -95,8 +101,8 @@ const planSchema = new mongoose.Schema({
     weeksTotal: {
       type: Number,
       required: true,
-      min: 1,
-      max: 52 // max 1 year
+      min: 2,
+      max: 26 // product bounds: 2 weeks to 6 months
     },
     workoutsPerWeek: {
       type: Number,
@@ -116,11 +122,28 @@ const planSchema = new mongoose.Schema({
     }]
   },
   weeks: [weekSchema],
+  // Macro skeleton written and validated exclusively by the ai-coach service
+  // (phases, weekly intents, deloads, milestones). Mixed on purpose: the
+  // LLM-shaped structure evolves; a typed subschema in strict mode would
+  // silently strip new fields on every backend save().
+  skeleton: {
+    type: mongoose.Schema.Types.Mixed,
+    default: undefined
+  },
   progress: {
     currentWeek: {
       type: Number,
       default: 1,
       min: 1
+    },
+    // When currentWeek last advanced (weekly resolver anchor). Incremental
+    // advancement — never recomputed from startDate, which would skip weeks
+    // for plans that were paused (pause duration isn't tracked).
+    weekAdvancedAt: Date,
+    // Consecutive low-adherence weeks (weekly resolver deload trigger).
+    lowAdherenceStreak: {
+      type: Number,
+      default: 0
     },
     completedWorkouts: {
       type: Number,

@@ -81,12 +81,39 @@ def validate_plan_doc(plan: Dict[str, Any], goal_category: str) -> Dict[str, Any
             f"Only ~{avg_sessions:.1f} sessions/week; a {goal_category} goal needs at least {min_sessions}."
         )
 
-    # V2 volume
-    min_sets = tk.min_weekly_sets_for_goal(goal_category)
-    if avg_sets < min_sets:
-        violations.append(
-            f"~{avg_sets:.0f} working sets/week is below the ~{min_sets} recommended for a {goal_category} goal."
-        )
+    # V2 volume. Set-counting is meaningless for endurance work (a 2-hour run is
+    # one "set"), so aerobic-oriented goals are measured in weekly aerobic
+    # MINUTES against the WHO floor instead.
+    if goal_category.lower() in {"endurance", "weight", "health"}:
+        weekly_minutes = []
+        for week, (sessions, _s, workouts_list) in zip(weeks, per_week):
+            if sessions == 0:
+                continue
+            minutes = sum(
+                int((w.get("customWorkout") or {}).get("durationMinutes") or 0)
+                for w in workouts_list
+                if ((w.get("customWorkout") or {}).get("type") or "").lower() in tk.AEROBIC_WORKOUT_TYPES
+            )
+            weekly_minutes.append(minutes)
+        avg_minutes = sum(weekly_minutes) / len(weekly_minutes) if weekly_minutes else 0
+        if avg_minutes < tk.WHO_AEROBIC_MIN_MINUTES:
+            msg = (
+                f"~{avg_minutes:.0f} aerobic minutes/week is below the {tk.WHO_AEROBIC_MIN_MINUTES} "
+                f"recommended for a {goal_category} goal."
+            )
+            # Strength-only training is a legitimate health plan (WHO also has
+            # muscle-strengthening guidance) — advisory there, hard for
+            # endurance/weight goals where aerobic work IS the goal.
+            if goal_category.lower() == "health":
+                suggestions.append(msg)
+            else:
+                violations.append(msg)
+    else:
+        min_sets = tk.min_weekly_sets_for_goal(goal_category)
+        if avg_sets < min_sets:
+            violations.append(
+                f"~{avg_sets:.0f} working sets/week is below the ~{min_sets} recommended for a {goal_category} goal."
+            )
 
     # V3 rest — each training week should leave at least one day off
     for week, (sessions, _sets, _w) in zip(weeks, per_week):
