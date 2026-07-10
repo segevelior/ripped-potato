@@ -106,7 +106,13 @@ app.use(helmet({
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
-      frameSrc: ["'none'"]
+      frameSrc: ["'none'"],
+      // The MCP OAuth consent pages POST to /oauth/consent/approve, which 302s
+      // to the connector's redirect_uri (claude.ai for hosted Claude, loopback
+      // for Claude Code). Chrome enforces form-action across that redirect, so
+      // 'self' alone silently blocks the navigation and the code never reaches
+      // Claude. Allow the Claude callback origins.
+      formAction: ["'self'", "https://claude.ai", "http://localhost:*", "http://127.0.0.1:*"]
     }
   },
   crossOriginEmbedderPolicy: false,
