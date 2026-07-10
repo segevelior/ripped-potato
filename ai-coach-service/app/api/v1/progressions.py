@@ -140,8 +140,8 @@ async def suggest_progression(request: ProgressionSuggestionRequest) -> Progress
                 {"role": "system", "content": "You are a fitness progression expert. Respond only with valid JSON."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.4,
-            max_completion_tokens=1500
+            max_completion_tokens=1500,
+            **settings.llm_tuning_params(temperature=0.4)
         )
 
         content = response.choices[0].message.content.strip()
@@ -250,9 +250,9 @@ async def stream_progression_suggestion(goal_exercise: str, current_level: str, 
                 {"role": "system", "content": "You are a fitness progression expert. Respond only with valid JSON."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.4,
             max_completion_tokens=1500,
-            stream=True
+            stream=True,
+            **settings.llm_tuning_params(temperature=0.4)
         )
 
         full_content = ""

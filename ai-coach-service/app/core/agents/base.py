@@ -37,8 +37,8 @@ class BaseAgent(ABC):
             kwargs = {
                 "model": self.settings.openai_model,
                 "messages": messages,
-                "temperature": temperature,
-                "max_completion_tokens": max_tokens
+                "max_completion_tokens": max_tokens,
+                **self.settings.llm_tuning_params(temperature=temperature)
             }
             
             if response_format:
