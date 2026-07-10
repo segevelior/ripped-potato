@@ -284,10 +284,22 @@ app.use('/api/v1/train-now', trainNowRoutes);
 // TEMP diagnostic: log MCP/OAuth traffic (method, status, latency, and
 // non-secret request details) so connector issues are visible in Render logs.
 app.use((req, res, next) => {
-  if (/^\/(mcp|authorize|token|register|revoke|oauth|\.well-known)/.test(req.path)) {
+  const p = req.path; // capture now — routing rewrites req.url/path before res 'finish'
+  if (/^\/(mcp|authorize|token|register|revoke|oauth|\.well-known)/.test(p)) {
     const started = Date.now();
     const detail = { ua: req.headers['user-agent'] };
-    if (req.path === '/token') {
+    if (p === '/authorize') {
+      Object.assign(detail, {
+        response_type: req.query.response_type,
+        client_id: req.query.client_id,
+        redirect_uri: req.query.redirect_uri,
+        state: req.query.state,
+        has_challenge: !!req.query.code_challenge,
+        challenge_method: req.query.code_challenge_method,
+        scope: req.query.scope
+      });
+    }
+    if (p === '/token') {
       Object.assign(detail, {
         grant_type: req.body && req.body.grant_type,
         client_id: req.body && req.body.client_id,
@@ -298,7 +310,10 @@ app.use((req, res, next) => {
       });
     }
     res.on('finish', () => {
-      console.log(`[MCP] ${req.method} ${req.path} -> ${res.statusCode} (${Date.now() - started}ms) ${JSON.stringify(detail)}`);
+      // For redirects (consent approve/deny, authorize), log where we sent them.
+      const location = res.getHeader && res.getHeader('location');
+      if (location) detail.location = String(location);
+      console.log(`[MCP] ${req.method} ${p} -> ${res.statusCode} (${Date.now() - started}ms) ${JSON.stringify(detail)}`);
     });
   }
   next();
