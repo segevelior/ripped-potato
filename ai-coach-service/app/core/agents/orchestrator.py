@@ -69,6 +69,7 @@ class AgentOrchestrator:
             calendar_service=self.calendar_service,
             search_service=self.search_service,
             memory_service=self.memory_service,
+            openai_client=self.client,
         )
 
         # Log configuration
