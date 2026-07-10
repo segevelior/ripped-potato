@@ -352,7 +352,7 @@ CALENDAR CONTEXT:
             model="gpt-4o-mini",
             messages=messages,
             temperature=0.7,
-            max_tokens=1500
+            max_completion_tokens=1500
         )
 
         response_text = response.choices[0].message.content.strip()
