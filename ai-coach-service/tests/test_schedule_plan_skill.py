@@ -323,3 +323,58 @@ class TestHandler:
         )
         assert result.get("needs_input") == "start_date"
         ctx.db.calendarevents.insert_many.assert_not_called()
+
+
+# ------------------- skeleton plans (rolling materialization) -------------------
+
+from app.core.agents.skills.schedule_plan_skill import _slot_key  # noqa: E402
+
+
+def _skeleton_sample_plan():
+    plan = _sample_plan()
+    plan["weeks"][0]["resolved"] = True
+    plan["weeks"][1]["resolved"] = False   # stub — must not be scheduled
+    plan["weeks"][1]["workouts"] = []
+    plan["skeleton"] = {
+        "milestones": [{"week": 1, "title": "Checkpoint", "criteria": "3 pull-ups"}],
+    }
+    return plan
+
+
+class TestSkeletonScheduling:
+    def test_unresolved_weeks_excluded(self):
+        plan = _skeleton_sample_plan()
+        events = _build_events(plan, SUNDAY, None, {}, plan["userId"], plan["_id"], NOW)
+        assert all(e["planWeek"] == 1 for e in events)
+
+    def test_missing_resolved_flag_treated_as_resolved(self):
+        plan = _sample_plan()  # legacy: no resolved flags anywhere
+        events = _build_events(plan, SUNDAY, None, {}, plan["userId"], plan["_id"], NOW)
+        assert {e["planWeek"] for e in events} == {1, 2}
+
+    def test_milestone_event_emitted_for_resolved_week(self):
+        plan = _skeleton_sample_plan()
+        events = _build_events(plan, SUNDAY, None, {}, plan["userId"], plan["_id"], NOW)
+        milestones = [e for e in events if e["type"] == "milestone"]
+        assert len(milestones) == 1
+        assert milestones[0]["title"] == "🎯 Checkpoint"
+        assert milestones[0]["notes"] == "3 pull-ups"
+        assert milestones[0]["planWeek"] == 1 and milestones[0]["planDay"] == 6
+
+    def test_milestone_for_unresolved_week_not_emitted(self):
+        plan = _skeleton_sample_plan()
+        plan["skeleton"]["milestones"] = [{"week": 2, "title": "Later", "criteria": ""}]
+        events = _build_events(plan, SUNDAY, None, {}, plan["userId"], plan["_id"], NOW)
+        assert not [e for e in events if e["type"] == "milestone"]
+
+    def test_slot_key_separates_milestone_from_workout_same_day(self):
+        workout = {"planWeek": 1, "planDay": 6, "type": "workout"}
+        milestone = {"planWeek": 1, "planDay": 6, "type": "milestone"}
+        rest = {"planWeek": 1, "planDay": 6, "type": "rest"}
+        assert _slot_key(workout) != _slot_key(milestone) != _slot_key(rest)
+
+    def test_slot_key_workout_and_deload_share_class(self):
+        # A re-planned deload week must MOVE the session, not duplicate it.
+        a = {"planWeek": 2, "planDay": 0, "type": "workout"}
+        b = {"planWeek": 2, "planDay": 0, "type": "deload"}
+        assert _slot_key(a) == _slot_key(b)

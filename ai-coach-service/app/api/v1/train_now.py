@@ -150,23 +150,78 @@ async def load_calendar_context(db, user_id: str, timezone: str = 'UTC') -> Dict
         }
 
 
-async def load_training_plans(db, user_id: str) -> List[Dict[str, Any]]:
-    """Load user's active training plans"""
+def format_plan_week(plan: Dict[str, Any]) -> Optional[str]:
+    """Pure: render the plan's current week (if materialized) for LLM context,
+    so today's suggestion aligns with the plan instead of freelancing."""
+    progress = plan.get("progress") or {}
+    current_week = progress.get("currentWeek", 1)
+    week = next((w for w in (plan.get("weeks") or []) if w.get("weekNumber") == current_week), None)
+    if not week or week.get("resolved") is False or not (week.get("workouts") or []):
+        return None
+    day_names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    lines = [f"  Week {current_week}" + (f" ({week.get('focus')})" if week.get("focus") else "") + ":"]
+    for wo in week["workouts"]:
+        custom = wo.get("customWorkout") or {}
+        day = day_names[wo.get("dayOfWeek", 0) % 7]
+        title = custom.get("title") or "Workout"
+        ex_count = len(custom.get("exercises") or [])
+        lines.append(f"  - {day}: {title} ({custom.get('type', 'strength')}, {ex_count} exercises)")
+    return "\n".join(lines)
+
+
+async def ensure_current_week_resolved(db, user_id: str) -> None:
+    """Lazy backstop for the weekly resolver: if an active skeleton plan's
+    current week isn't materialized yet, resolve it inline (one Mongo
+    round-trip + pure code) so today's suggestion can see it. Best-effort —
+    failures are logged, never break train-now."""
     try:
         user_oid = ObjectId(user_id)
         plans = await db.plans.find({
             "userId": user_oid,
-            "isActive": True
+            "status": "active",
+            "skeleton": {"$exists": True},
+        }).to_list(3)
+        needs_resolve = []
+        for plan in plans:
+            current_week = (plan.get("progress") or {}).get("currentWeek", 1)
+            week = next((w for w in (plan.get("weeks") or []) if w.get("weekNumber") == current_week), None)
+            if week is not None and week.get("resolved") is False:
+                needs_resolve.append(plan)
+        if not needs_resolve:
+            return
+        from app.core.agents.context_factory import build_skill_context
+        from app.core.agents.skills.resolve_week_skill import resolve_week
+        ctx = build_skill_context(db)
+        for plan in needs_resolve:
+            result = await resolve_week(ctx, user_id, {"plan_id": str(plan["_id"])})
+            logger.info("Lazy-resolved plan week for train-now",
+                        plan_id=str(plan["_id"]), success=result.get("success"))
+    except Exception as e:
+        logger.error(f"Lazy week resolution failed (non-fatal): {e}")
+
+
+async def load_training_plans(db, user_id: str) -> List[Dict[str, Any]]:
+    """Load user's active/paused training plans (Plan.js schema fields)."""
+    try:
+        user_oid = ObjectId(user_id)
+        plans = await db.plans.find({
+            "userId": user_oid,
+            "status": {"$in": ["active", "paused"]}
         }).to_list(5)
 
         formatted = []
         for plan in plans:
+            progress = plan.get("progress") or {}
+            schedule = plan.get("schedule") or {}
             formatted.append({
+                "id": str(plan.get("_id")),
                 "name": plan.get("name"),
-                "goal": plan.get("goal"),
-                "current_week": plan.get("currentWeek", 1),
-                "total_weeks": plan.get("totalWeeks"),
-                "days_per_week": plan.get("daysPerWeek")
+                "goal": plan.get("description", ""),
+                "status": plan.get("status"),
+                "current_week": progress.get("currentWeek", 1),
+                "total_weeks": schedule.get("weeksTotal"),
+                "days_per_week": schedule.get("workoutsPerWeek"),
+                "current_week_detail": format_plan_week(plan),
             })
         return formatted
     except Exception as e:
@@ -252,6 +307,7 @@ async def get_train_now_suggestion(
         calendar_data = await load_calendar_context(db, user_id, timezone)
 
         # Load training plans
+        await ensure_current_week_resolved(db, user_id)
         training_plans = await load_training_plans(db, user_id)
 
         # Build context string
@@ -299,6 +355,8 @@ CALENDAR CONTEXT:
             context_str += "\n\nACTIVE TRAINING PLANS:"
             for plan in training_plans:
                 context_str += f"\n- {plan['name']} (Week {plan['current_week']}/{plan['total_weeks']}): {plan['goal']}"
+                if plan.get("current_week_detail"):
+                    context_str += f"\n{plan['current_week_detail']}"
 
         # Add memories
         if user_memories:
@@ -351,8 +409,8 @@ CALENDAR CONTEXT:
         response = await client.chat.completions.create(
             model=settings.openai_model_fast,  # Fast tier (from .env)
             messages=messages,
-            temperature=0.7,
-            max_completion_tokens=1500
+            max_completion_tokens=1500,
+            **settings.llm_tuning_params(temperature=0.7)
         )
 
         response_text = response.choices[0].message.content.strip()

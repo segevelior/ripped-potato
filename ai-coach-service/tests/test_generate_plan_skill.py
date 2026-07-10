@@ -1,4 +1,4 @@
-"""Tests for the generate_plan skill (pure builders + handler)."""
+"""Tests for the generate_plan skill (skeleton-based generation + handler)."""
 
 import json
 
@@ -7,11 +7,11 @@ from bson import ObjectId
 from unittest.mock import AsyncMock, MagicMock
 
 from app.core.agents.skills.generate_plan_skill import (
-    build_plan_weeks,
     generate_plan,
     infer_category,
     pick_workout_days,
 )
+from app.core.agents.skills.plan_builder import DEFAULT_HORIZON_WEEKS
 
 
 class TestPureHelpers:
@@ -37,28 +37,45 @@ class TestPureHelpers:
     def test_pick_workout_days_clamps(self):
         assert len(pick_workout_days(10, None)) == 7
 
-    def test_build_plan_weeks_structure_and_deload(self):
-        blueprints = [
-            {"title": "A", "type": "strength", "durationMinutes": 45,
-             "exercises": [{"exerciseName": "Squat", "sets": 5, "reps": 5}]},
-        ]
-        weeks = build_plan_weeks(blueprints, [1, 3, 5], 8)
-        assert len(weeks) == 8
-        # 3 workouts/week on the chosen days
-        assert [w["dayOfWeek"] for w in weeks[0]["workouts"]] == [1, 3, 5]
-        # off-days are NOT materialized as rest events (avoid calendar flood)
-        assert weeks[0]["restDays"] == []
-        # week 6 is a deload for an 8-week plan (every 6 weeks) -> reduced volume
-        deload_week = weeks[5]
-        assert deload_week["deloadWeek"] is True
-        deload_sets = len(deload_week["workouts"][0]["customWorkout"]["exercises"][0]["sets"])
-        normal_sets = len(weeks[0]["workouts"][0]["customWorkout"]["exercises"][0]["sets"])
-        assert deload_sets < normal_sets
+
+def _sample_skeleton(weeks=8):
+    return {
+        "phases": [
+            {"name": "Base", "startWeek": 1, "endWeek": weeks // 2,
+             "focus": "base", "progression": "volume",
+             "disciplines": [{"discipline": "strength", "sessionsPerWeek": 3}],
+             "sessionBlueprints": [
+                 {"title": "Full Body A", "type": "strength", "durationMinutes": 45, "dayHint": 1,
+                  "exercises": [{"exerciseName": "Squat", "sets": 4, "reps": 6},
+                                {"exerciseName": "Bench Press", "sets": 4, "reps": 6}]},
+                 {"title": "Full Body B", "type": "strength", "durationMinutes": 45, "dayHint": 3,
+                  "exercises": [{"exerciseName": "Row", "sets": 3, "reps": 10}]},
+                 {"title": "Full Body C", "type": "strength", "durationMinutes": 45, "dayHint": 5,
+                  "exercises": [{"exerciseName": "Deadlift", "sets": 3, "reps": 5}]},
+             ]},
+            {"name": "Build", "startWeek": weeks // 2 + 1, "endWeek": weeks,
+             "focus": "intensity", "progression": "load",
+             "disciplines": [{"discipline": "strength", "sessionsPerWeek": 3}],
+             "sessionBlueprints": [
+                 {"title": "Heavy A", "type": "strength", "durationMinutes": 45, "dayHint": 1,
+                  "exercises": [{"exerciseName": "Squat", "sets": 5, "reps": 3}]},
+                 {"title": "Heavy B", "type": "strength", "durationMinutes": 45, "dayHint": 3,
+                  "exercises": [{"exerciseName": "Bench Press", "sets": 5, "reps": 3}]},
+                 {"title": "Heavy C", "type": "strength", "durationMinutes": 45, "dayHint": 5,
+                  "exercises": [{"exerciseName": "Deadlift", "sets": 4, "reps": 3}]},
+             ]},
+        ],
+        "weekIntents": [{"weekNumber": w, "phase": "Base" if w <= weeks // 2 else "Build",
+                         "focus": f"wk{w}", "deload": w == 6, "volumeMultiplier": 0.6 if w == 6 else 1.0}
+                        for w in range(1, weeks + 1)],
+        "deloadWeeks": [6],
+        "milestones": [{"week": weeks // 2, "title": "Mid test", "criteria": "5RM check"}],
+    }
 
 
-def _llm_response(workouts):
+def _llm_response(payload):
     msg = MagicMock()
-    msg.content = json.dumps({"workouts": workouts})
+    msg.content = json.dumps(payload)
     choice = MagicMock()
     choice.message = msg
     resp = MagicMock()
@@ -66,14 +83,13 @@ def _llm_response(workouts):
     return resp
 
 
-def _make_ctx(profile=None, goal=None, create_ok=True, missing=None, workouts=None):
-    profile = profile if profile is not None else {"fitnessLevel": "intermediate", "preferences": {"equipment": ["barbell"], "workoutDays": [1, 3, 5]}}
-    workouts = workouts or [
-        {"title": "Full Body A", "type": "strength", "durationMinutes": 45,
-         "exercises": [{"exerciseName": "Squat", "sets": 4, "reps": 6},
-                       {"exerciseName": "Bench Press", "sets": 4, "reps": 6},
-                       {"exerciseName": "Row", "sets": 3, "reps": 10}]},
-    ]
+def _make_ctx(profile=None, goal=None, create_ok=True, missing=None, skeleton=None,
+              planner_model=None):
+    profile = profile if profile is not None else {
+        "fitnessLevel": "intermediate",
+        "preferences": {"equipment": ["barbell"], "workoutDays": [1, 3, 5]},
+    }
+    skeleton = skeleton if skeleton is not None else _sample_skeleton()
 
     db = MagicMock()
     db.users.find_one = AsyncMock(return_value={"profile": profile})
@@ -82,7 +98,11 @@ def _make_ctx(profile=None, goal=None, create_ok=True, missing=None, workouts=No
     ctx = MagicMock()
     ctx.db = db
     ctx.settings.openai_model = "gpt-test"
-    ctx.openai_client.chat.completions.create = AsyncMock(return_value=_llm_response(workouts))
+    # MagicMock auto-attrs are truthy — set explicitly or the fallback test rots.
+    ctx.settings.openai_model_planner = planner_model
+    ctx.openai_client.chat.completions.create = AsyncMock(
+        return_value=_llm_response({"skeleton": skeleton})
+    )
     ctx.memory_service.get_user_memories = AsyncMock(return_value=[])
     ctx.exercise_service.grep_exercises = AsyncMock(return_value={"missing": missing or []})
     ctx.plan_service.create_plan = AsyncMock(
@@ -94,18 +114,42 @@ def _make_ctx(profile=None, goal=None, create_ok=True, missing=None, workouts=No
 
 class TestHandler:
     @pytest.mark.asyncio
-    async def test_generates_and_persists_draft(self):
+    async def test_generates_and_persists_skeleton_draft(self):
         ctx = _make_ctx()
         result = await generate_plan(ctx, str(ObjectId()), {"goal_text": "get stronger", "weeks": 8})
         assert result["success"] is True
         assert result["dry_run"] is True
         assert result["plan_id"]
         assert result["weeks"] == 8
-        # a draft plan was written via create_plan
+        expected_resolved = min(DEFAULT_HORIZON_WEEKS, 8)
+        assert result["resolved_weeks"] == expected_resolved
+
         ctx.plan_service.create_plan.assert_awaited_once()
         create_args = ctx.plan_service.create_plan.call_args.args[1]
         assert create_args["schedule"]["weeksTotal"] == 8
         assert "draft" in create_args["tags"]
+        # skeleton persisted alongside the weeks
+        assert create_args["skeleton"]["phases"]
+        # rolling horizon: weeks within the horizon materialized, the rest stubs
+        weeks = create_args["weeks"]
+        assert len(weeks) == 8
+        assert weeks[0]["resolved"] is True and weeks[0]["workouts"]
+        for w in weeks[:expected_resolved]:
+            assert w["resolved"] is True and w["workouts"]
+        for w in weeks[expected_resolved:]:
+            assert w["resolved"] is False and not w["workouts"]
+
+    @pytest.mark.asyncio
+    async def test_planner_model_override_used(self):
+        ctx = _make_ctx(planner_model="gpt-strong")
+        await generate_plan(ctx, str(ObjectId()), {"goal_text": "get stronger"})
+        assert ctx.openai_client.chat.completions.create.call_args.kwargs["model"] == "gpt-strong"
+
+    @pytest.mark.asyncio
+    async def test_planner_model_falls_back_to_chat_model(self):
+        ctx = _make_ctx(planner_model=None)
+        await generate_plan(ctx, str(ObjectId()), {"goal_text": "get stronger"})
+        assert ctx.openai_client.chat.completions.create.call_args.kwargs["model"] == "gpt-test"
 
     @pytest.mark.asyncio
     async def test_missing_goal_asks(self):
@@ -115,17 +159,38 @@ class TestHandler:
         ctx.plan_service.create_plan.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_uses_linked_goal_category(self):
-        ctx = _make_ctx(goal={"name": "Run 10k", "category": "endurance"})
-        result = await generate_plan(ctx, str(ObjectId()), {"goal_id": str(ObjectId()), "weeks": 6})
-        # strength-only blueprints on an endurance goal -> validation suggests aerobic
-        assert any("aerobic" in s.lower() or "cardio" in s.lower() for s in result["validation"]["suggestions"])
+    async def test_empty_skeleton_surfaces_error(self):
+        ctx = _make_ctx(skeleton={})
+        result = await generate_plan(ctx, str(ObjectId()), {"goal_text": "get stronger"})
+        assert result["success"] is False
+        ctx.plan_service.create_plan.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_prose_reps_from_model_coerced_to_ints(self):
+        skeleton = _sample_skeleton()
+        skeleton["phases"][0]["sessionBlueprints"][0]["exercises"][0]["reps"] = \
+            "8 min at half marathon pace"
+        ctx = _make_ctx(skeleton=skeleton)
+        result = await generate_plan(ctx, str(ObjectId()), {"goal_text": "run a half marathon"})
+        assert result["success"] is True
+        weeks = ctx.plan_service.create_plan.call_args.args[1]["weeks"]
+        ex = weeks[0]["workouts"][0]["customWorkout"]["exercises"][0]
+        assert all(isinstance(s.get("reps"), int) for s in ex["sets"])
+        assert "half marathon pace" in ex.get("notes", "")
 
     @pytest.mark.asyncio
     async def test_unverified_exercise_names_reported(self):
         ctx = _make_ctx(missing=["Bench Press"])
         result = await generate_plan(ctx, str(ObjectId()), {"goal_text": "get stronger"})
         assert "Bench Press" in result["unverified_exercises"]
+
+    @pytest.mark.asyncio
+    async def test_endurance_goal_without_aerobic_blueprints_flagged(self):
+        ctx = _make_ctx(goal={"name": "Run 10k", "category": "endurance"})
+        result = await generate_plan(ctx, str(ObjectId()), {"goal_id": str(ObjectId()), "weeks": 6})
+        suggestions = (result["validation"]["suggestions"]
+                       + result["skeleton_validation"]["suggestions"])
+        assert any("aerobic" in s.lower() or "cardio" in s.lower() for s in suggestions)
 
     @pytest.mark.asyncio
     async def test_create_failure_surfaced(self):

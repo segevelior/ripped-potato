@@ -60,10 +60,13 @@ class PlanService:
                         custom = workout["customWorkout"]
                         exercises = []
                         for ex in custom.get("exercises", []):
-                            exercises.append({
+                            ex_doc = {
                                 "exerciseName": ex.get("exerciseName", ""),
                                 "sets": ex.get("sets", [])
-                            })
+                            }
+                            if ex.get("notes"):
+                                ex_doc["notes"] = ex["notes"]
+                            exercises.append(ex_doc)
                         weekly_workout["customWorkout"] = {
                             "title": custom.get("title", ""),
                             "type": custom.get("type", "strength"),
@@ -105,6 +108,11 @@ class PlanService:
                 "createdAt": datetime.utcnow(),
                 "updatedAt": datetime.utcnow()
             }
+
+            # Macro skeleton (rolling-materialization plans). Passed through
+            # verbatim — ai-coach-service is the sole writer/validator.
+            if args.get("skeleton"):
+                plan_data["skeleton"] = args["skeleton"]
 
             # Link to goal if provided
             if args.get("goalId"):

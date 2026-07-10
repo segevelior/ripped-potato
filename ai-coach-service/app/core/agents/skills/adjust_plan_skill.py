@@ -169,14 +169,43 @@ async def adjust_plan(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -> 
         return {"success": True, "dry_run": True, "description": desc, "validation": report, "message": msg}
 
     total_workouts = sum(len(w.get("workouts", []) or []) for w in new_weeks)
-    await ctx.db.plans.update_one(
-        {"_id": plan_oid, "userId": user_oid},
-        {"$set": {"weeks": new_weeks, "progress.totalWorkouts": total_workouts, "updatedAt": datetime.utcnow()}},
-    )
+    update: Dict[str, Any] = {
+        "weeks": new_weeks,
+        "progress.totalWorkouts": total_workouts,
+        "updatedAt": datetime.utcnow(),
+    }
+    extra_msg = ""
+
+    # Skeleton plans: a volume adjustment must also scale the intents of weeks
+    # that aren't materialized yet, or resolve_week would re-materialize them
+    # from the unadjusted skeleton next week and silently revert the change.
+    skeleton = plan.get("skeleton")
+    if skeleton:
+        unresolved = {w.get("weekNumber") for w in new_weeks if w.get("resolved") is False}
+        if change_type == "volume" and old_avg > 0 and unresolved:
+            factor = new_avg / old_avg
+            intents = []
+            for wi in skeleton.get("weekIntents") or []:
+                wi = dict(wi)
+                if wi.get("weekNumber") in unresolved:
+                    try:
+                        wi["volumeMultiplier"] = max(0.1, min(2.0, float(wi.get("volumeMultiplier", 1.0)) * factor))
+                    except (TypeError, ValueError):
+                        pass
+                intents.append(wi)
+            update["skeleton.weekIntents"] = intents
+        elif change_type == "frequency":
+            extra_msg = (
+                "\n\nNote: this changed the weeks that are already written out. The plan's underlying "
+                "structure still expects the original frequency, so upcoming weeks will come out at the "
+                "old frequency — if you want the change permanent, I should regenerate the plan."
+            )
+
+    await ctx.db.plans.update_one({"_id": plan_oid, "userId": user_oid}, {"$set": update})
     return {
         "success": True,
         "dry_run": False,
         "description": desc,
         "validation": report,
-        "message": f"Done — {desc}. Weekly volume is now ~{new_avg:.0f} sets.",
+        "message": f"Done — {desc}. Weekly volume is now ~{new_avg:.0f} sets." + extra_msg,
     }

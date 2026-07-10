@@ -37,10 +37,28 @@ class Settings(BaseSettings):
     # Optional stronger model for plan generation only (macro/periodization
     # reasoning). None = fall back to openai_model; resolve at the call site.
     openai_model_planner: Optional[str] = None
+    # Reasoning effort for all OpenAI calls: none | low | medium | high | xhigh.
+    # Default "none": gpt-5.4-mini 400s on function tools + reasoning_effort, so
+    # every orchestrator chat call would fail. Opt in explicitly per environment
+    # (e.g. OPENAI_REASONING_EFFORT=medium on Render once verified).
+    openai_reasoning_effort: str = "none"
+
+    def llm_tuning_params(self, temperature: Optional[float] = None) -> dict:
+        """Sampling/reasoning kwargs for chat.completions.create.
+
+        Reasoning models only accept the default temperature while thinking,
+        so temperature is sent only when reasoning is off ("none").
+        """
+        if self.openai_reasoning_effort != "none":
+            return {"reasoning_effort": self.openai_reasoning_effort}
+        return {"temperature": temperature} if temperature is not None else {}
 
     # Security
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
+    # Shared secret for internal (cron-invoked) endpoints — X-Internal-Key
+    # header. Unset = internal endpoints disabled (403).
+    internal_api_key: Optional[str] = None
 
     # CORS
     allowed_origins: str = "http://localhost:5173,http://localhost:5001"
