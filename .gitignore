@@ -98,3 +98,6 @@ docs/
 
 # Claude Code
 CLAUDE.md
+
+# MCP config contains DB credentials
+.mcp.json
