@@ -105,7 +105,11 @@ export default function Auth() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Login failed');
+        // Preserve the backend's structured code so the UI can react without
+        // brittle message-string matching.
+        const err = new Error(error.message || 'Login failed');
+        err.code = error.code;
+        throw err;
       }
 
       const data = await response.json();
@@ -123,7 +127,10 @@ export default function Auth() {
       navigate('/');
     } catch (error) {
       console.error("Sign in error:", error);
-      setErrors({ general: error.message || "Invalid email or password. Please try again." });
+      setErrors({
+        general: error.message || "Invalid email or password. Please try again.",
+        googleOnly: error.code === 'google_only'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -204,7 +211,7 @@ export default function Auth() {
 
           {/* Error Message */}
           {errors.general && (
-            errors.general.toLowerCase().includes('google') ? (
+            (errors.googleOnly || errors.general.toLowerCase().includes('google')) ? (
               // Account exists but was created via Google sign-in — guide the user
               // straight to the Google button instead of a dead-end error.
               <div className="mb-6 p-4 bg-amber-50 border border-amber-100 text-amber-700 rounded-xl text-sm">

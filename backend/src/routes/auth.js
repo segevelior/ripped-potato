@@ -46,43 +46,62 @@ router.get('/google', (req, res, next) =>
 // @route   GET /api/v1/auth/google/callback
 // @desc    Google OAuth callback
 // @access  Public
-router.get('/google/callback', 
-  passport.authenticate('google', { session: false, failureRedirect: '/auth?error=google_auth_failed' }),
-  async (req, res) => {
+// Uses a custom passport callback so we can route the three flows distinctly:
+//   - `link:<jwt>`  → account-linking from Settings (success/error back to Settings)
+//   - `mcp:<id>`    → MCP connector consent page
+//   - (none)        → normal login/signup (issue a fresh JWT to the SPA)
+router.get('/google/callback', (req, res, next) => {
+  passport.authenticate('google', { session: false }, async (err, user, info) => {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const state = req.query.state;
+    const isLink = typeof state === 'string' && state.startsWith('link:');
+    const isMcp = typeof state === 'string' && state.startsWith('mcp:');
+
     try {
-      console.log('Google OAuth callback - User authenticated:', req.user ? 'Yes' : 'No');
-      
-      if (!req.user) {
-        console.error('No user object after Google authentication');
-        return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth?error=no_user`);
+      if (err) {
+        console.error('Google auth callback error:', err);
+        return res.redirect(isLink
+          ? `${frontendUrl}/Settings?google=error&reason=server_error`
+          : `${frontendUrl}/auth?error=oauth_failed&message=${encodeURIComponent(err.message)}`);
       }
 
-      // MCP connector consent flow: if state is `mcp:<requestId>`, render the
-      // connector consent page for this now-authenticated user instead of
-      // redirecting to the SPA with a login JWT.
-      const state = req.query.state;
-      if (typeof state === 'string' && state.startsWith('mcp:')) {
+      if (!user) {
+        // Authentication/link failed. For a link attempt, surface a friendly
+        // reason on the Settings page instead of bouncing to the login screen.
+        if (isLink) {
+          const reason = (info && info.reason) || 'google_link_failed';
+          return res.redirect(`${frontendUrl}/Settings?google=error&reason=${encodeURIComponent(reason)}`);
+        }
+        return res.redirect(`${frontendUrl}/auth?error=google_auth_failed`);
+      }
+
+      // Downstream helpers (MCP consent) read the authenticated user off req.
+      req.user = user;
+
+      // MCP connector consent flow
+      if (isMcp) {
         const requestId = state.slice('mcp:'.length);
         return await renderGoogleConsentAfterAuth(req, res, requestId);
       }
 
-      // Generate JWT token for the authenticated user
-      const token = req.user.generateToken();
-      console.log('JWT token generated successfully');
-      
-      // Redirect to frontend with token
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      const redirectUrl = `${frontendUrl}/auth/callback?token=${token}`;
-      console.log('Redirecting to:', redirectUrl);
-      
-      res.redirect(redirectUrl);
+      // Account-linking succeeded: googleId is now bound to the already
+      // logged-in user (done in the verify step). Keep their existing session
+      // and return them to Settings with a confirmation.
+      if (isLink) {
+        return res.redirect(`${frontendUrl}/Settings?google=connected`);
+      }
+
+      // Normal login/signup: issue a fresh JWT for the SPA to consume.
+      const token = user.generateToken();
+      return res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
     } catch (error) {
       console.error('Google auth callback error:', error);
       console.error('Error stack:', error.stack);
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      res.redirect(`${frontendUrl}/auth?error=oauth_failed&message=${encodeURIComponent(error.message)}`);
+      return res.redirect(isLink
+        ? `${frontendUrl}/Settings?google=error&reason=server_error`
+        : `${frontendUrl}/auth?error=oauth_failed&message=${encodeURIComponent(error.message)}`);
     }
-  }
-);
+  })(req, res, next);
+});
 
 module.exports = router;

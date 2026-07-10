@@ -82,6 +82,27 @@ export default function Settings() {
     }
   }, [searchParams]);
 
+  // Handle Google account-linking return (from "Connect Google")
+  useEffect(() => {
+    const google = searchParams.get('google');
+    if (!google) return;
+    if (google === 'connected') {
+      setPwMessage({ type: 'success', text: 'Google connected. You can now sign in with Google.' });
+      fetchUserProfile();
+    } else if (google === 'error') {
+      const reasons = {
+        google_in_use: 'That Google account is already linked to a different account.',
+        invalid_session: 'Your session expired. Please sign in again and retry.',
+        server_error: 'Something went wrong connecting Google. Please try again.'
+      };
+      const reason = searchParams.get('reason');
+      setPwMessage({ type: 'error', text: reasons[reason] || 'Failed to connect Google. Please try again.' });
+    }
+    searchParams.delete('google');
+    searchParams.delete('reason');
+    setSearchParams(searchParams);
+  }, [searchParams]);
+
   const fetchUserProfile = async () => {
     setIsLoading(true);
     try {
@@ -228,10 +249,14 @@ export default function Settings() {
     }
   };
 
-  // Redirect to Google OAuth to link Google to this (already logged-in) account.
-  // The backend matches by email and adds googleId to the existing user.
+  // Link Google to THIS logged-in account. We forward the current session JWT
+  // as OAuth `state=link:<token>` so the backend binds googleId to this exact
+  // user (never by email match, which could otherwise switch/spawn accounts).
   const handleConnectGoogle = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/v1/auth/google`;
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+    window.location.href = `${apiUrl}/api/v1/auth/google?state=link:${encodeURIComponent(token)}`;
   };
 
   // Set (Google-only account) or change the account password.

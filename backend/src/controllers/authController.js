@@ -101,6 +101,7 @@ const login = async (req, res) => {
     if (!user.password && user.googleId) {
       return res.status(401).json({
         success: false,
+        code: 'google_only',
         message: 'This account uses Google sign-in. Please sign in with Google.'
       });
     }
@@ -295,6 +296,12 @@ const setPassword = async (req, res) => {
         return res.status(401).json({
           success: false,
           message: 'Current password is incorrect'
+        });
+      }
+      if (currentPassword === newPassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'New password must be different from your current password'
         });
       }
     }
