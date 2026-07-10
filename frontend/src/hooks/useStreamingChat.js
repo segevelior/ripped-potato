@@ -53,6 +53,16 @@ export function useStreamingChat() {
 
     let returnedConversationId = null;
 
+    // rAF handle for coalescing token flushes (declared here so the catch/abort
+    // path can cancel a pending frame too).
+    let pendingFrame = null;
+    const cancelFlush = () => {
+      if (pendingFrame != null) {
+        cancelAnimationFrame(pendingFrame);
+        pendingFrame = null;
+      }
+    };
+
     try {
       // Call the Node.js backend which will proxy to Python AI Coach service
       const response = await fetch(`${API_BASE_URL}/api/v1/ai/stream`, {
@@ -80,6 +90,20 @@ export function useStreamingChat() {
       const decoder = new TextDecoder();
       let accumulatedMessage = '';
 
+      // Decouple network cadence from visual paint: coalesce token updates to
+      // ~1 flush per animation frame so bursty tokens reveal as an even stream
+      // (and cause far fewer markdown re-parses). Structural events (tools,
+      // revision, finalize) still flush synchronously.
+      const flush = () => {
+        pendingFrame = null;
+        setStreamingMessage(accumulatedMessage);
+      };
+      const scheduleFlush = () => {
+        if (pendingFrame == null) {
+          pendingFrame = requestAnimationFrame(flush);
+        }
+      };
+
       while (true) {
         const { done, value } = await reader.read();
 
@@ -99,7 +123,7 @@ export function useStreamingChat() {
 
                 if (event.type === 'token') {
                   accumulatedMessage += event.content || '';
-                  setStreamingMessage(accumulatedMessage);
+                  scheduleFlush();
                 } else if (event.type === 'tool_start') {
                   // If no content was streamed yet, add a friendly intro
                   if (!accumulatedMessage.trim()) {
@@ -166,8 +190,13 @@ export function useStreamingChat() {
         }
       }
 
-      // Stream finished - convert any remaining tool-executing tags to tool-complete
-      setStreamingMessage(prev => prev.replace(/<tool-executing>/g, '<tool-complete>').replace(/<\/tool-executing>/g, '</tool-complete>'));
+      // Stream finished - flush any pending frame and convert remaining
+      // tool-executing tags to tool-complete in one final synchronous update.
+      cancelFlush();
+      accumulatedMessage = accumulatedMessage
+        .replace(/<tool-executing>/g, '<tool-complete>')
+        .replace(/<\/tool-executing>/g, '</tool-complete>');
+      setStreamingMessage(accumulatedMessage);
       setIsStreaming(false);
       setActiveTools([]); // Clear active tools when complete
       abortControllerRef.current = null;
@@ -176,6 +205,7 @@ export function useStreamingChat() {
       // Handle abort gracefully (user stopped the stream)
       if (error.name === 'AbortError') {
         console.log('[useStreamingChat] Stream was stopped by user');
+        cancelFlush();
         setActiveTools([]); // Clear active tools
         return null;
       }

@@ -7,6 +7,7 @@ import { FileUpload } from "@/components/chat/FileUpload";
 import { uploadDocument } from "@/api/documents";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
+import { rehypeAnimateWords } from "@/lib/rehypeAnimateWords";
 import { useStreamingChat } from "@/hooks/useStreamingChat";
 import { ToolExecutionMarker } from "@/components/ToolExecutionMarker";
 import { ConversationSidebar } from "@/components/chat/ConversationSidebar";
@@ -635,7 +636,11 @@ export default function ChatWithStreaming() {
                                   prose-a:text-primary-600 prose-a:font-medium prose-a:no-underline hover:prose-a:underline
                                 ">
                                 <ReactMarkdown
-                                  rehypePlugins={[rehypeRaw]}
+                                  rehypePlugins={
+                                    msg.isStreaming && isLastMessage
+                                      ? [rehypeRaw, rehypeAnimateWords()]
+                                      : [rehypeRaw]
+                                  }
                                   components={{
                                     'tool-executing': ({ children }) => (
                                       <ToolExecutionMarker isComplete={false}>{children}</ToolExecutionMarker>

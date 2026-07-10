@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Streaming chat: soft "blur-in" reveal for newly streamed words.
+   Applied per-word by rehypeAnimateWords (see src/lib/rehypeAnimateWords.js),
+   only on the actively streaming assistant message. */
+@keyframes sdBlurIn {
+  from { opacity: 0; filter: blur(4px); }
+  to   { opacity: 1; filter: blur(0); }
+}
+.sd-word {
+  display: inline;
+  animation: sdBlurIn 150ms ease both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sd-word { animation: none; }
+}
+
 
 /* :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
