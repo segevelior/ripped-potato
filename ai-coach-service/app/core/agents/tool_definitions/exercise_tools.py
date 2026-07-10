@@ -179,4 +179,27 @@ def get_exercise_tools() -> List[Dict[str, Any]]:
                 }
             }
         },
+        # ==================== SAVE EXERCISE VIDEO (curation) ====================
+        {
+            "type": "function",
+            "function": {
+                "name": "save_exercise_video",
+                "description": "Save the demo video you JUST SHOWED as the curated demo for an exercise, so it's the instant answer next time. Call ONLY when the user approves a video ('this one is great', 'save this', 'perfect'). You do NOT pass a video id or URL — the system uses the video it showed. Just name the exercise and, if the user picked the alternative, say which.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "exercise_name": {
+                            "type": "string",
+                            "description": "Name of the exercise the video is for (e.g. 'Toes To Bar')."
+                        },
+                        "which": {
+                            "type": "string",
+                            "enum": ["best", "alternative"],
+                            "description": "Which of the shown videos the user approved: 'best' (the main one) or 'alternative' (the second option). Default: best."
+                        }
+                    },
+                    "required": ["exercise_name"]
+                }
+            }
+        },
     ]

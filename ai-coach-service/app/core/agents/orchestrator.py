@@ -57,6 +57,19 @@ def _needs_grounding(message: str) -> bool:
     return bool(_GROUNDING_INTENT_RE.search(message or ""))
 
 
+_VIDEO_EMBED_RE = re.compile(r'<video-embed\s+videoid="([^"]+)"[^>]*/>')
+
+
+def _collect_video_tags(result: Dict[str, Any], into: Dict[str, str]) -> None:
+    """Record any <video-embed> tags a tool returned, keyed by video id, so we
+    can guarantee they render even if the model paraphrases them away."""
+    if not isinstance(result, dict):
+        return
+    msg = result.get("message") or ""
+    for m in _VIDEO_EMBED_RE.finditer(msg):
+        into.setdefault(m.group(1), m.group(0))
+
+
 class AgentOrchestrator:
     """Enhanced orchestrator with comprehensive fitness management tools"""
 
@@ -75,7 +88,11 @@ class AgentOrchestrator:
         self.plan_service = PlanService(db)
         self.goal_service = GoalService(db)
         self.calendar_service = CalendarService(db)
-        self.search_service = SearchService(self.settings.tavily_api_key)
+        self.search_service = SearchService(
+            tavily_api_key=self.settings.tavily_api_key,
+            youtube_api_key=self.settings.youtube_api_key,
+            db=db,
+        )
         self.memory_service = MemoryService(db)
 
         # Shared context handed to every registered skill handler.
@@ -339,6 +356,7 @@ USER DATA:
             # Workout template tools
             "create_workout_template": f"Creating workout template: {function_args.get('name', 'workout')}",
             "list_workout_templates": "Browsing workout templates",
+            "delete_workout_template": "Removing workout template(s)",
             # Workout log tools
             "log_workout": f"Logging workout: {function_args.get('title', 'workout')}",
             "get_workout_history": "Fetching your workout history",
@@ -356,7 +374,12 @@ USER DATA:
             "schedule_to_calendar": f"Scheduling {function_args.get('title', 'event')} for {function_args.get('date', 'your calendar')}",
             "get_calendar_events": "Checking your calendar",
             # Web search & research
-            "web_search": f"Searching the web for: {function_args.get('query', 'fitness info')}",
+            "web_search": (
+                f"Finding a demo video: {function_args.get('query', 'exercise')}"
+                if function_args.get("search_type") == "video"
+                else f"Searching the web for: {function_args.get('query', 'fitness info')}"
+            ),
+            "save_exercise_video": f"Saving demo for {function_args.get('exercise_name', 'exercise')}",
             "read_url": f"Reading content from: {function_args.get('url', 'webpage')[:50]}...",
             "research": f"Researching: {function_args.get('topic', 'fitness topic')}",
             # Memory
@@ -490,6 +513,10 @@ USER DATA:
         # Track the full response and tools used for reflection
         full_response = []
         tools_used = []
+        # Video-embed tags returned by tools this turn. The model sometimes
+        # paraphrases a video result instead of emitting the <video-embed> tag,
+        # which breaks the player. We ensure the tag(s) end up in the response.
+        turn_video_tags: Dict[str, str] = {}  # videoid -> full tag
 
         try:
             # Create streaming completion with tools. If the user referenced their
@@ -570,6 +597,7 @@ USER DATA:
 
                         # Execute tool
                         result = await self._execute_tool(user_id, function_name, function_args)
+                        _collect_video_tags(result, turn_video_tags)
 
                         logger.info(f"Tool {function_name} result: {result}")
 
@@ -690,6 +718,7 @@ USER DATA:
 
                                     # Execute tool
                                     result = await self._execute_tool(user_id, function_name, function_args)
+                                    _collect_video_tags(result, turn_video_tags)
                                     logger.info(f"Follow-up tool {function_name} result: {result}")
 
                                     follow_up_results.append({
@@ -739,6 +768,19 @@ USER DATA:
                         else:
                             # Stream finished without tool_calls finish reason
                             break
+
+            # Guarantee any video the tools returned actually renders: if the model
+            # described it in prose but dropped the <video-embed> tag, append it.
+            accumulated_content = "".join(full_response)
+            missing_tags = [
+                tag for vid, tag in turn_video_tags.items()
+                if vid not in accumulated_content
+            ]
+            if missing_tags:
+                injection = "\n\n" + "\n\n".join(missing_tags)
+                full_response.append(injection)
+                yield {"type": "token", "content": injection}
+                logger.info(f"Injected {len(missing_tags)} missing video-embed tag(s)")
 
             # === REFLECTION FOR STREAMING PATH ===
             accumulated_content = "".join(full_response)
@@ -944,9 +986,11 @@ USER DATA:
             "list_exercises": self.exercise_service.list_exercises,
             "grep_exercises": self.exercise_service.grep_exercises,
             "grep_workouts": self.exercise_service.grep_workouts,
+            "save_exercise_video": self.exercise_service.save_exercise_video,
             # Workout template tools
             "create_workout_template": self.workout_service.create_workout_template,
             "list_workout_templates": self.workout_service.list_workout_templates,
+            "delete_workout_template": self.workout_service.delete_workout_template,
             # Workout log tools
             "log_workout": self.workout_service.log_workout,
             "get_workout_history": self.workout_service.get_workout_history,

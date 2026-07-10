@@ -13,22 +13,26 @@ def get_search_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "web_search",
-                "description": "Search the web for fitness-related information, exercise tutorials, form guides, and educational content. Use this when users ask 'how to do' an exercise, want video tutorials, need form tips, or want external resources about fitness topics. Returns snippets and links - use read_url for full content.",
+                "description": "Search for fitness content. search_type='video' finds an exercise DEMO from YouTube, quality-ranked from trusted fitness channels (pass a CLEAN exercise name, e.g. 'toes to bar' — do NOT add creator names, 'youtube', or 'tutorial'). search_type='article'/'general' searches the web for written guides. Use for 'how to do X', form tips, or external resources.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "The search query. Be specific and include 'tutorial', 'how to', 'form guide', etc. for better results. Example: 'how to do muscle ups tutorial' or 'proper deadlift form guide'"
+                            "description": "The search query. For video demos, use just the exercise name (e.g. 'muscle up', 'toes to bar'). For articles, be specific (e.g. 'proper deadlift form guide')."
                         },
                         "search_type": {
                             "type": "string",
                             "enum": ["general", "video", "article"],
-                            "description": "Type of content to search for. 'video' prioritizes YouTube/video results, 'article' prioritizes written guides, 'general' returns mixed results. Default: general"
+                            "description": "'video' = quality-ranked YouTube exercise demo, 'article' = written guides, 'general' = mixed web results. Default: general"
                         },
                         "max_results": {
                             "type": "integer",
                             "description": "Maximum number of results to return (1-5). Default: 3"
+                        },
+                        "exclude_previous": {
+                            "type": "boolean",
+                            "description": "For search_type='video' only: set true when the user disliked the video you just showed and wants a DIFFERENT one. The system remembers what it showed and returns a fresh alternative — you do NOT pass video ids."
                         }
                     },
                     "required": ["query"]

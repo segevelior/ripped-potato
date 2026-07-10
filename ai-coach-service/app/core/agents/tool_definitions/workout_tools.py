@@ -116,6 +116,40 @@ def get_workout_tools() -> List[Dict[str, Any]]:
                 }
             }
         },
+        {
+            "type": "function",
+            "function": {
+                "name": "delete_workout_template",
+                "description": (
+                    "Delete the user's OWN workout templates (never common/public ones). "
+                    "Use when the user asks to remove/clean up templates. Previews first; "
+                    "deletes only when called again with confirm=true. keep_only handles "
+                    "'delete everything except X, Y' in one call."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "template_id": {
+                            "type": "string",
+                            "description": "Delete one template by id."
+                        },
+                        "name": {
+                            "type": "string",
+                            "description": "Delete one template by exact name (case-insensitive)."
+                        },
+                        "keep_only": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Delete ALL of the user's templates EXCEPT these names (case-insensitive)."
+                        },
+                        "confirm": {
+                            "type": "boolean",
+                            "description": "Actually delete. Default false = preview only. Set true ONLY after the user confirms the preview."
+                        }
+                    }
+                }
+            }
+        },
         # ==================== WORKOUT LOG TOOLS ====================
         {
             "type": "function",
