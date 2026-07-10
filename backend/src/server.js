@@ -287,29 +287,6 @@ app.use('/api/v1/webhooks', webhookRoutes);
 app.use('/api/v1/workout-logs', workoutLogRoutes);
 app.use('/api/v1/train-now', trainNowRoutes);
 
-// TEMP diagnostic: log MCP/OAuth traffic (method, status, latency, and
-// non-secret request details) so connector issues are visible in Render logs.
-app.use((req, res, next) => {
-  if (/^\/(mcp|authorize|token|register|revoke|oauth|\.well-known)/.test(req.path)) {
-    const started = Date.now();
-    const detail = { ua: req.headers['user-agent'] };
-    if (req.path === '/token') {
-      Object.assign(detail, {
-        grant_type: req.body && req.body.grant_type,
-        client_id: req.body && req.body.client_id,
-        redirect_uri: req.body && req.body.redirect_uri,
-        has_code: !!(req.body && req.body.code),
-        has_verifier: !!(req.body && req.body.code_verifier),
-        authz_header: req.headers.authorization ? 'present' : 'absent'
-      });
-    }
-    res.on('finish', () => {
-      console.log(`[MCP] ${req.method} ${req.path} -> ${res.statusCode} (${Date.now() - started}ms) ${JSON.stringify(detail)}`);
-    });
-  }
-  next();
-});
-
 // MCP connector: OAuth authorization-server routes (mounted at root — the
 // `.well-known` discovery documents are origin-rooted) and the /mcp endpoint.
 app.use(mcpAuthRoutes);
