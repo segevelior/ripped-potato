@@ -1,6 +1,7 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const User = require('../models/User');
+const normalizeEmail = require('../utils/normalizeEmail');
 
 console.log('🔐 Initializing Google OAuth Strategy');
 console.log('Google Client ID:', process.env.GOOGLE_CLIENT_ID ? `${process.env.GOOGLE_CLIENT_ID.substring(0, 10)}...` : 'NOT SET');
@@ -34,8 +35,11 @@ passport.use(
           return done(null, user);
         }
 
-        // Check if user exists with same email
-        user = await User.findOne({ email: profile.emails[0].value });
+        // Check if user exists with same email. Normalize with the same canonical
+        // rule used by register/login so a Google login links to (rather than
+        // duplicates) an existing local account for the same address.
+        const email = normalizeEmail(profile.emails[0].value);
+        user = await User.findOne({ email });
 
         if (user) {
           // Link Google account to existing user
@@ -49,7 +53,7 @@ passport.use(
         // Create new user
         user = await User.create({
           googleId: profile.id,
-          email: profile.emails[0].value,
+          email,
           name: profile.displayName,
           profilePicture: profile.photos[0]?.value,
           isEmailVerified: true, // Google accounts are pre-verified

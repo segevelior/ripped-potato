@@ -1,11 +1,12 @@
 const { body } = require('express-validator');
+const normalizeEmail = require('../utils/normalizeEmail');
 
 // User validation
 const validateRegister = [
   body('email')
     .isEmail()
     .withMessage('Please provide a valid email')
-    .normalizeEmail(),
+    .customSanitizer(normalizeEmail),
   body('password')
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters long'),
@@ -19,10 +20,21 @@ const validateLogin = [
   body('email')
     .isEmail()
     .withMessage('Please provide a valid email')
-    .normalizeEmail(),
+    .customSanitizer(normalizeEmail),
   body('password')
     .notEmpty()
     .withMessage('Password is required')
+];
+
+// Set or change password (for adding a password to a Google account,
+// or changing an existing one). `currentPassword` is only required when the
+// account already has a password — enforced in the controller.
+const validateSetPassword = [
+  body('newPassword')
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters long'),
+  body('currentPassword')
+    .optional()
 ];
 
 // Exercise validation
@@ -90,6 +102,7 @@ const validateWorkout = [
 module.exports = {
   validateRegister,
   validateLogin,
+  validateSetPassword,
   validateExercise,
   validateWorkout
 };

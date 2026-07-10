@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, getProfile, updateProfile } = require('../controllers/authController');
+const { register, login, getProfile, updateProfile, setPassword } = require('../controllers/authController');
 const { auth } = require('../middleware/auth');
-const { validateRegister, validateLogin } = require('../middleware/validation');
+const { validateRegister, validateLogin, validateSetPassword } = require('../middleware/validation');
 const passport = require('../config/passport');
 const { renderGoogleConsentAfterAuth } = require('../mcp/consentController');
 
@@ -25,6 +25,11 @@ router.get('/profile', auth, getProfile);
 // @desc    Update user profile
 // @access  Private
 router.put('/profile', auth, updateProfile);
+
+// @route   POST /api/v1/auth/set-password
+// @desc    Set (Google-only account) or change the account password
+// @access  Private
+router.post('/set-password', auth, validateSetPassword, setPassword);
 
 // @route   GET /api/v1/auth/google
 // @desc    Initiate Google OAuth login

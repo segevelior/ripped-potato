@@ -15,9 +15,17 @@ const register = async (req, res) => {
 
     const { email, password, name, timezone } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    // Check if user already exists. Select the password so we can tell a
+    // Google-only account (no password) apart from a local one and guide the
+    // user to the right sign-in method instead of a dead-end error.
+    const existingUser = await User.findOne({ email }).select('+password');
     if (existingUser) {
+      if (existingUser.googleId && !existingUser.password) {
+        return res.status(400).json({
+          success: false,
+          message: 'This email is already registered with Google sign-in. Please sign in with Google — you can add a password afterward in Settings.'
+        });
+      }
       return res.status(400).json({
         success: false,
         message: 'User already exists with this email'
@@ -149,6 +157,11 @@ const login = async (req, res) => {
 // Get current user profile
 const getProfile = async (req, res) => {
   try {
+    // `req.user` excludes `password` (select: false). Do a lean, single-field
+    // lookup (just `password`) to report whether the account can sign in with a
+    // password — this endpoint is hit on most app loads, so keep it cheap.
+    const withPassword = await User.findById(req.user._id).select('password').lean();
+
     res.json({
       success: true,
       data: {
@@ -161,6 +174,9 @@ const getProfile = async (req, res) => {
           address: req.user.address,
           profilePicture: req.user.profilePicture,
           authProvider: req.user.authProvider,
+          // Which sign-in methods are active on this account
+          hasPassword: !!(withPassword && withPassword.password),
+          googleLinked: !!req.user.googleId,
           role: req.user.role,
           profile: req.user.profile,
           settings: req.user.settings,
@@ -239,9 +255,70 @@ const updateProfile = async (req, res) => {
   }
 };
 
+// Set or change the account password.
+// - Google-only accounts (no password yet) can set one directly — identity is
+//   already proven by the valid JWT issued at Google login. This lets a user
+//   who signed up with Google also sign in with email/password.
+// - Accounts that already have a password must provide the correct
+//   `currentPassword` to change it.
+const setPassword = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation errors',
+        errors: errors.array()
+      });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    const user = await User.findById(req.user._id).select('+password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Changing an existing password requires verifying the current one.
+    if (user.password) {
+      if (!currentPassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is required to change your password'
+        });
+      }
+      const isMatch = await user.comparePassword(currentPassword);
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: 'Current password is incorrect'
+        });
+      }
+    }
+
+    user.password = newPassword; // hashed by the pre('save') hook
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password set successfully. You can now sign in with your email and password.'
+    });
+  } catch (error) {
+    console.error('Set password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error setting password'
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   getProfile,
-  updateProfile
+  updateProfile,
+  setPassword
 };
