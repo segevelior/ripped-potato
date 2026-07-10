@@ -4,6 +4,7 @@ const { register, login, getProfile, updateProfile } = require('../controllers/a
 const { auth } = require('../middleware/auth');
 const { validateRegister, validateLogin } = require('../middleware/validation');
 const passport = require('../config/passport');
+const { renderGoogleConsentAfterAuth } = require('../mcp/consentController');
 
 // @route   POST /api/v1/auth/register
 // @desc    Register a new user
@@ -28,7 +29,14 @@ router.put('/profile', auth, updateProfile);
 // @route   GET /api/v1/auth/google
 // @desc    Initiate Google OAuth login
 // @access  Public
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+// Forwards an optional `state` param (e.g. `mcp:<requestId>` for the MCP
+// connector consent flow) through the Google round-trip.
+router.get('/google', (req, res, next) =>
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    state: req.query.state
+  })(req, res, next)
+);
 
 // @route   GET /api/v1/auth/google/callback
 // @desc    Google OAuth callback
@@ -43,7 +51,16 @@ router.get('/google/callback',
         console.error('No user object after Google authentication');
         return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth?error=no_user`);
       }
-      
+
+      // MCP connector consent flow: if state is `mcp:<requestId>`, render the
+      // connector consent page for this now-authenticated user instead of
+      // redirecting to the SPA with a login JWT.
+      const state = req.query.state;
+      if (typeof state === 'string' && state.startsWith('mcp:')) {
+        const requestId = state.slice('mcp:'.length);
+        return await renderGoogleConsentAfterAuth(req, res, requestId);
+      }
+
       // Generate JWT token for the authenticated user
       const token = req.user.generateToken();
       console.log('JWT token generated successfully');

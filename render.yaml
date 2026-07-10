@@ -48,8 +48,24 @@ services:
         value: true
       - key: APP_VERSION
         value: 1.0.0
+      # MCP connector (Claude custom connector). MCP_BASE_URL must equal this
+      # service's public origin; the connector URL users add is ${MCP_BASE_URL}/mcp.
+      - key: MCP_BASE_URL
+        sync: false  # e.g. https://synergyfit-api.onrender.com
+      - key: MCP_CONSENT_TICKET_SECRET
+        sync: false  # distinct secret for signing consent tickets
+      - key: MCP_ACCESS_TOKEN_TTL_SECONDS
+        value: 3600
+      - key: MCP_REFRESH_TOKEN_TTL_SECONDS
+        value: 2592000
+      - key: MCP_AUTH_CODE_TTL_SECONDS
+        value: 600
+    # NOTE: the `free` plan spins down on idle; cold starts can exceed Claude's
+    # ~10s OAuth-endpoint timeout and cause intermittent connector-setup
+    # failures. Upgrade to `starter`, or keep the service warm with an external
+    # pinger hitting /api/v1/health every few minutes.
 
-  # Frontend Static Site  
+  # Frontend Static Site
   - type: static
     name: synergyfit-app
     buildCommand: npm install --prefix frontend && npm run build --prefix frontend
