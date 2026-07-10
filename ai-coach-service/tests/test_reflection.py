@@ -20,6 +20,14 @@ from app.core.agents.reflection_config import REFLECTION_CONFIG
 class TestReflectionTrigger:
     """Tests for the _requires_reflection method."""
 
+    @pytest.fixture(autouse=True)
+    def enable_reflection(self):
+        """Reflection is disabled by default in deployment; force-enable it here
+        so the trigger-detection logic is still exercised. Tests that assert the
+        disabled behaviour patch it back to False internally."""
+        with patch.dict(REFLECTION_CONFIG, {"enabled": True}):
+            yield
+
     @pytest.fixture
     def orchestrator(self):
         """Create orchestrator with mocked dependencies."""
@@ -333,7 +341,9 @@ class TestReflectionExecution:
         # Verify the call used config values
         call_kwargs = orchestrator.client.chat.completions.create.call_args.kwargs
         assert call_kwargs["temperature"] == REFLECTION_CONFIG["temperature"]
-        assert call_kwargs["max_tokens"] == REFLECTION_CONFIG["max_tokens"]
+        # GPT-5 models require max_completion_tokens (see commit #69); the value
+        # still comes from the config's max_tokens entry.
+        assert call_kwargs["max_completion_tokens"] == REFLECTION_CONFIG["max_tokens"]
         assert call_kwargs["model"] == REFLECTION_CONFIG["model"]
 
     @pytest.mark.asyncio

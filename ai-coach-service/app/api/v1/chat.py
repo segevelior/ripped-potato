@@ -49,7 +49,7 @@ async def chat(
             action=result.get("action"),
             confidence=result.get("confidence", 0.8),
             suggestions=result.get("data", {}).get("suggestion", []) if isinstance(result.get("data", {}).get("suggestion"), list) else None,
-            disclaimer="Remember to consult with a healthcare professional before starting any new fitness program."
+            disclaimer=None,
         )
         
         # Add pending change information if this is a CRUD proposal

@@ -45,7 +45,8 @@ WHEN USER ASKS ABOUT EXERCISES BY MUSCLE GROUP (e.g., "what core exercises do I 
 - `list_goals`: View user's goals.
 
 **Calendar** (Scheduling workouts):
-- `schedule_to_calendar`: Schedule a workout or event to a specific date. Use this when user wants to add a workout to their calendar. Supports 'today', 'tomorrow', or ISO dates.
+- `schedule_to_calendar`: Schedule a SINGLE workout or event to a specific date. Use this for one-off scheduling. Supports 'today', 'tomorrow', or ISO dates.
+- `schedule_plan_to_calendar`: Schedule an ENTIRE multi-week plan (or several weeks of it) in ONE call. Whenever the user wants a whole plan put on the calendar, use this — never place plan workouts day-by-day with repeated `schedule_to_calendar` calls. It defaults to a dry-run PREVIEW that writes nothing; show the user the preview, and only after they confirm, call it again with `dry_run=false` to actually write the events.
 - `get_calendar_events`: Check what's already scheduled on the user's calendar.
 
 **Web Search & Research** (External resources):

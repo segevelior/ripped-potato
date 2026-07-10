@@ -4,8 +4,11 @@ All reflection-related constants are centralized here.
 """
 
 REFLECTION_CONFIG = {
-    # Feature flag - set to False for initial deployment
-    "enabled": True,
+    # Feature flag - disabled: the reflection pass was replacing good answers
+    # with generic "provide your equipment info" messages (over-triggering on
+    # content patterns like "reps"/"warm-up"). Re-enable only after the trigger
+    # and revision logic are reworked.
+    "enabled": False,
 
     # Model selection (cheaper model for reflection to reduce cost)
     "model": "gpt-4o-mini",
