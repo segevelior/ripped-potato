@@ -5,13 +5,14 @@
 /* Streaming chat: soft "blur-in" reveal for newly streamed words.
    Applied per-word by rehypeAnimateWords (see src/lib/rehypeAnimateWords.js),
    only on the actively streaming assistant message. */
-@keyframes sdBlurIn {
-  from { opacity: 0; filter: blur(4px); }
-  to   { opacity: 1; filter: blur(0); }
+@keyframes sdFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 .sd-word {
+  /* inline keeps normal text flow (no layout shift); pure opacity fade */
   display: inline;
-  animation: sdBlurIn 150ms ease both;
+  animation: sdFadeIn 500ms ease-out both;
 }
 @media (prefers-reduced-motion: reduce) {
   .sd-word { animation: none; }
