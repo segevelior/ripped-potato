@@ -6,6 +6,7 @@ import pytest
 
 from app.core.agents.skills.plan_builder import (
     _scaled_sets,
+    build_plan_overview,
     build_plan_weeks_from_skeleton,
     build_week_stub,
     coerce_exercise_numbers,
@@ -58,6 +59,43 @@ def _skeleton(weeks_total=8):
         "deloadWeeks": [5],
         "milestones": [{"week": 4, "title": "Checkpoint", "criteria": "3 strict pull-ups"}],
     }
+
+
+class TestPlanOverview:
+    def _plan_weeks(self):
+        skel = normalize_skeleton(_skeleton(8), 8, 2)
+        return skel, build_plan_weeks_from_skeleton(skel, [1, 3], 8, horizon=4)
+
+    def test_overview_level_is_phases_and_milestones_only(self):
+        skel, weeks = self._plan_weeks()
+        ov = build_plan_overview(skel, weeks, level="overview")
+        assert [p["name"] for p in ov["phases"]] == ["Base", "Build"]
+        assert ov["phases"][0]["weekRange"] == [1, 4]
+        assert ov["milestones"][0]["criteria"] == "3 strict pull-ups"
+        assert "weeks" not in ov  # no per-week detail at this level
+
+    def test_weeks_level_summarizes_each_week(self):
+        skel, weeks = self._plan_weeks()
+        ov = build_plan_overview(skel, weeks, level="weeks")
+        assert len(ov["weeks"]) == 8
+        wk1 = ov["weeks"][0]
+        assert wk1["weekNumber"] == 1 and wk1["resolved"] is True
+        assert wk1["workoutTitles"]  # titles present, but not exercise detail
+        assert ov["weeks"][5]["resolved"] is False  # week 6 is a stub (horizon 4)
+
+    def test_week_level_drills_to_exercises(self):
+        skel, weeks = self._plan_weeks()
+        ov = build_plan_overview(skel, weeks, level="week", week_number=1)
+        wk = ov["week"]
+        assert wk["weekNumber"] == 1
+        assert wk["workouts"][0]["dayName"] in {"Monday", "Wednesday"}
+        ex = wk["workouts"][0]["exercises"][0]
+        assert "exerciseName" in ex and "sets" in ex
+
+    def test_week_level_missing_week_is_none(self):
+        skel, weeks = self._plan_weeks()
+        ov = build_plan_overview(skel, weeks, level="week", week_number=99)
+        assert ov["week"] is None
 
 
 class TestCoerce:

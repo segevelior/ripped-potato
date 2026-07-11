@@ -16,6 +16,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.config import get_settings
 from app.core.agents.data_reader import DataReaderAgent
 from app.core.agents.prompts import SYSTEM_PROMPT
+from app.core.agents.text_utils import dedupe_repeated_response
 from app.core.agents.tool_definitions import get_all_tools
 from app.core.agents.reflection_config import REFLECTION_CONFIG
 from app.core.agents.reflection_prompt import REFLECTION_SYSTEM_PROMPT, REFLECTION_USER_PROMPT
@@ -308,7 +309,7 @@ USER DATA:
                         logger.info(f"Response revised. Issues fixed: {reflection_result['issues']}")
 
                 return {
-                    "message": final_content,
+                    "message": dedupe_repeated_response(final_content),
                     "type": "tool_execution",
                     "confidence": 0.95
                 }
@@ -332,7 +333,7 @@ USER DATA:
                         final_content = reflection_result["revised_response"]
 
                 return {
-                    "message": final_content,
+                    "message": dedupe_repeated_response(final_content),
                     "type": "conversation",
                     "confidence": 0.9
                 }
@@ -811,6 +812,20 @@ USER DATA:
                         "issues_fixed": reflection_result["issues"]
                     }
                     accumulated_content = reflection_result["revised_response"]
+
+            # Safety net: gpt-5.4-mini sometimes emits its whole reply twice under
+            # the large system prompt (streamed doubled). Collapse it and tell the
+            # frontend to replace what it showed. Conservative — only fires on an
+            # exact full duplication (see text_utils).
+            deduped = dedupe_repeated_response(accumulated_content)
+            if deduped != accumulated_content:
+                logger.info("Collapsed a duplicated streamed response")
+                yield {
+                    "type": "revision",
+                    "content": deduped,
+                    "issues_fixed": ["Removed a duplicated copy of the reply."],
+                }
+                accumulated_content = deduped
 
             # Yield completion event with final content
             yield {

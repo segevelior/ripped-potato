@@ -42,17 +42,63 @@ def _week_metrics(week: Dict[str, Any]) -> Tuple[int, int, List[Dict[str, Any]]]
     return len(workouts), sets, workouts
 
 
+def _session_timed_minutes(custom: Dict[str, Any]) -> int:
+    """Minutes of timed work in a session = sum of set['time'] (seconds) / 60.
+    Runs/holds are stored as timed sets, so this is the ground truth for a
+    session's aerobic time regardless of its durationMinutes label."""
+    seconds = sum(
+        int(s.get("time") or 0)
+        for ex in (custom.get("exercises") or [])
+        for s in (ex.get("sets") or [])
+    )
+    return seconds // 60
+
+
+def _aerobic_minutes(workouts_list: List[Dict[str, Any]]) -> int:
+    """Aerobic minutes in one week's workouts. Measured from the actual timed work
+    in each session (the model sometimes leaves durationMinutes at the target while
+    the real run length lives in the sets), falling back to durationMinutes for a
+    cardio session that carries no timed sets. Hybrid (strength+run) sessions
+    contribute only their timed portion, so strength blocks aren't miscounted."""
+    minutes = 0
+    for w in workouts_list:
+        custom = w.get("customWorkout") or {}
+        wtype = (custom.get("type") or "").lower()
+        timed = _session_timed_minutes(custom)
+        if wtype in tk.AEROBIC_WORKOUT_TYPES:
+            minutes += timed or int(custom.get("durationMinutes") or 0)
+        elif wtype == "hybrid":
+            minutes += timed
+    return minutes
+
+
 def _has_aerobic(weeks: List[Dict[str, Any]]) -> bool:
+    """Any aerobic stimulus present? True for cardio/hiit/endurance sessions, and
+    for hybrid sessions that carry timed work (embedded runs)."""
     for week in weeks:
         for w in week.get("workouts", []) or []:
-            wtype = ((w.get("customWorkout") or {}).get("type") or "").lower()
+            custom = w.get("customWorkout") or {}
+            wtype = (custom.get("type") or "").lower()
             if wtype in tk.AEROBIC_WORKOUT_TYPES:
+                return True
+            if wtype == "hybrid" and any(
+                (s.get("time") or 0)
+                for ex in (custom.get("exercises") or [])
+                for s in (ex.get("sets") or [])
+            ):
                 return True
     return False
 
 
-def validate_plan_doc(plan: Dict[str, Any], goal_category: str) -> Dict[str, Any]:
-    """Pure validator. Returns {valid, violations[], suggestions[], metrics}."""
+def validate_plan_doc(plan: Dict[str, Any], goal_category: str, check_ramp: bool = True) -> Dict[str, Any]:
+    """Pure validator. Returns {valid, violations[], suggestions[], metrics}.
+
+    `check_ramp`: run the materialized week-over-week set-count ramp check (V5).
+    Skeleton-based plans should pass check_ramp=False — set counts differ across
+    phases by design (different blueprints), not by load ramp, so V5 produces
+    false positives there; `validate_skeleton` does the authoritative, deload-aware
+    ramp check on the week-intent multipliers instead.
+    """
     violations: List[str] = []
     suggestions: List[str] = []
 
@@ -85,21 +131,22 @@ def validate_plan_doc(plan: Dict[str, Any], goal_category: str) -> Dict[str, Any
     # one "set"), so aerobic-oriented goals are measured in weekly aerobic
     # MINUTES against the WHO floor instead.
     if goal_category.lower() in {"endurance", "weight", "health"}:
-        weekly_minutes = []
-        for week, (sessions, _s, workouts_list) in zip(weeks, per_week):
-            if sessions == 0:
-                continue
-            minutes = sum(
-                int((w.get("customWorkout") or {}).get("durationMinutes") or 0)
-                for w in workouts_list
-                if ((w.get("customWorkout") or {}).get("type") or "").lower() in tk.AEROBIC_WORKOUT_TYPES
-            )
-            weekly_minutes.append(minutes)
-        avg_minutes = sum(weekly_minutes) / len(weekly_minutes) if weekly_minutes else 0
-        if avg_minutes < tk.WHO_AEROBIC_MIN_MINUTES:
+        # Aerobic minutes/week. A progressive plan starts low and BUILDS, so the
+        # whole-horizon average understates a good beginner plan (early base weeks
+        # drag it down). Judge the plan by whether it ever builds to an adequate
+        # dose: the peak non-deload week vs the WHO floor. A plan that never reaches
+        # the floor is genuinely under-dosing aerobic work for the goal.
+        weekly_minutes = [
+            _aerobic_minutes(workouts_list)
+            for week, (sessions, _s, workouts_list) in zip(weeks, per_week)
+            if sessions > 0 and not week.get("deloadWeek")
+        ]
+        peak_minutes = max(weekly_minutes) if weekly_minutes else 0
+        if peak_minutes < tk.WHO_AEROBIC_MIN_MINUTES:
             msg = (
-                f"~{avg_minutes:.0f} aerobic minutes/week is below the {tk.WHO_AEROBIC_MIN_MINUTES} "
-                f"recommended for a {goal_category} goal."
+                f"Aerobic volume peaks at ~{peak_minutes} min/week, below the "
+                f"{tk.WHO_AEROBIC_MIN_MINUTES} recommended for a {goal_category} goal — "
+                f"the plan should build key sessions longer."
             )
             # Strength-only training is a legitimate health plan (WHO also has
             # muscle-strengthening guidance) — advisory there, hard for
@@ -128,13 +175,19 @@ def validate_plan_doc(plan: Dict[str, Any], goal_category: str) -> Dict[str, Any
             f"Plans of {weeks_total} weeks benefit from a deload every {tk.DELOAD_EVERY_WEEKS_MIN}–{tk.DELOAD_EVERY_WEEKS_MAX} weeks; none is marked."
         )
 
-    # V5 ramp — flag aggressive week-over-week volume jumps
-    for i in range(1, len(sets_list)):
-        prev, cur = sets_list[i - 1], sets_list[i]
-        if prev > 0 and cur > prev * tk.WEEKLY_RAMP_HARD_FLAG:
-            violations.append(
-                f"Week {weeks[i].get('weekNumber')} volume jumps {((cur/prev)-1)*100:.0f}% over the prior week (aggressive)."
-            )
+    # V5 ramp — flag aggressive week-over-week volume jumps. Deload-aware: a
+    # deload week legitimately drops volume, so the rebuild after it (or the drop
+    # into it) is not an "aggressive jump". Skipped entirely for skeleton plans
+    # (see check_ramp docstring).
+    if check_ramp:
+        for i in range(1, len(sets_list)):
+            if weeks[i - 1].get("deloadWeek") or weeks[i].get("deloadWeek"):
+                continue
+            prev, cur = sets_list[i - 1], sets_list[i]
+            if prev > 0 and cur > prev * tk.WEEKLY_RAMP_HARD_FLAG:
+                violations.append(
+                    f"Week {weeks[i].get('weekNumber')} volume jumps {((cur/prev)-1)*100:.0f}% over the prior week (aggressive)."
+                )
 
     # V6 goal specificity — aerobic-oriented goals need aerobic work
     if goal_category.lower() in {"endurance", "health", "weight"} and not _has_aerobic(weeks):
@@ -264,6 +317,7 @@ async def validate_plan(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -
         report = validate_plan_doc(
             {"schedule": {**(plan.get("schedule") or {}), "weeksTotal": len(resolved)}, "weeks": resolved},
             goal_category,
+            check_ramp=False,  # skeleton plans: ramp is checked by validate_skeleton
         )
         skel_report = validate_skeleton(
             skeleton, goal_category,

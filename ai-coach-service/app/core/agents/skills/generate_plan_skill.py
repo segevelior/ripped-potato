@@ -26,6 +26,7 @@ from app.core.agents.skills.registry import SkillContext, skill
 from app.core.agents.skills.knowledge import training_knowledge as tk
 from app.core.agents.skills.plan_builder import (
     DEFAULT_HORIZON_WEEKS,
+    build_plan_overview,
     build_plan_weeks_from_skeleton,
     normalize_skeleton,
     planner_model,
@@ -117,6 +118,33 @@ Rules: phases contiguous covering weeks 1..{weeks}; one weekIntent per week 1..{
 `sets` and `reps` MUST be integers. For runs/holds/timed work use reps=1, put the duration in timeSeconds, and the real prescription (pace, intervals, rest) in `notes` — never write prose into sets/reps."""
 
 
+async def _find_reusable_draft(
+    ctx: SkillContext, user_oid: ObjectId, goal_oid: Optional[ObjectId],
+    goal_name: str, category: str,
+) -> Optional[Dict[str, Any]]:
+    """Find an existing unscheduled AI DRAFT for the same goal to regenerate into,
+    so "rebuild/show" doesn't spawn duplicate drafts. Matches the linked goal when
+    there is one, else the same free-text goal (stored in the draft's description).
+    Only status:'draft' plans qualify — scheduling flips a plan to active."""
+    query: Dict[str, Any] = {
+        "userId": user_oid,
+        "status": "draft",
+        "tags": "ai-generated",
+    }
+    if goal_oid is not None:
+        query["goalId"] = goal_oid
+    else:
+        # Match on the stable goal CATEGORY tag, not the free-text goal_name: the
+        # model rephrases goal_text on every call ("run a 10k" vs "Run 10K in 3
+        # months from 1-2km…"), so a description match would miss and spawn a
+        # duplicate draft. A user iterating on one goal has one draft category.
+        query["tags"] = {"$all": ["ai-generated", f"cat:{category}"]}
+    try:
+        return await ctx.db.plans.find_one(query, sort=[("updatedAt", -1)])
+    except Exception:
+        return None
+
+
 async def _validate_exercise_names(ctx: SkillContext, user_id: str, names: List[str]) -> List[str]:
     """Best-effort: return names not found in the exercise library (advisory)."""
     if not names:
@@ -203,7 +231,10 @@ async def generate_plan(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -
     tuning = ctx.settings.llm_tuning_params(temperature=0.4)
     # Reasoning tokens count against max_completion_tokens — without headroom a
     # reasoning model burns the whole budget thinking and returns empty content.
-    max_tokens = 16000 if "reasoning_effort" in tuning else 6000
+    # A full skeleton (up to 26 weeks, per-phase detailed blueprints) can exceed
+    # 6000 output tokens and truncate into invalid JSON (observed with the mini
+    # model on a 16-week plan) — which fails the whole generation. Give it room.
+    max_tokens = 16000 if "reasoning_effort" in tuning else 12000
     logger.info("generate_plan LLM call", model=model, weeks=weeks,
                 days_per_week=days_per_week, tuning=tuning)
     try:
@@ -238,6 +269,10 @@ async def generate_plan(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -
         {"schedule": {"weeksTotal": len(resolved_weeks), "workoutsPerWeek": len(workout_days)},
          "weeks": resolved_weeks},
         category,
+        # Skeleton plans get their ramp check from validate_skeleton (deload-aware,
+        # on week-intent multipliers); the materialized set-count ramp check would
+        # false-flag phase transitions here.
+        check_ramp=False,
     )
     skeleton_report = validate_skeleton(skeleton, category, weeks)
 
@@ -261,41 +296,65 @@ async def generate_plan(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -
         },
         "weeks": plan_weeks,
         "skeleton": skeleton,
-        "tags": ["ai-generated", "draft"],
+        # `cat:<category>` lets the dedupe guard find this draft again even when
+        # the model rephrases goal_text on a later generate_plan call.
+        "tags": ["ai-generated", "draft", f"cat:{category}"],
     }
     if linked_goal_oid:
         create_args["goalId"] = str(linked_goal_oid)
 
-    create_result = await ctx.plan_service.create_plan(user_id, create_args)
+    # --- Dedupe guard: reuse an existing unscheduled AI draft for the same goal ---
+    # Without this, every "show me / rebuild" that reaches generate_plan spawns a
+    # new draft (the user saw 3 duplicate 10K drafts in one conversation). If an
+    # unscheduled AI draft already targets this goal, regenerate INTO it.
+    existing = await _find_reusable_draft(ctx, user_oid, linked_goal_oid, goal_name, category)
+    if existing:
+        create_result = await ctx.plan_service.update_plan_content(
+            user_id, str(existing["_id"]), create_args,
+        )
+        reused = create_result.get("success", False)
+    else:
+        create_result = await ctx.plan_service.create_plan(user_id, create_args)
+        reused = False
     if not create_result.get("success"):
         return {"success": False, "message": create_result.get("message", "Failed to save the draft plan.")}
 
+    # Layered, renderable view so the coach shows the REAL plan (phases + each
+    # week's focus/workouts), not just counts. L3 exercise detail is fetched on
+    # demand via show_plan when the user drills into a week.
+    overview = build_plan_overview(skeleton, plan_weeks, level="weeks")
+
     phase_names = " → ".join(p.get("name", "?") for p in skeleton.get("phases", []))
     milestones = skeleton.get("milestones", [])
+    all_violations = report["violations"] + skeleton_report["violations"]
+    # Structure-first opener (progressive disclosure): show the shape and invite a
+    # drill-down. Do NOT dump every week — the coach unfolds detail on request.
+    verb = "Updated your draft" if reused else "Drafted"
     msg = (
-        f"📋 Drafted **{plan_name}** — {weeks} weeks, {len(workout_days)} days/week.\n"
+        f"📋 {verb} **{plan_name}** — {weeks} weeks, {len(workout_days)} days/week.\n"
         f"Phases: {phase_names}."
         + (f" Milestones at week {', '.join(str(m['week']) for m in milestones)}." if milestones else "")
-        + f"\nThe first {len(resolved_weeks)} week(s) are fully written out; later weeks follow the "
-        f"plan's structure and get finalized from your actual training as you go.\n\n"
+        + f"\nThe first {len(resolved_weeks)} weeks are written out to the exercise; later weeks are "
+        f"planned at the phase level and finalized from your actual training as you go.\n\n"
     )
-    all_violations = report["violations"] + skeleton_report["violations"]
     if all_violations:
-        msg += "A few things to review:\n" + "\n".join(f"- {v}" for v in all_violations) + "\n\n"
+        msg += "A couple of things worth tightening before scheduling:\n" + "\n".join(f"- {v}" for v in all_violations) + "\n\n"
     else:
         msg += "It passes the quality checks. "
     if unverified:
         msg += f"Note: {len(unverified)} exercise name(s) weren't found in your library and may be created on scheduling.\n\n"
-    msg += "Want me to put it on your calendar?"
+    msg += "Want to look at a specific phase or week, or should I put it on your calendar?"
 
     return {
         "success": True,
         "dry_run": True,
+        "reused_existing_draft": reused,
         "plan_id": create_result.get("plan_id"),
         "name": plan_name,
         "weeks": weeks,
         "days_per_week": len(workout_days),
         "resolved_weeks": len(resolved_weeks),
+        "overview": overview,
         "validation": report,
         "skeleton_validation": skeleton_report,
         "unverified_exercises": unverified,

@@ -299,6 +299,119 @@ def build_plan_weeks_from_skeleton(
 
 
 # ---------------------------------------------------------------------------
+# Layered, renderable plan views (progressive disclosure)
+#
+# The coach reveals a plan top-down: phases → weeks → workouts → exercises. These
+# pure helpers turn a stored plan (skeleton + materialized/stub weeks) into JSON
+# the model can render at the depth the user asked for. Shared by generate_plan
+# (returns L1+L2 so the coach can show the real structure, not just counts) and
+# show_plan (drills to any level). No DB, no LLM.
+# ---------------------------------------------------------------------------
+
+DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+
+
+def phase_overview(skeleton: Dict[str, Any]) -> Dict[str, Any]:
+    """L1: phases (name, week range, focus, progression) and milestones."""
+    skeleton = skeleton or {}
+    phases = [
+        {
+            "name": p.get("name", ""),
+            "weekRange": [p.get("startWeek"), p.get("endWeek")],
+            "focus": p.get("focus", ""),
+            "progression": p.get("progression", ""),
+        }
+        for p in skeleton.get("phases", []) or []
+    ]
+    milestones = [
+        {"week": m.get("week"), "title": m.get("title", ""), "criteria": m.get("criteria", "")}
+        for m in skeleton.get("milestones", []) or []
+    ]
+    return {"phases": phases, "milestones": milestones}
+
+
+def week_summary(week: Dict[str, Any]) -> Dict[str, Any]:
+    """L2: one week's focus + workout titles (no exercise detail)."""
+    return {
+        "weekNumber": week.get("weekNumber"),
+        "focus": week.get("focus", ""),
+        "deload": bool(week.get("deloadWeek")),
+        "resolved": week.get("resolved") is not False,
+        "workoutTitles": [
+            (w.get("customWorkout") or {}).get("title", "Workout")
+            for w in week.get("workouts", []) or []
+        ],
+    }
+
+
+def _exercise_view(ex: Dict[str, Any]) -> Dict[str, Any]:
+    """One exercise summarized for display: set count + the per-set prescription."""
+    sets = ex.get("sets", []) or []
+    first = sets[0] if sets else {}
+    view: Dict[str, Any] = {
+        "exerciseName": ex.get("exerciseName", ""),
+        "sets": len(sets),
+        "reps": first.get("reps"),
+    }
+    if first.get("time"):
+        view["timeSeconds"] = first.get("time")
+    if ex.get("notes"):
+        view["notes"] = ex["notes"]
+    return view
+
+
+def workout_detail(workout: Dict[str, Any]) -> Dict[str, Any]:
+    """L3: one workout with its exercises/sets/times/notes."""
+    day = workout.get("dayOfWeek")
+    custom = workout.get("customWorkout") or {}
+    return {
+        "dayOfWeek": day,
+        "dayName": DAY_NAMES[day] if isinstance(day, int) and 0 <= day <= 6 else None,
+        "title": custom.get("title", "Workout"),
+        "type": custom.get("type", "strength"),
+        "durationMinutes": custom.get("durationMinutes"),
+        "notes": workout.get("notes", ""),
+        "exercises": [_exercise_view(ex) for ex in custom.get("exercises", []) or []],
+    }
+
+
+def week_detail(week: Dict[str, Any]) -> Dict[str, Any]:
+    """L3: one full week — its workouts drilled down to exercises."""
+    return {
+        "weekNumber": week.get("weekNumber"),
+        "focus": week.get("focus", ""),
+        "deload": bool(week.get("deloadWeek")),
+        "resolved": week.get("resolved") is not False,
+        "workouts": [workout_detail(w) for w in week.get("workouts", []) or []],
+    }
+
+
+def build_plan_overview(
+    skeleton: Dict[str, Any],
+    weeks: List[Dict[str, Any]],
+    level: str = "weeks",
+    week_number: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Layered plan view. `level`:
+      - "overview": phases + milestones only (L1)
+      - "weeks":    L1 + per-week summaries (L2) — the generate_plan default
+      - "week":     L1 + full detail for `week_number` (L3)
+      - "workout":  same as "week" (caller picks the workout to show)
+    """
+    weeks = weeks or []
+    overview = phase_overview(skeleton)
+    if level == "overview":
+        return overview
+    if level in ("week", "workout"):
+        target = next((w for w in weeks if w.get("weekNumber") == week_number), None)
+        overview["week"] = week_detail(target) if target else None
+        return overview
+    # default: "weeks"
+    overview["weeks"] = [week_summary(w) for w in weeks]
+    return overview
+
+
+# ---------------------------------------------------------------------------
 # Adaptation (Stage 3 rules — constants from training_knowledge only)
 # ---------------------------------------------------------------------------
 
