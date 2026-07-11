@@ -1,5 +1,5 @@
 import React from "react";
-import { FileText, Code, Database, Bot, Zap, Target, Calendar, TrendingUp } from "lucide-react";
+import { FileText, Code, Database, Bot, Zap, Target, Calendar, TrendingUp, MessageCircle } from "lucide-react";
 
 export default function Documentation() {
   return (

@@ -6,7 +6,51 @@ const { validationResult } = require('express-validator');
 const getExercises = async (req, res) => {
   try {
     const { muscle, discipline, equipment, difficulty, search, page = 1, limit = 50 } = req.query;
-    
+
+    // Fast path: when there's a text query, use server-side Atlas fuzzy $search
+    // (typo tolerance + muscle/equipment matching) instead of loading the whole
+    // catalog and doing substring matching in memory. Facets are applied inside
+    // the aggregation before pagination so counts/pages stay correct.
+    if (search) {
+      try {
+        const { exercises: searchResults, total } = await ExerciseService.searchExercises({
+          userId: req.user ? req.user.id : null,
+          search,
+          muscle,
+          discipline,
+          equipment,
+          difficulty,
+          page: parseInt(page),
+          limit: parseInt(limit)
+        });
+
+        // Only trust the fast path when it actually found something. A missing or
+        // still-building Atlas index returns EMPTY rather than throwing, so a bare
+        // `return` here would surface a false "no results" during the deploy/index
+        // -build window. Zero hits → fall through to the in-memory substring path,
+        // which also covers description matches the search index doesn't have. For
+        // this catalog size the extra scan on a genuine no-match is negligible.
+        if (total > 0) {
+          return res.json({
+            success: true,
+            data: {
+              exercises: searchResults,
+              pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total,
+                pages: Math.ceil(total / limit)
+              }
+            }
+          });
+        }
+      } catch (searchErr) {
+        // Atlas Search index missing / not READY (e.g. local dev) — fall through
+        // to the in-memory substring path below so search still works offline.
+        console.warn('Atlas $search unavailable, falling back to in-memory filter:', searchErr.message);
+      }
+    }
+
     // If user is authenticated, get exercises with modifications applied
     let exercises;
     if (req.user) {
@@ -138,6 +182,41 @@ const getExercise = async (req, res) => {
   }
 };
 
+// Get exercises similar to a given one (vector search — dynamic "alternatives")
+const getSimilarExercises = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 8, 25);
+    const userId = req.user ? req.user.id : null;
+
+    // Ensure the source exists and is visible to this user first.
+    const source = req.user
+      ? await ExerciseService.getExerciseForUser(req.params.id, userId)
+      : await Exercise.findOne({ _id: req.params.id, isCommon: true }).lean();
+
+    if (!source) {
+      return res.status(404).json({
+        success: false,
+        message: 'Exercise not found'
+      });
+    }
+
+    const similar = await ExerciseService.findSimilar(req.params.id, userId, limit);
+
+    res.json({
+      success: true,
+      data: {
+        exercises: similar
+      }
+    });
+  } catch (error) {
+    console.error('Get similar exercises error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error getting similar exercises'
+    });
+  }
+};
+
 // Create new exercise
 const createExercise = async (req, res) => {
   try {
@@ -149,6 +228,12 @@ const createExercise = async (req, res) => {
         errors: errors.array()
       });
     }
+
+    // Never let a client set the embedding fields directly — they're derived
+    // server-side by the pre-save hook. Accepting them would let a caller poison
+    // the vector (or, with an unchanged name, slip a bad vector past the guard).
+    delete req.body.embedding;
+    delete req.body.embeddingText;
 
     const exerciseData = {
       ...req.body,
@@ -180,7 +265,13 @@ const createExercise = async (req, res) => {
 // Update exercise
 const updateExercise = async (req, res) => {
   try {
-    const exercise = await Exercise.findById(req.params.id);
+    // Client can't set derived embedding fields (see createExercise).
+    delete req.body.embedding;
+    delete req.body.embeddingText;
+
+    // Load embeddingText so the pre-save re-embed guard can compare it (it's
+    // select:false, so it isn't loaded by default).
+    const exercise = await Exercise.findById(req.params.id).select('+embeddingText');
 
     if (!exercise) {
       return res.status(404).json({
@@ -282,6 +373,7 @@ const deleteExercise = async (req, res) => {
 module.exports = {
   getExercises,
   getExercise,
+  getSimilarExercises,
   createExercise,
   updateExercise,
   deleteExercise

@@ -6,12 +6,30 @@
 import { apiService } from '../../services/api';
 
 export const Exercise = {
-  async list() {
+  async list(params = {}) {
     try {
-      const data = await apiService.exercises.list();
+      const data = await apiService.exercises.list(params);
       return Array.isArray(data) ? data : [];
     } catch (error) {
       console.error('Exercise.list error:', error);
+      return [];
+    }
+  },
+
+  // Server-side fuzzy search (Atlas $search: typo tolerance + muscle/equipment
+  // matching). Use for typeahead so we don't download the whole catalog.
+  async search(term, params = {}) {
+    if (!term) return [];
+    return this.list({ search: term, ...params });
+  },
+
+  // Semantically similar exercises (dynamic "alternatives") via vector search.
+  async similar(id, limit) {
+    try {
+      const data = await apiService.exercises.similar(id, limit);
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      console.error('Exercise.similar error:', error);
       return [];
     }
   },

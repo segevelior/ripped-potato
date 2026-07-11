@@ -716,6 +716,78 @@ router.post('/progressions/suggest', authMiddleware, aiRateLimit, async (req, re
   }
 });
 
+// Exercise substitute ranking - "Ask the Sensei" replace options (proxies to AI Coach)
+// Forwards the Authorization header because the AI endpoint is user-scoped
+// (needs the athlete's equipment + owned exercises to ground candidates).
+router.post('/exercises/substitute/rank', authMiddleware, aiRateLimit, async (req, res) => {
+  try {
+    const { exercise_id, exercise_name, reason, count } = req.body;
+
+    if (!exercise_id && !exercise_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'exercise_id or exercise_name is required'
+      });
+    }
+
+    const urlParts = new URL(`${AI_SERVICE_URL}/api/v1/exercises/substitute/rank`);
+    const isHttps = urlParts.protocol === 'https:';
+    const http = require(isHttps ? 'https' : 'http');
+
+    const body = JSON.stringify({ exercise_id, exercise_name, reason, count });
+
+    const response = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: urlParts.hostname,
+        port: urlParts.port || (isHttps ? 443 : 80),
+        path: urlParts.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+          ...(req.headers.authorization && { Authorization: req.headers.authorization })
+        }
+      };
+
+      const request = http.request(options, (response) => {
+        let data = '';
+        response.on('data', (chunk) => { data += chunk; });
+        response.on('end', () => {
+          if (response.statusCode === 200) {
+            try {
+              resolve(JSON.parse(data));
+            } catch (e) {
+              reject(new Error('Invalid JSON response from AI service'));
+            }
+          } else {
+            reject(new Error(`AI service returned status ${response.statusCode}: ${data}`));
+          }
+        });
+      });
+
+      // The downstream call waits on an LLM completion — cap it so a hung
+      // upstream can't hold the client connection open indefinitely.
+      request.setTimeout(30000, () => {
+        request.destroy(new Error('AI service timed out'));
+      });
+
+      request.on('error', reject);
+      request.write(body);
+      request.end();
+    });
+
+    res.json(response);
+
+  } catch (error) {
+    console.error('Substitute rank error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get replacement options',
+      error: error.message
+    });
+  }
+});
+
 // Progression suggestion streaming endpoint - proxies to Python AI Coach service
 router.post('/progressions/suggest/stream', authMiddleware, aiRateLimit, async (req, res) => {
   try {

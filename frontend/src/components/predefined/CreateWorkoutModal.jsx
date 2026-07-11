@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X, Plus, Trash2, GripVertical, Search, Clock, Activity, Dumbbell, ChevronDown, ChevronUp, Save } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { Exercise } from "@/api/entities";
 
 // Inline Search Component for "Spotlight" feel
 const BlockSearch = ({ allExercises, onSelect }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [results, setResults] = useState([]);
   const wrapperRef = useRef(null);
 
   useEffect(() => {
@@ -18,9 +20,34 @@ const BlockSearch = ({ allExercises, onSelect }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredExercises = searchTerm
-    ? allExercises.filter(ex => ex.name.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 5)
-    : [];
+  // Debounced server-side fuzzy search (typo tolerance + muscle/equipment
+  // matching). Falls back to in-memory substring on the pre-loaded list if the
+  // server search is unavailable or returns nothing.
+  useEffect(() => {
+    const term = searchTerm.trim();
+    if (!term) {
+      setResults([]);
+      return;
+    }
+    let cancelled = false;
+    const inMemory = () => (allExercises || [])
+      .filter(ex => ex.name.toLowerCase().includes(term.toLowerCase()))
+      .slice(0, 8);
+    const handle = setTimeout(async () => {
+      try {
+        const found = await Exercise.search(term, { limit: 8 });
+        if (!cancelled) setResults(found.length ? found : inMemory());
+      } catch {
+        if (!cancelled) setResults(inMemory());
+      }
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [searchTerm, allExercises]);
+
+  const filteredExercises = results;
 
   return (
     <div ref={wrapperRef} className="relative w-full">
@@ -44,7 +71,7 @@ const BlockSearch = ({ allExercises, onSelect }) => {
           {filteredExercises.length > 0 ? (
             filteredExercises.map(ex => (
               <button
-                key={ex.id}
+                key={ex.id || ex._id}
                 onClick={() => {
                   onSelect(ex);
                   setSearchTerm("");
@@ -144,7 +171,7 @@ export default function CreateWorkoutModal({ exercises, onClose, onSave, editWor
   const handleSelectExercise = (blockIndex, exercise) => {
     const newBlocks = [...workout.blocks];
     const newExercise = {
-      exercise_id: exercise.id,
+      exercise_id: exercise.id || exercise._id,
       exercise_name: exercise.name,
       volume: "3x8",
       rest: "60s",

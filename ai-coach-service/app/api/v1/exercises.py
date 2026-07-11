@@ -1,16 +1,26 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from openai import AsyncOpenAI
+from pydantic import BaseModel
+from typing import Any, Dict, List, Optional
+from bson import ObjectId
 import json
 import re
 import structlog
 
 from app.config import get_settings
+from app.middleware.auth import get_current_user
 from app.models.schemas import (
     ExerciseSuggestionRequest,
     ExerciseSuggestionResponse,
     ExerciseSuggestion,
     StrainSuggestion
+)
+from app.core.agents.skills.substitute_exercise_skill import (
+    score_substitute,
+    equipment_ok,
+    _is_pain_reason,
+    _ALWAYS_AVAILABLE,
 )
 
 router = APIRouter()
@@ -305,3 +315,227 @@ async def suggest_exercise_stream(request: ExerciseSuggestionRequest):
             "X-Accel-Buffering": "no"  # Disable nginx buffering
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# Substitute ranking ("Ask the Sensei" replace)
+# ---------------------------------------------------------------------------
+# One-shot endpoint that returns replacement options for an exercise being
+# swapped mid-workout. It grounds the LLM on real catalog candidates (so most
+# options carry a real id), but MAY also propose fresh exercises the caller
+# materializes before swapping. Pain/injury reasons route to a safety caution.
+
+
+class SubstituteRankRequest(BaseModel):
+    exercise_id: Optional[str] = None
+    exercise_name: Optional[str] = None
+    reason: Optional[str] = None
+    count: int = 5
+
+
+class SubstituteOption(BaseModel):
+    source: str  # "catalog" | "new"
+    id: Optional[str] = None
+    name: str
+    muscles: List[str] = []
+    secondaryMuscles: List[str] = []
+    discipline: List[str] = []
+    equipment: List[str] = []
+    difficulty: Optional[str] = None
+    strain: Optional[Dict[str, Any]] = None
+    note: Optional[str] = None
+
+
+class SubstituteRankResponse(BaseModel):
+    options: List[SubstituteOption] = []
+    routed: Optional[str] = None
+    message: Optional[str] = None
+    fallback: bool = False
+
+
+SAFETY_MESSAGE = (
+    "Since this is about pain or an injury, I won't just swap in another loaded "
+    "movement. If a clinician has cleared you to train around it, tell me which area "
+    "to avoid and I'll suggest a variation. Otherwise please rest it or check with a "
+    "professional — I can't prescribe rehab."
+)
+
+SUBSTITUTE_RANK_PROMPT = """You are a strength coach helping an athlete swap an exercise mid-workout.
+
+Exercise to replace: {original_name}
+Primary muscles: {original_muscles}
+Why they want to swap: {reason}
+
+Here are REAL exercises from their catalog that share muscles and fit their equipment,
+already ranked by stimulus match (best first):
+{candidates}
+
+Pick the {count} best replacements. Prefer catalog options (they map to real logged
+exercises). You MAY add at most 2 fresh exercises NOT in the list only if they would
+clearly serve the athlete better.
+
+Return ONLY a JSON object:
+{{"options": [
+  {{"source": "catalog", "id": "<exact id from the list>", "note": "<=12 words on why it fits"}},
+  {{"source": "new", "name": "<exercise name>", "muscles": [...], "discipline": [...],
+    "equipment": [...], "difficulty": "beginner|intermediate|advanced",
+    "strain": {{"intensity": "...", "load": "...", "duration_type": "reps", "typical_volume": "3x10"}},
+    "note": "<=12 words on why it fits"}}
+]}}
+For "catalog" options include ONLY source, id, note. Use ids EXACTLY as given; never invent an id."""
+
+
+def _candidate_to_option(doc: Dict[str, Any], note: Optional[str] = None) -> Dict[str, Any]:
+    """Project a Mongo exercise doc into a catalog option (includes strain for default sets)."""
+    return {
+        "source": "catalog",
+        "id": str(doc["_id"]),
+        "name": doc.get("name", ""),
+        "muscles": doc.get("muscles", []) or [],
+        "secondaryMuscles": doc.get("secondaryMuscles", []) or [],
+        "discipline": doc.get("discipline", []) or [],
+        "equipment": doc.get("equipment", []) or [],
+        "difficulty": doc.get("difficulty"),
+        "strain": doc.get("strain"),
+        "note": note,
+    }
+
+
+async def _load_original(db, user_oid: ObjectId, req: SubstituteRankRequest) -> Optional[Dict[str, Any]]:
+    ownership = {"$or": [{"isCommon": True}, {"createdBy": user_oid}]}
+    if req.exercise_id:
+        try:
+            return await db.exercises.find_one({"_id": ObjectId(req.exercise_id), **ownership})
+        except Exception:
+            return None
+    if req.exercise_name:
+        return await db.exercises.find_one(
+            {"name": {"$regex": f"^{re.escape(req.exercise_name)}$", "$options": "i"}, **ownership}
+        )
+    return None
+
+
+@router.post("/substitute/rank", response_model=SubstituteRankResponse)
+async def substitute_rank(
+    request: SubstituteRankRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> SubstituteRankResponse:
+    """Return catalog-grounded (and optionally fresh) replacement options for an exercise."""
+    from app.main import db
+
+    # Pain/injury requests never get an auto-swap.
+    if _is_pain_reason(request.reason or ""):
+        return SubstituteRankResponse(routed="safety", message=SAFETY_MESSAGE)
+
+    try:
+        user_oid = ObjectId(current_user["user_id"])
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid user.")
+
+    original = await _load_original(db, user_oid, request)
+    if not original:
+        # Nothing to ground on — return empty rather than hallucinate blindly.
+        return SubstituteRankResponse(options=[], fallback=True,
+                                      message="Couldn't find that exercise to build alternatives from.")
+
+    # Available equipment: user profile.
+    user = await db.users.find_one({"_id": user_oid}, {"profile.preferences.equipment": 1})
+    equipment_list = (((user or {}).get("profile") or {}).get("preferences") or {}).get("equipment") or []
+    available = {(e or "").lower() for e in equipment_list} | _ALWAYS_AVAILABLE
+
+    # Candidate pool: shares >=1 primary muscle, equipment-ok, ranked deterministically.
+    ownership = {"$or": [{"isCommon": True}, {"createdBy": user_oid}]}
+    query = {"muscles": {"$in": original.get("muscles", [])}, "_id": {"$ne": original["_id"]}, **ownership}
+    candidates = await db.exercises.find(query).to_list(100)
+    scored = [
+        (score_substitute(original, c), c)
+        for c in candidates
+        if equipment_ok(c.get("equipment", []), available)
+    ]
+    scored.sort(key=lambda x: x[0], reverse=True)
+    scored = [s for s in scored if s[0] > 0]
+
+    pool = [c for _, c in scored[:8]]
+    pool_by_id = {str(c["_id"]): c for c in pool}
+
+    # Deterministic fallback options (used if the LLM call fails or returns nothing usable).
+    deterministic = [_candidate_to_option(c) for c in pool[: request.count]]
+
+    if not pool:
+        return SubstituteRankResponse(options=[], fallback=True)
+
+    settings = get_settings()
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    candidates_text = "\n".join(
+        f'- id={str(c["_id"])} | {c.get("name")} | muscles={c.get("muscles", [])} | equipment={c.get("equipment", [])}'
+        for c in pool
+    )
+    prompt = SUBSTITUTE_RANK_PROMPT.format(
+        original_name=original.get("name", ""),
+        original_muscles=", ".join(original.get("muscles", []) or []) or "n/a",
+        reason=request.reason or "wants a change",
+        candidates=candidates_text,
+        count=request.count,
+    )
+
+    try:
+        response = await client.chat.completions.create(
+            model=settings.openai_model_fast,
+            messages=[
+                {"role": "system", "content": "You are a strength coach. Respond only with valid JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            max_completion_tokens=900,
+            **settings.llm_tuning_params(temperature=0.4),
+        )
+        content = response.choices[0].message.content.strip()
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+            content = content.strip()
+        data = json.loads(content)
+
+        options: List[Dict[str, Any]] = []
+        for raw in data.get("options", [])[: request.count]:
+            source = raw.get("source")
+            note = raw.get("note")
+            if source == "catalog":
+                doc = pool_by_id.get(raw.get("id"))
+                if doc is not None:  # drop hallucinated ids
+                    options.append(_candidate_to_option(doc, note))
+            elif source == "new" and raw.get("name"):
+                strain = raw.get("strain") or {}
+                new_muscles = [m for m in raw.get("muscles", []) if m in VALID_MUSCLES]
+                if not new_muscles:
+                    # LLM returned no valid muscles — inherit the original's so the
+                    # option is materializable (muscles is required by the Exercise
+                    # model) and embeds/searches sensibly. Skip if still empty.
+                    new_muscles = [m for m in (original.get("muscles") or []) if m in VALID_MUSCLES]
+                if not new_muscles:
+                    continue
+                options.append({
+                    "source": "new",
+                    "id": None,
+                    "name": raw["name"],
+                    "muscles": new_muscles,
+                    "secondaryMuscles": [],
+                    "discipline": [d for d in raw.get("discipline", []) if d in VALID_DISCIPLINES] or ["strength"],
+                    "equipment": raw.get("equipment", []) or [],
+                    "difficulty": raw.get("difficulty") if raw.get("difficulty") in VALID_DIFFICULTIES else "beginner",
+                    "strain": {
+                        "intensity": strain.get("intensity") if strain.get("intensity") in VALID_INTENSITIES else "moderate",
+                        "load": strain.get("load") if strain.get("load") in VALID_LOADS else "moderate",
+                        "durationType": strain.get("duration_type") if strain.get("duration_type") in VALID_DURATION_TYPES else "reps",
+                        "typicalVolume": strain.get("typical_volume", "3x10"),
+                    },
+                    "note": note,
+                })
+
+        if not options:
+            return SubstituteRankResponse(options=deterministic, fallback=True)
+        return SubstituteRankResponse(options=options)
+
+    except Exception as e:
+        logger.error(f"substitute_rank LLM failure, returning deterministic pool: {e}")
+        return SubstituteRankResponse(options=deterministic, fallback=True)

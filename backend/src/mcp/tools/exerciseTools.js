@@ -47,6 +47,25 @@ function register(server, ctx) {
   }, withScope(scopes, READ, (args) =>
     runTool(exerciseController.getExercise, { user, params: { id: args.id } }, { transform: trimExercise })
   ));
+
+  server.registerTool('find_similar_exercises', {
+    title: 'Find similar exercises',
+    description: 'Given an exerciseId, return semantically similar exercises (swap/alternative suggestions) ranked by similarity, using vector search over muscles, movement pattern and equipment.',
+    inputSchema: {
+      id: z.string().length(24).describe('The exerciseId to find alternatives for'),
+      limit: z.number().int().min(1).max(25).optional().describe('Max alternatives to return (default 8)')
+    }
+  }, withScope(scopes, READ, (args) =>
+    runTool(
+      exerciseController.getSimilarExercises,
+      { user, params: { id: args.id }, query: { limit: args.limit } },
+      { transform: (data) => (data && Array.isArray(data.exercises)
+        // Keep `score` (similarity magnitude) so the coach can weigh how close
+        // each alternative is, not just their rank order.
+        ? { ...data, exercises: data.exercises.map(ex => ({ ...trimExercise(ex), score: ex.score })) }
+        : data) }
+    )
+  ));
 }
 
 module.exports = { register };

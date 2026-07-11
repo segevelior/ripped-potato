@@ -13,6 +13,7 @@ import time
 from app.models.schemas import ChatRequest
 from app.middleware.auth import get_current_user
 from app.core.agents.orchestrator import AgentOrchestrator
+from app.services.short_term_context_service import ShortTermContextService, spawn_background
 from app.core.agents.text_utils import dedupe_repeated_response
 from app.services.conversation_service import ConversationService
 
@@ -143,6 +144,8 @@ async def chat_stream(
     # Keep force flags in saved messages so AI can see research intent in history
     # Title extraction handles stripping flags for display purposes
 
+    is_new_conversation = False
+
     if conversation_id:
         # Verify conversation exists and belongs to user
         existing = await conversation_service.get_conversation(conversation_id, user_id)
@@ -153,6 +156,7 @@ async def chat_stream(
                 initial_message=request.message
             )
             conversation_id = result["conversation_id"]
+            is_new_conversation = True
         else:
             # Get existing conversation history for context
             conversation_history = existing.get("messages", [])
@@ -171,6 +175,16 @@ async def chat_stream(
             initial_message=request.message
         )
         conversation_id = result["conversation_id"]
+        is_new_conversation = True
+
+    if is_new_conversation:
+        # A new conversation just started — lazily summarize recently-ended
+        # ones into short-term context (fire-and-forget, race-safe claim inside)
+        spawn_background(
+            ShortTermContextService(db).summarize_stale_conversations(
+                user_id, orchestrator.client, orchestrator.settings
+            )
+        )
 
     logger.info(f"Using conversation {conversation_id} for user {user_id}")
 

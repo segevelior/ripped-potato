@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { X, Dumbbell, Target, Zap, Timer, MoreVertical, Activity, TrendingUp, AlertCircle, Star, Repeat, ArrowRight, Weight, Clock, Pencil, Trash2 } from "lucide-react";
 import { getDisciplineClass } from "@/styles/designTokens";
+import { Exercise } from "@/api/entities";
 
 const intensityColors = {
   low: "bg-green-100 text-green-800",
@@ -29,17 +30,30 @@ const throttle = (func, limit) => {
   }
 };
 
-export default function ExerciseDetailModal({ exercise, onClose, onEdit, onToggleFavorite, onDelete }) {
+export default function ExerciseDetailModal({ exercise, onClose, onEdit, onToggleFavorite, onDelete, onSelectSimilar }) {
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const scrollContainerRef = useRef(null);
   const optionsMenuRef = useRef(null);
   const [isFavorite, setIsFavorite] = useState(exercise.userMetadata?.isFavorite || false);
+  const [similar, setSimilar] = useState([]);
 
   useEffect(() => {
     setIsFavorite(exercise.userMetadata?.isFavorite || false);
   }, [exercise.userMetadata?.isFavorite]);
+
+  // Fetch real vector-similar exercises ("alternatives") at open time.
+  useEffect(() => {
+    const id = exercise.id || exercise._id;
+    if (!id) return;
+    let cancelled = false;
+    setSimilar([]);
+    Exercise.similar(id, 6).then((found) => {
+      if (!cancelled) setSimilar(found || []);
+    });
+    return () => { cancelled = true; };
+  }, [exercise.id, exercise._id]);
 
   // Throttled scroll handler
   const handleScroll = useCallback(throttle((e) => {
@@ -394,8 +408,26 @@ export default function ExerciseDetailModal({ exercise, onClose, onEdit, onToggl
               </div>
             )}
 
-            {/* Similar Exercises */}
-            {exercise.similar_exercises && exercise.similar_exercises.length > 0 && (
+            {/* Similar Exercises — real vector-search alternatives (clickable),
+                with the static AI-suggested names as a fallback. */}
+            {similar.length > 0 ? (
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-gray-900 mb-3">Similar Exercises</h3>
+                <div className="flex flex-wrap gap-2">
+                  {similar.map((simEx) => (
+                    <button
+                      key={simEx._id || simEx.id}
+                      onClick={() => onSelectSimilar && onSelectSimilar(simEx)}
+                      disabled={!onSelectSimilar}
+                      className="px-3 py-1.5 bg-orange-50 text-orange-700 rounded-xl text-xs font-bold capitalize flex items-center gap-1.5 hover:bg-orange-100 transition-colors disabled:cursor-default"
+                    >
+                      <ArrowRight className="w-3 h-3" />
+                      {simEx.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : exercise.similar_exercises && exercise.similar_exercises.length > 0 && (
               <div className="mb-8">
                 <h3 className="text-lg font-bold text-gray-900 mb-3">Similar Exercises</h3>
                 <div className="flex flex-wrap gap-2">

@@ -9,6 +9,8 @@ import redis.asyncio as redis
 from app.config import get_settings, Settings
 from app.api.v1 import health, chat, chat_stream, conversations, documents, exercises, internal, progressions, suggestions, train_now, coach_question
 from app.services.conversation_service import ConversationService
+from app.services.recommendation_service import RecommendationService
+from app.services.short_term_context_service import ShortTermContextService
 
 logger = structlog.get_logger()
 
@@ -35,6 +37,10 @@ async def lifespan(app: FastAPI):
     # Ensure indexes for conversations collection
     conversation_service = ConversationService(db)
     await conversation_service.ensure_indexes()
+
+    # Ensure indexes for daily recommendations + short-term context (TTL collections)
+    await RecommendationService(db).ensure_indexes()
+    await ShortTermContextService(db).ensure_indexes()
     
     # Connect to Redis
     try:

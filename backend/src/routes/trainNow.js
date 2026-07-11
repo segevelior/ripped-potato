@@ -12,10 +12,14 @@ router.get('/', authMiddleware, async (req, res) => {
     const isHttps = urlParts.protocol === 'https:';
     const http = require(isHttps ? 'https' : 'http');
 
+    // Forward the query string (e.g. ?refresh=true) to the AI service
+    const queryIndex = req.url.indexOf('?');
+    const queryString = queryIndex >= 0 ? req.url.slice(queryIndex) : '';
+
     const options = {
       hostname: urlParts.hostname,
       port: urlParts.port || (isHttps ? 443 : 80),
-      path: urlParts.pathname,
+      path: urlParts.pathname + queryString,
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

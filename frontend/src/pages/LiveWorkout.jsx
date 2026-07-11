@@ -1,13 +1,22 @@
 import { useState, useEffect, useRef } from "react";
 import { WorkoutLog } from "@/api/entities";
-import { ArrowLeft, Square, Play, Pause, Plus, Minus, Check, X, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Square, Play, Pause, Plus, Minus, Check, X, Save, Trash2, MoreVertical, RefreshCw, ArrowUp, ArrowDown, Undo2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   getActiveWorkout,
   saveWorkoutProgress,
   clearActiveWorkout,
-  startWorkoutSession
+  startWorkoutSession,
+  buildSessionExercise
 } from "@/utils/workoutSession";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import ReplaceExerciseModal from "@/components/exercise/ReplaceExerciseModal";
+import ExerciseSearchInput from "@/components/exercise/ExerciseSearchInput";
 
 // Format seconds to MM:SS
 const formatTime = (seconds) => {
@@ -261,47 +270,110 @@ function SwipeableSetRow({ setData, setIndex, onUpdate, onComplete }) {
   );
 }
 
-// Swipeable Exercise Card - swipe right to complete all sets
-function SwipeableExerciseCard({ exercise, exerciseIndex, onSetUpdate, onSetComplete, onCompleteAll }) {
+// Swipeable Exercise Card
+// - swipe RIGHT to complete all sets (existing behavior)
+// - swipe LEFT to reveal quick Replace / Delete actions
+// - long-press (or the kebab button) opens the full action sheet
+function SwipeableExerciseCard({ exercise, exerciseIndex, onSetUpdate, onSetComplete, onCompleteAll, onOpenMenu, onReplace, onDelete }) {
   const [translateX, setTranslateX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [revealed, setRevealed] = useState(false);
   const startXRef = useRef(0);
-  const SWIPE_THRESHOLD = 100;
+  const startYRef = useRef(0);
+  const suppressSwipeRef = useRef(false);
+  const longPressTimerRef = useRef(null);
+  const COMPLETE_THRESHOLD = 100;   // swipe-right distance to complete all
+  const REVEAL_THRESHOLD = 60;      // swipe-left distance to snap actions open
+  const REVEAL_WIDTH = 148;         // how far the card slides left to show 2 buttons
+  const LONG_PRESS_MS = 450;
+  const MOVE_SLOP = 10;             // px of movement that cancels a long-press
 
   const completedSets = exercise.sets.filter(s => s.is_completed).length;
   const totalSets = exercise.sets.length;
   const isFullyComplete = completedSets === totalSets;
 
-  const handleStart = (clientX) => {
-    setIsDragging(true);
-    startXRef.current = clientX;
+  const cancelLongPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
   };
 
-  const handleMove = (clientX) => {
+  const handleStart = (clientX, clientY) => {
+    setIsDragging(true);
+    startXRef.current = clientX;
+    startYRef.current = clientY;
+    suppressSwipeRef.current = false;
+    // Start the long-press timer; any real drag (handleMove) cancels it.
+    cancelLongPress();
+    longPressTimerRef.current = setTimeout(() => {
+      suppressSwipeRef.current = true;
+      setIsDragging(false);
+      setTranslateX(0);
+      if (navigator.vibrate) navigator.vibrate(30);
+      onOpenMenu(exerciseIndex);
+    }, LONG_PRESS_MS);
+  };
+
+  const handleMove = (clientX, clientY) => {
     if (!isDragging) return;
     const diff = clientX - startXRef.current;
-    // Only allow swiping right
-    const newTranslate = Math.max(0, Math.min(diff, 150));
-    setTranslateX(newTranslate);
+    // Cancel the long-press on movement in EITHER axis — a finger sliding
+    // vertically while scrolling the list shouldn't trigger the action sheet.
+    const diffY = clientY == null ? 0 : clientY - startYRef.current;
+    if (Math.abs(diff) > MOVE_SLOP || Math.abs(diffY) > MOVE_SLOP) cancelLongPress();
+    // Right = complete (capped 150). Left = reveal actions (capped REVEAL_WIDTH).
+    const base = revealed ? -REVEAL_WIDTH : 0;
+    const next = Math.max(-REVEAL_WIDTH, Math.min(base + diff, 150));
+    setTranslateX(next);
   };
 
   const handleEnd = () => {
+    cancelLongPress();
     setIsDragging(false);
-    if (translateX > SWIPE_THRESHOLD) {
+    if (suppressSwipeRef.current) { setTranslateX(revealed ? -REVEAL_WIDTH : 0); return; }
+    if (translateX > COMPLETE_THRESHOLD) {
       onCompleteAll(exerciseIndex);
       if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+      setRevealed(false);
+      setTranslateX(0);
+    } else if (translateX < -REVEAL_THRESHOLD) {
+      setRevealed(true);
+      setTranslateX(-REVEAL_WIDTH);
+    } else {
+      setRevealed(false);
+      setTranslateX(0);
     }
-    setTranslateX(0);
   };
+
+  const closeReveal = () => { setRevealed(false); setTranslateX(0); };
 
   return (
     <div className="relative overflow-hidden rounded-3xl shadow-sm">
-      {/* Swipe background */}
+      {/* Swipe-right background: complete all */}
       <div className="absolute inset-0 bg-green-500 flex items-center pl-6">
         <div className="flex items-center gap-2 text-white">
           <Check className="w-8 h-8" />
           <span className="font-semibold">Complete All</span>
         </div>
+      </div>
+
+      {/* Swipe-left background: quick actions */}
+      <div className="absolute inset-y-0 right-0 flex items-stretch">
+        <button
+          onClick={() => { closeReveal(); onReplace(exerciseIndex); }}
+          className="w-[74px] bg-blue-600 text-white flex flex-col items-center justify-center gap-1"
+        >
+          <RefreshCw className="w-5 h-5" />
+          <span className="text-xs font-medium">Replace</span>
+        </button>
+        <button
+          onClick={() => { closeReveal(); onDelete(exerciseIndex); }}
+          className="w-[74px] bg-red-600 text-white flex flex-col items-center justify-center gap-1"
+        >
+          <Trash2 className="w-5 h-5" />
+          <span className="text-xs font-medium">Delete</span>
+        </button>
       </div>
 
       {/* Card content */}
@@ -313,25 +385,34 @@ function SwipeableExerciseCard({ exercise, exerciseIndex, onSetUpdate, onSetComp
           transform: `translateX(${translateX}px)`,
           transition: isDragging ? 'none' : 'transform 0.2s ease-out',
         }}
-        onTouchStart={(e) => handleStart(e.touches[0].clientX)}
-        onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+        onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
+        onTouchMove={(e) => handleMove(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchEnd={handleEnd}
-        onMouseDown={(e) => { e.preventDefault(); handleStart(e.clientX); }}
-        onMouseMove={(e) => isDragging && handleMove(e.clientX)}
+        onMouseDown={(e) => { e.preventDefault(); handleStart(e.clientX, e.clientY); }}
+        onMouseMove={(e) => isDragging && handleMove(e.clientX, e.clientY)}
         onMouseUp={handleEnd}
         onMouseLeave={() => isDragging && handleEnd()}
       >
         {/* Exercise Header */}
         <div className={`p-4 ${isFullyComplete ? 'bg-green-50' : 'bg-white'}`}>
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-lg font-bold text-gray-900">{exercise.exercise_name}</h3>
-            <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
+          <div className="flex items-center justify-between mb-1 gap-2">
+            <h3 className="text-lg font-bold text-gray-900 flex-1 min-w-0">{exercise.exercise_name}</h3>
+            <div className={`px-2 py-1 rounded-full text-xs font-semibold shrink-0 ${
               isFullyComplete
                 ? 'bg-green-500 text-white'
                 : 'bg-gray-100 text-gray-600'
             }`}>
               {completedSets}/{totalSets}
             </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); onOpenMenu(exerciseIndex); }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              aria-label="Exercise options"
+              className="shrink-0 -mr-1 p-1.5 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            >
+              <MoreVertical className="w-5 h-5" />
+            </button>
           </div>
           {exercise.notes && (
             <p className="text-sm text-gray-500">{exercise.notes}</p>
@@ -391,6 +472,20 @@ export default function LiveWorkout() {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [workoutStartTime] = useState(new Date());
   const [isSaving, setIsSaving] = useState(false);
+
+  // Exercise-modification UI state
+  const [menuIndex, setMenuIndex] = useState(null);        // action sheet target
+  const [replaceIndex, setReplaceIndex] = useState(null);  // Replace modal target
+  const [addContext, setAddContext] = useState(null);      // { index, position } for Add above/below
+  const [confirmDelete, setConfirmDelete] = useState(null); // { index, exercise } pending delete confirm
+  const [undoState, setUndoState] = useState(null);        // { exercise, index } for the undo snackbar
+  const undoTimerRef = useRef(null);
+
+  // Clear the undo-snackbar timeout on unmount so it can't fire setUndoState
+  // after the component is gone.
+  useEffect(() => () => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+  }, []);
 
   // Calculate workout stats for feedback modal
   const getWorkoutStats = () => {
@@ -520,6 +615,78 @@ export default function LiveWorkout() {
     setWorkout(newWorkout);
   };
 
+  // --- Exercise modification handlers ---
+
+  // Re-normalize the cosmetic `order` field to match array position.
+  const withOrder = (exercises) => exercises.map((e, i) => ({ ...e, order: i }));
+
+  const requestDeleteExercise = (exIndex) => {
+    setMenuIndex(null);
+    setConfirmDelete({ index: exIndex, exercise: workout.exercises[exIndex] });
+  };
+
+  const performDeleteExercise = (exIndex) => {
+    const removed = workout.exercises[exIndex];
+    const nextExercises = withOrder(workout.exercises.filter((_, i) => i !== exIndex));
+    setWorkout({ ...workout, exercises: nextExercises });
+    setConfirmDelete(null);
+    // Offer an undo for a few seconds (restores the exercise with its logged sets).
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoState({ exercise: removed, index: exIndex });
+    undoTimerRef.current = setTimeout(() => setUndoState(null), 6000);
+    if (navigator.vibrate) navigator.vibrate(40);
+  };
+
+  const handleUndoDelete = () => {
+    if (!undoState) return;
+    const { exercise, index } = undoState;
+    const insertAt = Math.min(index, workout.exercises.length);
+    const nextExercises = withOrder([
+      ...workout.exercises.slice(0, insertAt),
+      exercise,
+      ...workout.exercises.slice(insertAt),
+    ]);
+    setWorkout({ ...workout, exercises: nextExercises });
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoState(null);
+  };
+
+  // Replace preserves already-logged work: it swaps identity and keeps the existing
+  // sets array (counts + completion). Only when the old exercise had no sets do we
+  // regenerate defaults from the new exercise's strain.
+  const handleReplaceExercise = (exIndex, picked) => {
+    const built = buildSessionExercise(picked, exIndex);
+    const old = workout.exercises[exIndex];
+    // Session exercises ALWAYS have a sets array, so "has sets" is always true.
+    // We only want to preserve actually-logged work; otherwise adopt the new
+    // exercise's own generated defaults (e.g. swapping Plank 3×60s → Bench Press
+    // shouldn't leave Bench Press with a 60-second target).
+    const hasLoggedWork = old.sets && old.sets.some(
+      s => s.is_completed || Number(s.reps) > 0 || Number(s.weight) > 0
+    );
+    const nextExercise = {
+      ...built,
+      notes: old.notes || '',
+      sets: hasLoggedWork ? old.sets : built.sets,
+    };
+    const nextExercises = workout.exercises.map((e, i) => (i === exIndex ? nextExercise : e));
+    setWorkout({ ...workout, exercises: withOrder(nextExercises) });
+    setReplaceIndex(null);
+    if (navigator.vibrate) navigator.vibrate(30);
+  };
+
+  const handleAddExercise = (exIndex, position, picked) => {
+    const insertAt = position === 'above' ? exIndex : exIndex + 1;
+    const nextExercises = withOrder([
+      ...workout.exercises.slice(0, insertAt),
+      buildSessionExercise(picked, insertAt),
+      ...workout.exercises.slice(insertAt),
+    ]);
+    setWorkout({ ...workout, exercises: nextExercises });
+    setAddContext(null);
+    if (navigator.vibrate) navigator.vibrate(30);
+  };
+
   // Check if all exercises are complete
   const isWorkoutComplete = workout?.exercises?.every(ex =>
     ex.sets.every(s => s.is_completed)
@@ -639,6 +806,9 @@ export default function LiveWorkout() {
             onSetUpdate={handleSetUpdate}
             onSetComplete={handleSetComplete}
             onCompleteAll={handleCompleteAllSets}
+            onOpenMenu={setMenuIndex}
+            onReplace={setReplaceIndex}
+            onDelete={requestDeleteExercise}
           />
         ))}
       </div>
@@ -657,6 +827,118 @@ export default function LiveWorkout() {
           Done Workout
         </button>
       </div>
+
+      {/* Per-exercise action sheet (long-press / kebab) */}
+      <Drawer open={menuIndex !== null} onOpenChange={(open) => !open && setMenuIndex(null)}>
+        <DrawerContent className="pb-6">
+          <DrawerHeader>
+            <DrawerTitle className="truncate">
+              {menuIndex !== null ? workout.exercises[menuIndex]?.exercise_name : ''}
+            </DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 space-y-1">
+            <button
+              onClick={() => { const i = menuIndex; setMenuIndex(null); setReplaceIndex(i); }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-gray-100 text-left"
+            >
+              <RefreshCw className="w-5 h-5 text-blue-600" />
+              <span className="font-medium text-gray-900">Replace exercise</span>
+            </button>
+            <button
+              onClick={() => { const i = menuIndex; setMenuIndex(null); setAddContext({ index: i, position: 'above' }); }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-gray-100 text-left"
+            >
+              <ArrowUp className="w-5 h-5 text-gray-700" />
+              <span className="font-medium text-gray-900">Add exercise above</span>
+            </button>
+            <button
+              onClick={() => { const i = menuIndex; setMenuIndex(null); setAddContext({ index: i, position: 'below' }); }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-gray-100 text-left"
+            >
+              <ArrowDown className="w-5 h-5 text-gray-700" />
+              <span className="font-medium text-gray-900">Add exercise below</span>
+            </button>
+            <button
+              onClick={() => requestDeleteExercise(menuIndex)}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-red-50 text-left"
+            >
+              <Trash2 className="w-5 h-5 text-red-600" />
+              <span className="font-medium text-red-600">Delete exercise</span>
+            </button>
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Delete confirmation */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete exercise?</h3>
+            <p className="text-sm text-gray-600 mb-5">
+              Remove <span className="font-semibold">{confirmDelete.exercise?.exercise_name}</span> from
+              this workout? You can undo right after.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="flex-1 py-3 rounded-xl font-semibold bg-gray-100 text-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => performDeleteExercise(confirmDelete.index)}
+                className="flex-1 py-3 rounded-xl font-semibold bg-red-600 text-white"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Undo snackbar */}
+      {undoState && (
+        <div className="fixed bottom-40 left-0 right-0 px-4 z-[60] flex justify-center">
+          <div className="bg-gray-900 text-white rounded-full pl-5 pr-2 py-2 shadow-lg flex items-center gap-3 max-w-sm w-full">
+            <span className="text-sm flex-1 truncate">Deleted “{undoState.exercise?.exercise_name}”</span>
+            <button
+              onClick={handleUndoDelete}
+              className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 rounded-full px-3 py-1.5 text-sm font-semibold"
+            >
+              <Undo2 className="w-4 h-4" /> Undo
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Replace exercise modal (Similar / Ask the Sensei / Search) */}
+      {replaceIndex !== null && (
+        <ReplaceExerciseModal
+          exercise={workout.exercises[replaceIndex]}
+          onClose={() => setReplaceIndex(null)}
+          onReplace={(picked) => handleReplaceExercise(replaceIndex, picked)}
+        />
+      )}
+
+      {/* Add exercise picker (above / below) */}
+      <Drawer open={addContext !== null} onOpenChange={(open) => !open && setAddContext(null)}>
+        <DrawerContent className="pb-6">
+          <DrawerHeader>
+            <DrawerTitle>
+              {addContext?.position === 'above' ? 'Add exercise above' : 'Add exercise below'}
+            </DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4">
+            {addContext && (
+              <ExerciseSearchInput
+                autoFocus
+                placeholder="Search to add an exercise..."
+                onSelect={(ex) => handleAddExercise(addContext.index, addContext.position, ex)}
+              />
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }
