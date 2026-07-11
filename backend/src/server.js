@@ -55,6 +55,7 @@ const integrationRoutes = require('./routes/integrations');
 const webhookRoutes = require('./routes/webhooks');
 const workoutLogRoutes = require('./routes/workoutLogs');
 const trainNowRoutes = require('./routes/trainNow');
+const coachQuestionRoutes = require('./routes/coachQuestion');
 const mcpAuthRoutes = require('./routes/mcpAuth');
 const mcpRoutes = require('./routes/mcp');
 
@@ -286,6 +287,7 @@ app.use('/api/v1/integrations', integrationRoutes);
 app.use('/api/v1/webhooks', webhookRoutes);
 app.use('/api/v1/workout-logs', workoutLogRoutes);
 app.use('/api/v1/train-now', trainNowRoutes);
+app.use('/api/v1/coach-question', coachQuestionRoutes);
 
 // MCP connector: OAuth authorization-server routes (mounted at root — the
 // `.well-known` discovery documents are origin-rooted) and the /mcp endpoint.
