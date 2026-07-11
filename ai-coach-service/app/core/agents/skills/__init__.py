@@ -23,6 +23,7 @@ from app.core.agents.skills import schedule_plan_skill  # noqa: F401,E402
 from app.core.agents.skills import validate_plan_skill  # noqa: F401,E402
 from app.core.agents.skills import generate_plan_skill  # noqa: F401,E402
 from app.core.agents.skills import substitute_exercise_skill  # noqa: F401,E402
+from app.core.agents.skills import find_similar_exercises_skill  # noqa: F401,E402
 from app.core.agents.skills import suggest_exercises_skill  # noqa: F401,E402
 from app.core.agents.skills import review_progress_skill  # noqa: F401,E402
 from app.core.agents.skills import reschedule_session_skill  # noqa: F401,E402

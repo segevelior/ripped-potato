@@ -6,7 +6,7 @@ import asyncio
 import json
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from typing import Dict, Any, List, AsyncGenerator
 from openai import AsyncOpenAI
@@ -29,6 +29,8 @@ from app.core.agents.services import (
     SearchService,
     MemoryService,
 )
+from app.services.recommendation_service import RecommendationService
+from app.services.short_term_context_service import ShortTermContextService
 # Importing the skills package registers every skill via the @skill decorator.
 from app.core.agents.skills import (
     SkillContext,
@@ -95,6 +97,8 @@ class AgentOrchestrator:
             db=db,
         )
         self.memory_service = MemoryService(db)
+        self.recommendation_service = RecommendationService(db)
+        self.short_term_context = ShortTermContextService(db)
 
         # Shared context handed to every registered skill handler.
         self.skill_context = SkillContext(
@@ -142,6 +146,29 @@ class AgentOrchestrator:
         ]
         return legacy_tools + skill_definitions
 
+
+    async def _build_extra_context(self, user_id: str, local_now: datetime, today_date: str) -> str:
+        """Short-term awareness blocks appended after memories:
+        1. Recent train-now recommendations (today + yesterday) with reasoning,
+           so the sensei knows what it already suggested and stays consistent.
+        2. Short-term context entries (dashboard check-ins, conversation
+           summaries, 14-day TTL) — working memory across conversations.
+        Best-effort: returns '' on any failure."""
+        blocks = []
+        try:
+            yesterday_date = (local_now - timedelta(days=1)).strftime('%Y-%m-%d')
+            recs = await self.recommendation_service.get_recent(user_id, [today_date, yesterday_date])
+            rec_block = RecommendationService.format_for_prompt(recs, today_date)
+            if rec_block:
+                blocks.append(rec_block)
+
+            stc_entries = await self.short_term_context.get_recent(user_id, limit=8)
+            stc_block = ShortTermContextService.format_for_prompt(stc_entries)
+            if stc_block:
+                blocks.append(stc_block)
+        except Exception as e:
+            logger.error(f"Failed building extra context for {user_id}: {e}")
+        return ("\n\n" + "\n\n".join(blocks)) if blocks else ""
 
     async def process_request(
         self,
@@ -220,6 +247,9 @@ USER DATA:
                 prefix = "⚠️ " if importance == "high" else "• "
                 memory_str += f"\n{prefix}[{category}] {content}"
             context_str += memory_str
+
+        # Add recent recommendations + short-term context (working memory)
+        context_str += await self._build_extra_context(user_id, local_now, today_date)
 
         # Inject context into system prompt for consistent date awareness
         system_prompt_with_context = f"{SYSTEM_PROMPT}\n\n{context_str}"
@@ -476,6 +506,9 @@ USER DATA:
                 prefix = "⚠️ " if importance == "high" else "• "
                 memory_str += f"\n{prefix}[{category}] {content}"
             context_str += memory_str
+
+        # Add recent recommendations + short-term context (working memory)
+        context_str += await self._build_extra_context(user_id, local_now, today_date)
 
         # Build messages array with conversation history
         # IMPORTANT: Inject context into system prompt so it's always at the top

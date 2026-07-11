@@ -247,6 +247,7 @@ export default function Exercises() {
           onEdit={handleEditExercise}
           onToggleFavorite={handleToggleFavorite}
           onDelete={handleDeleteExercise}
+          onSelectSimilar={(ex) => setViewExercise(ex)}
         />
       )}
     </div>

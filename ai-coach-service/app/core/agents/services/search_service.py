@@ -78,6 +78,14 @@ class SearchService:
                 "createdAt", expireAfterSeconds=VIDEO_CACHE_TTL_DAYS * 86400
             )
             await self.db[VIDEO_CACHE_COLLECTION].create_index("query", unique=True)
+            # uservideocontext: looked up by (user_id, query) on every video search /
+            # "save it", and by user_id sorted on updatedAt for the "that one" fallback.
+            await self.db[USER_VIDEO_CTX_COLLECTION].create_index(
+                [("user_id", 1), ("query", 1)], unique=True
+            )
+            await self.db[USER_VIDEO_CTX_COLLECTION].create_index(
+                [("user_id", 1), ("updatedAt", -1)]
+            )
             self._video_cache_ready = True
         except Exception as e:
             logger.warning(f"Could not ensure video cache index: {e}")

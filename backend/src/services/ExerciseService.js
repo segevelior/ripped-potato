@@ -177,6 +177,246 @@ class ExerciseService {
   }
   
   /**
+   * Overlay a user's modifications onto an already-fetched set of exercises.
+   * Batched (one query for all ids) — unlike getExerciseForUser which is one
+   * doc / two queries. Used by findSimilar so we don't do N+1 lookups.
+   * Mirrors the merge logic in getExercisesForUser, scoped to the passed set.
+   * @param {Array} exercises - lean exercise docs (must include _id)
+   * @param {String} userId - The user's ID
+   * @returns {Array} exercises with modifications + metadata applied
+   */
+  static async applyModifications(exercises, userId) {
+    if (!exercises || exercises.length === 0) return exercises;
+
+    const ids = exercises.map(ex => ex._id);
+    const modifications = await UserExerciseModification.find({
+      userId,
+      exerciseId: { $in: ids }
+    }).lean();
+
+    const modMap = new Map(
+      modifications.map(mod => [mod.exerciseId.toString(), mod])
+    );
+
+    return exercises.map(exercise => {
+      const result = {
+        ...exercise,
+        isCommon: exercise.isCommon || false,
+        isPrivate: !exercise.isCommon,
+        canEdit: !exercise.isCommon && exercise.createdBy?.toString() === userId.toString()
+      };
+
+      const mod = modMap.get(exercise._id.toString());
+      if (!mod) return result;
+
+      if (mod.modifications) {
+        Object.keys(mod.modifications).forEach(key => {
+          if (mod.modifications[key] !== undefined) {
+            if (key === 'strain' && typeof mod.modifications[key] === 'object') {
+              result[key] = { ...result[key], ...mod.modifications[key] };
+            } else {
+              result[key] = mod.modifications[key];
+            }
+          }
+        });
+      }
+
+      result.userMetadata = mod.metadata;
+      const hasContentModifications = mod.modifications &&
+        Object.keys(mod.modifications).some(key => mod.modifications[key] !== undefined);
+      result.isModified = hasContentModifications;
+      result.modificationId = mod._id;
+
+      return result;
+    });
+  }
+
+  /**
+   * Find exercises semantically similar to a given one via Atlas Vector Search.
+   * "Clusters" are emergent at query time — no precomputed groups. Respects
+   * visibility (common OR owned by the user) via the vector index filter fields.
+   * @param {String} exerciseId - The source exercise
+   * @param {String|null} userId - Requesting user (null = anonymous, common only)
+   * @param {Number} limit - Max alternatives to return
+   * @returns {Array} similar exercises with a `score`, modifications overlaid
+   */
+  static async findSimilar(exerciseId, userId, limit = 8) {
+    // Source embedding is select:false, so opt in explicitly.
+    const source = await Exercise.findById(exerciseId).select('+embedding').lean();
+    if (!source) return [];
+
+    const userObjectId = userId ? new mongoose.Types.ObjectId(userId) : null;
+    const visibilityFilter = userObjectId
+      ? { $or: [{ isCommon: true }, { createdBy: userObjectId }] }
+      : { isCommon: true };
+
+    // Deterministic muscle-overlap fallback. Used when this exercise has no
+    // embedding yet (pre-backfill) or when vector search is unavailable/empty
+    // (index still building). Keeps "Similar" working without embeddings and
+    // upgrades to semantic ranking transparently once vectors land. Projects the
+    // same shape as the vector path (incl. strain, so callers can build default
+    // sets from strain.typicalVolume).
+    const muscleFallback = async () => {
+      const muscles = source.muscles || [];
+      if (muscles.length === 0) return [];
+      const docs = await Exercise.find({
+        muscles: { $in: muscles },
+        _id: { $ne: source._id },
+        ...visibilityFilter
+      })
+        .select('name description muscles secondaryMuscles discipline equipment difficulty instructions strain mediaUrls isCommon createdBy')
+        .limit(50)
+        .lean();
+      const srcSet = new Set(muscles.map(m => String(m).toLowerCase()));
+      const ranked = docs
+        .map(d => ({
+          ...d,
+          score: (d.muscles || []).reduce((n, m) => n + (srcSet.has(String(m).toLowerCase()) ? 1 : 0), 0)
+        }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit);
+      return userId ? this.applyModifications(ranked, userId) : ranked;
+    };
+
+    const hasEmbedding = Array.isArray(source.embedding) && source.embedding.length > 0;
+    if (!hasEmbedding) return muscleFallback();
+
+    let results;
+    try {
+      results = await Exercise.aggregate([
+        {
+          $vectorSearch: {
+            index: 'exercise_vector_index',
+            path: 'embedding',
+            queryVector: source.embedding,
+            numCandidates: 100,
+            limit: limit + 1, // +1 so we can drop the source itself
+            filter: visibilityFilter
+          }
+        },
+        {
+          $project: {
+            name: 1, description: 1, muscles: 1, secondaryMuscles: 1, discipline: 1,
+            equipment: 1, difficulty: 1, instructions: 1, strain: 1, mediaUrls: 1,
+            isCommon: 1, createdBy: 1,
+            score: { $meta: 'vectorSearchScore' }
+          }
+        }
+      ]);
+    } catch (err) {
+      // Index not READY / vector search unavailable — degrade, don't 500.
+      console.warn('Vector search unavailable, falling back to muscle overlap:', err.message);
+      return muscleFallback();
+    }
+
+    // Drop the source exercise if it came back among its own neighbours.
+    const filtered = results
+      .filter(ex => ex._id.toString() !== exerciseId.toString())
+      .slice(0, limit);
+
+    // No semantic neighbours (e.g. sparse embeddings) — still give the user
+    // something useful.
+    if (filtered.length === 0) return muscleFallback();
+
+    // Overlay the user's modifications for display consistency (name/edits).
+    // NOTE: the embedding was built from base fields, so this only affects
+    // display — it does not change what matched in vector space.
+    return userId ? this.applyModifications(filtered, userId) : filtered;
+  }
+
+  /**
+   * Server-side fuzzy search via Atlas $search. Ranks by relevance (fuzzy on
+   * name + muscle/equipment matching), then applies visibility + facet filters
+   * BEFORE pagination so `total`/`pages` reflect the filtered set (not a
+   * post-filtered top-N slice). Throws if the Atlas Search index is absent /
+   * not READY — the controller catches this and falls back to in-memory search.
+   *
+   * Known limitation (documented, per plan): $search matches the STORED
+   * document, so a common exercise a user renamed via UserExerciseModification
+   * won't match by its overlaid name. Modifications are overlaid on results for
+   * display only. This edge case is intentionally not unioned back in.
+   *
+   * @returns {{ exercises: Array, total: Number }}
+   */
+  static async searchExercises({ userId, search, muscle, discipline, equipment, difficulty, page = 1, limit = 50 }) {
+    const userObjectId = userId ? new mongoose.Types.ObjectId(userId) : null;
+
+    // Visibility + facets, applied as a $match after $search (pre-pagination).
+    const match = {
+      $or: userObjectId
+        ? [{ isCommon: true }, { createdBy: userObjectId }]
+        : [{ isCommon: true }]
+    };
+    const and = [];
+    if (muscle) {
+      const muscles = muscle.split(',');
+      and.push({ $or: [{ muscles: { $in: muscles } }, { secondaryMuscles: { $in: muscles } }] });
+    }
+    if (discipline) {
+      match.discipline = { $in: discipline.split(',') };
+    }
+    if (difficulty) {
+      match.difficulty = difficulty;
+    }
+    if (equipment) {
+      const equipmentList = equipment.split(',');
+      if (equipmentList.includes('none')) {
+        and.push({ $or: [{ equipment: { $exists: false } }, { equipment: { $size: 0 } }] });
+      } else {
+        match.equipment = { $in: equipmentList };
+      }
+    }
+    if (and.length) match.$and = and;
+
+    const skip = (page - 1) * limit;
+
+    const [agg] = await Exercise.aggregate([
+      {
+        $search: {
+          index: 'exercise_search_index',
+          compound: {
+            should: [
+              // Prefix/typeahead on name, boosted highest.
+              { autocomplete: { query: search, path: 'name', fuzzy: { maxEdits: 2 }, score: { boost: { value: 3 } } } },
+              // Full-token fuzzy on name.
+              { text: { query: search, path: 'name', fuzzy: { maxEdits: 2 }, score: { boost: { value: 2 } } } },
+              // Match by muscle / equipment so "chest" or "barbell" find things.
+              { text: { query: search, path: ['muscles', 'secondaryMuscles', 'equipment'], fuzzy: { maxEdits: 1 } } },
+              // Description match (the old in-memory path searched description too).
+              { text: { query: search, path: 'description', fuzzy: { maxEdits: 1 } } }
+            ],
+            minimumShouldMatch: 1
+          }
+        }
+      },
+      { $match: match },
+      {
+        $facet: {
+          results: [
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $project: {
+                name: 1, description: 1, muscles: 1, secondaryMuscles: 1,
+                discipline: 1, equipment: 1, difficulty: 1, instructions: 1,
+                strain: 1, mediaUrls: 1, isCommon: 1, createdBy: 1,
+                score: { $meta: 'searchScore' }
+              }
+            }
+          ],
+          totalCount: [{ $count: 'count' }]
+        }
+      }
+    ]);
+
+    const raw = agg?.results || [];
+    const total = agg?.totalCount?.[0]?.count || 0;
+    const exercises = userId ? await this.applyModifications(raw, userId) : raw;
+
+    return { exercises, total };
+  }
+
+  /**
    * Toggle favorite status for an exercise
    * @param {String} userId - The user's ID
    * @param {String} exerciseId - The exercise ID

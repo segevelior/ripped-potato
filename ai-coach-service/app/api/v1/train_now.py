@@ -10,7 +10,9 @@ The AI suggestion considers:
 - Calendar context (what's scheduled this week)
 """
 
-from fastapi import APIRouter, Depends
+import asyncio
+
+from fastapi import APIRouter, Depends, Query
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -23,9 +25,15 @@ from app.middleware.auth import get_current_user
 from app.core.agents.data_reader import DataReaderAgent
 from app.core.agents.prompts import SYSTEM_PROMPT
 from app.core.agents.services import MemoryService
+from app.services.recommendation_service import RecommendationService
+from app.services.short_term_context_service import ShortTermContextService
 
 router = APIRouter()
 logger = structlog.get_logger()
+
+# Per-user in-process locks so concurrent cold-start requests (e.g. Dashboard
+# and TrainNow open together) don't both run a full LLM generation.
+_generation_locks: Dict[str, asyncio.Lock] = {}
 
 
 TRAIN_NOW_PROMPT = """Based on the user's profile, fitness data, calendar, and memories provided above, decide what the user should do TODAY.
@@ -264,28 +272,100 @@ def format_calendar_for_llm(calendar_data: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+async def _get_user_local_date(db, user_id: str) -> tuple:
+    """Cheap lookup of the user's timezone -> (local_date 'YYYY-MM-DD', timezone).
+    UTC fallback. Used as the cache key for the persisted daily recommendation."""
+    timezone = "UTC"
+    try:
+        user = await db.users.find_one(
+            {"_id": ObjectId(user_id)},
+            {"settings.timezone": 1}
+        )
+        timezone = ((user or {}).get("settings") or {}).get("timezone") or "UTC"
+    except Exception as e:
+        logger.error(f"Error fetching timezone for {user_id}: {e}")
+    try:
+        local_now = datetime.now(ZoneInfo(timezone))
+    except Exception:
+        local_now = datetime.utcnow()
+        timezone = "UTC"
+    return local_now.strftime("%Y-%m-%d"), timezone
+
+
+def _cached_response(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """Response shape for a persisted recommendation (backward compatible)."""
+    generated_at = doc.get("generatedAt")
+    return {
+        "success": True,
+        "suggestion": doc.get("suggestion"),
+        "source": "ai",
+        "cached": True,
+        "generated_at": generated_at.isoformat() + "Z" if isinstance(generated_at, datetime) else None,
+    }
+
+
 @router.get("")
 async def get_train_now_suggestion(
+    refresh: bool = Query(False),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
-    Generate a personalized workout suggestion for today.
+    Return today's workout suggestion.
 
-    This endpoint is called when there's no scheduled workout for today
-    and the cache is empty. It generates a suggestion based on:
-    - User profile and preferences
-    - Recent workout history
-    - Active training plans
-    - User memories (injuries, preferences, etc.)
+    Fast path: if a recommendation was already generated today (persisted in
+    dailyRecommendations, keyed by user-local date), return it — this is what
+    keeps the Dashboard and the TrainNow page aligned. Otherwise (or with
+    ?refresh=true) generate a fresh suggestion, persist it, and return it.
     """
     from app.main import db
 
     settings = get_settings()
+    recommendation_service = RecommendationService(db)
+
+    user_id = current_user["user_id"]
+    local_date, timezone_hint = await _get_user_local_date(db, user_id)
+
+    # Fast path: already generated today
+    if not refresh:
+        existing = await recommendation_service.get_for_date(user_id, local_date)
+        if existing and existing.get("suggestion"):
+            return _cached_response(existing)
+
+    # Serialize generation per user so concurrent cold-start requests don't
+    # both pay for an LLM call; late arrivals hit the re-check below.
+    lock = _generation_locks.setdefault(user_id, asyncio.Lock())
+    async with lock:
+        if not refresh:
+            existing = await recommendation_service.get_for_date(user_id, local_date)
+            if existing and existing.get("suggestion"):
+                return _cached_response(existing)
+        return await _generate_and_persist(
+            db, settings, current_user, user_id, local_date, timezone_hint
+        )
+
+
+async def _generate_and_persist(
+    db,
+    settings,
+    current_user: Dict[str, Any],
+    user_id: str,
+    local_date: str,
+    timezone_hint: str,
+) -> Dict[str, Any]:
+    """
+    Generate a personalized workout suggestion for today via the LLM and
+    persist it to dailyRecommendations (TTL 30 days). Considers:
+    - User profile and preferences
+    - Recent workout history
+    - Active training plans
+    - User memories (injuries, preferences, etc.)
+    - Short-term context (recent check-ins, conversation summaries)
+    """
     client = AsyncOpenAI(api_key=settings.openai_api_key)
     data_reader = DataReaderAgent(db)
     memory_service = MemoryService(db)
-
-    user_id = current_user["user_id"]
+    recommendation_service = RecommendationService(db)
+    stc_service = ShortTermContextService(db)
 
     try:
         # Build user context
@@ -369,6 +449,12 @@ CALENDAR CONTEXT:
                 memory_str += f"\n{prefix}[{category}] {content}"
             context_str += memory_str
 
+        # Add short-term context (recent check-ins + conversation summaries)
+        stc_entries = await stc_service.get_recent(user_id, limit=8)
+        stc_block = ShortTermContextService.format_for_prompt(stc_entries)
+        if stc_block:
+            context_str += f"\n\n{stc_block}"
+
         # Add external activities context
         if data_context.get("external_activities"):
             context_str += "\n\nRECENT EXTERNAL ACTIVITIES:"
@@ -450,10 +536,22 @@ CALENDAR CONTEXT:
 
             logger.info(f"Generated train-now suggestion for user {user_id}: {suggestion['name']}")
 
+        # Persist so the Dashboard shows the same suggestion and the sensei
+        # knows what it recommended (and why). Best-effort: never fails the response.
+        await recommendation_service.save(
+            user_id=user_id,
+            local_date=local_date,
+            timezone=timezone_hint,
+            suggestion=suggestion,
+            context_str=context_str,
+            model=settings.openai_model_fast,
+        )
+
         return {
             "success": True,
             "suggestion": suggestion,
-            "source": "ai"
+            "source": "ai",
+            "cached": False
         }
 
     except Exception as e:

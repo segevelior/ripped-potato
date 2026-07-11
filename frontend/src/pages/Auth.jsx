@@ -122,7 +122,6 @@ export default function Auth() {
 
       // Pre-fetch personalized suggestions in background (don't await)
       aiService.prefetchChatSuggestions(data.data.token);
-      aiService.prefetchTodayWorkout(data.data.token);
 
       navigate('/');
     } catch (error) {
@@ -175,7 +174,6 @@ export default function Auth() {
 
       // Pre-fetch personalized suggestions in background (don't await)
       aiService.prefetchChatSuggestions(registerData.data.token);
-      aiService.prefetchTodayWorkout(registerData.data.token);
 
       navigate('/');
     } catch (error) {

@@ -18,6 +18,115 @@ class ExerciseService:
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
 
+    @staticmethod
+    def _format_similar(doc: Dict[str, Any], score: Any = None) -> Dict[str, Any]:
+        out = {
+            "id": str(doc["_id"]),
+            "name": doc.get("name"),
+            "muscles": doc.get("muscles", []),
+            "equipment": doc.get("equipment", []),
+            "difficulty": doc.get("difficulty"),
+        }
+        if score is not None:
+            out["score"] = round(float(score), 4)
+        return out
+
+    @staticmethod
+    def _muscle_overlap(a: List[str], b: List[str]) -> float:
+        sa = {m.lower() for m in (a or [])}
+        sb = {m.lower() for m in (b or [])}
+        return len(sa & sb) / len(sa | sb) if sa and sb else 0.0
+
+    async def _similar_muscle_fallback(self, source: Dict[str, Any], visibility: Dict[str, Any], limit: int) -> List[Dict[str, Any]]:
+        """Deterministic fallback when there's no embedding / vector search yields nothing."""
+        muscles = source.get("muscles", []) or []
+        if not muscles:
+            return []
+        docs = await self.db.exercises.find({
+            "muscles": {"$in": muscles},
+            "_id": {"$ne": source["_id"]},
+            **visibility,
+        }).to_list(100)
+        ranked = sorted(docs, key=lambda d: self._muscle_overlap(muscles, d.get("muscles", [])), reverse=True)[:limit]
+        return [self._format_similar(d, self._muscle_overlap(muscles, d.get("muscles", []))) for d in ranked]
+
+    async def find_similar(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Fetch exercises semantically similar to a source one via the Atlas
+        vector index (exercise_vector_index) over stored embeddings.
+
+        READ-ONLY: reuses each exercise's precomputed `embedding` (populated by the
+        Node write hook / backfill) — never generates embeddings. Falls back to
+        deterministic muscle-overlap ranking when the source has no embedding yet
+        or vector search is unavailable (index building), so it always returns
+        something useful. Visibility-scoped to common + user-owned exercises.
+        """
+        try:
+            user_oid = ObjectId(user_id)
+        except Exception:
+            return {"success": False, "message": "Invalid user."}
+
+        limit = max(1, min(int(args.get("limit") or 6), 25))
+        visibility = {"$or": [{"isCommon": True}, {"createdBy": user_oid}]}
+
+        # Load the source exercise (with its embedding), scoped to what the user sees.
+        source = None
+        ex_id = args.get("exercise_id")
+        if ex_id:
+            try:
+                source = await self.db.exercises.find_one({"_id": ObjectId(ex_id), **visibility})
+            except Exception:
+                source = None
+        if source is None and args.get("exercise_name"):
+            source = await self.db.exercises.find_one({
+                "name": {"$regex": f"^{re.escape(args['exercise_name'])}$", "$options": "i"},
+                **visibility,
+            })
+        if not source:
+            return {"success": False, "message": "I couldn't find that exercise to find alternatives for."}
+
+        method = "vector"
+        similar: List[Dict[str, Any]] = []
+        embedding = source.get("embedding")
+
+        if isinstance(embedding, list) and len(embedding) > 0:
+            try:
+                docs = await self.db.exercises.aggregate([
+                    {
+                        "$vectorSearch": {
+                            "index": "exercise_vector_index",
+                            "path": "embedding",
+                            "queryVector": embedding,
+                            "numCandidates": 100,
+                            "limit": limit + 1,  # +1 to drop the source itself
+                            "filter": visibility,
+                        }
+                    },
+                    {
+                        "$project": {
+                            "name": 1, "muscles": 1, "equipment": 1, "difficulty": 1,
+                            "score": {"$meta": "vectorSearchScore"},
+                        }
+                    },
+                ]).to_list(limit + 1)
+                similar = [
+                    self._format_similar(d, d.get("score"))
+                    for d in docs if str(d["_id"]) != str(source["_id"])
+                ][:limit]
+            except Exception as e:
+                logger.warning(f"vector search unavailable, using muscle fallback: {e}")
+                similar = []
+
+        if not similar:
+            method = "muscle_overlap"
+            similar = await self._similar_muscle_fallback(source, visibility, limit)
+
+        return {
+            "success": True,
+            "method": method,
+            "source": {"id": str(source["_id"]), "name": source.get("name"), "muscles": source.get("muscles", [])},
+            "similar": similar,
+        }
+
     async def add_exercise(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Add an exercise to the user's personal exercise library"""
         try:

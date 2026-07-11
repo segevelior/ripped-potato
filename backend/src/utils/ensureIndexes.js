@@ -144,6 +144,81 @@ async function createSearchIndexes(logger) {
     // Don't fail startup if search indexes can't be created
     logger.warn('Could not create search indexes (non-fatal)', { error: err.message });
   }
+
+  // Atlas Search + Vector Search indexes for exercises (separate API from the
+  // classic B-tree/text indexes above). Non-fatal: on a cluster without Atlas
+  // Search these creations fail and the app degrades to in-memory search.
+  await createAtlasExerciseIndexes(logger);
+}
+
+/**
+ * Create the Atlas Search (fuzzy typeahead) and Vector Search (similar
+ * exercises) indexes on the exercises collection. Idempotent — skips indexes
+ * that already exist. Requires a cluster that supports Atlas Search (M0+).
+ *
+ * Note: M0/M2/M5 shared tiers cap at 3 Atlas Search indexes total; we create 2.
+ */
+async function createAtlasExerciseIndexes(logger) {
+  const { EMBEDDING_DIMS } = require('../services/EmbeddingService');
+
+  try {
+    const db = mongoose.connection.db;
+    const exercises = db.collection('exercises');
+
+    // listSearchIndexes is a distinct API from indexes(); returns a cursor.
+    let existing = [];
+    try {
+      existing = await exercises.listSearchIndexes().toArray();
+    } catch (listErr) {
+      // Older/unsupported clusters throw here — treat as "no Atlas Search".
+      logger.warn('Atlas Search not available; skipping vector/search indexes (non-fatal)', { error: listErr.message });
+      return;
+    }
+    const existingNames = new Set(existing.map(idx => idx.name));
+
+    // Vector Search index for "similar exercises".
+    if (!existingNames.has('exercise_vector_index')) {
+      await exercises.createSearchIndex({
+        name: 'exercise_vector_index',
+        type: 'vectorSearch',
+        definition: {
+          fields: [
+            { type: 'vector', path: 'embedding', numDimensions: EMBEDDING_DIMS, similarity: 'cosine' },
+            { type: 'filter', path: 'isCommon' },
+            { type: 'filter', path: 'createdBy' }
+          ]
+        }
+      });
+      logger.info('Created Atlas vectorSearch index: exercise_vector_index');
+    }
+
+    // Atlas Search index for fuzzy typeahead. `name` gets both string +
+    // autocomplete mappings so we can run text() and autocomplete() on it.
+    if (!existingNames.has('exercise_search_index')) {
+      await exercises.createSearchIndex({
+        name: 'exercise_search_index',
+        // type defaults to 'search'
+        definition: {
+          mappings: {
+            dynamic: false,
+            fields: {
+              name: [{ type: 'string' }, { type: 'autocomplete' }],
+              description: { type: 'string' },
+              muscles: { type: 'string' },
+              secondaryMuscles: { type: 'string' },
+              equipment: { type: 'string' },
+              discipline: { type: 'string' }
+            }
+          }
+        }
+      });
+      logger.info('Created Atlas search index: exercise_search_index');
+    }
+
+    logger.info('Atlas exercise search indexes verified');
+  } catch (err) {
+    logger.warn('Could not create Atlas exercise search indexes (non-fatal)', { error: err.message });
+  }
 }
 
 module.exports = {

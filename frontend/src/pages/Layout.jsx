@@ -116,6 +116,17 @@ export default function Layout({ children }) {
     return () => window.removeEventListener('storage', checkActive);
   }, [location.pathname]); // Re-check on route change
 
+  // The scrollable <main> persists across routes (Layout is a layout route),
+  // so the previous page's scroll position would otherwise carry over
+  useEffect(() => {
+    if (mainContentRef.current) {
+      // 'instant' overrides the container's scroll-smooth class
+      mainContentRef.current.scrollTo({ top: 0, behavior: 'instant' });
+    }
+    lastScrollY.current = 0;
+    setIsNavVisible(true);
+  }, [location.pathname]);
+
   useEffect(() => {
     const handleScroll = throttle(() => {
       if (!mainContentRef.current) return;
@@ -340,7 +351,7 @@ export default function Layout({ children }) {
                 className="flex flex-col items-center justify-end gap-1 min-w-[56px] h-full"
               >
                 <div className="w-12 h-12 rounded-full bg-primary-500 text-white flex items-center justify-center shadow-lg shadow-primary-500/40 -mt-5 active:scale-95 transition-transform">
-                  <Dumbbell className="w-5 h-5" strokeWidth={2.2} />
+                  <Zap className="w-5 h-5" strokeWidth={2.2} />
                 </div>
                 <span className="text-[10px] font-semibold text-primary-500 whitespace-nowrap">Train now</span>
               </Link>

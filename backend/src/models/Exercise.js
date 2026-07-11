@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+const { inferMovementPattern } = require('../utils/movementPattern');
+const EmbeddingService = require('../services/EmbeddingService');
 
 const exerciseSchema = new mongoose.Schema({
   name: {
@@ -60,6 +62,22 @@ const exerciseSchema = new mongoose.Schema({
       return !this.isCommon; // Required for user exercises, not for common
     },
     index: true
+  },
+  // Semantic-search vector for "similar exercises". select:false so the 1536
+  // floats never bloat normal reads — opt in with .select('+embedding').
+  embedding: {
+    type: [Number],
+    default: undefined,
+    select: false
+  },
+  // The exact string we last embedded. select:false so it never leaks into API
+  // responses (it's internal). The pre-save guard compares against it to decide
+  // whether to re-embed, so the update controller must explicitly load it with
+  // .select('+embeddingText') — otherwise the guard misfires and re-embeds on
+  // every save.
+  embeddingText: {
+    type: String,
+    select: false
   }
 }, {
   timestamps: true
@@ -104,4 +122,41 @@ exerciseSchema.statics.findByEquipment = function(equipment) {
   return this.find({ equipment: { $in: equipment } });
 };
 
+// Build the composite text we embed for similarity. Concatenates the fields
+// that define what an exercise *is* — name, muscles, discipline, equipment,
+// difficulty — plus the inferred movement pattern so "Barbell Bench Press" and
+// "Dumbbell Bench Press" land near each other in vector space.
+function buildEmbedText(doc) {
+  const parts = [];
+  if (doc.name) parts.push(doc.name);
+  const muscles = [...(doc.muscles || []), ...(doc.secondaryMuscles || [])];
+  if (muscles.length) parts.push(`muscles: ${muscles.join(', ')}`);
+  if (doc.discipline && doc.discipline.length) parts.push(`discipline: ${doc.discipline.join(', ')}`);
+  if (doc.equipment && doc.equipment.length) parts.push(`equipment: ${doc.equipment.join(', ')}`);
+  if (doc.difficulty) parts.push(`difficulty: ${doc.difficulty}`);
+  const pattern = inferMovementPattern(doc);
+  if (pattern) parts.push(`movement: ${pattern}`);
+  return parts.join(' | ');
+}
+
+// Expose so the backfill script can compute the same text.
+exerciseSchema.statics.buildEmbedText = buildEmbedText;
+
+// Generate/refresh the embedding on write — the "on-the-fly, not a job" path.
+// Guard on embeddingText so unrelated saves (favorites, isCommon toggles) don't
+// re-embed. Fail-soft: a failed embedding leaves the doc saveable without one.
+exerciseSchema.pre('save', async function generateEmbedding() {
+  const newText = buildEmbedText(this);
+  if (!this.isNew && this.embeddingText === newText) return;
+
+  const vector = await EmbeddingService.generateEmbedding(newText);
+  if (vector) {
+    this.embedding = vector;
+    this.embeddingText = newText;
+  }
+  // If embedding failed, leave prior embedding/embeddingText untouched; the
+  // backfill script (or the next successful save) will fill it in.
+});
+
+// buildEmbedText is exposed via exerciseSchema.statics (Exercise.buildEmbedText).
 module.exports = mongoose.model('Exercise', exerciseSchema);

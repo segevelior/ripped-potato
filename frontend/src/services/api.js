@@ -91,13 +91,26 @@ class APIService {
 
   // Exercise endpoints
   exercises = {
-    list: async () => {
-      const response = await this.request('/exercises');
+    // Optional params: { search, muscle, discipline, equipment, difficulty, page, limit }.
+    // When `search` is present the backend does the matching (server-side), so the
+    // typeahead does not download the whole catalog. Falls back to substring today;
+    // upgrades to Atlas $search transparently once the search index lands.
+    list: async (params = {}) => {
+      const query = new URLSearchParams(
+        Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
+      ).toString();
+      const response = await this.request(`/exercises${query ? `?${query}` : ''}`);
       // Backend returns { exercises: [...], pagination: {...} }
       // Extract just the exercises array
       return response.exercises || response;
     },
     get: (id) => this.request(`/exercises/${id}`),
+    // Semantically similar exercises (swap/alternative suggestions) via vector search.
+    similar: async (id, limit) => {
+      const query = limit ? `?limit=${limit}` : '';
+      const response = await this.request(`/exercises/${id}/similar${query}`);
+      return response.exercises || response || [];
+    },
     create: (data) => this.request('/exercises', {
       method: 'POST',
       body: JSON.stringify(data)

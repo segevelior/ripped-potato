@@ -279,4 +279,47 @@ export function parseWorkoutToSessionData(workout) {
   return sessionData;
 }
 
-export { ACTIVE_WORKOUT_KEY, ACTIVE_WORKOUT_TTL };
+/**
+ * Build a single live-session exercise from a catalog/generated exercise object.
+ * Used when replacing or inserting an exercise mid-workout.
+ *
+ * Guarantees the same set shape as parseWorkoutToSessionData so logging/stats stay
+ * consistent. exercise_id is a real 24-hex ObjectId or null (never a fabricated
+ * string) — a null id logs to WorkoutLog without breaking, matching the existing gate.
+ *
+ * Default sets come from the catalog's strain.typicalVolume (camelCase — note the
+ * backend field is typicalVolume, NOT typical_volume); falls back to 3x10 / 90s rest.
+ *
+ * @param {Object} exercise - a catalog exercise ({ id|_id, name, strain })
+ * @param {number} [order=0]
+ * @returns {WorkoutExercise}
+ */
+export function buildSessionExercise(exercise, order = 0) {
+  const rawId = exercise?.id || exercise?._id;
+  const typicalVolume = exercise?.strain?.typicalVolume;
+  const parsedVolume = parseVolume(typicalVolume);
+
+  const numSets = parsedVolume?.numSets || 3;
+  const numReps = parsedVolume?.numReps || 10;
+
+  const sets = [];
+  for (let i = 0; i < numSets; i++) {
+    sets.push({
+      target_reps: numReps,
+      reps: 0,
+      weight: 0,
+      rest_seconds: 90,
+      is_completed: false
+    });
+  }
+
+  return {
+    exercise_id: isValidObjectId(rawId) ? rawId : null,
+    exercise_name: exercise?.name || exercise?.exercise_name || 'Exercise',
+    notes: '',
+    order,
+    sets
+  };
+}
+
+export { ACTIVE_WORKOUT_KEY, ACTIVE_WORKOUT_TTL, isValidObjectId };

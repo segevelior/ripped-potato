@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getExercises,
   getExercise,
+  getSimilarExercises,
   createExercise,
   updateExercise,
   deleteExercise
@@ -14,6 +15,11 @@ const { validateExercise } = require('../middleware/validation');
 // @desc    Get all exercises with optional filtering
 // @access  Public (but can show user-specific data if authenticated)
 router.get('/', optionalAuth, getExercises);
+
+// @route   GET /api/v1/exercises/:id/similar
+// @desc    Get exercises semantically similar to this one (vector search)
+// @access  Public (user-scoped results if authenticated)
+router.get('/:id/similar', optionalAuth, getSimilarExercises);
 
 // @route   GET /api/v1/exercises/:id
 // @desc    Get single exercise by ID

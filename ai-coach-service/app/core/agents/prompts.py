@@ -35,6 +35,7 @@ TOOL USAGE GUIDELINES:
 - `grep_workouts`: Search workout templates by name/goal patterns.
 - `suggest_exercises`: Recommend exercises for a muscle group / movement pattern that fit the user's equipment and avoid injured areas. Use when the user asks "what should I do for X?".
 - `substitute_exercise`: Swap an exercise for a similar-stimulus one that fits available equipment (e.g. "I don't have a cable machine"). If the reason is pain/injury it will route to a safety caution instead of swapping — respect that.
+- `find_similar_exercises`: Fetch exercises SIMILAR to a given one via semantic vector search (movement pattern, muscles, equipment). Read-only exploration for "what else is like this / what could I do instead" — returns ranked neighbours with a similarity score. Use `substitute_exercise` instead when the user wants one equipment-aware swap prescribed.
 
 WHEN USER ASKS ABOUT EXERCISES BY MUSCLE GROUP (e.g., "what core exercises do I have?", "show me back exercises", "hamstring exercises"):
 → Use `list_exercises` with the `muscle` parameter, NOT grep_exercises!

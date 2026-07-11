@@ -35,7 +35,6 @@ export default function AuthCallback() {
             localStorage.setItem('authUser', JSON.stringify(data.data.user));
             // Pre-fetch suggestions in background
             aiService.prefetchChatSuggestions(token);
-            aiService.prefetchTodayWorkout(token);
             navigate('/Dashboard');
           } else {
             throw new Error('Failed to fetch profile');

@@ -8,6 +8,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { getDisciplineClass } from "@/styles/designTokens";
+import { pickTodaySession } from "@/utils/todaySession";
 import WorkoutDetailModal from "../components/predefined/WorkoutDetailModal";
 import { aiService } from "@/services/aiService";
 import {
@@ -36,7 +37,7 @@ const getWorkoutImage = (workout) => {
 };
 
 // Quick start card - prominent CTA
-function QuickStartCard({ workout, onStart, isFromCalendar, isLoading, reasoning }) {
+function QuickStartCard({ workout, onStart, isFromCalendar, isLoading, reasoning, completedToday, onRegenerate }) {
   if (isLoading) {
     return (
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-500 to-indigo-700 p-6 text-white">
@@ -53,6 +54,35 @@ function QuickStartCard({ workout, onStart, isFromCalendar, isLoading, reasoning
             <div className="h-4 bg-white/20 rounded w-20" />
           </div>
           <div className="h-12 bg-white/30 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!workout && completedToday) {
+    // Already trained today — celebrate instead of re-serving a suggestion
+    return (
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-700 p-6 text-white">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-3">
+            <Flame className="w-5 h-5 text-emerald-100" />
+            <span className="text-sm font-medium text-emerald-100">Done for Today</span>
+          </div>
+          <h3 className="text-xl font-bold mb-2">Session Complete</h3>
+          <p className="text-sm text-emerald-100 mb-4">
+            Nice work — you've already trained today. Feeling like more?
+          </p>
+          {onRegenerate && (
+            <button
+              onClick={onRegenerate}
+              className="w-full bg-white text-emerald-700 font-semibold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-emerald-50 transition-colors"
+            >
+              <Sparkles className="w-5 h-5" />
+              Get another workout
+            </button>
+          )}
         </div>
       </div>
     );
@@ -127,6 +157,16 @@ function QuickStartCard({ workout, onStart, isFromCalendar, isLoading, reasoning
             <Sparkles className="w-5 h-5" />
             Talk to Sensei
           </Link>
+
+          {onRegenerate && (
+            <button
+              onClick={onRegenerate}
+              className="w-full mt-2 bg-white/10 text-white/90 font-medium py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-white/20 transition-colors text-sm"
+            >
+              <Flame className="w-4 h-4" />
+              I want to train anyway
+            </button>
+          )}
         </div>
       </div>
     );
@@ -169,6 +209,16 @@ function QuickStartCard({ workout, onStart, isFromCalendar, isLoading, reasoning
           <Play className="w-5 h-5" />
           Start Now
         </button>
+
+        {!isFromCalendar && onRegenerate && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onRegenerate(); }}
+            className="w-full mt-2 bg-white/10 text-white/90 font-medium py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-white/20 transition-colors text-sm"
+          >
+            <Sparkles className="w-4 h-4" />
+            New suggestion
+          </button>
+        )}
       </div>
     </div>
   );
@@ -258,11 +308,12 @@ export default function TrainNow() {
   const [workoutToView, setWorkoutToView] = useState(null);
   const [coachPrompt, setCoachPrompt] = useState("");
 
-  // Today's workout suggestion state (3-tier: calendar -> cache -> AI)
+  // Today's workout suggestion state (calendar -> persisted daily AI suggestion)
   const [todaySuggestion, setTodaySuggestion] = useState(null);
   const [suggestionLoading, setSuggestionLoading] = useState(true);
   const [isFromCalendar, setIsFromCalendar] = useState(false);
   const [suggestionReasoning, setSuggestionReasoning] = useState(null);
+  const [completedToday, setCompletedToday] = useState(false);
 
   // Active workout state (for resume/conflict handling)
   const [activeWorkout, setActiveWorkout] = useState(null);
@@ -307,56 +358,45 @@ export default function TrainNow() {
   };
 
   /**
-   * 3-tier loading for today's workout suggestion:
-   * 1. Always check calendar first (source of truth)
-   * 2. If no calendar event, check cache
-   * 3. If no cache, fetch from AI
+   * 2-tier loading for today's workout suggestion (aligned with the Dashboard):
+   * 1. Calendar first (source of truth) — shared selection rule (pickTodaySession)
+   * 2. Otherwise the server-persisted daily AI suggestion (generated once per
+   *    day, same document the Dashboard reads)
+   * @param {boolean} refresh - skip the calendar/completed checks and force a
+   *   fresh AI generation (replaces today's persisted recommendation)
    */
-  const loadTodaySuggestion = async () => {
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🏋️ [TrainNow] Starting workout suggestion load...');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  const loadTodaySuggestion = async (refresh = false) => {
     setSuggestionLoading(true);
     const token = localStorage.getItem('authToken');
-    console.log('🔑 [TrainNow] Auth token:', token ? `${token.substring(0, 20)}...` : 'null');
 
     if (!token) {
-      console.log('❌ [TrainNow] No auth token found, skipping suggestion load');
+      console.log('[TrainNow] No auth token found, skipping suggestion load');
       setSuggestionLoading(false);
       return;
     }
 
     try {
-      // Step 1: Always check calendar first (with cache-busting)
-      console.log('\n📅 [TrainNow] STEP 1: Checking calendar...');
-      const calendarResponse = await fetch(`${API_BASE_URL}/api/v1/calendar/today?_t=${Date.now()}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Cache-Control': 'no-cache'
-        }
-      });
+      if (!refresh) {
+        // Step 1: Always check calendar first
+        const calendarResponse = await fetch(`${API_BASE_URL}/api/v1/calendar/today?_t=${Date.now()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Cache-Control': 'no-cache'
+          }
+        });
 
-      console.log('📅 [TrainNow] Calendar response status:', calendarResponse.status);
+        if (calendarResponse.ok) {
+          const calendarData = await calendarResponse.json();
+          // Calendar returns { success: true, data: { events: [...] } }
+          const events = calendarData.data?.events || calendarData.data || [];
+          const { scheduledEvent, completedToday: doneToday } = pickTodaySession(events);
+          setCompletedToday(doneToday);
 
-      if (calendarResponse.ok) {
-        const calendarData = await calendarResponse.json();
-        console.log('📅 [TrainNow] Calendar data:', JSON.stringify(calendarData, null, 2));
-
-        // Calendar returns { success: true, data: { events: [...] } }
-        const events = calendarData.data?.events || calendarData.data || [];
-        console.log('📅 [TrainNow] Events array:', events.length, 'items');
-
-        if (calendarData.success && events.length > 0) {
-          const todayWorkout = events.find(
-            e => e.type === 'workout' && e.status === 'scheduled'
-          );
-
-          if (todayWorkout) {
-            console.log('✅ [TrainNow] SELECTED: Calendar workout -', todayWorkout.title);
-            console.log('📋 [TrainNow] Calendar workout details:', JSON.stringify(todayWorkout.workoutDetails, null, 2));
+          if (calendarData.success && scheduledEvent?.type === 'workout') {
+            console.log('[TrainNow] Using calendar workout -', scheduledEvent.title);
 
             // Convert calendar exercise format to the format expected by parseWorkoutToSessionData
-            const calendarExercises = todayWorkout.workoutDetails?.exercises || [];
+            const calendarExercises = scheduledEvent.workoutDetails?.exercises || [];
             const convertedExercises = calendarExercises.map(ex => ({
               exercise_name: ex.exerciseName || ex.exercise_name,
               volume: ex.targetSets && ex.targetReps ? `${ex.targetSets}x${ex.targetReps}` : null,
@@ -365,91 +405,51 @@ export default function TrainNow() {
               notes: ex.notes || ''
             }));
 
-            const workoutFromCalendar = {
-              id: todayWorkout._id,
-              name: todayWorkout.title,
-              estimated_duration: todayWorkout.workoutDetails?.estimatedDuration || 45,
-              primary_disciplines: [todayWorkout.workoutDetails?.type || 'strength'],
-              blocks: todayWorkout.workoutTemplateId?.blocks || [],
+            setTodaySuggestion({
+              id: scheduledEvent._id,
+              name: scheduledEvent.title,
+              estimated_duration: scheduledEvent.workoutDetails?.estimatedDuration || 45,
+              primary_disciplines: [scheduledEvent.workoutDetails?.type || 'strength'],
+              blocks: scheduledEvent.workoutTemplateId?.blocks || [],
               exercises: convertedExercises, // Include exercises from calendar event
-              calendarEventId: todayWorkout._id
-            };
-
-            console.log('📋 [TrainNow] Converted workout object:', JSON.stringify(workoutFromCalendar, null, 2));
-            setTodaySuggestion(workoutFromCalendar);
+              calendarEventId: scheduledEvent._id
+            });
             setIsFromCalendar(true);
             setSuggestionLoading(false);
-            console.log('🏁 [TrainNow] Done - using calendar workout');
             return;
-          } else {
-            console.log('📅 [TrainNow] No scheduled workout found in calendar events');
           }
-        } else {
-          console.log('📅 [TrainNow] Calendar returned empty or no data');
+
+          if (doneToday && !scheduledEvent) {
+            // Already trained today — show the completed state instead of
+            // re-serving this morning's suggestion. "Train more" regenerates.
+            setTodaySuggestion(null);
+            setIsFromCalendar(false);
+            setSuggestionLoading(false);
+            return;
+          }
         }
-      } else {
-        console.log('⚠️ [TrainNow] Calendar API failed with status:', calendarResponse.status);
       }
 
-      // Step 2: No calendar event, check cache
-      console.log('\n📦 [TrainNow] STEP 2: Checking cache...');
-      const cached = aiService.getCachedTodayWorkout();
-      console.log('📦 [TrainNow] Cache result:', cached);
-
-      if (cached?.suggestion) {
-        console.log('✅ [TrainNow] SELECTED: Cached suggestion -', cached.suggestion.name);
-        setTodaySuggestion(cached.suggestion);
-        setSuggestionReasoning(cached.suggestion.reasoning);
+      // Step 2: Server-persisted daily suggestion (same one the Dashboard shows)
+      const data = await aiService.getTodayWorkout(refresh);
+      if (data?.suggestion) {
+        console.log('[TrainNow] Using AI suggestion -', data.suggestion.name, data.cached ? '(persisted)' : '(fresh)');
+        setTodaySuggestion(data.suggestion);
+        setSuggestionReasoning(data.suggestion.reasoning);
         setIsFromCalendar(false);
-        setSuggestionLoading(false);
-        console.log('🏁 [TrainNow] Done - using cached suggestion');
-        return;
+        if (refresh) setCompletedToday(false);
       } else {
-        console.log('📦 [TrainNow] No valid cache found, proceeding to AI...');
-      }
-
-      // Step 3: No cache, fetch from AI
-      console.log('\n🤖 [TrainNow] STEP 3: Fetching from AI...');
-      console.log('🤖 [TrainNow] Calling:', `${API_BASE_URL}/api/v1/train-now`);
-
-      const aiResponse = await fetch(`${API_BASE_URL}/api/v1/train-now`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      console.log('🤖 [TrainNow] AI response status:', aiResponse.status);
-
-      if (aiResponse.ok) {
-        const aiData = await aiResponse.json();
-        console.log('🤖 [TrainNow] AI response:', JSON.stringify(aiData, null, 2));
-
-        if (aiData.success && aiData.suggestion) {
-          console.log('✅ [TrainNow] SELECTED: AI suggestion -', aiData.suggestion.name);
-          localStorage.setItem('todayWorkoutSuggestion', JSON.stringify({
-            suggestion: aiData.suggestion,
-            source: aiData.source,
-            timestamp: Date.now()
-          }));
-          setTodaySuggestion(aiData.suggestion);
-          setSuggestionReasoning(aiData.suggestion.reasoning);
-          setIsFromCalendar(false);
-          console.log('🏁 [TrainNow] Done - using AI suggestion');
-        } else {
-          console.log('⚠️ [TrainNow] AI returned no suggestion:', aiData.error || 'Unknown error');
-          console.log('🏁 [TrainNow] Done - NO WORKOUT TO SHOW');
-        }
-      } else {
-        const errorText = await aiResponse.text();
-        console.log('❌ [TrainNow] AI request failed:', aiResponse.status, errorText);
-        console.log('🏁 [TrainNow] Done - AI FAILED');
+        console.log('[TrainNow] No AI suggestion available');
       }
     } catch (error) {
-      console.error('❌ [TrainNow] Exception:', error);
-      console.log('🏁 [TrainNow] Done - EXCEPTION');
+      console.error('[TrainNow] Error loading suggestion:', error);
     }
 
     setSuggestionLoading(false);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   };
+
+  // Force a fresh AI generation (replaces today's persisted recommendation)
+  const regenerateSuggestion = () => loadTodaySuggestion(true);
 
   // Get workouts by category
   const getWorkoutsByDiscipline = (discipline) => {
@@ -692,13 +692,15 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
             </div>
           )}
 
-          {/* Featured / Quick Start - 3-tier: calendar -> cache -> AI */}
+          {/* Featured / Quick Start - calendar -> persisted daily AI suggestion */}
           <QuickStartCard
             workout={featuredWorkout}
             onStart={startWorkout}
             isFromCalendar={isFromCalendar}
             isLoading={suggestionLoading}
             reasoning={suggestionReasoning}
+            completedToday={completedToday}
+            onRegenerate={regenerateSuggestion}
           />
 
           {/* Ask Sensei Section - Compact */}

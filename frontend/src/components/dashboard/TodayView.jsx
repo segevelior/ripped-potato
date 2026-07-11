@@ -4,6 +4,7 @@ import { createPageUrl } from "@/utils";
 import { CalendarEvent, UserGoalProgress } from "@/api/entities";
 import apiService from "@/services/api";
 import aiService from "@/services/aiService";
+import { pickTodaySession } from "@/utils/todaySession";
 import { getDisciplineColor } from "@/styles/designTokens";
 import {
   Play, Sparkles, X, ChevronRight, ArrowRight, Check, Bike, Dumbbell,
@@ -39,6 +40,8 @@ export default function TodayView() {
   const navigate = useNavigate();
   const [goals, setGoals] = useState([]);
   const [session, setSession] = useState(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [sessionDone, setSessionDone] = useState(false);
   const [coach, setCoach] = useState(null);
   const [coachDismissed, setCoachDismissed] = useState(false);
   const [coachAnswer, setCoachAnswer] = useState(null);
@@ -62,32 +65,51 @@ export default function TodayView() {
       })
       .catch(() => {});
 
-    // Today's session — first not-yet-done calendar event, else cached AI suggestion
+    // Today's session — calendar first (same selection rule as the TrainNow
+    // page), then the same server-persisted AI suggestion TrainNow uses, so
+    // both surfaces always show the same thing.
     CalendarEvent.today()
-      .then((events) => {
+      .then(async (events) => {
         if (!alive) return;
-        const list = Array.isArray(events) ? events : [];
-        const next =
-          list.find((e) => (e.status || "scheduled") !== "completed") || list[0];
-        if (next) {
+        const { scheduledEvent, completedToday } = pickTodaySession(events);
+        if (scheduledEvent) {
           setSession({
-            title: next.title,
-            type: next.workoutDetails?.type || next.eventType || "Workout",
-            time: fmtTime(next.date),
+            title: scheduledEvent.title,
+            type:
+              scheduledEvent.workoutDetails?.type ||
+              scheduledEvent.eventType ||
+              "Workout",
+            time: fmtTime(scheduledEvent.date),
             duration:
-              next.workoutDetails?.durationMinutes ||
-              next.workoutDetails?.estimatedDuration ||
+              scheduledEvent.workoutDetails?.durationMinutes ||
+              scheduledEvent.workoutDetails?.estimatedDuration ||
               null,
-            exercises: next.workoutDetails?.exercises?.length || null,
-            eventId: next.id,
+            exercises: scheduledEvent.workoutDetails?.exercises?.length || null,
+            eventId: scheduledEvent.id,
           });
-        } else {
-          const cached = aiService.getCachedTodayWorkout();
-          if (cached?.suggestion) {
-            const s = cached.suggestion;
+          setSessionLoading(false);
+          return;
+        }
+        if (completedToday) {
+          setSessionDone(true);
+          setSessionLoading(false);
+          return;
+        }
+        // No calendar event — fetch (or generate) today's persisted suggestion
+        const data = await aiService.getTodayWorkout();
+        if (!alive) return;
+        if (data?.suggestion) {
+          const s = data.suggestion;
+          if (s.type === "rest") {
+            setSession({
+              rest: true,
+              title: s.name || "Rest Day",
+              reasoning: s.reasoning || null,
+            });
+          } else {
             setSession({
               title: s.name || s.title,
-              type: s.type || s.primary_disciplines?.[0] || "Workout",
+              type: s.primary_disciplines?.[0] || "Workout",
               time: null,
               duration: s.estimated_duration || s.duration_minutes || null,
               exercises: s.exercises?.length || s.blocks?.length || null,
@@ -95,8 +117,11 @@ export default function TodayView() {
             });
           }
         }
+        setSessionLoading(false);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (alive) setSessionLoading(false);
+      });
 
     // Coach question — memory-driven
     aiService
@@ -216,12 +241,56 @@ export default function TodayView() {
 
         {/* HERO SESSION */}
         <div className="tv-hero">
-          {session ? (
+          {sessionLoading ? (
+            <>
+              <div className="tv-hero-kicker" style={{ color: "var(--tv-accent)" }}>
+                <Sparkles className="tv-ico" />
+                Coach is thinking
+              </div>
+              <div className="tv-hero-title" style={{ opacity: 0.55 }}>
+                Preparing today's pick…
+              </div>
+              <div className="tv-hero-meta" style={{ opacity: 0.55 }}>
+                One moment.
+              </div>
+            </>
+          ) : sessionDone ? (
+            <>
+              <div className="tv-hero-kicker" style={{ color: "#22C55E" }}>
+                <Check className="tv-ico" />
+                Done for today
+              </div>
+              <div className="tv-hero-title">Session complete</div>
+              <div className="tv-hero-meta">
+                Nice work — recovery counts too.
+              </div>
+              <button className="tv-cta" onClick={() => navigate(createPageUrl("TrainNow"))}>
+                <Play className="tv-ico" fill="currentColor" strokeWidth={0} />
+                Train more
+              </button>
+            </>
+          ) : session?.rest ? (
+            <>
+              <div className="tv-hero-kicker" style={{ color: "#6366F1" }}>
+                <Sparkles className="tv-ico" />
+                Sensei's advice
+              </div>
+              <div className="tv-hero-title">{session.title}</div>
+              <div className="tv-hero-meta">
+                {session.reasoning || "Your body needs time to recover today."}
+              </div>
+              <button className="tv-cta" onClick={() => navigate(createPageUrl("TrainNow"))}>
+                <ChevronRight className="tv-ico" />
+                View details
+              </button>
+            </>
+          ) : session ? (
             <>
               <div className="tv-hero-kicker" style={{ color: typeColor(session.type) }}>
                 <SessionIcon type={session.type} />
                 {capitalize(session.type)}
                 {session.time ? ` · ${session.time}` : ""}
+                {session.eventId == null ? " · Today's pick" : ""}
               </div>
               <div className="tv-hero-title">{session.title}</div>
               <div className="tv-hero-meta">{sessionMeta(session)}</div>

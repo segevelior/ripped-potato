@@ -23,6 +23,8 @@ from app.core.agents.data_reader import DataReaderAgent
 from app.core.agents.prompts import SYSTEM_PROMPT
 from app.core.agents.services import MemoryService
 from app.services.conversation_service import ConversationService
+from app.services.recommendation_service import RecommendationService
+from app.services.short_term_context_service import ShortTermContextService, spawn_background
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -134,6 +136,23 @@ USER DATA:
                 prefix = "HIGH PRIORITY: " if importance == "high" else "- "
                 memory_str += f"\n{prefix}[{category}] {content}"
             context_str += memory_str
+
+        # Short-term context + today's recommendation, so the question can
+        # reference recent check-ins/conversations and stay consistent with
+        # what Train Now already suggested today.
+        stc_service = ShortTermContextService(db)
+        stc_entries = await stc_service.get_recent(user_id, limit=8)
+        stc_block = ShortTermContextService.format_for_prompt(stc_entries)
+        if stc_block:
+            context_str += f"\n\n{stc_block}"
+
+        recs = await RecommendationService(db).get_recent(user_id, [today_date])
+        rec_block = RecommendationService.format_for_prompt(recs, today_date)
+        if rec_block:
+            context_str += f"\n\n{rec_block}"
+
+        # Opportunistic lazy summarization of recently-ended conversations
+        spawn_background(stc_service.summarize_stale_conversations(user_id, client, settings))
 
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -267,15 +286,34 @@ async def post_coach_reply(
             raise ValueError("Empty reply")
 
         logger.info(f"Coach inline reply for user {user_id}: {reply}")
+
+        # Persist the check-in as short-term context so the sensei remembers
+        # the answer across conversations (14-day TTL)
+        await _save_checkin_entry(db, user_id, question, answer, reply)
+
         return {"success": True, "reply": reply}
 
     except Exception as e:
         logger.error(f"Error generating coach reply: {e}", exc_info=True)
+        fallback_reply = "Got it — I've noted that. Tap continue if you want to talk it through."
+        # The athlete's answer is the valuable part — persist it even on fallback
+        await _save_checkin_entry(db, user_id, question, answer, fallback_reply)
         return {
             "success": True,
-            "reply": "Got it — I've noted that. Tap continue if you want to talk it through.",
+            "reply": fallback_reply,
             "fallback": True,
         }
+
+
+async def _save_checkin_entry(db, user_id: str, question: str, answer: str, reply: str) -> None:
+    """Best-effort: record the dashboard check-in in short-term context."""
+    content = f'Dashboard check-in: coach asked "{question}" — athlete answered "{answer}". Coach: "{reply}"'
+    await ShortTermContextService(db).add_entry(
+        user_id,
+        kind="checkin",
+        content=content,
+        meta={"question": question, "answer": answer, "reply": reply},
+    )
 
 
 @router.post("/continue")
@@ -319,6 +357,14 @@ async def post_coach_continue(
         await service.add_message(conversation_id, "human", answer, user_id=user_id)
         if reply:
             await service.add_message(conversation_id, "ai", reply, user_id=user_id)
+
+        # Mark as seeded from a check-in: the Q&A is already captured as a
+        # short-term "checkin" entry, so the lazy summarizer skips this
+        # conversation unless the athlete actually chats further in it.
+        await db.chatConversations.update_one(
+            {"conversation_id": conversation_id},
+            {"$set": {"checkin_seeded": True}},
+        )
 
         logger.info(f"Promoted coach check-in to conversation {conversation_id} for user {user_id}")
         return {"success": True, "conversation_id": conversation_id}
