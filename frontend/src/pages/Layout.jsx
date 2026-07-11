@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot, TrendingUp, Settings, MessageSquare, Shield, Cog, Play } from "lucide-react";
+import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot, TrendingUp, Settings, MessageSquare, Shield, Cog, Play, Home, User } from "lucide-react";
 import { hasActiveWorkout } from "@/utils/workoutSession";
 import {
   Sidebar,
@@ -62,6 +62,19 @@ const navigationItems = [
     icon: Target,
   },
 ];
+
+// Mobile bottom-nav item (Today / Plan / Workouts / Profile)
+const BottomNavItem = ({ to, icon: Icon, label, active }) => (
+  <Link
+    to={to}
+    className={`flex flex-col items-center justify-center min-w-[56px] h-14 gap-0.5 px-1 ${
+      active ? 'text-primary-500' : 'text-gray-500'
+    }`}
+  >
+    <Icon className={`w-5 h-5 ${active ? 'fill-current' : ''}`} strokeWidth={active ? 2.5 : 2} />
+    <span className="text-[10px] font-medium whitespace-nowrap">{label}</span>
+  </Link>
+);
 
 // Simple throttle utility
 const throttle = (func, limit) => {
@@ -288,12 +301,12 @@ export default function Layout({ children }) {
               ${isChatPage ? 'hidden' : ''}
             `}
           >
-            <div className="flex items-center justify-around h-14 px-2">
-              {/* Live Workout tab - shown first when active */}
-              {showLiveWorkoutTab && (
+            <div className="flex items-end justify-around h-16 px-2">
+              {/* Live Workout tab - replaces the Today slot when a workout is active */}
+              {showLiveWorkoutTab ? (
                 <Link
                   to={createPageUrl('LiveWorkout')}
-                  className={`flex flex-col items-center justify-center min-w-[64px] h-full gap-0.5 px-1 ${
+                  className={`flex flex-col items-center justify-center min-w-[56px] h-14 gap-0.5 px-1 ${
                     location.pathname.toLowerCase().includes('liveworkout')
                       ? 'text-green-600'
                       : 'text-green-500'
@@ -305,29 +318,46 @@ export default function Layout({ children }) {
                   </div>
                   <span className="text-[10px] font-semibold whitespace-nowrap">Live</span>
                 </Link>
+              ) : (
+                <BottomNavItem
+                  to={createPageUrl('Dashboard')}
+                  icon={Home}
+                  label="Today"
+                  active={location.pathname === '/' || location.pathname === createPageUrl('Dashboard')}
+                />
               )}
-              {/* Existing nav items - hide Exercises when Live is shown */}
-              {[
-                navigationItems.find(i => i.title === "Goals"),
-                navigationItems.find(i => i.title === "Plans"),
-                navigationItems.find(i => i.title === "Workouts"),
-                !showLiveWorkoutTab && navigationItems.find(i => i.title === "Exercises")
-              ].filter(Boolean).map((item, index) => {
-                const isActive = location.pathname === item.url;
-                return (
-                  <Link
-                    key={index}
-                    to={item.url}
-                    className={`flex flex-col items-center justify-center min-w-[64px] h-full gap-0.5 px-1 ${isActive ? 'text-primary-500' : 'text-gray-500'
-                      }`}
-                  >
-                    <item.icon className={`w-5 h-5 ${isActive ? 'fill-current' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
-                    <span className="text-[10px] font-medium whitespace-nowrap">
-                      {item.title}
-                    </span>
-                  </Link>
-                );
-              })}
+
+              <BottomNavItem
+                to={createPageUrl('Plans')}
+                icon={FileText}
+                label="Plan"
+                active={location.pathname === createPageUrl('Plans')}
+              />
+
+              {/* Center action — Train now (replaces the old + FAB) */}
+              <Link
+                to={createPageUrl('TrainNow')}
+                className="flex flex-col items-center justify-end gap-1 min-w-[56px] h-full"
+              >
+                <div className="w-12 h-12 rounded-full bg-primary-500 text-white flex items-center justify-center shadow-lg shadow-primary-500/40 -mt-5 active:scale-95 transition-transform">
+                  <Dumbbell className="w-5 h-5" strokeWidth={2.2} />
+                </div>
+                <span className="text-[10px] font-semibold text-primary-500 whitespace-nowrap">Train now</span>
+              </Link>
+
+              <BottomNavItem
+                to={createPageUrl('PredefinedWorkouts')}
+                icon={Dumbbell}
+                label="Workouts"
+                active={location.pathname === createPageUrl('PredefinedWorkouts')}
+              />
+
+              <BottomNavItem
+                to={createPageUrl('Settings')}
+                icon={User}
+                label="Profile"
+                active={location.pathname === createPageUrl('Settings')}
+              />
             </div>
           </nav>
         </div>

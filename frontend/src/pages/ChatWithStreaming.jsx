@@ -135,6 +135,7 @@ export default function ChatWithStreaming() {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const hasProcessedPendingRef = useRef(false); // To prevent double-processing
+  const hasProcessedOpenConvRef = useRef(false); // For opening a specific conversation once
 
   // Streaming hook
   const {
@@ -204,6 +205,26 @@ export default function ChatWithStreaming() {
 
     loadUserAndHistory();
   }, []);
+
+  // Open a specific conversation requested from another screen (e.g. the Today
+  // dashboard's "Continue with Sensei"). The conversation was already created and
+  // seeded server-side, so we just load it — no message is re-sent.
+  useEffect(() => {
+    if (!authToken || isLoadingHistory) return;
+    if (hasProcessedOpenConvRef.current) return;
+
+    const convId = localStorage.getItem('openConversationId');
+    const convTime = localStorage.getItem('openConversationTime');
+    if (convId && convTime) {
+      const age = Date.now() - parseInt(convTime, 10);
+      localStorage.removeItem('openConversationId');
+      localStorage.removeItem('openConversationTime');
+      if (age < 30000) {
+        hasProcessedOpenConvRef.current = true;
+        loadConversation(convId);
+      }
+    }
+  }, [authToken, isLoadingHistory]);
 
   // Process pending auto-send message (from WorkoutSelectionModal or other sources)
   useEffect(() => {

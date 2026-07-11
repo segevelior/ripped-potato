@@ -7,7 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import redis.asyncio as redis
 
 from app.config import get_settings, Settings
-from app.api.v1 import health, chat, chat_stream, conversations, documents, exercises, internal, progressions, suggestions, train_now
+from app.api.v1 import health, chat, chat_stream, conversations, documents, exercises, internal, progressions, suggestions, train_now, coach_question
 from app.services.conversation_service import ConversationService
 
 logger = structlog.get_logger()
@@ -87,6 +87,7 @@ app.include_router(exercises.router, prefix="/api/v1/exercises", tags=["exercise
 app.include_router(progressions.router, prefix="/api/v1/progressions", tags=["progressions"])
 app.include_router(suggestions.router, prefix="/api/v1/suggestions", tags=["suggestions"])
 app.include_router(train_now.router, prefix="/api/v1/train-now", tags=["train-now"])
+app.include_router(coach_question.router, prefix="/api/v1/coach-question", tags=["coach-question"])
 app.include_router(internal.router, prefix="/api/v1/internal", tags=["internal"])
 
 

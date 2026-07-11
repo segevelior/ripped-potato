@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import BodyRegionChart from "../components/dashboard/BodyRegionChart";
 import WeeklyOptimization from "../components/dashboard/WeeklyOptimization"; // New import
+import TodayView from "../components/dashboard/TodayView";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -225,20 +226,33 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="animate-pulse h-8 bg-gray-200 rounded w-64"></div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {Array(3).fill(0).map((_, i) => (
-            <div key={i} className="animate-pulse bg-gray-200 h-24 rounded-xl"></div>
-          ))}
+      <>
+        {/* Mobile Today view loads its own data independently of the desktop dashboard */}
+        <div className="md:hidden -m-4">
+          <TodayView />
         </div>
-        <div className="animate-pulse h-64 bg-gray-200 rounded-xl"></div>
-      </div>
+        <div className="hidden md:block space-y-6">
+          <div className="animate-pulse h-8 bg-gray-200 rounded w-64"></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {Array(3).fill(0).map((_, i) => (
+              <div key={i} className="animate-pulse bg-gray-200 h-24 rounded-xl"></div>
+            ))}
+          </div>
+          <div className="animate-pulse h-64 bg-gray-200 rounded-xl"></div>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <>
+    {/* Mobile: redesigned Today view */}
+    <div className="md:hidden -m-4">
+      <TodayView />
+    </div>
+
+    {/* Desktop: existing dashboard */}
+    <div className="hidden md:block space-y-8">
       {/* Header with View Toggle */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -560,5 +574,6 @@ export default function Dashboard() {
         </div>
       )}
     </div>
+    </>
   );
 }

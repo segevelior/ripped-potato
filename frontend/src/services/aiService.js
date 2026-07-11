@@ -431,6 +431,88 @@ class AIService {
   }
 
   /**
+   * Get a memory-driven coach check-in question for the Today dashboard.
+   * Returns { question, chips: string[], source } — always resolves with a
+   * usable question (server falls back on error).
+   * @returns {Promise<{question: string, chips: string[], source: string}|null>}
+   */
+  async getCoachQuestion() {
+    const token = this.getAuthToken();
+    if (!token) return null;
+
+    try {
+      const response = await fetch(`${this.baseURL}/api/v1/coach-question`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      if (data?.question && Array.isArray(data.chips)) {
+        return { question: data.question, chips: data.chips, source: data.source || '' };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching coach question:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Send the athlete's tapped answer and get a very short, home-page inline reply.
+   * @param {string} question - the coach's check-in question
+   * @param {string} answer - the answer the athlete tapped
+   * @returns {Promise<string|null>} short reply text, or null on hard failure
+   */
+  async getCoachReply(question, answer) {
+    const token = this.getAuthToken();
+    if (!token) return null;
+
+    try {
+      const response = await fetch(`${this.baseURL}/api/v1/coach-question/reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ question, answer })
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data?.reply || null;
+    } catch (error) {
+      console.error('Error fetching coach reply:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Promote the home-screen mini check-in into a full, persisted conversation
+   * seeded with the question / answer / reply turns. Returns the conversation_id
+   * so the caller can open it in Sensei.
+   * @returns {Promise<string|null>} conversation_id, or null on failure
+   */
+  async continueCoachConversation(question, answer, reply) {
+    const token = this.getAuthToken();
+    if (!token) return null;
+
+    try {
+      const response = await fetch(`${this.baseURL}/api/v1/coach-question/continue`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ question, answer, reply })
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data?.success ? data.conversation_id : null;
+    } catch (error) {
+      console.error('Error creating coach conversation:', error);
+      return null;
+    }
+  }
+
+  /**
    * Clear all cached data (call on logout)
    */
   clearAllCache() {
