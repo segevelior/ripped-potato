@@ -17,66 +17,73 @@ class PlanService:
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
 
+    @staticmethod
+    def _normalize_week_docs(weeks_input: list) -> list:
+        """Turn caller/plan_builder week dicts into stored week documents (assign
+        _ids, normalize workout/exercise shape). Shared by create_plan and
+        update_plan_content so a regenerated draft is stored identically to a new
+        one."""
+        weeks = []
+        for week_data in weeks_input or []:
+            week = {
+                "_id": ObjectId(),
+                "weekNumber": week_data.get("weekNumber", 1),
+                "focus": week_data.get("focus", ""),
+                "description": week_data.get("description", ""),
+                "deloadWeek": week_data.get("deloadWeek", False),
+                "workouts": [],
+                "restDays": []
+            }
+            # Rolling-materialization flags: only set when the caller provides
+            # them (missing = resolved, the legacy/back-compat convention).
+            if "resolved" in week_data:
+                week["resolved"] = bool(week_data["resolved"])
+                if week_data.get("resolvedAt"):
+                    week["resolvedAt"] = week_data["resolvedAt"]
+
+            for workout in week_data.get("workouts", []):
+                weekly_workout = {
+                    "_id": ObjectId(),
+                    "dayOfWeek": workout.get("dayOfWeek", 1),
+                    "workoutType": workout.get("workoutType", "custom"),
+                    "notes": workout.get("notes", ""),
+                    "isOptional": workout.get("isOptional", False)
+                }
+
+                if workout.get("workoutType") == "predefined" and workout.get("predefinedWorkoutId"):
+                    try:
+                        weekly_workout["predefinedWorkoutId"] = ObjectId(workout["predefinedWorkoutId"])
+                    except Exception:
+                        pass
+                elif workout.get("customWorkout"):
+                    custom = workout["customWorkout"]
+                    exercises = []
+                    for ex in custom.get("exercises", []):
+                        ex_doc = {
+                            "exerciseName": ex.get("exerciseName", ""),
+                            "sets": ex.get("sets", [])
+                        }
+                        if ex.get("notes"):
+                            ex_doc["notes"] = ex["notes"]
+                        exercises.append(ex_doc)
+                    weekly_workout["customWorkout"] = {
+                        "title": custom.get("title", ""),
+                        "type": custom.get("type", "strength"),
+                        "durationMinutes": custom.get("durationMinutes", 45),
+                        "exercises": exercises
+                    }
+
+                week["workouts"].append(weekly_workout)
+
+            weeks.append(week)
+        return weeks
+
     async def create_plan(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Create a training plan"""
         try:
             schedule = args.get("schedule", {})
 
-            # Process weeks if provided
-            weeks = []
-            for week_data in args.get("weeks", []):
-                week = {
-                    "_id": ObjectId(),
-                    "weekNumber": week_data.get("weekNumber", 1),
-                    "focus": week_data.get("focus", ""),
-                    "description": week_data.get("description", ""),
-                    "deloadWeek": week_data.get("deloadWeek", False),
-                    "workouts": [],
-                    "restDays": []
-                }
-                # Rolling-materialization flags: only set when the caller provides
-                # them (missing = resolved, the legacy/back-compat convention).
-                if "resolved" in week_data:
-                    week["resolved"] = bool(week_data["resolved"])
-                    if week_data.get("resolvedAt"):
-                        week["resolvedAt"] = week_data["resolvedAt"]
-
-                # Process workouts for this week
-                for workout in week_data.get("workouts", []):
-                    weekly_workout = {
-                        "_id": ObjectId(),
-                        "dayOfWeek": workout.get("dayOfWeek", 1),
-                        "workoutType": workout.get("workoutType", "custom"),
-                        "notes": workout.get("notes", ""),
-                        "isOptional": workout.get("isOptional", False)
-                    }
-
-                    if workout.get("workoutType") == "predefined" and workout.get("predefinedWorkoutId"):
-                        try:
-                            weekly_workout["predefinedWorkoutId"] = ObjectId(workout["predefinedWorkoutId"])
-                        except Exception:
-                            pass
-                    elif workout.get("customWorkout"):
-                        custom = workout["customWorkout"]
-                        exercises = []
-                        for ex in custom.get("exercises", []):
-                            ex_doc = {
-                                "exerciseName": ex.get("exerciseName", ""),
-                                "sets": ex.get("sets", [])
-                            }
-                            if ex.get("notes"):
-                                ex_doc["notes"] = ex["notes"]
-                            exercises.append(ex_doc)
-                        weekly_workout["customWorkout"] = {
-                            "title": custom.get("title", ""),
-                            "type": custom.get("type", "strength"),
-                            "durationMinutes": custom.get("durationMinutes", 45),
-                            "exercises": exercises
-                        }
-
-                    week["workouts"].append(weekly_workout)
-
-                weeks.append(week)
+            weeks = self._normalize_week_docs(args.get("weeks", []))
 
             plan_data = {
                 "userId": ObjectId(user_id),
@@ -136,6 +143,45 @@ class PlanService:
         except Exception as e:
             logger.error(f"Error creating plan: {e}")
             return {"success": False, "message": str(e)}
+
+    async def update_plan_content(self, user_id: str, plan_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Replace a plan's weeks/skeleton/schedule/name in place. Used by the
+        dedupe guard in generate_plan: when an unscheduled AI draft for the same
+        goal already exists, we regenerate INTO it instead of creating a duplicate.
+        Reuses create_plan's week-normalization by delegating the heavy lifting
+        there is overkill — the caller passes already-built plan_builder weeks, so
+        persist them verbatim (same shape create_plan writes)."""
+        try:
+            plan_oid = ObjectId(plan_id)
+            user_oid = ObjectId(user_id)
+        except Exception:
+            return {"success": False, "message": "Invalid plan_id."}
+
+        weeks = self._normalize_week_docs(args.get("weeks", []))
+        set_doc: Dict[str, Any] = {
+            "weeks": weeks,
+            "updatedAt": datetime.utcnow(),
+            "progress.totalWorkouts": sum(len(w.get("workouts", []) or []) for w in weeks),
+            "progress.currentWeek": 1,
+            "progress.completedWorkouts": 0,
+        }
+        if args.get("name"):
+            set_doc["name"] = args["name"]
+        if args.get("description") is not None:
+            set_doc["description"] = args["description"]
+        if args.get("schedule"):
+            set_doc["schedule"] = args["schedule"]
+        if args.get("skeleton"):
+            set_doc["skeleton"] = args["skeleton"]
+        if args.get("tags") is not None:
+            set_doc["tags"] = args["tags"]
+
+        result = await self.db.plans.update_one(
+            {"_id": plan_oid, "userId": user_oid}, {"$set": set_doc}
+        )
+        if result.matched_count == 0:
+            return {"success": False, "message": "Plan not found."}
+        return {"success": True, "plan_id": plan_id, "message": "Updated existing draft plan."}
 
     async def list_plans(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """List user's training plans"""

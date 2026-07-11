@@ -13,6 +13,7 @@ import time
 from app.models.schemas import ChatRequest
 from app.middleware.auth import get_current_user
 from app.core.agents.orchestrator import AgentOrchestrator
+from app.core.agents.text_utils import dedupe_repeated_response
 from app.services.conversation_service import ConversationService
 
 router = APIRouter()
@@ -64,8 +65,10 @@ async def generate_sse_stream(
                 yield f"data: {json.dumps(event)}\n\n"
 
             elif event_type == "complete":
-                # Build full response with tool markers
-                full_response = "".join(response_parts)
+                # Build full response with tool markers. Collapse a fully-duplicated
+                # reply (gpt-5.4-mini stutter) so the SAVED message matches what the
+                # frontend shows after the revision event. No-op on normal replies.
+                full_response = dedupe_repeated_response("".join(response_parts))
 
                 # Calculate response time
                 response_time_ms = int((time.time() - start_time) * 1000)

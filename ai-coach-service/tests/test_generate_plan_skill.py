@@ -84,7 +84,7 @@ def _llm_response(payload):
 
 
 def _make_ctx(profile=None, goal=None, create_ok=True, missing=None, skeleton=None,
-              planner_model=None):
+              planner_model=None, existing_draft=None):
     profile = profile if profile is not None else {
         "fitnessLevel": "intermediate",
         "preferences": {"equipment": ["barbell"], "workoutDays": [1, 3, 5]},
@@ -94,6 +94,8 @@ def _make_ctx(profile=None, goal=None, create_ok=True, missing=None, skeleton=No
     db = MagicMock()
     db.users.find_one = AsyncMock(return_value={"profile": profile})
     db.goals.find_one = AsyncMock(return_value=goal)
+    # Dedupe guard looks here for a reusable draft (None = none exists).
+    db.plans.find_one = AsyncMock(return_value=existing_draft)
 
     ctx = MagicMock()
     ctx.db = db
@@ -108,6 +110,9 @@ def _make_ctx(profile=None, goal=None, create_ok=True, missing=None, skeleton=No
     ctx.plan_service.create_plan = AsyncMock(
         return_value={"success": create_ok, "plan_id": str(ObjectId()) if create_ok else None,
                       "message": "" if create_ok else "fail"}
+    )
+    ctx.plan_service.update_plan_content = AsyncMock(
+        return_value={"success": True, "plan_id": str((existing_draft or {}).get("_id", ObjectId()))}
     )
     return ctx
 
@@ -197,3 +202,32 @@ class TestHandler:
         ctx = _make_ctx(create_ok=False)
         result = await generate_plan(ctx, str(ObjectId()), {"goal_text": "get stronger"})
         assert result["success"] is False
+
+    @pytest.mark.asyncio
+    async def test_returns_layered_overview(self):
+        ctx = _make_ctx()
+        result = await generate_plan(ctx, str(ObjectId()), {"goal_text": "get stronger", "weeks": 8})
+        ov = result["overview"]
+        assert [p["name"] for p in ov["phases"]] == ["Base", "Build"]
+        assert len(ov["weeks"]) == 8
+        assert ov["weeks"][0]["workoutTitles"]  # real content, not just counts
+
+    @pytest.mark.asyncio
+    async def test_dedupes_into_existing_draft(self):
+        existing = {"_id": ObjectId(), "status": "draft", "tags": ["ai-generated", "draft"],
+                    "description": "AI-generated draft for: get stronger"}
+        ctx = _make_ctx(existing_draft=existing)
+        result = await generate_plan(ctx, str(ObjectId()), {"goal_text": "get stronger", "weeks": 8})
+        assert result["success"] is True
+        assert result["reused_existing_draft"] is True
+        assert result["plan_id"] == str(existing["_id"])
+        ctx.plan_service.update_plan_content.assert_awaited_once()
+        ctx.plan_service.create_plan.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_no_existing_draft_creates_new(self):
+        ctx = _make_ctx(existing_draft=None)
+        result = await generate_plan(ctx, str(ObjectId()), {"goal_text": "get stronger"})
+        assert result["reused_existing_draft"] is False
+        ctx.plan_service.create_plan.assert_awaited_once()
+        ctx.plan_service.update_plan_content.assert_not_called()
