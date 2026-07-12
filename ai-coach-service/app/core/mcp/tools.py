@@ -5,6 +5,8 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 from datetime import datetime
 
+from app.core.dedup import existing_exercise_reuse_response
+
 logger = structlog.get_logger()
 
 
@@ -195,6 +197,13 @@ class FitnessCRUDTools:
     async def _add_exercise(self, params: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Add a new exercise directly"""
         try:
+            # Dedup guard (shared with ExerciseService.add_exercise): never create a
+            # second exercise with a name the user already has. A reused exercise
+            # (created=False) does NOT mean the user's request is complete.
+            reuse = await existing_exercise_reuse_response(self.db, user_id, params["name"])
+            if reuse:
+                return reuse
+
             exercise_data = {
                 "name": params["name"],
                 "description": params["description"],
