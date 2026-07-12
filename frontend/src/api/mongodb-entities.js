@@ -38,6 +38,16 @@ export const Exercise = {
     }
   },
   findById: async (id) => Exercise.get(id),
+  // Semantically similar exercises (swap/alternative suggestions) via vector search.
+  // Never throws — the callers use this on modal open and a failure must not crash the app.
+  similar: async (id, limit) => {
+    try {
+      return normalizeArray(await apiService.exercises.similar(id, limit));
+    } catch (error) {
+      console.error('Exercise.similar error:', error);
+      return [];
+    }
+  },
   toggleFavorite: async (id, isFavorite) => apiService.exercises.toggleFavorite(id, isFavorite),
   customize: async (id, modifications) => apiService.exercises.customize(id, modifications),
   removeCustomization: async (id) => apiService.exercises.removeCustomization(id)

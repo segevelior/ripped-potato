@@ -51,6 +51,8 @@ export default function ExerciseDetailModal({ exercise, onClose, onEdit, onToggl
     setSimilar([]);
     Exercise.similar(id, 6).then((found) => {
       if (!cancelled) setSimilar(found || []);
+    }).catch(() => {
+      if (!cancelled) setSimilar([]);
     });
     return () => { cancelled = true; };
   }, [exercise.id, exercise._id]);
