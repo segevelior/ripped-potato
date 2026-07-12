@@ -53,6 +53,14 @@ const validateExercise = [
     .optional()
     .isIn(['beginner', 'intermediate', 'advanced'])
     .withMessage('Difficulty must be beginner, intermediate, or advanced'),
+  body('force')
+    .optional()
+    .isIn(['push', 'pull', 'static'])
+    .withMessage('Force must be push, pull, or static'),
+  body('mechanic')
+    .optional()
+    .isIn(['compound', 'isolation'])
+    .withMessage('Mechanic must be compound or isolation'),
   body('strain.intensity')
     .optional()
     .isIn(['low', 'moderate', 'high', 'max'])
