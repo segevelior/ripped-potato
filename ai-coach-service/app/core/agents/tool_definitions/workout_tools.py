@@ -13,7 +13,7 @@ def get_workout_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "create_workout_template",
-                "description": "Create a reusable workout template (PredefinedWorkout) that can be used in training plans. Workouts are organized into blocks (Warm-up, Main Work, Finisher, etc.).",
+                "description": "Create a reusable workout template (PredefinedWorkout). THIS is what appears under the user's 'Workouts' tab / workout library. Use it whenever the user wants to add or save a whole WORKOUT — one made of multiple exercises/drills — including a workout they upload as an image/screenshot or paste as a list. Do NOT use add_exercise for a multi-exercise workout. Workouts are organized into blocks (Warm-up, Main Work, Finisher, etc.).",
                 "parameters": {
                     "type": "object",
                     "properties": {

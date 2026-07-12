@@ -13,7 +13,7 @@ def get_exercise_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "add_exercise",
-                "description": "Add a new exercise to the user's personal exercise library. Use this when a user mentions they can do an exercise or wants to track a specific movement.",
+                "description": "Add a new SINGLE exercise (one movement) to the user's personal exercise library. Use this when a user mentions they can do an exercise or wants to track a specific movement. NOT for a multi-exercise workout — a whole session with several drills is a WORKOUT, use create_workout_template instead. Always search by the exercise's own name first to avoid duplicates.",
                 "parameters": {
                     "type": "object",
                     "properties": {

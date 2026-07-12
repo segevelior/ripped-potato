@@ -9,6 +9,8 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import structlog
 
+from app.core.dedup import existing_exercise_reuse_response
+
 logger = structlog.get_logger()
 
 
@@ -130,6 +132,16 @@ class ExerciseService:
     async def add_exercise(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Add an exercise to the user's personal exercise library"""
         try:
+            # Dedup guard: never create a second exercise with a name the user already
+            # has (a common exercise OR one they created). Prevents exact-name,
+            # case-insensitive duplicates even if the model skipped the "search first"
+            # step. created=False + the hint keep the model from treating a reuse as a
+            # completed request (e.g. it should still create_workout_template for a workout).
+            reuse = await existing_exercise_reuse_response(self.db, user_id, args["name"])
+            if reuse:
+                logger.info(f"add_exercise dedup: reused '{args['name']}' for user {user_id}")
+                return reuse
+
             # Build strain object with defaults
             strain_input = args.get("strain", {})
             strain = {
