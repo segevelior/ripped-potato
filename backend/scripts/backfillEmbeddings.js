@@ -36,7 +36,7 @@ async function main() {
   // stored embeddingText so we can skip ones that are already up to date.
   const exercises = await Exercise.find({}, {
     name: 1, muscles: 1, secondaryMuscles: 1, discipline: 1,
-    equipment: 1, difficulty: 1, embeddingText: 1
+    equipment: 1, difficulty: 1, force: 1, mechanic: 1, embeddingText: 1
   }).lean();
 
   console.log(`Loaded ${exercises.length} exercises`);

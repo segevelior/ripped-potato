@@ -30,6 +30,17 @@ const exerciseSchema = new mongoose.Schema({
     enum: ['beginner', 'intermediate', 'advanced'],
     default: 'beginner'
   },
+  // How the movement applies force. Optional — legacy docs and user-created
+  // exercises may omit it.
+  force: {
+    type: String,
+    enum: ['push', 'pull', 'static']
+  },
+  // Compound (multi-joint) vs isolation (single-joint). Optional.
+  mechanic: {
+    type: String,
+    enum: ['compound', 'isolation']
+  },
   instructions: [String],
   strain: {
     intensity: {
@@ -134,6 +145,10 @@ function buildEmbedText(doc) {
   if (doc.discipline && doc.discipline.length) parts.push(`discipline: ${doc.discipline.join(', ')}`);
   if (doc.equipment && doc.equipment.length) parts.push(`equipment: ${doc.equipment.join(', ')}`);
   if (doc.difficulty) parts.push(`difficulty: ${doc.difficulty}`);
+  // Conditional so docs without these fields (the pre-existing catalog) keep a
+  // byte-identical embed text and never get needlessly re-embedded.
+  if (doc.mechanic) parts.push(`mechanic: ${doc.mechanic}`);
+  if (doc.force) parts.push(`force: ${doc.force}`);
   const pattern = inferMovementPattern(doc);
   if (pattern) parts.push(`movement: ${pattern}`);
   return parts.join(' | ');
