@@ -247,7 +247,7 @@ export default function PredefinedWorkouts() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold text-gray-900">Predefined Workouts</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Workouts</h1>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-gray-200 border-t-accent rounded-full animate-spin mx-auto mb-4"></div>
