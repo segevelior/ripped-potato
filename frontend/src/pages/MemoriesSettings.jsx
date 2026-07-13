@@ -16,7 +16,9 @@ import {
   Sparkles,
   Info,
   X,
-  Check
+  Check,
+  Clock,
+  MessageSquare
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +46,7 @@ export default function MemoriesSettings() {
   const [editingMemory, setEditingMemory] = useState(null);
   const [filterCategory, setFilterCategory] = useState('all');
   const [isSaving, setIsSaving] = useState(false);
+  const [recentContext, setRecentContext] = useState([]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -55,6 +58,7 @@ export default function MemoriesSettings() {
 
   useEffect(() => {
     fetchMemories();
+    fetchRecentContext();
   }, []);
 
   const fetchMemories = async () => {
@@ -67,6 +71,28 @@ export default function MemoriesSettings() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const fetchRecentContext = async () => {
+    try {
+      const data = await apiService.context.recent();
+      setRecentContext(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching recent context:', error);
+    }
+  };
+
+  // Stored kind values from the ai-coach-service (short_term_context_service.py)
+  const CONTEXT_KIND_LABELS = {
+    checkin: { label: 'Check-in', icon: MessageSquare },
+    conversation_summary: { label: 'Conversation', icon: Brain }
+  };
+
+  const formatContextDate = (value) => {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
   const handleCreateMemory = async () => {
@@ -478,6 +504,51 @@ export default function MemoriesSettings() {
             })
           )}
         </div>
+
+        {/* Recent context — the coach's short-term working memory (read-only) */}
+        {recentContext.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="w-4 h-4 text-gray-400" />
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                Recent context
+              </h2>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+              Notes Sensei is working from right now — check-ins and conversation summaries.
+              These are short-term and automatically expire after 14 days. Anything worth keeping
+              longer becomes a memory above.
+            </p>
+            <div className="space-y-2">
+              {recentContext.map((entry) => {
+                const kindInfo = CONTEXT_KIND_LABELS[entry.kind] || {
+                  label: entry.kind || 'Note',
+                  icon: Info
+                };
+                const KindIcon = kindInfo.icon;
+                return (
+                  <div
+                    key={entry._id}
+                    className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 border border-dashed border-gray-200 dark:border-gray-700"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <KindIcon className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                        {kindInfo.label}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {formatContextDate(entry.createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      {entry.content}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -10,12 +10,38 @@ import structlog
 
 logger = structlog.get_logger()
 
+# Enums mirrored from backend UserMemory schema — the extractor/LLM can emit
+# out-of-range values (e.g. importance "critical"), which would corrupt the
+# importance sort used for prompt injection, so clamp before persisting.
+VALID_CATEGORIES = {"health", "preference", "goal", "lifestyle", "general"}
+VALID_IMPORTANCE = {"high", "medium", "low"}
+# Sentinel/placeholder ids that must never own real memories (see the
+# 000...001 orphan that rendered nowhere). Rejected before any write.
+SENTINEL_USER_IDS = {"000000000000000000000000", "000000000000000000000001"}
+
 
 class MemoryService:
     """Service for user memory operations"""
 
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
+
+    async def _validate_user_id(self, user_id: str) -> bool:
+        """Guardrail: reject malformed / sentinel / non-existent user ids before
+        writing memory, so a bad token can't orphan memories on a phantom user."""
+        try:
+            oid = ObjectId(user_id)
+        except Exception:
+            logger.error(f"Rejected memory write: malformed user_id {user_id!r}")
+            return False
+        if str(oid) in SENTINEL_USER_IDS:
+            logger.error(f"Rejected memory write: sentinel user_id {oid}")
+            return False
+        exists = await self.db.users.find_one({"_id": oid}, {"_id": 1})
+        if not exists:
+            logger.error(f"Rejected memory write: user_id {oid} not found in users")
+            return False
+        return True
 
     async def save_memory(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Save important information about the user to memory"""
@@ -24,14 +50,23 @@ class MemoryService:
             if not content:
                 return {"success": False, "message": "Memory content is required"}
 
+            if not await self._validate_user_id(user_id):
+                return {"success": False, "message": "Invalid user for memory write"}
+
+            # Clamp enums to the known values (backend schema mirror)
             category = args.get("category", "general")
+            if category not in VALID_CATEGORIES:
+                category = "general"
             importance = args.get("importance", "medium")
+            if importance not in VALID_IMPORTANCE:
+                importance = "medium"
             tags = args.get("tags", [])
 
             # Ensure tags are lowercase strings
             if tags:
                 tags = [str(t).lower().strip() for t in tags if t]
 
+            now = datetime.utcnow()
             memory_item = {
                 "_id": ObjectId(),
                 "content": content.strip()[:500],  # Limit to 500 chars
@@ -40,33 +75,26 @@ class MemoryService:
                 "source": "sensei",  # Mark as AI-generated
                 "importance": importance,
                 "isActive": True,
-                "createdAt": datetime.utcnow(),
-                "updatedAt": datetime.utcnow()
+                "createdAt": now,
+                "updatedAt": now
             }
+            # Optional provenance (e.g. auto_promotion) — never sent by the LLM tool.
+            meta = args.get("meta")
+            if isinstance(meta, dict) and meta:
+                memory_item["meta"] = meta
 
-            # Try to find existing user memory document
-            user_memory = await self.db.usermemories.find_one({"user": ObjectId(user_id)})
-
-            if user_memory:
-                # Add to existing memories array
-                result = await self.db.usermemories.update_one(
-                    {"user": ObjectId(user_id)},
-                    {
-                        "$push": {"memories": memory_item},
-                        "$set": {"updatedAt": datetime.utcnow()}
-                    }
-                )
-                success = result.modified_count > 0
-            else:
-                # Create new user memory document
-                new_doc = {
-                    "user": ObjectId(user_id),
-                    "memories": [memory_item],
-                    "createdAt": datetime.utcnow(),
-                    "updatedAt": datetime.utcnow()
-                }
-                result = await self.db.usermemories.insert_one(new_doc)
-                success = result.inserted_id is not None
+            # Upsert: single atomic op avoids the find-then-insert race where two
+            # concurrent first-saves both miss and one hits the unique index.
+            result = await self.db.usermemories.update_one(
+                {"user": ObjectId(user_id)},
+                {
+                    "$push": {"memories": memory_item},
+                    "$set": {"updatedAt": now},
+                    "$setOnInsert": {"createdAt": now},
+                },
+                upsert=True,
+            )
+            success = result.modified_count > 0 or result.upserted_id is not None
 
             if success:
                 # Build a friendly confirmation message
@@ -102,14 +130,72 @@ class MemoryService:
             # Filter to only active memories and sort by importance
             active_memories = [m for m in user_memory.get("memories", []) if m.get("isActive", True)]
 
-            # Sort by importance (high first)
+            # Sort by importance (high first), breaking ties by recency (newest
+            # first). Only the top ~15 are injected into the prompt, so an
+            # oldest-first tiebreak would starve newly-promoted facts.
             importance_order = {"high": 0, "medium": 1, "low": 2}
-            active_memories.sort(key=lambda m: importance_order.get(m.get("importance", "medium"), 1))
+
+            def _recency(m):
+                ts = m.get("createdAt")
+                return ts.timestamp() if isinstance(ts, datetime) else 0.0
+
+            active_memories.sort(
+                key=lambda m: (importance_order.get(m.get("importance", "medium"), 1), -_recency(m))
+            )
 
             return active_memories
         except Exception as e:
             logger.error(f"Error getting user memories: {e}")
             return []
+
+    async def enforce_cap(self, user_id: str, max_per_user: int) -> None:
+        """Evict oldest low-value memories when a user exceeds the cap.
+
+        Best-effort; never raises. Never evicts health-category or high-importance
+        memories (health data is precious — see prompt guidance). Keeps the durable
+        store and the Settings list from growing into unbounded noise.
+        """
+        try:
+            if max_per_user <= 0:
+                return
+            doc = await self.db.usermemories.find_one({"user": ObjectId(user_id)})
+            if not doc:
+                return
+            memories = doc.get("memories", [])
+            overflow = len(memories) - max_per_user
+            if overflow <= 0:
+                return
+
+            def _evictable(m):
+                return m.get("category") != "health" and m.get("importance") != "high"
+
+            def _created(m):
+                ts = m.get("createdAt")
+                return ts if isinstance(ts, datetime) else datetime.min
+
+            evict_candidates = sorted(
+                (m for m in memories if _evictable(m)), key=_created
+            )[:overflow]
+            # $pull the evicted items by _id rather than $set-ing the whole kept
+            # array back — a $set would silently drop any memory $pushed
+            # concurrently (parallel promotion / coach tool call) between our read
+            # and write.
+            evict_ids = [m["_id"] for m in evict_candidates if m.get("_id") is not None]
+            if not evict_ids:
+                return
+            result = await self.db.usermemories.update_one(
+                {"user": ObjectId(user_id)},
+                {
+                    "$pull": {"memories": {"_id": {"$in": evict_ids}}},
+                    "$set": {"updatedAt": datetime.utcnow()},
+                },
+            )
+            logger.info(
+                f"Evicted {len(evict_ids)} low-value memories for user {user_id} "
+                f"(cap={max_per_user}, modified={result.modified_count})"
+            )
+        except Exception as e:
+            logger.error(f"Error enforcing memory cap for {user_id}: {e}")
 
     async def delete_memory(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Delete a memory matching the search text"""

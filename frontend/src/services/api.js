@@ -485,6 +485,14 @@ class APIService {
     })
   };
 
+  // Short-term context (the coach's 14-day working memory) — read-only
+  context = {
+    recent: async () => {
+      const response = await this.request('/context/recent');
+      return response.entries || response;
+    }
+  };
+
   // Workout Logs endpoints (completed workouts from TrainNow)
   workoutLogs = {
     list: async (params = {}) => {

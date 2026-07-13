@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Camera, Moon, Sun, Loader2, Brain, Link, Unlink, RefreshCw, CheckCircle, AlertCircle, Trash2, Copy, Sparkles, KeyRound } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Camera, Moon, Sun, Loader2, Brain, Link, Unlink, RefreshCw, CheckCircle, AlertCircle, Trash2, Copy, Sparkles, KeyRound, X, Target, HeartPulse } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -24,6 +24,8 @@ export default function Settings() {
   const [isSaving, setIsSaving] = useState(false);
   const [user, setUser] = useState(null);
   const [editingField, setEditingField] = useState(null);
+  const [newGoal, setNewGoal] = useState('');
+  const [newInjury, setNewInjury] = useState('');
 
   // Strava integration state
   const [stravaStatus, setStravaStatus] = useState(null);
@@ -51,6 +53,8 @@ export default function Settings() {
       gender: '',
       fitnessLevel: '',
       sportPreferences: [],
+      goals: [],
+      injuries: [],
     },
     settings: {
       units: 'metric',
@@ -130,6 +134,8 @@ export default function Settings() {
             gender: userData.profile?.gender || '',
             fitnessLevel: userData.profile?.fitnessLevel || 'beginner',
             sportPreferences: userData.profile?.sportPreferences || [],
+            goals: userData.profile?.goals || [],
+            injuries: userData.profile?.injuries || [],
           },
           settings: {
             units: userData.settings?.units || 'metric',
@@ -182,6 +188,96 @@ export default function Settings() {
       setIsSaving(false);
     }
   };
+
+  // Persist a full profile object (goals/injuries edits save immediately). The
+  // backend deep-merges profile, and we send the whole current profile so no
+  // other field is dropped.
+  const commitProfile = async (nextProfile) => {
+    setFormData((prev) => ({ ...prev, profile: nextProfile }));
+    setIsSaving(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/v1/auth/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ profile: nextProfile })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const authUser = JSON.parse(localStorage.getItem('authUser') || '{}');
+        localStorage.setItem('authUser', JSON.stringify({ ...authUser, ...data.data.user }));
+        setUser(data.data.user);
+      }
+    } catch (error) {
+      console.error('Error saving profile arrays:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const addProfileItem = (key, value, clear) => {
+    const v = (value || '').trim();
+    if (!v) return;
+    const current = formData.profile[key] || [];
+    if (current.some((x) => x.toLowerCase() === v.toLowerCase())) { clear(); return; }
+    commitProfile({ ...formData.profile, [key]: [...current, v] });
+    clear();
+  };
+
+  const removeProfileItem = (key, value) => {
+    const current = formData.profile[key] || [];
+    commitProfile({ ...formData.profile, [key]: current.filter((x) => x !== value) });
+  };
+
+  // Plain render function (NOT a nested component — that would remount the input
+  // and drop focus on each keystroke).
+  const renderChipEditor = (title, itemKey, Icon, inputValue, setInputValue, placeholder) => (
+    <div className="py-4 border-b border-gray-100 dark:border-gray-800">
+      <div className="flex items-center gap-2 mb-2">
+        <Icon className="w-4 h-4 text-primary-400" />
+        <p className="text-sm font-bold text-gray-500 dark:text-gray-400 tracking-wide">{title}</p>
+      </div>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {(formData.profile[itemKey] || []).length === 0 ? (
+          <span className="text-sm text-gray-400 dark:text-gray-500">Not set</span>
+        ) : (
+          (formData.profile[itemKey] || []).map((item) => (
+            <span
+              key={item}
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary-100 dark:bg-primary-900/30 text-sm text-gray-800 dark:text-gray-200"
+            >
+              {item}
+              <button onClick={() => removeProfileItem(itemKey, item)} className="hover:text-red-500" title="Remove">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </span>
+          ))
+        )}
+      </div>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              addProfileItem(itemKey, inputValue, () => setInputValue(''));
+            }
+          }}
+          placeholder={placeholder}
+          className="flex-1 px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400/50"
+        />
+        <button
+          onClick={() => addProfileItem(itemKey, inputValue, () => setInputValue(''))}
+          disabled={!inputValue.trim() || isSaving}
+          className="px-4 py-2 bg-primary-400 text-gray-900 font-semibold rounded-xl hover:bg-primary-500 transition-colors disabled:opacity-50"
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  );
 
   // Strava functions
   const fetchStravaStatus = async () => {
@@ -508,6 +604,19 @@ export default function Settings() {
                 )}
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Goals & Injuries Section — profile arrays the coach reads */}
+        <div className="mt-8">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Goals & Injuries</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Your coach uses these directly when planning. Injuries here are your standing baseline —
+            the coach also tracks day-to-day notes in Sensei Memory.
+          </p>
+          <div className="space-y-1">
+            {renderChipEditor('Goals', 'goals', Target, newGoal, setNewGoal, 'e.g. 20 consecutive pull-ups')}
+            {renderChipEditor('Injuries', 'injuries', HeartPulse, newInjury, setNewInjury, 'e.g. right shoulder — avoid overhead')}
           </div>
         </div>
 
