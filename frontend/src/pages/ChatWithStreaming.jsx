@@ -104,6 +104,138 @@ const MARKDOWN_COMPONENTS = {
   ),
 };
 
+// Single chat message, memoized so prior messages don't re-render (and re-run
+// ReactMarkdown parsing) on every streaming flush — only the message whose
+// props actually changed (the streaming one) updates per frame.
+/* eslint-disable react/prop-types -- repo convention: components don't declare PropTypes */
+const MessageItem = React.memo(function MessageItem({
+  msg,
+  idx,
+  isLastMessage,
+  isStreaming,
+  currentConversationId,
+  authToken,
+  question,
+  onQuickReply,
+}) {
+  return (
+    <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+      {/* Message Content */}
+      <div className={`
+        ${msg.role === 'user'
+          ? 'max-w-[85%] md:max-w-[70%] bg-gray-200 text-gray-900 rounded-2xl px-4 py-3'
+          : 'w-full'
+        }
+      `}>
+        {msg.role === 'assistant' ? (
+          (() => {
+            // Parse quick replies and action buttons from message content
+            const { cleanContent: contentAfterQuickReplies, quickReplies } = parseQuickReplies(msg.content || "");
+            const { cleanContent, actionButtons } = parseActionButtons(contentAfterQuickReplies);
+
+            return (
+              <div>
+                <div className="prose prose-sm max-w-none
+                    prose-p:my-2 prose-p:leading-relaxed
+                    prose-headings:font-semibold prose-headings:text-gray-900
+                    prose-h1:text-lg prose-h1:mt-4 prose-h1:mb-2
+                    prose-h2:text-base prose-h2:mt-3 prose-h2:mb-2
+                    prose-h3:text-sm prose-h3:mt-2 prose-h3:mb-1
+                    prose-strong:text-gray-900 prose-strong:font-semibold
+                    prose-ul:my-2 prose-ul:pl-4
+                    prose-ol:my-2 prose-ol:pl-4
+                    prose-li:my-0.5 prose-li:leading-relaxed
+                    prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200 prose-pre:rounded-lg
+                    prose-code:text-primary-600 prose-code:bg-primary-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:font-medium prose-code:before:content-none prose-code:after:content-none
+                    prose-a:text-primary-600 prose-a:font-medium prose-a:no-underline hover:prose-a:underline
+                  ">
+                  <ReactMarkdown
+                    rehypePlugins={msg.isStreaming && isLastMessage ? REHYPE_STREAMING : REHYPE_STATIC}
+                    components={MARKDOWN_COMPONENTS}
+                  >
+                    {cleanContent}
+                  </ReactMarkdown>
+                  {msg.isStreaming && !msg.content && (
+                    <div className="flex items-center gap-1.5 py-1">
+                      <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                  )}
+                </div>
+                {/* Action Buttons - show for last completed message with actions */}
+                {!msg.isStreaming && isLastMessage && actionButtons.length > 0 && (
+                  <ActionButtons
+                    actions={actionButtons}
+                    disabled={isStreaming}
+                  />
+                )}
+                {/* Quick Reply Buttons - only show for last completed message */}
+                {!msg.isStreaming && isLastMessage && quickReplies.length > 0 && (
+                  <QuickReplies
+                    replies={quickReplies}
+                    onSelect={onQuickReply}
+                    disabled={isStreaming}
+                  />
+                )}
+                {/* Feedback buttons - only show for completed AI messages */}
+                {!msg.isStreaming && msg.content && currentConversationId && (
+                  <FeedbackButtons
+                    conversationId={currentConversationId}
+                    messageIndex={idx}
+                    question={question}
+                    answer={msg.content}
+                    authToken={authToken}
+                  />
+                )}
+              </div>
+            );
+          })()
+        ) : (
+          <div className="space-y-2">
+            {/* Image preview for user messages */}
+            {msg.imagePreview && (
+              <div className={`relative ${msg.imagePreview.failed ? 'opacity-50' : ''}`}>
+                {msg.imagePreview.url ? (
+                  // Live preview (current session)
+                  <img
+                    src={msg.imagePreview.url}
+                    alt={msg.imagePreview.name}
+                    className="max-w-full max-h-64 rounded-lg object-contain"
+                  />
+                ) : (
+                  // Placeholder for loaded conversations (image not available)
+                  <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg">
+                    <ImageIcon className="w-5 h-5 text-blue-500" />
+                    <span className="text-sm text-gray-600">{msg.imagePreview.name}</span>
+                    <span className="text-xs text-gray-400">(image sent)</span>
+                  </div>
+                )}
+                {msg.imagePreview.failed && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg">
+                    <span className="text-xs text-red-600 bg-white px-2 py-1 rounded">Upload failed</span>
+                  </div>
+                )}
+              </div>
+            )}
+            {/* PDF/file attachment indicator */}
+            {msg.attachment && (
+              <div className={`flex items-center gap-2 text-sm ${msg.attachment.failed ? 'text-red-500' : 'text-gray-600'}`}>
+                <FileText className="w-4 h-4" />
+                <span>{msg.attachment.name}</span>
+                {msg.attachment.failed && <span className="text-xs">(upload failed)</span>}
+              </div>
+            )}
+            {/* Message text */}
+            {msg.content && <div className="whitespace-pre-wrap">{msg.content}</div>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+/* eslint-enable react/prop-types */
+
 export default function ChatWithStreaming() {
   // State
   const [user, setUser] = useState(null);
@@ -377,8 +509,9 @@ export default function ChatWithStreaming() {
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
-  // Handle Quick Reply Click
-  const handleQuickReply = async (replyText) => {
+  // Handle Quick Reply Click. useCallback keeps the reference stable so
+  // memoized MessageItems don't all re-render when unrelated state changes.
+  const handleQuickReply = useCallback(async (replyText) => {
     if (isStreaming) return;
 
     const userMessage = { role: "user", content: replyText };
@@ -406,7 +539,7 @@ export default function ChatWithStreaming() {
         content: "Sorry, there was an error processing your request."
       }]);
     }
-  };
+  }, [isStreaming, authToken, currentConversationId, sendStreamingMessage]);
 
   // Delete Conversation
   const handleDeleteConversation = async (conversationId) => {
@@ -572,16 +705,17 @@ export default function ChatWithStreaming() {
     messagesEndRef.current?.scrollIntoView({ behavior: isStreaming ? "instant" : "smooth" });
   }, [messages, streamingMessage, isStreaming]);
 
-  // Update streaming message in UI
+  // Update streaming message in UI. Replace the last message with a new object
+  // (never mutate in place) so the memoized MessageItem sees a prop change and
+  // re-renders — while every prior message keeps its identity and is skipped.
   useEffect(() => {
     if (streamingMessage) {
       setMessages(prev => {
-        const newMessages = [...prev];
-        const lastMsg = newMessages[newMessages.length - 1];
+        const lastMsg = prev[prev.length - 1];
         if (lastMsg && lastMsg.isStreaming) {
-          lastMsg.content = streamingMessage;
+          return [...prev.slice(0, -1), { ...lastMsg, content: streamingMessage }];
         }
-        return newMessages;
+        return prev;
       });
     }
   }, [streamingMessage]);
@@ -590,13 +724,11 @@ export default function ChatWithStreaming() {
   useEffect(() => {
     if (!isStreaming && streamingMessage) {
       setMessages(prev => {
-        const newMessages = [...prev];
-        const lastMsg = newMessages[newMessages.length - 1];
+        const lastMsg = prev[prev.length - 1];
         if (lastMsg && lastMsg.isStreaming) {
-          lastMsg.isStreaming = false;
-          lastMsg.content = streamingMessage;
+          return [...prev.slice(0, -1), { ...lastMsg, isStreaming: false, content: streamingMessage }];
         }
-        return newMessages;
+        return prev;
       });
     }
   }, [isStreaming]);
@@ -691,124 +823,17 @@ export default function ChatWithStreaming() {
               // Message List
               <>
                 {messages.map((msg, idx) => (
-                  <div
+                  <MessageItem
                     key={idx}
-                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    {/* Message Content */}
-                    <div className={`
-                      ${msg.role === 'user'
-                        ? 'max-w-[85%] md:max-w-[70%] bg-gray-200 text-gray-900 rounded-2xl px-4 py-3'
-                        : 'w-full'
-                      }
-                    `}>
-                      {msg.role === 'assistant' ? (
-                        (() => {
-                          // Parse quick replies and action buttons from message content
-                          const { cleanContent: contentAfterQuickReplies, quickReplies } = parseQuickReplies(msg.content || "");
-                          const { cleanContent, actionButtons } = parseActionButtons(contentAfterQuickReplies);
-                          const isLastMessage = idx === messages.length - 1;
-
-                          return (
-                            <div>
-                              <div className="prose prose-sm max-w-none
-                                  prose-p:my-2 prose-p:leading-relaxed
-                                  prose-headings:font-semibold prose-headings:text-gray-900
-                                  prose-h1:text-lg prose-h1:mt-4 prose-h1:mb-2
-                                  prose-h2:text-base prose-h2:mt-3 prose-h2:mb-2
-                                  prose-h3:text-sm prose-h3:mt-2 prose-h3:mb-1
-                                  prose-strong:text-gray-900 prose-strong:font-semibold
-                                  prose-ul:my-2 prose-ul:pl-4
-                                  prose-ol:my-2 prose-ol:pl-4
-                                  prose-li:my-0.5 prose-li:leading-relaxed
-                                  prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200 prose-pre:rounded-lg
-                                  prose-code:text-primary-600 prose-code:bg-primary-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:font-medium prose-code:before:content-none prose-code:after:content-none
-                                  prose-a:text-primary-600 prose-a:font-medium prose-a:no-underline hover:prose-a:underline
-                                ">
-                                <ReactMarkdown
-                                  rehypePlugins={msg.isStreaming && isLastMessage ? REHYPE_STREAMING : REHYPE_STATIC}
-                                  components={MARKDOWN_COMPONENTS}
-                                >
-                                  {cleanContent}
-                                </ReactMarkdown>
-                                {msg.isStreaming && !msg.content && (
-                                  <div className="flex items-center gap-1.5 py-1">
-                                    <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                    <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                    <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                                  </div>
-                                )}
-                              </div>
-                              {/* Action Buttons - show for last completed message with actions */}
-                              {!msg.isStreaming && isLastMessage && actionButtons.length > 0 && (
-                                <ActionButtons
-                                  actions={actionButtons}
-                                  disabled={isStreaming}
-                                />
-                              )}
-                              {/* Quick Reply Buttons - only show for last completed message */}
-                              {!msg.isStreaming && isLastMessage && quickReplies.length > 0 && (
-                                <QuickReplies
-                                  replies={quickReplies}
-                                  onSelect={handleQuickReply}
-                                  disabled={isStreaming}
-                                />
-                              )}
-                              {/* Feedback buttons - only show for completed AI messages */}
-                              {!msg.isStreaming && msg.content && currentConversationId && (
-                                <FeedbackButtons
-                                  conversationId={currentConversationId}
-                                  messageIndex={idx}
-                                  question={messages[idx - 1]?.content}
-                                  answer={msg.content}
-                                  authToken={authToken}
-                                />
-                              )}
-                            </div>
-                          );
-                        })()
-                      ) : (
-                        <div className="space-y-2">
-                          {/* Image preview for user messages */}
-                          {msg.imagePreview && (
-                            <div className={`relative ${msg.imagePreview.failed ? 'opacity-50' : ''}`}>
-                              {msg.imagePreview.url ? (
-                                // Live preview (current session)
-                                <img
-                                  src={msg.imagePreview.url}
-                                  alt={msg.imagePreview.name}
-                                  className="max-w-full max-h-64 rounded-lg object-contain"
-                                />
-                              ) : (
-                                // Placeholder for loaded conversations (image not available)
-                                <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg">
-                                  <ImageIcon className="w-5 h-5 text-blue-500" />
-                                  <span className="text-sm text-gray-600">{msg.imagePreview.name}</span>
-                                  <span className="text-xs text-gray-400">(image sent)</span>
-                                </div>
-                              )}
-                              {msg.imagePreview.failed && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg">
-                                  <span className="text-xs text-red-600 bg-white px-2 py-1 rounded">Upload failed</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {/* PDF/file attachment indicator */}
-                          {msg.attachment && (
-                            <div className={`flex items-center gap-2 text-sm ${msg.attachment.failed ? 'text-red-500' : 'text-gray-600'}`}>
-                              <FileText className="w-4 h-4" />
-                              <span>{msg.attachment.name}</span>
-                              {msg.attachment.failed && <span className="text-xs">(upload failed)</span>}
-                            </div>
-                          )}
-                          {/* Message text */}
-                          {msg.content && <div className="whitespace-pre-wrap">{msg.content}</div>}
-                        </div>
-                      )}
-                    </div>
-
-                  </div>
+                    msg={msg}
+                    idx={idx}
+                    isLastMessage={idx === messages.length - 1}
+                    isStreaming={isStreaming}
+                    currentConversationId={currentConversationId}
+                    authToken={authToken}
+                    question={messages[idx - 1]?.content}
+                    onQuickReply={handleQuickReply}
+                  />
                 ))}
               </>
             )}
