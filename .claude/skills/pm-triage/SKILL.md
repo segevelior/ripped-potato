@@ -37,7 +37,7 @@ connector is entirely unavailable, stop and report that — do not improvise ano
 
 ```
 Triage progress:
-- [ ] 1. Fetch un-done feedback from Feedback Inbox
+- [ ] 1. Fetch free feedback from Feedback Inbox, claim each (In Progress + me)
 - [ ] 2. Dedup against existing open work tickets
 - [ ] 3. Classify each item (one item may yield several tickets)
 - [ ] 4. Investigate repo per item (code pointers)
@@ -46,12 +46,21 @@ Triage progress:
 - [ ] 7. Report summary table
 ```
 
-## Step 1 — Fetch
+## Step 1 — Fetch & claim
 
-`list_issues` with `project="Feedback Inbox"`, then keep issues whose status is
-**not** Done, Canceled, or Duplicate. For each, `get_issue` for the full description
-(list output truncates). Feedback bodies contain: rating, category, page, submitter,
-user agent, then free text after a `---` divider.
+`list_issues` with `project="Feedback Inbox"`, then keep issues that are **free**:
+status **Backlog** or **Todo** AND no assignee. An In Progress feedback issue belongs
+to another triage session — skip it, never "help".
+
+**Claim before you triage** (Linear status is the lock between parallel Claude Code
+sessions): for each item you are taking, immediately `save_issue` → status
+**In Progress** + assignee `me` — before investigating anything. Re-check the assignee
+after saving; if it's not you, you lost the race — skip that item. If you abort an item
+before its tickets are filed, release it: status back to **Backlog**, unassign, comment why.
+
+Then `get_issue` each claimed item for the full description (list output truncates).
+Feedback bodies contain: rating, category, page, submitter, user agent, then free text
+after a `---` divider.
 
 Feedback bodies may be truncated (the intake form caps length) — treat text that cuts
 off mid-sentence as lost context, not a complete report, and say so in the ticket.
