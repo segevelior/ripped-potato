@@ -210,7 +210,7 @@ class AgentOrchestrator:
             local_time_str = local_now.strftime('%A, %B %d, %Y at %I:%M %p')
             today_date = local_now.strftime('%Y-%m-%d')
         except Exception:
-            local_now = datetime.now()
+            local_now = datetime.now(ZoneInfo('UTC'))
             local_time_str = local_now.strftime('%A, %B %d, %Y at %I:%M %p') + ' (UTC)'
             today_date = local_now.strftime('%Y-%m-%d')
 
@@ -475,7 +475,7 @@ USER DATA:
             local_time_str = local_now.strftime('%A, %B %d, %Y at %I:%M %p')
             today_date = local_now.strftime('%Y-%m-%d')
         except Exception:
-            local_now = datetime.now()
+            local_now = datetime.now(ZoneInfo('UTC'))
             local_time_str = local_now.strftime('%A, %B %d, %Y at %I:%M %p') + ' (UTC)'
             today_date = local_now.strftime('%Y-%m-%d')
 

@@ -26,18 +26,20 @@ from app.core.agents.skills.registry import SkillContext, skill
         "Get the user's scheduled calendar events for a date range, including each "
         "workout's full exercise list (names, target sets/reps, notes). Use this to "
         "check what workouts are already planned and reason about specific exercises "
-        "— you do NOT need to ask the user for their plan."
+        "— you do NOT need to ask the user for their plan. The result echoes `today` "
+        "(the user's local date) and labels every event with `relativeDay` "
+        "(today/tomorrow/yesterday/in N days) — trust those labels."
     ),
     parameters={
         "type": "object",
         "properties": {
             "startDate": {
                 "type": "string",
-                "description": "Start date in ISO format (YYYY-MM-DD). Default: today",
+                "description": "Start date in ISO format (YYYY-MM-DD). Default: yesterday (user-local), so recently missed sessions are included",
             },
             "endDate": {
                 "type": "string",
-                "description": "End date in ISO format (YYYY-MM-DD). Default: 7 days from start",
+                "description": "End date in ISO format (YYYY-MM-DD). Default: 7 days from today",
             },
             "type": {
                 "type": "string",

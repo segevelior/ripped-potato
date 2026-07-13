@@ -181,6 +181,9 @@ When user asks to add/schedule a workout for a specific date:
 3. The `schedule_to_calendar` tool creates the calendar event directly - it does NOT need a template first
 4. If for today, ask if they want to start training now
 
+DATE DISCIPLINE (CRITICAL):
+`get_calendar_events` results include `today` (the user's local date) and a `relativeDay` label on every event ("today", "tomorrow", "yesterday", "in N days", "N days ago"). ALWAYS use these labels when telling the user what is scheduled today/tomorrow/yesterday — NEVER recompute relative days from raw YYYY-MM-DD dates yourself. If no event has `relativeDay: "today"`, then nothing is scheduled today — say so plainly.
+
 IMPORTANT PRINCIPLES:
 
 1. **GROUND IN THE USER'S REAL DATA FIRST** (CRITICAL - DO NOT SKIP):

@@ -4,9 +4,12 @@ Calendar service - handles calendar scheduling operations
 
 from typing import Dict, Any
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import structlog
+
+from app.core.agents.date_utils import get_user_today, relative_day_label
 
 logger = structlog.get_logger()
 
@@ -20,12 +23,16 @@ class CalendarService:
     async def schedule_to_calendar(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Schedule a workout or event to the user's calendar"""
         try:
+            # Resolve relative dates against the user's LOCAL calendar day —
+            # server UTC can be a different day than the user's.
+            today, _ = await get_user_today(self.db, user_id)
+
             # Parse date - handle 'today', 'tomorrow', or ISO date
             date_str = args.get("date", "")
             if date_str.lower() == "today":
-                event_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+                event_date = today
             elif date_str.lower() == "tomorrow":
-                event_date = (datetime.utcnow() + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                event_date = today + timedelta(days=1)
             else:
                 try:
                     event_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
@@ -170,8 +177,7 @@ class CalendarService:
                     duration = workout_details.get("estimatedDuration", 45)
                     response_msg += f"\n\n**{exercise_count} exercises** | **~{duration} min**"
 
-                # Check if it's today
-                today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+                # Check if it's today (user-local)
                 if event_date.date() == today.date():
                     response_msg += "\n\n**This is for today!** Would you like to start training now?"
 
@@ -181,6 +187,8 @@ class CalendarService:
                     "message": response_msg,
                     "event_id": str(result.inserted_id),
                     "date": formatted_date,
+                    "dateISO": event_date.strftime("%Y-%m-%d"),
+                    "relativeDay": relative_day_label(event_date.date(), today.date()),
                     "is_today": event_date.date() == today.date()
                 }
             else:
@@ -193,25 +201,36 @@ class CalendarService:
     async def get_calendar_events(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Get user's calendar events for a date range"""
         try:
+            # "Today" must be the user's LOCAL calendar day, not server UTC —
+            # stored event dates are midnight UTC representing calendar days.
+            today, tz_name = await get_user_today(self.db, user_id)
+
             # Parse dates
             start_str = args.get("startDate")
             end_str = args.get("endDate")
 
-            if start_str:
+            def parse_naive(date_str: str) -> datetime:
                 try:
-                    start_date = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+                    parsed = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                    if parsed.tzinfo is not None:
+                        parsed = parsed.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+                    return parsed
                 except Exception:
-                    start_date = datetime.strptime(start_str, "%Y-%m-%d")
+                    return datetime.strptime(date_str, "%Y-%m-%d")
+
+            if start_str:
+                start_date = parse_naive(start_str)
             else:
-                start_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+                # Include yesterday so "I missed yesterday's workout" questions
+                # see the missed session.
+                start_date = today - timedelta(days=1)
 
             if end_str:
-                try:
-                    end_date = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
-                except Exception:
-                    end_date = datetime.strptime(end_str, "%Y-%m-%d")
-            else:
+                end_date = parse_naive(end_str)
+            elif start_str:
                 end_date = start_date + timedelta(days=7)
+            else:
+                end_date = today + timedelta(days=7)
 
             # Build query
             query = {
@@ -228,12 +247,25 @@ class CalendarService:
             # Fetch events (Mongoose uses lowercase, no underscore for collection name)
             events = await self.db.calendarevents.find(query).sort("date", 1).to_list(100)
 
+            today_str = today.strftime("%Y-%m-%d")
+            queried_range = {
+                "start": start_date.strftime("%Y-%m-%d"),
+                "end": end_date.strftime("%Y-%m-%d")
+            }
+
             if not events:
                 start_fmt = start_date.strftime("%B %d")
                 end_fmt = end_date.strftime("%B %d, %Y")
                 return {
                     "success": True,
-                    "message": f"No events scheduled from {start_fmt} to {end_fmt}.",
+                    "message": (
+                        f"No events scheduled from {start_fmt} to {end_fmt}. "
+                        f"(Today is {today_str}, {today.strftime('%A')}, timezone {tz_name}.)"
+                    ),
+                    "today": today_str,
+                    "dayOfWeek": today.strftime("%A"),
+                    "timezone": tz_name,
+                    "queriedRange": queried_range,
                     "events": []
                 }
 
@@ -258,6 +290,8 @@ class CalendarService:
                     "id": str(event["_id"]),
                     "date": event["date"].strftime("%Y-%m-%d"),
                     "dayOfWeek": event["date"].strftime("%A"),
+                    "relativeDay": relative_day_label(event["date"].date(), today.date()),
+                    "isToday": event["date"].date() == today.date(),
                     "title": event.get("title", "Untitled"),
                     "type": event.get("type", "workout"),
                     "status": event.get("status", "scheduled"),
@@ -271,7 +305,10 @@ class CalendarService:
             workout_count = sum(1 for e in formatted_events if e["type"] == "workout")
             rest_count = sum(1 for e in formatted_events if e["type"] == "rest")
 
-            summary = f"Found **{len(formatted_events)} events** from {start_date.strftime('%B %d')} to {end_date.strftime('%B %d')}:"
+            summary = (
+                f"Today is {today_str} ({today.strftime('%A')}). "
+                f"Found **{len(formatted_events)} events** from {start_date.strftime('%B %d')} to {end_date.strftime('%B %d')}:"
+            )
             if workout_count > 0:
                 summary += f"\n- **{workout_count}** workout(s)"
             if rest_count > 0:
@@ -280,6 +317,10 @@ class CalendarService:
             return {
                 "success": True,
                 "message": summary,
+                "today": today_str,
+                "dayOfWeek": today.strftime("%A"),
+                "timezone": tz_name,
+                "queriedRange": queried_range,
                 "events": formatted_events
             }
 
