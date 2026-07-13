@@ -113,7 +113,11 @@ class LinearService {
         teamId: process.env.LINEAR_TEAM_ID,
         title,
         description,
-        ...(labelId ? { labelIds: [labelId] } : {})
+        ...(labelId ? { labelIds: [labelId] } : {}),
+        // Route feedback into the "Feedback Inbox" project when configured
+        ...(process.env.LINEAR_FEEDBACK_PROJECT_ID
+          ? { projectId: process.env.LINEAR_FEEDBACK_PROJECT_ID }
+          : {})
       };
 
       const data = await this.graphql(
