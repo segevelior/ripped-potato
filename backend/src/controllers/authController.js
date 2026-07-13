@@ -207,14 +207,20 @@ const updateProfile = async (req, res) => {
     if (address !== undefined) updateData.address = address;
     if (profilePicture !== undefined) updateData.profilePicture = profilePicture;
     if (profile) {
+      // Clients send '' for unset weight/height/gender, which would fail the
+      // Number cast / gender enum. '' never means anything in this sub-schema,
+      // so drop those keys instead of letting them wedge the whole update.
+      const cleanProfile = Object.fromEntries(
+        Object.entries(profile).filter(([, value]) => value !== '')
+      );
       // Deep merge profile preferences
       const existingProfile = req.user.profile ? (req.user.profile.toObject ? req.user.profile.toObject() : req.user.profile) : {};
       updateData.profile = {
         ...existingProfile,
-        ...profile,
+        ...cleanProfile,
         preferences: {
           ...(existingProfile.preferences || {}),
-          ...(profile.preferences || {})
+          ...(cleanProfile.preferences || {})
         }
       };
     }
@@ -249,6 +255,12 @@ const updateProfile = async (req, res) => {
     });
   } catch (error) {
     console.error('Update profile error:', error);
+    if (error.name === 'ValidationError' || error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
     res.status(500).json({
       success: false,
       message: 'Server error updating profile'
