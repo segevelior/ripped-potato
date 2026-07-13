@@ -124,7 +124,10 @@ Read-only debugging only — never "fix" anything from this skill.
 For each ticket, `save_issue` (create) with:
 - `team`: Torii, `project`: per classification, `state`: Todo
 - `title`: imperative and specific ("Fix dashboard content unreachable below Progression on mobile"), no `[Feedback]` prefix
-- `description`: follow [TICKET-TEMPLATE.md](TICKET-TEMPLATE.md) exactly
+- `description`: follow [TICKET-TEMPLATE.md](TICKET-TEMPLATE.md) exactly. Describe the
+  **problem and how to reproduce it only — never suggest a fix**, solution direction, or
+  implementation approach. Code pointers say where the problem lives, not what to change.
+  If the feedback text itself proposes a fix, record the underlying problem, not the proposal.
 - `labels`: one type label (`Bug` / `Feature Request` / `UI/UX` / `Performance` / …) **plus** `claude-ready` or `needs-human`
 - `estimate`: points per [COMPLEXITY.md](COMPLEXITY.md) (1/2/3/5/8). If estimates are not
   enabled on the team yet, the save may drop the field — still record the points in the
@@ -147,6 +150,7 @@ End with a markdown table: feedback issue → created tickets (id, project, esti
 ## Rules
 
 - Never merge anything; never change code in this skill — triage only.
+- Tickets state the problem + reproduction, never a suggested fix or implementation approach.
 - Never delete or archive issues.
 - One ticket = one independently shippable change. Split aggressively.
 - Write tickets so a fresh Claude Code session can implement them from the body alone
