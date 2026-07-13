@@ -299,26 +299,17 @@ export default function ChatWithStreaming() {
           const storedPrompt = localStorage.getItem('pendingChatPrompt');
           const storedTime = localStorage.getItem('pendingChatPromptTime');
 
-          console.log('📋 Checking localStorage for pending prompt:', {
-            hasPrompt: !!storedPrompt,
-            hasTime: !!storedTime,
-            promptPreview: storedPrompt?.substring(0, 50)
-          });
-
           if (storedPrompt && storedTime) {
             const promptAge = Date.now() - parseInt(storedTime, 10);
-            console.log('⏱️ Prompt age:', promptAge, 'ms');
 
             // Only process if the prompt was set within the last 30 seconds
             if (promptAge < 30000) {
-              console.log('✅ Found valid pending prompt, setting pendingAutoSend');
               hasProcessedPendingRef.current = true;
               // Clear localStorage immediately to prevent re-processing
               localStorage.removeItem('pendingChatPrompt');
               localStorage.removeItem('pendingChatPromptTime');
               setPendingAutoSend(storedPrompt);
             } else {
-              console.log('⚠️ Prompt too old, cleaning up');
               localStorage.removeItem('pendingChatPrompt');
               localStorage.removeItem('pendingChatPromptTime');
             }
@@ -358,8 +349,6 @@ export default function ChatWithStreaming() {
   useEffect(() => {
     const processPendingMessage = async () => {
       if (pendingAutoSend && authToken && !isStreaming && !isLoadingHistory) {
-        console.log('🚀 Processing pending auto-send message:', pendingAutoSend.substring(0, 50) + '...');
-
         // Extract clean display message from the full prompt
         // The full prompt has context for AI, but we show a cleaner version to user
         let displayMessage = pendingAutoSend;

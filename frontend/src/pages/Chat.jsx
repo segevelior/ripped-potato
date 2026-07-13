@@ -101,10 +101,6 @@ const planningSchema = {
 };
 
 export default function Chat() {
-  // Log when component mounts
-  console.log('🤖 Chat component mounted!');
-  console.log('🔍 Checking localStorage for pendingChatPrompt:', localStorage.getItem('pendingChatPrompt'));
-
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -167,38 +163,26 @@ export default function Chat() {
         }
 
         setIsDataLoaded(true);
-        console.log('✅ Data loaded, isDataLoaded set to true');
 
         // Check for pending prompt from localStorage (e.g., from WorkoutSelectionModal)
         // Do this AFTER setting isDataLoaded to ensure we're ready to process
         const storedPrompt = localStorage.getItem('pendingChatPrompt');
         const storedTime = localStorage.getItem('pendingChatPromptTime');
 
-        console.log('📋 Checking localStorage:', {
-          hasPrompt: !!storedPrompt,
-          hasTime: !!storedTime,
-          promptPreview: storedPrompt?.substring(0, 50)
-        });
-
         if (storedPrompt && storedTime) {
           // Only process if the prompt was set within the last 10 seconds (to avoid stale prompts)
           const promptAge = Date.now() - parseInt(storedTime, 10);
-          console.log('⏱️ Prompt age:', promptAge, 'ms');
 
           if (promptAge < 10000) {
-            console.log('✅ Found valid pending prompt, setting autoSendPending=true');
             localStorage.removeItem('pendingChatPrompt');
             localStorage.removeItem('pendingChatPromptTime');
             pendingPromptRef.current = storedPrompt;
             setAutoSendPending(true);
           } else {
-            console.log('⚠️ Prompt too old, cleaning up');
             // Clean up stale prompts
             localStorage.removeItem('pendingChatPrompt');
             localStorage.removeItem('pendingChatPromptTime');
           }
-        } else {
-          console.log('ℹ️ No pending prompt found in localStorage');
         }
 
       } catch (error) {
@@ -242,11 +226,8 @@ export default function Chat() {
 
   // Handle auto-send for pending prompts (from WorkoutSelectionModal or other sources)
   useEffect(() => {
-    console.log('Auto-send effect:', { autoSendPending, isDataLoaded, isThinking, hasPendingPrompt: !!pendingPromptRef.current });
-
     if (autoSendPending && isDataLoaded && !isThinking && pendingPromptRef.current) {
       const promptToSend = pendingPromptRef.current;
-      console.log('Processing pending prompt:', promptToSend.substring(0, 50) + '...');
       pendingPromptRef.current = null;
       setAutoSendPending(false);
 
@@ -269,7 +250,6 @@ export default function Chat() {
 
       // Small delay to ensure state is updated before processing
       setTimeout(() => {
-        console.log('Calling processMessageAsync...');
         processMessageAsync(promptToSend);
       }, 100);
     }
