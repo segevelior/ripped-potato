@@ -1,8 +1,12 @@
-from fastapi import Depends, HTTPException, status
+from bson import ObjectId
+from bson.errors import InvalidId
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from typing import Optional, Dict, Any
 from app.config import get_settings
+
+ADMIN_ROLES = ("admin", "superAdmin")
 
 security = HTTPBearer(auto_error=False)
 
@@ -50,6 +54,35 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED, 
             detail=f"Invalid token: {str(e)}"
         )
+
+
+async def require_admin(
+    request: Request,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Allow only users whose DB role is admin/superAdmin.
+
+    The Node-issued JWT carries no role claim, so the role is looked up
+    per-request in Mongo (mirrors backend/src/middleware/admin.js).
+    """
+    try:
+        user_oid = ObjectId(current_user["user_id"])
+    except (InvalidId, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+
+    user = await request.app.state.db.users.find_one(
+        {"_id": user_oid}, {"role": 1}
+    )
+    if not user or user.get("role") not in ADMIN_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+
+    return current_user
 
 
 async def get_optional_user(

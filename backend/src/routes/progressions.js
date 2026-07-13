@@ -51,7 +51,14 @@ router.get('/', optionalAuth, async (req, res) => {
 // @access  Public (but shows user data if authenticated)
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
-    const progression = await Progression.findById(req.params.id)
+    const userId = req.user?.id;
+
+    // Scope like the list route: common progressions + user's own
+    const query = userId
+      ? { _id: req.params.id, $or: [{ isCommon: true }, { createdBy: userId }] }
+      : { _id: req.params.id, isCommon: true };
+
+    const progression = await Progression.findOne(query)
       .populate('steps.exerciseId', 'name difficulty muscles strain mediaUrls')
       .lean();
 

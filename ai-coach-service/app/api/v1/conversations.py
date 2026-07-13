@@ -15,7 +15,7 @@ from app.models.schemas import (
     FeedbackResponse,
     PaginatedFeedbackResponse
 )
-from app.middleware.auth import get_current_user
+from app.middleware.auth import get_current_user, require_admin
 from app.services.conversation_service import ConversationService
 
 router = APIRouter()
@@ -252,13 +252,12 @@ async def get_all_feedbacks(
     limit: int = Query(50, ge=1, le=200, description="Items per page"),
     rating: Optional[str] = Query(None, description="Filter by rating"),
     user_id: Optional[str] = Query(None, description="Filter by user_id"),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_admin)
 ) -> Any:
     """
     Get all feedbacks with pagination (Admin only).
 
     Returns paginated feedback entries with previews.
-    TODO: Add admin role check
     """
     try:
         service = get_conversation_service(request)
@@ -280,13 +279,12 @@ async def get_all_feedbacks(
 async def admin_get_conversation(
     conversation_id: str,
     request: Request,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_admin)
 ) -> Any:
     """
     Get any conversation by ID (Admin only).
 
     Admin can access any conversation regardless of owner.
-    TODO: Add admin role check
     """
     try:
         service = get_conversation_service(request)
@@ -313,12 +311,10 @@ async def admin_get_user_history(
     request: Request,
     limit: int = Query(50, ge=1, le=100),
     skip: int = Query(0, ge=0),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_admin)
 ) -> Any:
     """
     Get conversation history for any user (Admin only).
-
-    TODO: Add admin role check
     """
     try:
         service = get_conversation_service(request)
