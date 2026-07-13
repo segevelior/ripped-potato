@@ -4,6 +4,13 @@ Every ticket description created by `/pm-triage` uses exactly these sections, in
 order. Omit a section only where marked optional. Use real newlines, GitHub-flavored
 markdown, and repo-relative file paths.
 
+**Problem only — no fixes.** The description states what is wrong and how to reproduce
+it. Never add a "Suggested fix" section, propose a solution direction, or hint at an
+implementation approach — not in any section. Code pointers locate the problem; they do
+not say what to change. Acceptance criteria describe the observable outcome, not the
+implementation. If the feedback text proposes a fix, ticket the underlying problem, not
+the proposal.
+
 ```markdown
 ## Source
 [TOR-nn](https://linear.app/torii-fitness/issue/TOR-nn) — reported by <name>, page `<page>`, <date>.
