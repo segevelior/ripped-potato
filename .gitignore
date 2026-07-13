@@ -104,4 +104,8 @@ CLAUDE.md
 
 #development
 /development/
-development/
+development/.playwright-mcp/
+
+# Playwright MCP artifacts
+.playwright-mcp/
+calendar.jpeg
