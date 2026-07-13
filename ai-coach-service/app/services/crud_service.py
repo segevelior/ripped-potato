@@ -4,6 +4,8 @@ import structlog
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 
+from app.core.embeddings import attach_embedding
+
 logger = structlog.get_logger()
 
 
@@ -30,7 +32,10 @@ class CRUDService:
             # Ensure correct field names
             if "targetMuscles" in exercise_data:
                 exercise_data["muscles"] = exercise_data.pop("targetMuscles")
-            
+
+            # Raw motor insert bypasses the Node pre-save embedding hook.
+            await attach_embedding(exercise_data)
+
             # Insert into MongoDB
             result = await self.db.exercises.insert_one(exercise_data)
             
@@ -66,12 +71,23 @@ class CRUDService:
         user_id: str,
         workout_data: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Create a new workout directly"""
+        """Create a new workout directly.
+
+        NOTE: currently unreferenced (kept for API compatibility). If revived,
+        the resolver call below is what keeps blocks[].exercises[].exercise_id
+        non-null — the predefinedworkouts collection validator rejects nulls.
+        """
         try:
             workout_data["userId"] = ObjectId(user_id)
             workout_data["createdAt"] = datetime.utcnow()
             workout_data["updatedAt"] = datetime.utcnow()
-            
+
+            if workout_data.get("blocks"):
+                from app.core.agents.services.exercise_resolver import ExerciseResolver
+                workout_data["blocks"], _ = await ExerciseResolver(self.db).resolve_blocks(
+                    user_id, workout_data["blocks"], on_ambiguous="best_effort"
+                )
+
             result = await self.db.predefinedworkouts.insert_one(workout_data)
             
             if result.inserted_id:

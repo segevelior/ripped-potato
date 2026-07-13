@@ -31,6 +31,7 @@ from app.core.agents.data_reader import DataReaderAgent
 from app.core.agents.date_utils import get_user_today
 from app.core.agents.prompts import SYSTEM_PROMPT
 from app.core.agents.services import MemoryService
+from app.core.agents.services.exercise_resolver import ExerciseResolver
 from app.services.recommendation_service import RecommendationService
 from app.services.short_term_context_service import ShortTermContextService
 
@@ -79,7 +80,7 @@ IF SUGGESTING A WORKOUT, return:
     {
       "name": "Warm-up",
       "exercises": [
-        {"exercise_name": "Exercise Name", "volume": "3x10", "rest": "60s", "notes": ""}
+        {"exercise_name": "Exercise Name", "volume": "3x10", "rest": "60s", "notes": "", "muscles": ["Chest"], "discipline": ["strength"]}
       ]
     },
     {
@@ -100,6 +101,8 @@ IF SUGGESTING A REST DAY, return:
   "reasoning": "Personalized explanation of why rest is recommended today (e.g., 'You've trained hard the last 3 days targeting your upper body. Taking today off will help your muscles recover and come back stronger for tomorrow's session.')",
   "tips": ["Optional tip 1", "Optional tip 2"]
 }
+
+Per exercise, "muscles" (primary muscle groups) and "discipline" are REQUIRED — they classify the exercise correctly if it's new to the catalog.
 
 Valid disciplines: strength, cardio, hiit, mobility, calisthenics, running, cycling, climbing, meditation
 Valid difficulty levels: beginner, intermediate, advanced
@@ -569,6 +572,21 @@ CALENDAR CONTEXT:
 
             # Ensure type is set
             suggestion["type"] = "workout"
+
+            # Resolve exercise names to real catalog ids AT GENERATION TIME so
+            # the persisted pick materializes into a valid PredefinedWorkout
+            # (exercise_id must never be null). best_effort: a background pick
+            # can't ask the user, so medium-confidence matches auto-pick and
+            # genuinely new exercises are created (classified by the muscles/
+            # discipline the prompt requires per exercise).
+            suggestion["blocks"], _report = await ExerciseResolver(db).resolve_blocks(
+                user_id, suggestion.get("blocks", []), on_ambiguous="best_effort"
+            )
+            # Stringify ids: the suggestion travels through JSON responses and
+            # dailyRecommendations; Mongoose casts back on materialization.
+            for block in suggestion["blocks"]:
+                for ex in block.get("exercises", []):
+                    ex["exercise_id"] = str(ex["exercise_id"])
 
             logger.info(f"Generated train-now suggestion for user {user_id}: {suggestion['name']}")
 

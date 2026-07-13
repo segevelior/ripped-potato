@@ -10,6 +10,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 import structlog
 
 from app.core.agents.date_utils import get_user_today, relative_day_label
+from app.core.agents.services.exercise_resolver import ExerciseResolver
 
 logger = structlog.get_logger()
 
@@ -54,67 +55,39 @@ class CalendarService:
 
             # If this is a workout event with details, first save it to user's workout library
             if event_type == "workout" and workout_details:
-                # Look up exercise IDs and build blocks structure
+                # Build the blocks structure; the shared resolver fills in real
+                # exercise ids (exact → fuzzy → vector → create) so neither the
+                # PredefinedWorkout nor the CalendarEvent can carry a null id.
                 workout_exercises = workout_details.get("exercises", [])
                 blocks = [{
                     "name": "Main Workout",
-                    "exercises": []
+                    "exercises": [
+                        {
+                            "exercise_name": ex.get("exerciseName", ""),
+                            "volume": f"{ex.get('targetSets', 3)}x{ex.get('targetReps', 10)}",
+                            "rest": "60s",
+                            "notes": ex.get("notes", ""),
+                            "muscles": ex.get("muscles"),
+                            "discipline": workout_details.get("disciplines"),
+                            "equipment": ex.get("equipment"),
+                            "difficulty": workout_details.get("difficulty"),
+                        }
+                        for ex in workout_exercises
+                    ]
                 }]
 
-                for ex in workout_exercises:
-                    exercise_name = ex.get("exerciseName", "")
-                    target_sets = ex.get("targetSets", 3)
-                    target_reps = ex.get("targetReps", 10)
+                # best_effort: scheduling is a committed action — take the best
+                # medium-confidence match rather than stalling, create when new.
+                blocks, _report = await ExerciseResolver(self.db).resolve_blocks(
+                    user_id, blocks, on_ambiguous="best_effort"
+                )
 
-                    # Try to find the exercise in the database
-                    existing_ex = await self.db.exercises.find_one({
-                        "name": {"$regex": f"^{exercise_name}$", "$options": "i"},
-                        "$or": [{"isCommon": True}, {"createdBy": ObjectId(user_id)}]
-                    })
-
-                    if existing_ex:
-                        exercise_id = existing_ex["_id"]
-                    else:
-                        # Create new exercise in user's library
-                        new_exercise = {
-                            "name": exercise_name,
-                            "description": ex.get("notes", f"AI-generated exercise: {exercise_name}"),
-                            "muscles": ex.get("muscles", ["General"]),
-                            "secondaryMuscles": [],
-                            "discipline": workout_details.get("disciplines", ["General Fitness"]),
-                            "equipment": ex.get("equipment", []),
-                            "difficulty": workout_details.get("difficulty", "intermediate"),
-                            "instructions": [],
-                            "strain": {
-                                "intensity": "moderate",
-                                "load": "moderate",
-                                "durationType": "reps",
-                                "typicalVolume": f"{target_sets}x{target_reps}"
-                            },
-                            "isCommon": False,
-                            "createdBy": ObjectId(user_id),
-                            "createdAt": datetime.utcnow(),
-                            "updatedAt": datetime.utcnow()
-                        }
-                        exercise_result = await self.db.exercises.insert_one(new_exercise)
-                        exercise_id = exercise_result.inserted_id
-                        logger.info(f"Created new exercise '{exercise_name}' for user {user_id}")
-
-                    # Add to blocks for PredefinedWorkout
-                    blocks[0]["exercises"].append({
-                        "exercise_id": exercise_id,
-                        "exercise_name": exercise_name,
-                        "volume": f"{target_sets}x{target_reps}",
-                        "rest": "60s",
-                        "notes": ex.get("notes", "")
-                    })
-
-                    # Add to exercises list for CalendarEvent
+                for ex, resolved in zip(workout_exercises, blocks[0]["exercises"]):
                     exercises.append({
-                        "exerciseId": exercise_id,
-                        "exerciseName": exercise_name,
-                        "targetSets": target_sets,
-                        "targetReps": target_reps,
+                        "exerciseId": resolved["exercise_id"],
+                        "exerciseName": resolved["exercise_name"],
+                        "targetSets": ex.get("targetSets", 3),
+                        "targetReps": ex.get("targetReps", 10),
                         "notes": ex.get("notes", "")
                     })
 

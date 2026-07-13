@@ -10,8 +10,49 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 import structlog
 
 from app.core.dedup import existing_exercise_reuse_response
+from app.core.embeddings import attach_embedding
 
 logger = structlog.get_logger()
+
+
+def name_similarity(pattern: str, exercise_name: str) -> float:
+    """How similar a free-text pattern is to an exercise name.
+
+    Exact = 1.0, substring either way = 0.9, otherwise Jaccard word overlap
+    with a boost for matching significant (>3 char) words, capped at 0.85.
+    The cap sits exactly at the resolver's auto-accept bar: full word-set
+    overlap (reordered or re-punctuated names like "Push Up" / "Push-Up")
+    reaches 0.85 and auto-accepts; partial overlaps stay below it. Shared by
+    grep_exercises and ExerciseResolver so their notion of "same exercise"
+    can't drift.
+    """
+    pattern_lower = pattern.lower()
+    name_lower = exercise_name.lower()
+
+    if pattern_lower == name_lower:
+        return 1.0
+
+    if pattern_lower in name_lower or name_lower in pattern_lower:
+        return 0.9
+
+    pattern_words = set(re.findall(r'[a-zA-Z]+', pattern_lower))
+    name_words = set(re.findall(r'[a-zA-Z]+', name_lower))
+
+    if not pattern_words or not name_words:
+        return 0.0
+
+    intersection = len(pattern_words & name_words)
+    union = len(pattern_words | name_words)
+
+    if union == 0:
+        return 0.0
+
+    base_score = intersection / union
+
+    key_matches = sum(1 for w in pattern_words if len(w) > 3 and w in name_words)
+    boost = key_matches * 0.15
+
+    return min(base_score + boost, 0.85)
 
 
 class ExerciseService:
@@ -166,6 +207,10 @@ class ExerciseService:
                 "createdAt": datetime.utcnow(),
                 "updatedAt": datetime.utcnow()
             }
+
+            # Raw motor insert bypasses the Node pre-save embedding hook — embed
+            # here so the new exercise is vector-searchable immediately.
+            await attach_embedding(exercise_data)
 
             result = await self.db.exercises.insert_one(exercise_data)
 
@@ -400,42 +445,6 @@ class ExerciseService:
                 for ex in exercises
             ]
 
-            # Helper function to calculate similarity score
-            def similarity_score(pattern: str, exercise_name: str) -> float:
-                """Calculate how similar a pattern is to an exercise name"""
-                pattern_lower = pattern.lower()
-                name_lower = exercise_name.lower()
-
-                # Exact match
-                if pattern_lower == name_lower:
-                    return 1.0
-
-                # Pattern is substring of name or vice versa
-                if pattern_lower in name_lower or name_lower in pattern_lower:
-                    return 0.9
-
-                # Word overlap scoring
-                pattern_words = set(re.findall(r'[a-zA-Z]+', pattern_lower))
-                name_words = set(re.findall(r'[a-zA-Z]+', name_lower))
-
-                if not pattern_words or not name_words:
-                    return 0.0
-
-                # Calculate Jaccard-like similarity
-                intersection = len(pattern_words & name_words)
-                union = len(pattern_words | name_words)
-
-                if union == 0:
-                    return 0.0
-
-                base_score = intersection / union
-
-                # Boost if key words match (longer words are more significant)
-                key_matches = sum(1 for w in pattern_words if len(w) > 3 and w in name_words)
-                boost = key_matches * 0.15
-
-                return min(base_score + boost, 0.85)  # Cap at 0.85 for non-exact matches
-
             # Match each pattern to its results
             results_by_pattern = {}
             similar_by_pattern = {}
@@ -445,7 +454,7 @@ class ExerciseService:
             for pattern in patterns:
                 scored_matches = []
                 for ex in all_exercises:
-                    score = similarity_score(pattern, ex["name"])
+                    score = name_similarity(pattern, ex["name"])
                     if score > 0:
                         scored_matches.append((score, ex))
 

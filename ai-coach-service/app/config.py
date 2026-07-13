@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     # (e.g. OPENAI_REASONING_EFFORT=medium on Render once verified).
     openai_reasoning_effort: str = "none"
 
+    # Embeddings for exercise similarity search. Must match the Node backend's
+    # EmbeddingService (EMBEDDING_MODEL / EMBEDDING_DIMS) — both services write
+    # vectors to the same exercises.embedding field / Atlas vector index.
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dims: int = 1536
+
     # Auto-promotion of durable facts from conversations/check-ins into the
     # persistent usermemories store. Env: MEMORY_AUTO_PROMOTE_ENABLED.
     memory_auto_promote_enabled: bool = True

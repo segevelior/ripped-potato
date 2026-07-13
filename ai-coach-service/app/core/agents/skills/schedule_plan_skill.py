@@ -21,9 +21,12 @@ import re
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
+import structlog
 from bson import ObjectId
 
 from app.core.agents.skills.registry import SkillContext, skill
+
+logger = structlog.get_logger()
 
 
 # ---------------------------------------------------------------------------
@@ -101,13 +104,22 @@ def _resolve_workout_content(workout: Dict[str, Any], template_map: Dict[str, An
             for block in tmpl.get("blocks", []) or []:
                 for ex in block.get("exercises", []) or []:
                     sets, reps = _parse_volume(ex.get("volume"))
-                    exercises.append({
-                        "exerciseId": ex.get("exercise_id"),
+                    entry = {
                         "exerciseName": ex.get("exercise_name", ""),
                         "targetSets": sets,
                         "targetReps": reps,
                         "notes": ex.get("notes", ""),
-                    })
+                    }
+                    # Templates should never carry a null exercise_id, but if a
+                    # legacy one does, omit the key (CalendarEvent.exerciseId is
+                    # optional) rather than propagate the null.
+                    if ex.get("exercise_id"):
+                        entry["exerciseId"] = ex["exercise_id"]
+                    else:
+                        logger.warning("template exercise missing exercise_id",
+                                       template=tmpl.get("name"),
+                                       exercise=entry["exerciseName"])
+                    exercises.append(entry)
             return {
                 "title": tmpl.get("name", "Workout"),
                 "type": "strength",

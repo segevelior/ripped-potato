@@ -6,6 +6,8 @@ from bson import ObjectId
 from datetime import datetime
 
 from app.core.dedup import existing_exercise_reuse_response
+from app.core.embeddings import attach_embedding
+from app.core.agents.services.exercise_resolver import ExerciseResolver
 
 logger = structlog.get_logger()
 
@@ -38,7 +40,9 @@ class FitnessCRUDTools:
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "exerciseId": {"type": "string"},
+                                    # Names only — never let the LLM supply ids;
+                                    # ids are resolved server-side against the catalog.
+                                    "exerciseName": {"type": "string"},
                                     "sets": {"type": "integer"},
                                     "reps": {"type": "integer"},
                                     "weight": {"type": "number", "optional": True},
@@ -167,18 +171,44 @@ class FitnessCRUDTools:
             }
     
     async def _create_workout(self, params: Dict[str, Any], user_id: str) -> Dict[str, Any]:
-        """Create a new workout plan"""
+        """Create a new workout plan.
+
+        NOTE: FitnessCRUDTools is currently unreferenced. Kept correct anyway:
+        it writes predefinedworkouts, so it must produce the blocks structure
+        with resolver-verified exercise ids — the collection validator rejects
+        anything else.
+        """
         try:
+            blocks = [{
+                "name": "Main Workout",
+                "exercises": [
+                    {
+                        "exercise_name": ex.get("exerciseName", ""),
+                        "volume": f"{ex.get('sets', 3)}x{ex.get('reps', 10)}",
+                        "rest": f"{ex.get('restTime', 60)}s",
+                        "notes": "",
+                    }
+                    for ex in params.get("exercises", [])
+                ],
+            }]
+            blocks, _ = await ExerciseResolver(self.db).resolve_blocks(
+                user_id, blocks, on_ambiguous="best_effort"
+            )
+
             workout_data = {
-                "userId": ObjectId(user_id),
                 "name": params["name"],
-                "exercises": params["exercises"],
-                "duration": params["duration"],
-                "description": params.get("description", f"Workout: {params['name']}"),
+                "goal": params.get("description", f"Workout: {params['name']}"),
+                "primary_disciplines": [],
+                "estimated_duration": params["duration"],
+                "difficulty_level": "intermediate",
+                "blocks": blocks,
+                "tags": [],
+                "isCommon": False,
+                "createdBy": ObjectId(user_id),
                 "createdAt": datetime.utcnow(),
                 "updatedAt": datetime.utcnow()
             }
-            
+
             result = await self.db.predefinedworkouts.insert_one(workout_data)
             
             if result.inserted_id:
@@ -225,7 +255,10 @@ class FitnessCRUDTools:
                 "updatedAt": datetime.utcnow(),
                 "__v": 0
             }
-            
+
+            # Raw motor insert bypasses the Node pre-save embedding hook.
+            await attach_embedding(exercise_data)
+
             result = await self.db.exercises.insert_one(exercise_data)
             
             if result.inserted_id:
