@@ -26,6 +26,8 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
+  // Strip debug logging from production bundles; console.error/warn are kept
+  esbuild: mode === 'production' ? { pure: ['console.log', 'console.debug'] } : {},
   // Production build optimizations
   build: {
     target: 'es2015',

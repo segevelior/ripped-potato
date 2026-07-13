@@ -151,11 +151,8 @@ export function ActionButtons({ actions, disabled }) {
         notes: 'AI-generated workout'
       };
 
-      console.log('Creating calendar event with data:', calendarEventData);
-
       try {
-        const result = await CalendarEvent.create(calendarEventData);
-        console.log('Workout saved to calendar for', workoutDate, 'Result:', result);
+        await CalendarEvent.create(calendarEventData);
       } catch (calendarError) {
         console.error('Failed to save to calendar:', calendarError);
         // Show error to user but still continue to start workout
@@ -326,11 +323,6 @@ export function parseActionButtons(content) {
       if (endIdx !== -1) {
         workoutStr = attributesStr.substring(startIdx, endIdx + 1);
       }
-    }
-
-    // Log for debugging
-    if (workoutStr) {
-      console.log('Extracted workout string:', workoutStr.substring(0, 100) + '...');
     }
 
     if (workoutStr) {
