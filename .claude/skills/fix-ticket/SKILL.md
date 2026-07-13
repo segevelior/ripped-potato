@@ -37,7 +37,7 @@ Input: a ticket identifier in `$ARGUMENTS` (e.g. `TOR-12`). If missing, ask for 
 
 ## 3 — Verify
 
-- Run the repo's relevant checks (frontend: `npm run build --prefix frontend` and lint if configured; backend: `npm test --prefix backend` if tests exist for the area).
+- Run the repo's relevant checks (frontend: `npm run build --prefix frontend`; backend: `npm test --prefix backend` if tests exist for the area). Lint gate: the repo has pre-existing lint errors, so the bar is **no new lint findings** on changed files (diff against `origin/main`), not a clean run.
 - Exercise the changed flow itself where feasible (the project `/verify` flow, or a targeted manual check) — not just the build.
 - Record what you ran and the results; they go in the PR body.
 
