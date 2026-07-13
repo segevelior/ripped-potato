@@ -11,6 +11,9 @@ allowed-tools:
   - Read
   - Grep
   - Glob
+  - mcp__playwright
+  - Bash(npm run dev:*)
+  - Bash(curl -s -o /dev/null*)
 ---
 
 # PM Triage — Feedback Inbox → work tickets
@@ -99,6 +102,22 @@ files/components/endpoints. Do not guess paths — verify they exist.
 **Batching rule:** with ≤4 feedback items, investigate inline. With 5+, spawn one
 `ticket-investigator` subagent per item (they are read-only and return classification +
 code pointers + scope signals), then file all tickets yourself from their summaries.
+
+### UI debugging with Playwright (main loop only, not in subagents)
+
+For UI-related feedback, reproduce it in the browser before filing the ticket — a
+verified repro (or a failed repro) belongs in the ticket body:
+
+1. Dev server: check `curl -s -o /dev/null -w "%{http_code}" http://localhost:5173`;
+   if not 200, start it with `npm run dev:frontend` (repo root) in the background.
+2. Use the `playwright` MCP browser tools (load via ToolSearch if not loaded:
+   `browser_navigate`, `browser_snapshot`, `browser_take_screenshot`,
+   `browser_console_messages`, `browser_click`, …) to navigate the flow described
+   in the feedback, capture console errors, and screenshot the broken state.
+3. Record in the ticket: repro steps, what you observed (screenshot/console output),
+   and whether it reproduced. Mobile-viewport bugs: use `browser_resize` (e.g. 390×844).
+
+Read-only debugging only — never "fix" anything from this skill.
 
 ## Step 5 — File work tickets
 
