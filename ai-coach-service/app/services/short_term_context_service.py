@@ -12,6 +12,7 @@ generation, and train-now generation so all three stay consistent.
 """
 
 import asyncio
+import json
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import structlog
@@ -32,6 +33,21 @@ SUMMARIZE_PROMPT = (
     "athlete reported (fatigue, soreness, injuries, mood), decisions made, and "
     "anything the coach should remember over the next two weeks. Write in third "
     "person ('The athlete...'). Return ONLY the summary text."
+)
+
+EXTRACT_DURABLE_FACTS_PROMPT = (
+    "You extract DURABLE facts about an athlete from a coaching exchange, to store "
+    "in long-term memory. Durable = still useful weeks or months from now: "
+    "injuries / health conditions, lasting preferences (training style, equipment, "
+    "schedule), goals, and lifestyle constraints. EXCLUDE transient state (today's "
+    "fatigue/soreness/mood), one-off logistics, and anything the coach merely "
+    "explained (how-to answers are not facts about the athlete).\n"
+    "You are given the athlete's EXISTING memories. DO NOT emit anything already "
+    "covered by them — only genuinely NEW facts.\n"
+    'Return ONLY a JSON object: {"facts": [{"content": one concise sentence, '
+    '"category": one of health|preference|goal|lifestyle|general, "importance": '
+    'one of high|medium|low, "tags": [short strings]}]}. Return {"facts": []} if '
+    "nothing durable and new."
 )
 
 # Keep strong references to fire-and-forget tasks: the event loop only holds
@@ -125,6 +141,128 @@ class ShortTermContextService:
             lines.append(f"- [{date_str}, {label}] {entry.get('content', '')}")
         return "\n".join(lines)
 
+    @staticmethod
+    def _normalize(text: str) -> str:
+        return " ".join((text or "").lower().split())
+
+    @classmethod
+    def _is_duplicate(cls, candidate: str, existing_norm: List[str]) -> bool:
+        """Cheap backstop dedup: substring either direction, or high Jaccard
+        token overlap, against already-known (normalized) memory contents."""
+        c = cls._normalize(candidate)
+        if not c:
+            return True
+        c_tokens = set(c.split())
+        for e in existing_norm:
+            if not e:
+                continue
+            if c in e or e in c:
+                return True
+            e_tokens = set(e.split())
+            if c_tokens and e_tokens:
+                overlap = len(c_tokens & e_tokens) / len(c_tokens | e_tokens)
+                if overlap >= 0.8:
+                    return True
+        return False
+
+    async def promote_durable_facts(
+        self,
+        user_id: str,
+        source_text: str,
+        openai_client,
+        settings,
+        conversation_id: Optional[str] = None,
+    ) -> int:
+        """Extract durable facts from a coaching exchange and persist NEW ones to
+        long-term usermemories. Best-effort; NEVER raises (callers rely on this so
+        a failure can't release a summarizer claim). Returns count saved.
+        """
+        saved = 0
+        try:
+            if not getattr(settings, "memory_auto_promote_enabled", True):
+                return 0
+            source_text = (source_text or "").strip()
+            if not source_text:
+                return 0
+
+            # Imported lazily to keep this module free of agent-layer imports.
+            from app.core.agents.services.memory_service import MemoryService
+            memory_service = MemoryService(self.db)
+
+            # Load current memories fresh — both as dedup context for the extractor
+            # and for the substring backstop. Callers may promote several sources
+            # in a row, so this must be re-read per call, not cached.
+            # Dedup must consider ALL memories, including DEACTIVATED ones: a memory
+            # the user toggled off would otherwise be re-promoted every time the
+            # fact is mentioned again. (get_user_memories filters to active — used
+            # only for prompt injection — so read the raw doc here instead.)
+            mem_doc = await self.db.usermemories.find_one({"user": ObjectId(user_id)})
+            all_memories = (mem_doc or {}).get("memories", [])
+            existing_contents = [m.get("content", "") for m in all_memories if m.get("content")]
+            existing_block = "\n".join(f"- {c}" for c in existing_contents) or "(none)"
+
+            prompt = (
+                f"EXISTING MEMORIES:\n{existing_block}\n\n"
+                f"COACHING EXCHANGE:\n{source_text}\n\n"
+                f"{EXTRACT_DURABLE_FACTS_PROMPT}"
+            )
+            response = await openai_client.chat.completions.create(
+                model=settings.openai_model_fast,
+                messages=[{"role": "user", "content": prompt}],
+                max_completion_tokens=400,
+                response_format={"type": "json_object"},
+                **settings.llm_tuning_params(temperature=0.2),
+            )
+            raw = (response.choices[0].message.content or "").strip()
+            if not raw:
+                return 0
+            try:
+                facts = json.loads(raw).get("facts", [])
+            except Exception:
+                logger.warning(f"promote_durable_facts: non-JSON extractor output for {user_id}")
+                return 0
+            if not isinstance(facts, list) or not facts:
+                logger.info(f"Auto-promotion: 0 facts extracted for user {user_id}")
+                return 0
+
+            existing_norm = [self._normalize(c) for c in existing_contents]
+            deduped = 0
+            for fact in facts:
+                if not isinstance(fact, dict):
+                    continue
+                content = (fact.get("content") or "").strip()
+                if not content:
+                    continue
+                if self._is_duplicate(content, existing_norm):
+                    deduped += 1
+                    continue
+                save_args = {
+                    "content": content,
+                    "category": fact.get("category", "general"),
+                    "importance": fact.get("importance") or "medium",
+                    "tags": fact.get("tags", []),
+                    "meta": {
+                        "origin": "auto_promotion",
+                        **({"conversation_id": conversation_id} if conversation_id else {}),
+                    },
+                }
+                result = await memory_service.save_memory(user_id, save_args)
+                if result.get("success"):
+                    saved += 1
+                    existing_norm.append(self._normalize(content))  # guard intra-batch dupes
+
+            if saved:
+                await memory_service.enforce_cap(
+                    user_id, getattr(settings, "memory_max_per_user", 60)
+                )
+            logger.info(
+                f"Auto-promotion for user {user_id}: extracted={len(facts)} saved={saved} "
+                f"deduped={deduped}"
+            )
+        except Exception as e:
+            logger.error(f"promote_durable_facts failed for {user_id}: {e}")
+        return saved
+
     async def summarize_stale_conversations(
         self,
         user_id: str,
@@ -210,6 +348,26 @@ class ShortTermContextService:
                         f"Summarized conversation {conv.get('conversation_id')} "
                         f"into short-term context for user {user_id}"
                     )
+
+                    # Promote durable facts from this conversation into long-term
+                    # memory. ISOLATED in its own never-raising try: a promotion
+                    # failure must NOT reach the outer except below, which unsets
+                    # summarized_at and would cause re-summarization (duplicate
+                    # summaries + doubled LLM cost). promote_durable_facts already
+                    # never raises; this is belt-and-suspenders.
+                    try:
+                        await self.promote_durable_facts(
+                            user_id,
+                            source_text=transcript,
+                            openai_client=openai_client,
+                            settings=settings,
+                            conversation_id=conv.get("conversation_id"),
+                        )
+                    except Exception as promo_err:
+                        logger.error(
+                            f"Promotion after summary failed (claim preserved) for "
+                            f"conversation {conv.get('conversation_id')}: {promo_err}"
+                        )
                 except Exception as e:
                     # Release the claim so a later trigger retries
                     logger.error(f"Failed to summarize conversation {conv.get('conversation_id')}: {e}")

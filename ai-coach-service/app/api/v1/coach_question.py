@@ -289,7 +289,7 @@ async def post_coach_reply(
 
         # Persist the check-in as short-term context so the sensei remembers
         # the answer across conversations (14-day TTL)
-        await _save_checkin_entry(db, user_id, question, answer, reply)
+        await _save_checkin_entry(db, user_id, question, answer, reply, client, settings)
 
         return {"success": True, "reply": reply}
 
@@ -297,7 +297,7 @@ async def post_coach_reply(
         logger.error(f"Error generating coach reply: {e}", exc_info=True)
         fallback_reply = "Got it — I've noted that. Tap continue if you want to talk it through."
         # The athlete's answer is the valuable part — persist it even on fallback
-        await _save_checkin_entry(db, user_id, question, answer, fallback_reply)
+        await _save_checkin_entry(db, user_id, question, answer, fallback_reply, client, settings)
         return {
             "success": True,
             "reply": fallback_reply,
@@ -305,15 +305,36 @@ async def post_coach_reply(
         }
 
 
-async def _save_checkin_entry(db, user_id: str, question: str, answer: str, reply: str) -> None:
-    """Best-effort: record the dashboard check-in in short-term context."""
+async def _save_checkin_entry(
+    db, user_id: str, question: str, answer: str, reply: str,
+    openai_client=None, settings=None,
+) -> None:
+    """Best-effort: record the dashboard check-in in short-term context, and
+    promote any durable facts from it into long-term memory.
+
+    A check-in the user never chats past (its conversation stays <= 3 messages)
+    is skipped by the lazy summarizer, so this is the ONLY path its durable facts
+    reach usermemories before the 14-day short-term entry expires.
+    """
+    stc = ShortTermContextService(db)
     content = f'Dashboard check-in: coach asked "{question}" — athlete answered "{answer}". Coach: "{reply}"'
-    await ShortTermContextService(db).add_entry(
+    await stc.add_entry(
         user_id,
         kind="checkin",
         content=content,
         meta={"question": question, "answer": answer, "reply": reply},
     )
+    if openai_client is not None and settings is not None:
+        # Fire-and-forget; promote_durable_facts re-loads current memories for
+        # dedup, so a fact also mentioned in a later chat won't be double-saved.
+        spawn_background(
+            stc.promote_durable_facts(
+                user_id,
+                source_text=f'Coach asked: "{question}". Athlete answered: "{answer}".',
+                openai_client=openai_client,
+                settings=settings,
+            )
+        )
 
 
 @router.post("/continue")

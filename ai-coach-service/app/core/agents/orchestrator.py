@@ -230,11 +230,13 @@ USER PROFILE:
 - Available Equipment: {', '.join(user_profile.get('equipment', [])) or 'not specified'}
 - Preferred Workout Duration: {user_profile.get('workoutDuration', 'not set')} minutes
 - Workout Days per Week: {len(user_profile.get('workoutDays', []))}
+- Stated Goals (from profile): {', '.join(user_profile.get('goals', [])) or 'none listed'}
+- Profile-listed Injuries (standing baseline): {', '.join(user_profile.get('injuries', [])) or 'none listed'}
 
 USER DATA:
 - {len(data_context.get('exercises', []))} exercises in library
 - {len(data_context.get('workouts', []))} recent workouts
-- {len(data_context.get('goals', []))} active goals
+- {len(data_context.get('goals', []))} active tracked goals (Goals feature)
 - {len(data_context.get('plans', []))} training plans"""
 
         # Add user memories to context
@@ -490,11 +492,13 @@ USER PROFILE:
 - Weight: {weight_str}
 - Height: {height_str}
 - Units: {units}
+- Stated Goals (from profile): {', '.join(user_profile.get('goals', [])) or 'none listed'}
+- Profile-listed Injuries (standing baseline): {', '.join(user_profile.get('injuries', [])) or 'none listed'}
 
 USER DATA:
 - {len(data_context.get('exercises', []))} exercises
 - {len(data_context.get('workouts', []))} workouts
-- {len(data_context.get('goals', []))} goals"""
+- {len(data_context.get('goals', []))} active tracked goals (Goals feature)"""
 
         # Add user memories to context
         if user_memories:

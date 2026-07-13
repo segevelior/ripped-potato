@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     # (e.g. OPENAI_REASONING_EFFORT=medium on Render once verified).
     openai_reasoning_effort: str = "none"
 
+    # Auto-promotion of durable facts from conversations/check-ins into the
+    # persistent usermemories store. Env: MEMORY_AUTO_PROMOTE_ENABLED.
+    memory_auto_promote_enabled: bool = True
+    # Max durable memories kept per user before low-importance eviction kicks in.
+    memory_max_per_user: int = 60
+
     def llm_tuning_params(self, temperature: Optional[float] = None) -> dict:
         """Sampling/reasoning kwargs for chat.completions.create.
 
