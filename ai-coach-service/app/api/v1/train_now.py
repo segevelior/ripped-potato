@@ -56,6 +56,9 @@ IMPORTANT RULES:
 4. Match any workout to their fitness level and available equipment
 5. Respect their preferred workout duration
 6. Consider any injuries or limitations from their memories when designing the workout (but still suggest a workout)
+7. NEVER include exercises that load an injured area listed under "Injuries / Limitations" or in health memories — substitute a safe alternative and mention the accommodation in "reasoning"
+8. Do NOT repeat a recent daily suggestion (see RECENT DAILY SUGGESTIONS if present) — vary focus/muscles from the last couple of days
+9. Weigh YESTERDAY specifically: if yesterday's workout was completed — or a hard external activity (e.g. a Strava run/ride) was logged — balance today's load and muscles against it; if yesterday's workout was MISSED, consider whether today should pick up that focus instead of something new
 
 IF SUGGESTING A WORKOUT, return:
 {
@@ -131,19 +134,32 @@ async def load_calendar_context(db, user_id: str, timezone: str = 'UTC') -> Dict
             "type": "workout"
         }).to_list(20)
 
-        # Get recent completed workouts (last 7 days)
-        week_ago = start_of_today - timedelta(days=7)
+        # Get recent completed workouts (last 14 days) — completed calendar
+        # events carry workoutDetails.exercises, the only live source of what
+        # the user actually did (the workouts collection is unused).
+        two_weeks_ago = start_of_today - timedelta(days=14)
         recent_workouts = await db.calendarevents.find({
             "userId": user_oid,
-            "date": {"$gte": week_ago, "$lt": start_of_today},
+            "date": {"$gte": two_weeks_ago, "$lt": start_of_today},
             "status": "completed",
             "type": "workout"
-        }).to_list(20)
+        }).sort("date", -1).to_list(20)
+
+        # Yesterday's workout events with their outcome — a still-'scheduled'
+        # event in the past means the user MISSED it, which should shape today.
+        start_of_yesterday = start_of_today - timedelta(days=1)
+        yesterday_events = await db.calendarevents.find({
+            "userId": user_oid,
+            "date": {"$gte": start_of_yesterday, "$lt": start_of_today},
+            "status": {"$ne": "cancelled"},
+            "type": "workout"
+        }).to_list(10)
 
         return {
             "today_events": today_events,
             "week_events": week_events,
             "recent_workouts": recent_workouts,
+            "yesterday_events": yesterday_events,
             "today_date": start_of_today.strftime('%Y-%m-%d'),
             "day_of_week": now.strftime('%A')
         }
@@ -153,6 +169,7 @@ async def load_calendar_context(db, user_id: str, timezone: str = 'UTC') -> Dict
             "today_events": [],
             "week_events": [],
             "recent_workouts": [],
+            "yesterday_events": [],
             "today_date": datetime.utcnow().strftime('%Y-%m-%d'),
             "day_of_week": datetime.utcnow().strftime('%A')
         }
@@ -252,6 +269,14 @@ def format_calendar_for_llm(calendar_data: Dict[str, Any]) -> str:
     else:
         lines.append("\nNO WORKOUT SCHEDULED FOR TODAY")
 
+    # Yesterday's outcome: a past event still 'scheduled' was missed.
+    if calendar_data.get('yesterday_events'):
+        lines.append("\nYESTERDAY:")
+        for event in calendar_data['yesterday_events']:
+            status = event.get('status', 'scheduled')
+            label = "MISSED (was scheduled, never completed)" if status == "scheduled" else status
+            lines.append(f"- {event.get('title')} ({label})")
+
     # This week's schedule
     week_events = [e for e in calendar_data['week_events']
                    if e.get('date', datetime.min).strftime('%Y-%m-%d') != calendar_data['today_date']]
@@ -261,13 +286,20 @@ def format_calendar_for_llm(calendar_data: Dict[str, Any]) -> str:
             date_str = event.get('date', datetime.min).strftime('%A')
             lines.append(f"- {date_str}: {event.get('title')}")
 
-    # Recent workout history
+    # Recent workout history — include the actual exercise names so the model
+    # can reason about muscle overlap instead of guessing from titles.
     if calendar_data['recent_workouts']:
-        lines.append("\nRECENT WORKOUTS (last 7 days):")
-        for workout in calendar_data['recent_workouts'][:5]:
+        lines.append("\nCOMPLETED WORKOUTS (last 14 days, actual exercises):")
+        for workout in calendar_data['recent_workouts'][:8]:
             date_str = workout.get('date', datetime.min).strftime('%A, %b %d')
-            workout_type = workout.get('workoutDetails', {}).get('type', 'workout')
+            details = workout.get('workoutDetails') or {}
+            workout_type = details.get('type', 'workout')
             lines.append(f"- {date_str}: {workout.get('title')} ({workout_type})")
+            names = [ex.get('exerciseName') for ex in (details.get('exercises') or []) if ex.get('exerciseName')]
+            if names:
+                shown = names[:10]
+                suffix = ", …" if len(names) > len(shown) else ""
+                lines.append(f"  Exercises: {', '.join(shown)}{suffix}")
 
     return "\n".join(lines)
 
@@ -426,6 +458,7 @@ USER PROFILE:
 - Preferred Workout Duration: {user_profile.get('workoutDuration', 45)} minutes
 - Workout Days per Week: {len(user_profile.get('workoutDays', []))}
 - Goals: {', '.join(user_profile.get('goals', [])) or 'general fitness'}
+- Injuries / Limitations (profile): {', '.join(user_profile.get('injuries', [])) or 'none listed'}
 
 CALENDAR CONTEXT:
 {format_calendar_for_llm(calendar_data)}"""
@@ -437,6 +470,14 @@ CALENDAR CONTEXT:
                 context_str += f"\n- {plan['name']} (Week {plan['current_week']}/{plan['total_weeks']}): {plan['goal']}"
                 if plan.get("current_week_detail"):
                     context_str += f"\n{plan['current_week_detail']}"
+
+        # Add the previous days' picks so today's suggestion varies instead of
+        # repeating a suggestion the user already saw (and possibly skipped).
+        recent_dates = [(local_now - timedelta(days=d)).strftime('%Y-%m-%d') for d in (1, 2, 3)]
+        recent_recs = await recommendation_service.get_recent(user_id, recent_dates)
+        recs_block = RecommendationService.format_for_prompt(recent_recs, local_date)
+        if recs_block:
+            context_str += f"\n\n{recs_block}"
 
         # Add memories
         if user_memories:

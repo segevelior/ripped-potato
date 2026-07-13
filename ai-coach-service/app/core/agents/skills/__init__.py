@@ -31,6 +31,7 @@ from app.core.agents.skills import adjust_plan_skill  # noqa: F401,E402
 from app.core.agents.skills import update_calendar_workout_skill  # noqa: F401,E402
 from app.core.agents.skills import resolve_week_skill  # noqa: F401,E402
 from app.core.agents.skills import show_plan_skill  # noqa: F401,E402
+from app.core.agents.skills import daily_recommendation_skill  # noqa: F401,E402
 
 __all__ = [
     "SkillContext",
