@@ -67,6 +67,8 @@ services:
         sync: false  # Will be set manually for security
       - key: LINEAR_TEAM_ID
         sync: false  # Target Linear team UUID
+      - key: LINEAR_FEEDBACK_PROJECT_ID
+        sync: false  # "Feedback Inbox" project UUID (optional)
 
   # Frontend Static Site
   - type: static
