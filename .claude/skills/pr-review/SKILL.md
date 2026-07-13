@@ -4,7 +4,8 @@ description: Review a GitHub PR of this repo for security issues, user-data leak
 allowed-tools:
   - Bash(gh pr view *)
   - Bash(gh pr diff *)
-  - Bash(gh pr review *)
+  - Bash(gh pr review * --comment *)
+  - Bash(gh pr review * --request-changes *)
   - Bash(gh pr comment *)
   - Read
   - Grep
@@ -39,6 +40,9 @@ Input: PR number or URL in `$ARGUMENTS`. If missing, ask.
   `VITE_*`) code, secrets in render.yaml with values instead of `sync: false`.
 - SSRF/unsafe fetch of user-supplied URLs; missing rate limiting on new
   unauthenticated endpoints (pattern: `express-rate-limit` as in `backend/src/routes/feedback.js`).
+- Agent/tooling surface: changes under `.claude/` (skills, agents, settings) that widen
+  pre-approved tools, grant Bash/write access to agents processing untrusted input, or
+  weaken never-merge/never-approve rules.
 
 ## Lens 2 — User-data leakage (this app holds fitness/health data — treat as sensitive)
 

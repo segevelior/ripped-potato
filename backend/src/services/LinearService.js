@@ -120,15 +120,26 @@ class LinearService {
           : {})
       };
 
-      const data = await this.graphql(
-        `mutation IssueCreate($input: IssueCreateInput!) {
-          issueCreate(input: $input) {
-            success
-            issue { identifier url }
-          }
-        }`,
-        { input }
-      );
+      const issueCreateMutation = `mutation IssueCreate($input: IssueCreateInput!) {
+        issueCreate(input: $input) {
+          success
+          issue { identifier url }
+        }
+      }`;
+
+      let data;
+      try {
+        data = await this.graphql(issueCreateMutation, { input });
+      } catch (error) {
+        // A stale/invalid project id must not lose the feedback — retry without it
+        if (!input.projectId) throw error;
+        console.error(
+          'Linear issueCreate failed with projectId, retrying without it:',
+          error.message
+        );
+        const { projectId, ...inputWithoutProject } = input;
+        data = await this.graphql(issueCreateMutation, { input: inputWithoutProject });
+      }
 
       if (!data?.issueCreate?.success) {
         throw new Error('Linear issueCreate returned success=false');
