@@ -106,7 +106,9 @@ const createEvent = async (req, res) => {
           estimatedDuration: template.estimated_duration,
           exercises: template.blocks?.flatMap(block =>
             block.exercises?.map(ex => ({
-              exerciseId: ex.exercise_id,
+              // Omit rather than propagate a null id from a legacy template —
+              // workoutDetails.exerciseId is optional.
+              ...(ex.exercise_id ? { exerciseId: ex.exercise_id } : {}),
               exerciseName: ex.exercise_name,
               targetSets: parseInt(ex.volume?.split('x')[0]) || 3,
               targetReps: parseInt(ex.volume?.split('x')[1]) || 8,

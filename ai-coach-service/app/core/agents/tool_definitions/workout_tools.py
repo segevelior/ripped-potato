@@ -13,7 +13,7 @@ def get_workout_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "create_workout_template",
-                "description": "Create a reusable workout template (PredefinedWorkout). THIS is what appears under the user's 'Workouts' tab / workout library. Use it whenever the user wants to add or save a whole WORKOUT — one made of multiple exercises/drills — including a workout they upload as an image/screenshot or paste as a list. Do NOT use add_exercise for a multi-exercise workout. Workouts are organized into blocks (Warm-up, Main Work, Finisher, etc.).",
+                "description": "Create a reusable workout template (PredefinedWorkout). THIS is what appears under the user's 'Workouts' tab / workout library. Use it whenever the user wants to add or save a whole WORKOUT — one made of multiple exercises/drills — including a workout they upload as an image/screenshot or paste as a list. Do NOT use add_exercise for a multi-exercise workout. Workouts are organized into blocks (Warm-up, Main Work, Finisher, etc.). Refer to exercises by NAME only — ids are resolved server-side against the exercise catalog (close name matches are reused; genuinely new exercises are auto-created). If a name is ambiguous the tool returns candidate matches: ask the user which they meant, then call again with the chosen exact name — or, if the user wants it as a new exercise, call add_exercise for it first and then retry (never repeat the identical call).",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -69,6 +69,16 @@ def get_workout_tools() -> List[Dict[str, Any]]:
                                                 "notes": {
                                                     "type": "string",
                                                     "description": "Form cues or special instructions"
+                                                },
+                                                "muscles": {
+                                                    "type": "array",
+                                                    "items": {"type": "string"},
+                                                    "description": "Primary muscle groups (e.g., ['Chest', 'Triceps']). ALWAYS include — used to classify the exercise correctly if it's new to the catalog."
+                                                },
+                                                "discipline": {
+                                                    "type": "array",
+                                                    "items": {"type": "string"},
+                                                    "description": "Exercise disciplines (e.g., ['Calisthenics']). Include when it differs from the workout's primary_disciplines."
                                                 }
                                             },
                                             "required": ["exercise_name", "volume"]

@@ -8,6 +8,11 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import structlog
 
+from app.core.agents.services.exercise_resolver import (
+    ExerciseResolver,
+    format_ambiguous_message,
+)
+
 logger = structlog.get_logger()
 
 
@@ -20,33 +25,41 @@ class WorkoutService:
     async def create_workout_template(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Create a workout template (PredefinedWorkout) with blocks structure"""
         try:
-            # Get existing exercises to link IDs
-            existing_exercises = await self.db.exercises.find(
-                {"$or": [{"isCommon": True}, {"createdBy": ObjectId(user_id)}]},
-                {"name": 1, "_id": 1}
-            ).to_list(None)
-            exercise_map = {ex["name"].lower(): ex["_id"] for ex in existing_exercises}
-
-            # Process blocks and link exercise IDs
+            # Normalize blocks. muscles/discipline are resolver inputs the LLM
+            # supplies for exercises that may need creating — the resolver
+            # strips them before anything is persisted.
             blocks = []
             for block in args.get("blocks", []):
-                block_exercises = []
-                for ex in block.get("exercises", []):
-                    exercise_name = ex.get("exercise_name", "")
-                    exercise_id = exercise_map.get(exercise_name.lower())
-
-                    block_exercises.append({
-                        "exercise_id": exercise_id,
-                        "exercise_name": exercise_name,
-                        "volume": ex.get("volume", "3x10"),
-                        "rest": ex.get("rest", "60s"),
-                        "notes": ex.get("notes", "")
-                    })
-
                 blocks.append({
                     "name": block.get("name", "Main Work"),
-                    "exercises": block_exercises
+                    "exercises": [
+                        {
+                            "exercise_name": ex.get("exercise_name", ""),
+                            "volume": ex.get("volume", "3x10"),
+                            "rest": ex.get("rest", "60s"),
+                            "notes": ex.get("notes", ""),
+                            "muscles": ex.get("muscles"),
+                            "discipline": ex.get("discipline") or args.get("primary_disciplines"),
+                        }
+                        for ex in block.get("exercises", [])
+                    ]
                 })
+
+            # Resolve every exercise name to a real catalog id (verified id →
+            # exact → fuzzy → vector → create). exercise_id must never be null:
+            # raw motor inserts bypass Mongoose validation, so this call is the
+            # enforcement point. Medium-confidence matches come back ambiguous —
+            # the coach asks the user instead of guessing.
+            blocks, report = await ExerciseResolver(self.db).resolve_blocks(
+                user_id, blocks, on_ambiguous="ask"
+            )
+            if report["ambiguous"]:
+                return {
+                    "success": False,
+                    "needs_user_decision": True,
+                    "ambiguous_exercises": report["ambiguous"],
+                    "message": format_ambiguous_message(report["ambiguous"]),
+                }
 
             workout_data = {
                 "name": args["name"],
@@ -69,9 +82,13 @@ class WorkoutService:
             if result.inserted_id:
                 total_exercises = sum(len(b.get("exercises", [])) for b in blocks)
                 logger.info(f"Created workout template '{args['name']}' for user {user_id}")
+                message = f"Created workout template '{args['name']}' with {len(blocks)} blocks and {total_exercises} exercises!"
+                created_names = [r["matched_name"] for r in report["created"]]
+                if created_names:
+                    message += f" Also added {len(created_names)} new exercise(s) to the library: {', '.join(created_names)}."
                 return {
                     "success": True,
-                    "message": f"Created workout template '{args['name']}' with {len(blocks)} blocks and {total_exercises} exercises!",
+                    "message": message,
                     "workout_id": str(result.inserted_id)
                 }
             else:

@@ -337,6 +337,9 @@ class PlanService:
                             ex_copy["exerciseId"] = ObjectId(ex_copy["exerciseId"])  # may be absent
                         except Exception:
                             pass
+                    else:
+                        # Never persist an explicit null id — the field is optional.
+                        ex_copy.pop("exerciseId", None)
                     normalized_exercises.append(ex_copy)
                 weekly_workout["customWorkout"] = {
                     "title": custom.get("title"),

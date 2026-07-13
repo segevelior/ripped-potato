@@ -52,7 +52,17 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
                                             "exerciseName": {"type": "string"},
                                             "targetSets": {"type": "integer"},
                                             "targetReps": {"type": "integer"},
-                                            "notes": {"type": "string"}
+                                            "notes": {"type": "string"},
+                                            "muscles": {
+                                                "type": "array",
+                                                "items": {"type": "string"},
+                                                "description": "Primary muscle groups — ALWAYS include; classifies the exercise correctly if it's new to the catalog."
+                                            },
+                                            "equipment": {
+                                                "type": "array",
+                                                "items": {"type": "string"},
+                                                "description": "Equipment needed (empty for bodyweight)."
+                                            }
                                         },
                                         "required": ["exerciseName"]
                                     }
