@@ -19,7 +19,7 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
                     "properties": {
                         "date": {
                             "type": "string",
-                            "description": "Date in ISO format (YYYY-MM-DD). Use 'today' or 'tomorrow' for relative dates."
+                            "description": "Date in ISO format (YYYY-MM-DD). Use 'today' or 'tomorrow' for relative dates (resolved in the user's timezone)."
                         },
                         "title": {
                             "type": "string",
@@ -72,17 +72,17 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "get_calendar_events",
-                "description": "Get the user's scheduled calendar events for a date range. Use this to check what workouts are already planned.",
+                "description": "Get the user's scheduled calendar events for a date range. Use this to check what workouts are already planned. The result echoes `today` (the user's local date) and labels every event with `relativeDay` (today/tomorrow/yesterday/in N days) — trust those labels.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "startDate": {
                             "type": "string",
-                            "description": "Start date in ISO format (YYYY-MM-DD). Default: today"
+                            "description": "Start date in ISO format (YYYY-MM-DD). Default: yesterday (user-local), so recently missed sessions are included"
                         },
                         "endDate": {
                             "type": "string",
-                            "description": "End date in ISO format (YYYY-MM-DD). Default: 7 days from start"
+                            "description": "End date in ISO format (YYYY-MM-DD). Default: 7 days from today"
                         },
                         "type": {
                             "type": "string",
