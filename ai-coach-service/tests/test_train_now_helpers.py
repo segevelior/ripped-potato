@@ -81,3 +81,85 @@ class TestLoadTrainingPlans:
         db = MagicMock()
         db.plans.find = MagicMock(side_effect=RuntimeError("boom"))
         assert await load_training_plans(db, str(ObjectId())) == []
+
+
+class TestFormatCalendarForLLM:
+    """TOR-19: the generator must see actual exercises done, yesterday's
+    outcome (incl. missed), not just event titles."""
+
+    def _calendar(self, **overrides):
+        from datetime import datetime
+        data = {
+            "today_events": [],
+            "week_events": [],
+            "recent_workouts": [],
+            "yesterday_events": [],
+            "today_date": "2026-07-13",
+            "day_of_week": "Monday",
+        }
+        data.update(overrides)
+        return data
+
+    def test_recent_workouts_include_exercise_names(self):
+        from datetime import datetime
+        from app.api.v1.train_now import format_calendar_for_llm
+        out = format_calendar_for_llm(self._calendar(recent_workouts=[{
+            "date": datetime(2026, 7, 11),
+            "title": "Push Day",
+            "workoutDetails": {
+                "type": "strength",
+                "exercises": [
+                    {"exerciseName": "Bench Press"},
+                    {"exerciseName": "Overhead Press"},
+                ],
+            },
+        }]))
+        assert "COMPLETED WORKOUTS (last 14 days" in out
+        assert "Push Day (strength)" in out
+        assert "Exercises: Bench Press, Overhead Press" in out
+
+    def test_recent_workout_exercise_names_capped_at_ten(self):
+        from datetime import datetime
+        from app.api.v1.train_now import format_calendar_for_llm
+        out = format_calendar_for_llm(self._calendar(recent_workouts=[{
+            "date": datetime(2026, 7, 11),
+            "title": "Mega Day",
+            "workoutDetails": {
+                "type": "strength",
+                "exercises": [{"exerciseName": f"Move {i}"} for i in range(15)],
+            },
+        }]))
+        assert "Move 9" in out
+        assert "Move 10" not in out
+        assert "…" in out
+
+    def test_yesterday_missed_workout_labelled(self):
+        from datetime import datetime
+        from app.api.v1.train_now import format_calendar_for_llm
+        out = format_calendar_for_llm(self._calendar(yesterday_events=[
+            {"date": datetime(2026, 7, 12), "title": "Endurance 1", "status": "scheduled"},
+            {"date": datetime(2026, 7, 12), "title": "Core Blast", "status": "completed"},
+        ]))
+        assert "YESTERDAY:" in out
+        assert "Endurance 1 (MISSED (was scheduled, never completed))" in out
+        assert "Core Blast (completed)" in out
+
+    def test_no_yesterday_section_when_empty(self):
+        from app.api.v1.train_now import format_calendar_for_llm
+        out = format_calendar_for_llm(self._calendar())
+        assert "YESTERDAY:" not in out
+        assert "NO WORKOUT SCHEDULED FOR TODAY" in out
+
+
+class TestTrainNowPromptRules:
+    def test_rest_gate_requires_streak_ending_yesterday(self):
+        from app.services.daily_pick_service import TRAIN_NOW_PROMPT
+        assert "ENDING YESTERDAY" in TRAIN_NOW_PROMPT
+
+    def test_reexports_from_route_module_still_work(self):
+        # Back-compat: helpers moved to daily_pick_service but remain importable
+        # from the route module.
+        from app.api.v1 import train_now
+        from app.services import daily_pick_service
+        assert train_now.format_plan_week is daily_pick_service.format_plan_week
+        assert train_now.get_or_generate_today_pick is daily_pick_service.get_or_generate_today_pick
