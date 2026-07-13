@@ -427,7 +427,7 @@ export default function Settings() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary-400" />
       </div>
     );
