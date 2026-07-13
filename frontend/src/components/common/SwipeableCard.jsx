@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Trash2, Pencil } from 'lucide-react';
 
 const SWIPE_THRESHOLD = 60; // Pixels to trigger action reveal
+const AXIS_LOCK_SLOP = 10; // Movement before the gesture is locked to an axis
 
 export default function SwipeableCard({
   children,
@@ -21,19 +22,32 @@ export default function SwipeableCard({
   const [isDragging, setIsDragging] = useState(false);
   const [isActionsRevealed, setIsActionsRevealed] = useState(false);
   const startXRef = useRef(0);
+  const startYRef = useRef(0);
   const currentXRef = useRef(0);
+  const axisRef = useRef(null); // null = undecided, 'x' = swiping, 'y' = scrolling
   const containerRef = useRef(null);
 
-  const handleStart = (clientX) => {
+  const handleStart = (clientX, clientY) => {
     setIsDragging(true);
     startXRef.current = clientX;
+    startYRef.current = clientY;
+    axisRef.current = null;
     currentXRef.current = translateX;
   };
 
-  const handleMove = (clientX) => {
+  const handleMove = (clientX, clientY) => {
     if (!isDragging) return;
 
     const diff = clientX - startXRef.current;
+    // Lock the gesture to one axis on first significant movement, so a
+    // vertical scroll with slight horizontal drift never drags the card.
+    if (axisRef.current === null) {
+      const diffY = clientY - startYRef.current;
+      if (Math.abs(diff) < AXIS_LOCK_SLOP && Math.abs(diffY) < AXIS_LOCK_SLOP) return;
+      axisRef.current = Math.abs(diff) > Math.abs(diffY) ? 'x' : 'y';
+    }
+    if (axisRef.current === 'y') return;
+
     let newTranslate = currentXRef.current + diff;
 
     // Only allow swiping left (negative values)
@@ -59,11 +73,11 @@ export default function SwipeableCard({
   };
 
   const handleTouchStart = (e) => {
-    handleStart(e.touches[0].clientX);
+    handleStart(e.touches[0].clientX, e.touches[0].clientY);
   };
 
   const handleTouchMove = (e) => {
-    handleMove(e.touches[0].clientX);
+    handleMove(e.touches[0].clientX, e.touches[0].clientY);
   };
 
   const handleTouchEnd = () => {
@@ -72,11 +86,11 @@ export default function SwipeableCard({
 
   const handleMouseDown = (e) => {
     e.preventDefault();
-    handleStart(e.clientX);
+    handleStart(e.clientX, e.clientY);
   };
 
   const handleMouseMove = (e) => {
-    handleMove(e.clientX);
+    handleMove(e.clientX, e.clientY);
   };
 
   const handleMouseUp = () => {
@@ -168,6 +182,7 @@ export default function SwipeableCard({
         style={{
           transform: `translateX(${translateX}px)`,
           transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+          touchAction: 'pan-y',
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

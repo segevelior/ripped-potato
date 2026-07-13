@@ -280,6 +280,7 @@ function SwipeableExerciseCard({ exercise, exerciseIndex, onSetUpdate, onSetComp
   const [revealed, setRevealed] = useState(false);
   const startXRef = useRef(0);
   const startYRef = useRef(0);
+  const axisRef = useRef(null); // null = undecided, 'x' = swiping, 'y' = scrolling
   const suppressSwipeRef = useRef(false);
   const longPressTimerRef = useRef(null);
   const COMPLETE_THRESHOLD = 100;   // swipe-right distance to complete all
@@ -303,6 +304,7 @@ function SwipeableExerciseCard({ exercise, exerciseIndex, onSetUpdate, onSetComp
     setIsDragging(true);
     startXRef.current = clientX;
     startYRef.current = clientY;
+    axisRef.current = null;
     suppressSwipeRef.current = false;
     // Start the long-press timer; any real drag (handleMove) cancels it.
     cancelLongPress();
@@ -322,6 +324,13 @@ function SwipeableExerciseCard({ exercise, exerciseIndex, onSetUpdate, onSetComp
     // vertically while scrolling the list shouldn't trigger the action sheet.
     const diffY = clientY == null ? 0 : clientY - startYRef.current;
     if (Math.abs(diff) > MOVE_SLOP || Math.abs(diffY) > MOVE_SLOP) cancelLongPress();
+    // Lock the gesture to one axis on first significant movement — a vertical
+    // scroll with slight horizontal drift must not drag the card (TOR-16).
+    if (axisRef.current === null) {
+      if (Math.abs(diff) < MOVE_SLOP && Math.abs(diffY) < MOVE_SLOP) return;
+      axisRef.current = Math.abs(diff) > Math.abs(diffY) ? 'x' : 'y';
+    }
+    if (axisRef.current === 'y') return;
     // Right = complete (capped 150). Left = reveal actions (capped REVEAL_WIDTH).
     const base = revealed ? -REVEAL_WIDTH : 0;
     const next = Math.max(-REVEAL_WIDTH, Math.min(base + diff, 150));
@@ -384,6 +393,7 @@ function SwipeableExerciseCard({ exercise, exerciseIndex, onSetUpdate, onSetComp
         style={{
           transform: `translateX(${translateX}px)`,
           transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+          touchAction: 'pan-y',
         }}
         onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchMove={(e) => handleMove(e.touches[0].clientX, e.touches[0].clientY)}
