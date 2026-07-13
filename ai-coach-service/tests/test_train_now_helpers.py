@@ -149,3 +149,17 @@ class TestFormatCalendarForLLM:
         out = format_calendar_for_llm(self._calendar())
         assert "YESTERDAY:" not in out
         assert "NO WORKOUT SCHEDULED FOR TODAY" in out
+
+
+class TestTrainNowPromptRules:
+    def test_rest_gate_requires_streak_ending_yesterday(self):
+        from app.services.daily_pick_service import TRAIN_NOW_PROMPT
+        assert "ENDING YESTERDAY" in TRAIN_NOW_PROMPT
+
+    def test_reexports_from_route_module_still_work(self):
+        # Back-compat: helpers moved to daily_pick_service but remain importable
+        # from the route module.
+        from app.api.v1 import train_now
+        from app.services import daily_pick_service
+        assert train_now.format_plan_week is daily_pick_service.format_plan_week
+        assert train_now.get_or_generate_today_pick is daily_pick_service.get_or_generate_today_pick

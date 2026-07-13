@@ -74,6 +74,45 @@ class TestFormatForPrompt:
         assert f"Exercise {cap}" not in out
         assert "…" in out
 
+    def test_no_ellipsis_when_names_exactly_fill_the_cap(self):
+        cap = RecommendationService.MAX_PROMPT_EXERCISE_NAMES
+        exact = {
+            "localDate": TODAY,
+            "reasoning": "",
+            "suggestion": {
+                "type": "workout",
+                "name": "Exact Session",
+                "blocks": [{
+                    "name": "Main Work",
+                    "exercises": [{"exercise_name": f"Exercise {i}"} for i in range(cap)],
+                }],
+            },
+        }
+        out = RecommendationService.format_for_prompt([exact], TODAY)
+        assert f"Exercise {cap - 1}" in out
+        assert "…" not in out
+        assert "more exercises not shown" not in out
+
+    def test_cap_exhausted_before_a_later_block_notes_hidden_exercises(self):
+        cap = RecommendationService.MAX_PROMPT_EXERCISE_NAMES
+        two_blocks = {
+            "localDate": TODAY,
+            "reasoning": "",
+            "suggestion": {
+                "type": "workout",
+                "name": "Long Session",
+                "blocks": [
+                    {"name": "Main Work",
+                     "exercises": [{"exercise_name": f"Exercise {i}"} for i in range(cap)]},
+                    {"name": "Cool-down",
+                     "exercises": [{"exercise_name": "Child's Pose"}]},
+                ],
+            },
+        }
+        out = RecommendationService.format_for_prompt([two_blocks], TODAY)
+        assert "Child's Pose" not in out
+        assert "more exercises not shown" in out
+
     def test_today_and_yesterday_together(self):
         out = RecommendationService.format_for_prompt(
             [_rec(), _rec(local_date=YESTERDAY, name="Old Pick")], TODAY
@@ -110,6 +149,18 @@ class TestGetRecentProjection:
         assert projection["suggestion.blocks.exercises.exercise_name"] == 1
         assert projection["suggestion.name"] == 1
 
+    @pytest.mark.asyncio
+    async def test_fetch_error_returns_none_not_empty_list(self):
+        # None = lookup failed; callers must not read it as "no picks exist".
+        collection = MagicMock()
+        collection.find = MagicMock(side_effect=RuntimeError("mongo down"))
+        db = MagicMock()
+        db.__getitem__ = MagicMock(return_value=collection)
+
+        service = RecommendationService(db)
+        result = await service.get_recent(str(ObjectId()), [TODAY])
+        assert result is None
+
 
 class TestBuildExtraContext:
     """Orchestrator._build_extra_context: today's pick block when present,
@@ -141,3 +192,14 @@ class TestBuildExtraContext:
         assert "Bodyweight Core + Mobility" in out
         assert "Cat-Cow" in out
         assert "not generated yet" not in out
+
+    @pytest.mark.asyncio
+    async def test_fetch_failure_omits_block_and_placeholder(self):
+        # get_recent -> None means the lookup failed; the context must not
+        # falsely claim no pick was generated today.
+        from datetime import datetime
+
+        build = self._self(None)
+        out = await build("user1", datetime(2026, 7, 13, 14, 0), TODAY)
+        assert "not generated yet" not in out
+        assert "TODAY'S PICK" not in out

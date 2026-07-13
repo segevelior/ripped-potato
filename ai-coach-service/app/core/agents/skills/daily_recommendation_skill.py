@@ -1,18 +1,22 @@
 """
 Skill: get_daily_recommendation
 
-Fetch (or lazily generate) the user's daily suggested workout — the "Today's
-Pick" shown on the Dashboard / Train Now page, persisted in dailyRecommendations.
+Fetch (or lazily generate, or refresh) the user's daily suggested workout —
+the "Today's Pick" shown on the Dashboard / Train Now page, persisted in
+dailyRecommendations.
 
-Reuses the Train Now endpoint's generator and its per-user locks so a dashboard
-load racing a chat question produces ONE generation and both surfaces show the
+Delegates to daily_pick_service.get_or_generate_today_pick, the same entry
+point the GET /train-now endpoint uses (shared per-user lock), so a dashboard
+load racing a chat turn produces ONE generation and both surfaces show the
 same pick (TOR-19: the sensei must never invent a competing suggestion).
 """
 
 import re
+from datetime import datetime
 from typing import Any, Dict
 
 from app.core.agents.skills.registry import SkillContext, skill
+from app.services.daily_pick_service import get_or_generate_today_pick, get_user_local_date
 from app.services.recommendation_service import RecommendationService
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -22,6 +26,10 @@ _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _PRESENTATION_NOTE = (
     "This is the Today's Pick already shown on the user's Dashboard / Train Now "
     "page — present it as such, not as a new suggestion of yours."
+)
+_REFRESHED_NOTE = (
+    "This is a fresh Today's Pick that REPLACES the previous one — the Dashboard / "
+    "Train Now page now shows this new suggestion too."
 )
 
 
@@ -33,7 +41,8 @@ _PRESENTATION_NOTE = (
         "yet for today, it generates and persists one (the same suggestion the dashboard "
         "will show). Use whenever the user asks what to do/train today, about \"today's "
         "pick\"/suggested workout, or wants its details — especially when the calendar "
-        "has nothing scheduled today."
+        "has nothing scheduled today. If the user dislikes today's pick and wants a "
+        "different one, call it with refresh=true to regenerate (the dashboard updates too)."
     ),
     parameters={
         "type": "object",
@@ -46,17 +55,17 @@ _PRESENTATION_NOTE = (
                 "type": "boolean",
                 "description": "Generate a fresh pick when none exists (only applies to today). Default true.",
             },
+            "refresh": {
+                "type": "boolean",
+                "description": "Discard today's pick and generate a different one (only applies to today). Use when the user rejects the current pick. Default false.",
+            },
         },
     },
 )
 async def get_daily_recommendation(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
-    # Lazy import (same pattern as ensure_current_week_resolved) — the endpoint
-    # module owns the generator and the per-user generation locks.
-    from app.api.v1 import train_now as train_now_module
-
     recommendation_service = RecommendationService(ctx.db)
 
-    today_date, timezone_hint = await train_now_module._get_user_local_date(ctx.db, user_id)
+    today_date, _timezone = await get_user_local_date(ctx.db, user_id)
 
     date_arg = (args.get("date") or "today").strip().lower()
     if date_arg in ("", "today"):
@@ -67,36 +76,30 @@ async def get_daily_recommendation(ctx: SkillContext, user_id: str, args: Dict[s
         return {"success": False, "message": f"Invalid date '{args.get('date')}' — use 'today' or YYYY-MM-DD."}
 
     is_today = target_date == today_date
+    # Explicit `is`-checks: the model may pass null for optionals, which must
+    # keep the defaults (generate on, refresh off) rather than flip them.
+    refresh = is_today and args.get("refresh") is True
+    generate_if_missing = args.get("generate_if_missing") is not False
 
-    doc = await recommendation_service.get_for_date(user_id, target_date)
-    if doc and doc.get("suggestion"):
-        return _found(doc, target_date, is_today, cached=True)
-
-    generate_if_missing = args.get("generate_if_missing", True)
-    if not is_today or not generate_if_missing:
-        return {
-            "success": True,
-            "date": target_date,
-            "suggestion": None,
-            "message": (
-                "No daily recommendation was generated for that date."
-                if not is_today
-                else "No Today's Pick has been generated yet today."
-            ),
-        }
-
-    # Generate under the SAME per-user lock as GET /train-now so a dashboard
-    # load racing this chat turn results in one generation and one shared pick.
-    import asyncio
-
-    lock = train_now_module._generation_locks.setdefault(user_id, asyncio.Lock())
-    async with lock:
+    if not refresh:
         doc = await recommendation_service.get_for_date(user_id, target_date)
         if doc and doc.get("suggestion"):
-            return _found(doc, target_date, is_today, cached=True)
-        result = await train_now_module._generate_and_persist(
-            ctx.db, ctx.settings, {"user_id": user_id}, user_id, target_date, timezone_hint
-        )
+            return _found(doc, target_date, is_today)
+        if not is_today or not generate_if_missing:
+            return {
+                "success": True,
+                "date": target_date,
+                "suggestion": None,
+                "message": (
+                    "No daily recommendation was generated for that date."
+                    if not is_today
+                    else "No Today's Pick has been generated yet today."
+                ),
+            }
+
+    # Generate (or regenerate) through the shared service — same per-user lock
+    # as GET /train-now, so dashboard + chat converge on one pick.
+    result = await get_or_generate_today_pick(ctx.db, ctx.settings, user_id, refresh=refresh)
 
     if not result.get("success"):
         return {
@@ -108,20 +111,20 @@ async def get_daily_recommendation(ctx: SkillContext, user_id: str, args: Dict[s
     return {
         "success": True,
         "date": target_date,
-        "cached": False,
+        "cached": bool(result.get("cached")),
         "suggestion": result.get("suggestion"),
-        "note": _PRESENTATION_NOTE,
+        "note": _REFRESHED_NOTE if refresh else _PRESENTATION_NOTE,
     }
 
 
-def _found(doc: Dict[str, Any], target_date: str, is_today: bool, cached: bool) -> Dict[str, Any]:
+def _found(doc: Dict[str, Any], target_date: str, is_today: bool) -> Dict[str, Any]:
     generated_at = doc.get("generatedAt")
     out = {
         "success": True,
         "date": target_date,
-        "cached": cached,
+        "cached": True,
         "suggestion": doc.get("suggestion"),
-        "generated_at": generated_at.isoformat() + "Z" if generated_at else None,
+        "generated_at": generated_at.isoformat() + "Z" if isinstance(generated_at, datetime) else None,
     }
     if is_today:
         out["note"] = _PRESENTATION_NOTE

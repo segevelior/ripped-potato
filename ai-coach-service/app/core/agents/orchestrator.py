@@ -163,13 +163,17 @@ class AgentOrchestrator:
         try:
             yesterday_date = (local_now - timedelta(days=1)).strftime('%Y-%m-%d')
             recs = await self.recommendation_service.get_recent(user_id, [today_date, yesterday_date])
-            rec_block = RecommendationService.format_for_prompt(recs, today_date)
-            if rec_block:
-                blocks.append(rec_block)
-            if not any(rec.get("localDate") == today_date for rec in recs):
-                # No pick generated yet today (user opened chat before the dashboard) —
-                # tell the model the pick exists as a concept and how to fetch it.
-                blocks.append(RecommendationService.placeholder_for_prompt(today_date))
+            # None = the lookup itself failed — omit the block entirely rather
+            # than falsely asserting no pick exists for today.
+            if recs is not None:
+                rec_block = RecommendationService.format_for_prompt(recs, today_date)
+                if rec_block:
+                    blocks.append(rec_block)
+                if not any(rec.get("localDate") == today_date for rec in recs):
+                    # No pick generated yet today (user opened chat before the
+                    # dashboard) — tell the model it exists as a concept and how
+                    # to fetch it.
+                    blocks.append(RecommendationService.placeholder_for_prompt(today_date))
 
             stc_entries = await self.short_term_context.get_recent(user_id, limit=8)
             stc_block = ShortTermContextService.format_for_prompt(stc_entries)

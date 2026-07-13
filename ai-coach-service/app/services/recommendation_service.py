@@ -103,9 +103,13 @@ class RecommendationService:
             logger.error(f"Error saving recommendation for {user_id}/{local_date}: {e}")
             return False
 
-    async def get_recent(self, user_id: str, local_dates: List[str]) -> List[Dict[str, Any]]:
+    async def get_recent(self, user_id: str, local_dates: List[str]) -> Optional[List[Dict[str, Any]]]:
         """Fetch recommendations for a small set of local dates (e.g. today + yesterday),
-        projected down to what prompt injection needs."""
+        projected down to what prompt injection needs.
+
+        Returns None on a fetch error — callers must distinguish 'lookup failed'
+        from 'genuinely no recommendations' (an empty list) so they never claim
+        a pick doesn't exist just because Mongo hiccupped."""
         try:
             cursor = self.collection.find(
                 {"userId": ObjectId(user_id), "localDate": {"$in": local_dates}},
@@ -123,7 +127,7 @@ class RecommendationService:
             return await cursor.to_list(len(local_dates))
         except Exception as e:
             logger.error(f"Error fetching recent recommendations for {user_id}: {e}")
-            return []
+            return None
 
     # Cap on exercise names rendered for today's pick, to bound prompt tokens.
     MAX_PROMPT_EXERCISE_NAMES = 20
@@ -169,11 +173,15 @@ class RecommendationService:
                         for ex in (block.get("exercises") or [])
                         if ex.get("exercise_name")
                     ]
-                    if not names or remaining <= 0:
+                    if not names:
                         continue
+                    if remaining <= 0:
+                        lines.append("  (more exercises not shown — fetch with get_daily_recommendation)")
+                        break
                     shown = names[:remaining]
                     remaining -= len(shown)
-                    suffix = ", …" if len(shown) < len(names) or remaining <= 0 else ""
+                    # Ellipsis only when names were actually dropped from THIS block.
+                    suffix = ", …" if len(shown) < len(names) else ""
                     lines.append(f"  {block.get('name', 'Block')}: {', '.join(shown)}{suffix}")
         if today_pick_name:
             lines.append(
