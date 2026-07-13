@@ -109,6 +109,12 @@ class LinearService {
 
       const labelId = await this.findLabelIdForCategory(category);
 
+      if (!process.env.LINEAR_FEEDBACK_PROJECT_ID) {
+        console.warn(
+          'LINEAR_FEEDBACK_PROJECT_ID not set — feedback issue will be created without a project'
+        );
+      }
+
       const input = {
         teamId: process.env.LINEAR_TEAM_ID,
         title,
