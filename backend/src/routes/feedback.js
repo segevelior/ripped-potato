@@ -1,8 +1,9 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
-const Feedback = require('../models/Feedback');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
+const LinearService = require('../services/LinearService');
 const OpenAI = require('openai');
 
 // Initialize OpenAI client
@@ -10,19 +11,20 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Helper function to get user profile info (without sensitive data)
-const getUserProfileInfo = (user) => {
-  if (!user) return null;
-  return {
-    fitnessLevel: user.profile?.fitnessLevel,
-    goals: user.profile?.goals || [],
-    sportPreferences: user.profile?.sportPreferences || [],
-    injuries: user.profile?.injuries || []
-  };
-};
+// Dedicated limiter for feedback submission — each submission opens a Linear issue,
+// so keep this tighter than the global limiter (keyed per user, runs after auth)
+const submitLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => req.user.id,
+  message: {
+    success: false,
+    message: 'Too many feedback submissions. Please try again later.'
+  }
+});
 
-// POST /api/v1/feedback - Submit new feedback
-router.post('/', auth, async (req, res) => {
+// POST /api/v1/feedback - Submit new feedback (opens a Linear issue, best-effort async)
+router.post('/', auth, submitLimiter, async (req, res) => {
   try {
     const { rating, feedbackText, category, page } = req.body;
 
@@ -33,279 +35,25 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    const feedback = new Feedback({
-      user: req.user.id,
+    // Respond immediately; Linear issue creation is fire-and-forget
+    res.status(201).json({
+      success: true,
+      message: 'Feedback submitted successfully'
+    });
+
+    LinearService.createFeedbackIssue({
       rating,
       feedbackText: feedbackText?.slice(0, 1000),
       category: category || 'general',
       page,
-      userAgent: req.headers['user-agent']
-    });
-
-    await feedback.save();
-
-    res.status(201).json({
-      success: true,
-      message: 'Feedback submitted successfully',
-      data: feedback
-    });
+      userAgent: req.headers['user-agent'],
+      user: req.user
+    }).catch(err => console.error('Feedback → Linear failed (feedback lost):', err.message));
   } catch (error) {
     console.error('Error submitting feedback:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to submit feedback',
-      error: error.message
-    });
-  }
-});
-
-// GET /api/v1/feedback - Get all feedback (admin only)
-router.get('/', auth, async (req, res) => {
-  try {
-    // Only superAdmin can view all feedback
-    if (req.user.role !== 'superAdmin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin only.'
-      });
-    }
-
-    const {
-      status,
-      rating,
-      category,
-      limit = 50,
-      page = 1,
-      sortBy = 'createdAt',
-      sortOrder = 'desc'
-    } = req.query;
-
-    const filter = {};
-    if (status) filter.status = status;
-    if (rating) filter.rating = rating;
-    if (category) filter.category = category;
-
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
-
-    const [feedbacks, total] = await Promise.all([
-      Feedback.find(filter)
-        .populate('user', 'name email profile')
-        .sort(sort)
-        .skip(skip)
-        .limit(parseInt(limit))
-        .lean(),
-      Feedback.countDocuments(filter)
-    ]);
-
-    // Add user profile info to each feedback
-    const feedbacksWithProfile = feedbacks.map(fb => ({
-      ...fb,
-      userProfile: getUserProfileInfo(fb.user),
-      user: fb.user ? { _id: fb.user._id } : null // Remove name/email for privacy
-    }));
-
-    res.json({
-      success: true,
-      data: {
-        feedbacks: feedbacksWithProfile,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / parseInt(limit))
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching feedback:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch feedback',
-      error: error.message
-    });
-  }
-});
-
-// GET /api/v1/feedback/stats - Get feedback statistics (admin only)
-router.get('/stats', auth, async (req, res) => {
-  try {
-    if (req.user.role !== 'superAdmin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin only.'
-      });
-    }
-
-    const [
-      totalCount,
-      thumbsUpCount,
-      thumbsDownCount,
-      statusCounts,
-      categoryCounts,
-      recentFeedback
-    ] = await Promise.all([
-      Feedback.countDocuments(),
-      Feedback.countDocuments({ rating: 'thumbs_up' }),
-      Feedback.countDocuments({ rating: 'thumbs_down' }),
-      Feedback.aggregate([
-        { $group: { _id: '$status', count: { $sum: 1 } } }
-      ]),
-      Feedback.aggregate([
-        { $group: { _id: '$category', count: { $sum: 1 } } }
-      ]),
-      Feedback.find()
-        .populate('user', 'name email')
-        .sort({ createdAt: -1 })
-        .limit(5)
-        .lean()
-    ]);
-
-    res.json({
-      success: true,
-      data: {
-        total: totalCount,
-        thumbsUp: thumbsUpCount,
-        thumbsDown: thumbsDownCount,
-        byStatus: statusCounts.reduce((acc, item) => {
-          acc[item._id] = item.count;
-          return acc;
-        }, {}),
-        byCategory: categoryCounts.reduce((acc, item) => {
-          acc[item._id] = item.count;
-          return acc;
-        }, {}),
-        recent: recentFeedback
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching feedback stats:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch feedback statistics',
-      error: error.message
-    });
-  }
-});
-
-// PATCH /api/v1/feedback/:id - Update feedback status (admin only)
-router.patch('/:id', auth, async (req, res) => {
-  try {
-    if (req.user.role !== 'superAdmin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin only.'
-      });
-    }
-
-    const { status, adminNotes } = req.body;
-
-    const feedback = await Feedback.findById(req.params.id);
-    if (!feedback) {
-      return res.status(404).json({
-        success: false,
-        message: 'Feedback not found'
-      });
-    }
-
-    if (status) feedback.status = status;
-    if (adminNotes !== undefined) feedback.adminNotes = adminNotes;
-
-    await feedback.save();
-
-    res.json({
-      success: true,
-      message: 'Feedback updated successfully',
-      data: feedback
-    });
-  } catch (error) {
-    console.error('Error updating feedback:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update feedback',
-      error: error.message
-    });
-  }
-});
-
-// PATCH /api/v1/feedback/bulk - Bulk update feedback status (superAdmin only)
-router.patch('/bulk', auth, async (req, res) => {
-  try {
-    if (req.user.role !== 'superAdmin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. SuperAdmin only.'
-      });
-    }
-
-    const { ids, status, adminNotes } = req.body;
-
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'ids array is required'
-      });
-    }
-
-    if (!status) {
-      return res.status(400).json({
-        success: false,
-        message: 'status is required'
-      });
-    }
-
-    const updateData = { status };
-    if (adminNotes !== undefined) {
-      updateData.adminNotes = adminNotes;
-    }
-
-    const result = await Feedback.updateMany(
-      { _id: { $in: ids } },
-      { $set: updateData }
-    );
-
-    res.json({
-      success: true,
-      message: `Updated ${result.modifiedCount} feedback items`,
-      data: { modifiedCount: result.modifiedCount }
-    });
-  } catch (error) {
-    console.error('Error bulk updating feedback:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to bulk update feedback',
-      error: error.message
-    });
-  }
-});
-
-// DELETE /api/v1/feedback/:id - Delete feedback (admin only)
-router.delete('/:id', auth, async (req, res) => {
-  try {
-    if (req.user.role !== 'superAdmin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin only.'
-      });
-    }
-
-    const feedback = await Feedback.findByIdAndDelete(req.params.id);
-    if (!feedback) {
-      return res.status(404).json({
-        success: false,
-        message: 'Feedback not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Feedback deleted successfully'
-    });
-  } catch (error) {
-    console.error('Error deleting feedback:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete feedback',
       error: error.message
     });
   }
@@ -505,18 +253,9 @@ router.post('/report', auth, async (req, res) => {
     }
 
     const {
-      siteFeedbackIds = [],
       conversationFeedbacks = [],
       includeAnalysis = true
     } = req.body;
-
-    // Collect site feedbacks
-    let siteFeedbackData = [];
-    if (siteFeedbackIds.length > 0) {
-      siteFeedbackData = await Feedback.find({ _id: { $in: siteFeedbackIds } })
-        .populate('user', 'profile')
-        .lean();
-    }
 
     // Build report
     const now = new Date();
@@ -525,46 +264,15 @@ router.post('/report', auth, async (req, res) => {
     report += `**Generated By:** Admin\n\n`;
 
     // Statistics
-    const totalSite = siteFeedbackData.length;
     const totalConversation = conversationFeedbacks.length;
-    const thumbsDownSite = siteFeedbackData.filter(f => f.rating === 'thumbs_down').length;
     const thumbsDownConv = conversationFeedbacks.filter(f => f.rating === 'thumbs_down').length;
 
     report += `## Summary Statistics\n\n`;
-    report += `| Metric | Site Feedback | Conversation Feedback | Total |\n`;
-    report += `|--------|---------------|----------------------|-------|\n`;
-    report += `| Total Items | ${totalSite} | ${totalConversation} | ${totalSite + totalConversation} |\n`;
-    report += `| Thumbs Down | ${thumbsDownSite} | ${thumbsDownConv} | ${thumbsDownSite + thumbsDownConv} |\n`;
-    report += `| With Comments | ${siteFeedbackData.filter(f => f.feedbackText).length} | ${conversationFeedbacks.filter(f => f.feedback_text).length} | - |\n\n`;
-
-    // Site Feedback Section
-    if (siteFeedbackData.length > 0) {
-      report += `## Site Feedback (${siteFeedbackData.length} items)\n\n`;
-
-      // Group by category
-      const byCategory = {};
-      siteFeedbackData.forEach(f => {
-        const cat = f.category || 'general';
-        if (!byCategory[cat]) byCategory[cat] = [];
-        byCategory[cat].push(f);
-      });
-
-      report += `### By Category\n\n`;
-      Object.entries(byCategory).forEach(([category, items]) => {
-        report += `#### ${category} (${items.length})\n\n`;
-        items.forEach((item, idx) => {
-          report += `**${idx + 1}.** ${item.rating === 'thumbs_up' ? '👍' : '👎'} `;
-          report += `Page: \`${item.page || 'N/A'}\`\n`;
-          if (item.feedbackText) {
-            report += `> ${item.feedbackText}\n`;
-          }
-          if (item.userProfile?.fitnessLevel) {
-            report += `_User: ${item.userProfile.fitnessLevel} level_\n`;
-          }
-          report += `\n`;
-        });
-      });
-    }
+    report += `| Metric | Conversation Feedback |\n`;
+    report += `|--------|----------------------|\n`;
+    report += `| Total Items | ${totalConversation} |\n`;
+    report += `| Thumbs Down | ${thumbsDownConv} |\n`;
+    report += `| With Comments | ${conversationFeedbacks.filter(f => f.feedback_text).length} |\n\n`;
 
     // Conversation Feedback Section
     if (conversationFeedbacks.length > 0) {
@@ -594,10 +302,10 @@ router.post('/report', auth, async (req, res) => {
                       'missing', 'broken', 'crash', 'feature', 'improve', 'workout', 'exercise'];
     const keywordCounts = {};
 
-    const allText = [
-      ...siteFeedbackData.map(f => f.feedbackText || ''),
-      ...conversationFeedbacks.map(f => f.feedback_text || '')
-    ].join(' ').toLowerCase();
+    const allText = conversationFeedbacks
+      .map(f => f.feedback_text || '')
+      .join(' ')
+      .toLowerCase();
 
     keywords.forEach(kw => {
       const count = (allText.match(new RegExp(kw, 'gi')) || []).length;
@@ -628,10 +336,9 @@ router.post('/report', auth, async (req, res) => {
       data: {
         report,
         stats: {
-          totalItems: totalSite + totalConversation,
-          siteFeedback: totalSite,
+          totalItems: totalConversation,
           conversationFeedback: totalConversation,
-          thumbsDown: thumbsDownSite + thumbsDownConv,
+          thumbsDown: thumbsDownConv,
           keywordCounts
         }
       }
@@ -719,9 +426,9 @@ router.post('/analyze', auth, async (req, res) => {
       });
     }
 
-    const { siteFeedbacks = [], conversationFeedbacks = [], includeFullConversations = true } = req.body;
+    const { conversationFeedbacks = [], includeFullConversations = true } = req.body;
 
-    if (siteFeedbacks.length === 0 && conversationFeedbacks.length === 0) {
+    if (conversationFeedbacks.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'At least one feedback item is required'
@@ -785,40 +492,15 @@ router.post('/analyze', auth, async (req, res) => {
     let feedbackContext = '';
 
     // Calculate statistics for context
-    const totalFeedbacks = siteFeedbacks.length + conversationFeedbacks.length;
-    const negativeCount = siteFeedbacks.filter(f => f.rating === 'thumbs_down').length +
-                          conversationFeedbacks.filter(f => f.rating === 'thumbs_down').length;
+    const totalFeedbacks = conversationFeedbacks.length;
+    const negativeCount = conversationFeedbacks.filter(f => f.rating === 'thumbs_down').length;
     const positiveCount = totalFeedbacks - negativeCount;
 
     feedbackContext += `# Feedback Dataset Overview\n`;
     feedbackContext += `- **Total Feedbacks:** ${totalFeedbacks}\n`;
     feedbackContext += `- **Negative (Thumbs Down):** ${negativeCount} (${Math.round(negativeCount/totalFeedbacks*100)}%)\n`;
     feedbackContext += `- **Positive (Thumbs Up):** ${positiveCount} (${Math.round(positiveCount/totalFeedbacks*100)}%)\n`;
-    feedbackContext += `- **Site Feedbacks:** ${siteFeedbacks.length}\n`;
     feedbackContext += `- **AI Conversation Feedbacks:** ${conversationFeedbacks.length}\n\n`;
-
-    if (siteFeedbacks.length > 0) {
-      feedbackContext += '---\n\n# Site Feedback Details\n\n';
-      siteFeedbacks.forEach((f, i) => {
-        feedbackContext += `### Feedback #${i + 1} [${f.rating === 'thumbs_up' ? '👍 POSITIVE' : '👎 NEGATIVE'}]\n`;
-        feedbackContext += `- **Category:** ${f.category || 'general'}\n`;
-        feedbackContext += `- **Page:** ${f.page || 'N/A'}\n`;
-        feedbackContext += `- **Date:** ${f.createdAt ? new Date(f.createdAt).toLocaleDateString() : 'N/A'}\n`;
-        if (f.userProfile) {
-          feedbackContext += `- **User Profile:** ${f.userProfile.fitnessLevel || 'Unknown'} level`;
-          if (f.userProfile.goals?.length) {
-            feedbackContext += `, Goals: ${f.userProfile.goals.join(', ')}`;
-          }
-          feedbackContext += '\n';
-        }
-        if (f.feedbackText) {
-          feedbackContext += `- **User Comment:**\n  > "${f.feedbackText}"\n`;
-        } else {
-          feedbackContext += `- **User Comment:** (No comment provided)\n`;
-        }
-        feedbackContext += '\n';
-      });
-    }
 
     if (enrichedConversationFeedbacks.length > 0) {
       feedbackContext += '---\n\n# AI Conversation Feedback Details\n\n';
@@ -986,7 +668,6 @@ Remember to:
         analysis,
         stats: {
           totalFeedbacks,
-          siteFeedbacks: siteFeedbacks.length,
           conversationFeedbacks: conversationFeedbacks.length,
           thumbsDown: negativeCount,
           thumbsUp: positiveCount,

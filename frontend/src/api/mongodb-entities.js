@@ -185,19 +185,9 @@ export const UserTrainingPattern = {
   list: async () => []
 };
 
-// Feedback entity
+// Feedback entity (submission opens a Linear issue server-side; no Mongo storage)
 export const Feedback = {
-  submit: async (data) => normalizeId(await apiService.feedback.submit(data)),
-  list: async (params) => {
-    const response = await apiService.feedback.list(params);
-    return {
-      feedbacks: normalizeArray(response.feedbacks || []),
-      pagination: response.pagination
-    };
-  },
-  stats: async () => apiService.feedback.stats(),
-  update: async (id, data) => normalizeId(await apiService.feedback.update(id, data)),
-  delete: async (id) => apiService.feedback.delete(id)
+  submit: async (data) => apiService.feedback.submit(data)
 };
 
 // User/Auth entity

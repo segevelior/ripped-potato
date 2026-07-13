@@ -62,15 +62,6 @@ const STATUS_OPTIONS = [
   { value: 'dismissed', label: 'Dismissed', color: 'bg-red-500' },
 ];
 
-const CATEGORY_OPTIONS = [
-  { value: 'general', label: 'General' },
-  { value: 'bug', label: 'Bug' },
-  { value: 'feature_request', label: 'Feature Request' },
-  { value: 'ui_ux', label: 'UI/UX' },
-  { value: 'performance', label: 'Performance' },
-  { value: 'other', label: 'Other' },
-];
-
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
   const date = new Date(dateString);
@@ -210,7 +201,7 @@ const useResizablePanel = (initialWidth = 450, minWidth = 300, maxWidthPercent =
 };
 
 // Feedback detail modal
-const FeedbackDetailModal = ({ feedback, type, isOpen, onClose }) => {
+const FeedbackDetailModal = ({ feedback, isOpen, onClose }) => {
   if (!feedback) return null;
 
   return (
@@ -227,45 +218,24 @@ const FeedbackDetailModal = ({ feedback, type, isOpen, onClose }) => {
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          {type === 'site' ? (
-            <>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Category</label>
-                <p>{CATEGORY_OPTIONS.find(c => c.value === feedback.category)?.label || feedback.category}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Page</label>
-                <p className="font-mono text-sm">{feedback.page || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Feedback</label>
-                <p className="whitespace-pre-wrap bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
-                  {feedback.feedbackText || 'No comment provided'}
-                </p>
-              </div>
-            </>
-          ) : (
-            <>
-              <div>
-                <label className="text-sm font-medium text-gray-500">User Question</label>
-                <p className="whitespace-pre-wrap bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-                  {feedback.question_preview || 'N/A'}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">AI Response</label>
-                <p className="whitespace-pre-wrap bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
-                  {feedback.answer_preview || 'N/A'}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">User Feedback</label>
-                <p className="whitespace-pre-wrap bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
-                  {feedback.feedback_text || 'No comment provided'}
-                </p>
-              </div>
-            </>
-          )}
+          <div>
+            <label className="text-sm font-medium text-gray-500">User Question</label>
+            <p className="whitespace-pre-wrap bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+              {feedback.question_preview || 'N/A'}
+            </p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-500">AI Response</label>
+            <p className="whitespace-pre-wrap bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
+              {feedback.answer_preview || 'N/A'}
+            </p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-500">User Feedback</label>
+            <p className="whitespace-pre-wrap bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+              {feedback.feedback_text || 'No comment provided'}
+            </p>
+          </div>
           <div>
             <label className="text-sm font-medium text-gray-500">User Profile</label>
             <div className="mt-1">
@@ -274,7 +244,7 @@ const FeedbackDetailModal = ({ feedback, type, isOpen, onClose }) => {
           </div>
           <div>
             <label className="text-sm font-medium text-gray-500">Date</label>
-            <p>{formatDate(type === 'site' ? feedback.createdAt : feedback.timestamp)}</p>
+            <p>{formatDate(feedback.timestamp)}</p>
           </div>
         </div>
         <DialogFooter>
@@ -287,16 +257,8 @@ const FeedbackDetailModal = ({ feedback, type, isOpen, onClose }) => {
 
 export default function AdminFeedback() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('site');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Site feedback state
-  const [siteFeedbacks, setSiteFeedbacks] = useState([]);
-  const [sitePagination, setSitePagination] = useState({ page: 1, pages: 1, total: 0 });
-  const [siteFilters, setSiteFilters] = useState({ status: '', rating: '', category: '' });
-  const [siteSort, setSiteSort] = useState({ sortBy: 'createdAt', sortOrder: 'desc' });
-  const [selectedSite, setSelectedSite] = useState([]);
 
   // Conversation feedback state
   const [convFeedbacks, setConvFeedbacks] = useState([]);
@@ -306,7 +268,7 @@ export default function AdminFeedback() {
   const [selectedConv, setSelectedConv] = useState([]);
 
   // Detail modal state
-  const [detailModal, setDetailModal] = useState({ isOpen: false, feedback: null, type: null });
+  const [detailModal, setDetailModal] = useState({ isOpen: false, feedback: null });
 
   // Right panel state
   const [showRightPanel, setShowRightPanel] = useState(false);
@@ -326,18 +288,6 @@ export default function AdminFeedback() {
   const { panelWidth, handleMouseDown: handlePanelResize, setPanelWidth } = useResizablePanel(450, 300, 95);
 
   // Resizable columns
-  const siteColumnWidths = useResizableColumns({
-    checkbox: 40,
-    rating: 60,
-    feedback: 250,
-    category: 100,
-    profile: 150,
-    page: 100,
-    date: 110,
-    status: 110,
-    actions: 50
-  });
-
   const convColumnWidths = useResizableColumns({
     checkbox: 40,
     rating: 60,
@@ -357,29 +307,6 @@ export default function AdminFeedback() {
       navigate('/');
     }
   }, [navigate]);
-
-  // Fetch site feedbacks
-  const fetchSiteFeedbacks = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const params = {
-        page: sitePagination.page,
-        limit: 20,
-        sortBy: siteSort.sortBy,
-        sortOrder: siteSort.sortOrder,
-        ...Object.fromEntries(Object.entries(siteFilters).filter(([_, v]) => v))
-      };
-      const result = await apiService.feedback.list(params);
-      setSiteFeedbacks(result.feedbacks || []);
-      setSitePagination(result.pagination || { page: 1, pages: 1, total: 0 });
-    } catch (err) {
-      console.error('Error fetching site feedbacks:', err);
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [sitePagination.page, siteFilters, siteSort]);
 
   // Fetch conversation feedbacks
   const fetchConvFeedbacks = useCallback(async () => {
@@ -405,22 +332,8 @@ export default function AdminFeedback() {
   }, [convPagination.page, convFilters, convSort]);
 
   useEffect(() => {
-    if (activeTab === 'site') {
-      fetchSiteFeedbacks();
-    } else {
-      fetchConvFeedbacks();
-    }
-  }, [activeTab, fetchSiteFeedbacks, fetchConvFeedbacks]);
-
-  // Handle site feedback status update
-  const handleSiteStatusUpdate = async (id, newStatus) => {
-    try {
-      await apiService.feedback.update(id, { status: newStatus });
-      fetchSiteFeedbacks();
-    } catch (err) {
-      console.error('Error updating status:', err);
-    }
-  };
+    fetchConvFeedbacks();
+  }, [fetchConvFeedbacks]);
 
   // Handle conversation feedback status update
   const handleConvStatusUpdate = async (conversationId, messageIndex, newStatus) => {
@@ -429,18 +342,6 @@ export default function AdminFeedback() {
       fetchConvFeedbacks();
     } catch (err) {
       console.error('Error updating status:', err);
-    }
-  };
-
-  // Bulk update site feedbacks
-  const handleBulkSiteUpdate = async (newStatus) => {
-    if (selectedSite.length === 0) return;
-    try {
-      await apiService.feedback.bulkUpdate(selectedSite, newStatus);
-      setSelectedSite([]);
-      fetchSiteFeedbacks();
-    } catch (err) {
-      console.error('Error bulk updating:', err);
     }
   };
 
@@ -462,12 +363,11 @@ export default function AdminFeedback() {
 
   // Generate LLM analysis
   const handleGenerateAnalysis = async () => {
-    const selectedSiteFeedbacks = siteFeedbacks.filter(f => selectedSite.includes(f._id));
     const selectedConvFeedbacks = convFeedbacks.filter(f =>
       selectedConv.includes(`${f.conversation_id}:${f.message_index}`)
     );
 
-    if (selectedSiteFeedbacks.length === 0 && selectedConvFeedbacks.length === 0) {
+    if (selectedConvFeedbacks.length === 0) {
       setError('Please select feedbacks to analyze');
       return;
     }
@@ -479,7 +379,7 @@ export default function AdminFeedback() {
     setAnalysisStats(null);
 
     try {
-      const result = await apiService.feedback.analyze(selectedSiteFeedbacks, selectedConvFeedbacks);
+      const result = await apiService.feedback.analyze(selectedConvFeedbacks);
       setAnalysisContent(result.analysis);
       setAnalysisStats({
         model: result.model,
@@ -515,15 +415,11 @@ export default function AdminFeedback() {
   const handleGenerateReport = async () => {
     setIsGeneratingReport(true);
     try {
-      const siteFeedbackIds = selectedSite.length > 0
-        ? selectedSite
-        : siteFeedbacks.map(f => f._id);
-
       const conversationFeedbacksToReport = selectedConv.length > 0
         ? convFeedbacks.filter(f => selectedConv.includes(`${f.conversation_id}:${f.message_index}`))
         : convFeedbacks;
 
-      const result = await apiService.feedback.generateReport(siteFeedbackIds, conversationFeedbacksToReport);
+      const result = await apiService.feedback.generateReport(conversationFeedbacksToReport);
       setReportContent(result.report);
       setShowReportModal(true);
     } catch (err) {
@@ -557,24 +453,10 @@ export default function AdminFeedback() {
   };
 
   // Toggle selection
-  const toggleSiteSelection = (id) => {
-    setSelectedSite(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-  };
-
   const toggleConvSelection = (key) => {
     setSelectedConv(prev =>
       prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key]
     );
-  };
-
-  const selectAllSite = () => {
-    if (selectedSite.length === siteFeedbacks.length) {
-      setSelectedSite([]);
-    } else {
-      setSelectedSite(siteFeedbacks.map(f => f._id));
-    }
   };
 
   const selectAllConv = () => {
@@ -653,242 +535,15 @@ export default function AdminFeedback() {
             </div>
           )}
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="site" className="gap-2">
-                <MessageSquare className="w-4 h-4" />
-                Site Feedback
-                <Badge variant="secondary" className="ml-1">{sitePagination.total}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="conversation" className="gap-2">
-                <Bot className="w-4 h-4" />
-                Conversation
-                <Badge variant="secondary" className="ml-1">{convPagination.total}</Badge>
-              </TabsTrigger>
-            </TabsList>
+          <div className="w-full">
+            <div className="flex items-center gap-2 mb-6">
+              <Bot className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+              <h2 className="font-semibold text-gray-900 dark:text-white">Conversation Feedback</h2>
+              <Badge variant="secondary" className="ml-1">{convPagination.total}</Badge>
+            </div>
 
-            {/* Site Feedback Tab */}
-            <TabsContent value="site" className="space-y-4">
-              {/* Filters and bulk actions */}
-              <div className="flex flex-wrap gap-3 items-center justify-between">
-                <div className="flex flex-wrap gap-2">
-                  <Select
-                    value={siteFilters.status}
-                    onValueChange={(v) => setSiteFilters(prev => ({ ...prev, status: v === 'all' ? '' : v }))}
-                  >
-                    <SelectTrigger className="w-[130px]">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      {STATUS_OPTIONS.map(s => (
-                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={siteFilters.rating}
-                    onValueChange={(v) => setSiteFilters(prev => ({ ...prev, rating: v === 'all' ? '' : v }))}
-                  >
-                    <SelectTrigger className="w-[130px]">
-                      <SelectValue placeholder="Rating" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Ratings</SelectItem>
-                      <SelectItem value="thumbs_up">Thumbs Up</SelectItem>
-                      <SelectItem value="thumbs_down">Thumbs Down</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={siteFilters.category}
-                    onValueChange={(v) => setSiteFilters(prev => ({ ...prev, category: v === 'all' ? '' : v }))}
-                  >
-                    <SelectTrigger className="w-[130px]">
-                      <SelectValue placeholder="Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {CATEGORY_OPTIONS.map(c => (
-                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Button variant="outline" size="icon" onClick={fetchSiteFeedbacks}>
-                    <RefreshCw className="w-4 h-4" />
-                  </Button>
-                </div>
-
-                {selectedSite.length > 0 && (
-                  <div className="flex gap-2 items-center">
-                    <span className="text-sm text-gray-500">{selectedSite.length} selected</span>
-                    <Select onValueChange={(v) => handleBulkSiteUpdate(v)}>
-                      <SelectTrigger className="w-[150px]">
-                        <SelectValue placeholder="Set Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STATUS_OPTIONS.map(s => (
-                          <SelectItem key={s.value} value={s.value}>
-                            Mark as {s.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-
-              {/* Table */}
-              <div className="border rounded-lg overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead style={{ width: siteColumnWidths.columnWidths.checkbox }}>
-                        <Checkbox
-                          checked={selectedSite.length === siteFeedbacks.length && siteFeedbacks.length > 0}
-                          onCheckedChange={selectAllSite}
-                        />
-                      </TableHead>
-                      <TableHead style={{ width: siteColumnWidths.columnWidths.rating }}>Rating</TableHead>
-                      <TableHead
-                        style={{ width: siteColumnWidths.columnWidths.feedback, position: 'relative' }}
-                        className="group"
-                      >
-                        Feedback
-                        <div
-                          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 opacity-0 group-hover:opacity-100"
-                          onMouseDown={(e) => siteColumnWidths.handleMouseDown('feedback', e)}
-                        />
-                      </TableHead>
-                      <TableHead style={{ width: siteColumnWidths.columnWidths.category }}>Category</TableHead>
-                      <TableHead style={{ width: siteColumnWidths.columnWidths.profile }}>User Profile</TableHead>
-                      <TableHead style={{ width: siteColumnWidths.columnWidths.page }}>Page</TableHead>
-                      <TableHead style={{ width: siteColumnWidths.columnWidths.date }}>
-                        <button
-                          onClick={() => setSiteSort(prev => ({
-                            sortBy: 'createdAt',
-                            sortOrder: prev.sortOrder === 'desc' ? 'asc' : 'desc'
-                          }))}
-                          className="flex items-center gap-1"
-                        >
-                          Date <ArrowUpDown className="w-3 h-3" />
-                        </button>
-                      </TableHead>
-                      <TableHead style={{ width: siteColumnWidths.columnWidths.status }}>Status</TableHead>
-                      <TableHead style={{ width: siteColumnWidths.columnWidths.actions }}></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8">
-                          <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
-                        </TableCell>
-                      </TableRow>
-                    ) : siteFeedbacks.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                          No feedback found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      siteFeedbacks.map((feedback) => (
-                        <TableRow key={feedback._id}>
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedSite.includes(feedback._id)}
-                              onCheckedChange={() => toggleSiteSelection(feedback._id)}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            {feedback.rating === 'thumbs_up' ? (
-                              <ThumbsUp className="w-5 h-5 text-green-500" />
-                            ) : (
-                              <ThumbsDown className="w-5 h-5 text-red-500" />
-                            )}
-                          </TableCell>
-                          <TableCell style={{ maxWidth: siteColumnWidths.columnWidths.feedback }}>
-                            <TruncatedText text={feedback.feedbackText} maxLines={3} />
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {CATEGORY_OPTIONS.find(c => c.value === feedback.category)?.label || feedback.category}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <UserProfileBadges profile={feedback.userProfile} />
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-xs text-gray-500 truncate block" style={{ maxWidth: siteColumnWidths.columnWidths.page }}>
-                              {feedback.page || 'N/A'}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-sm text-gray-500">
-                            {formatDate(feedback.createdAt)}
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={feedback.status}
-                              onValueChange={(v) => handleSiteStatusUpdate(feedback._id, v)}
-                            >
-                              <SelectTrigger className="w-[100px] h-8">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {STATUS_OPTIONS.map(s => (
-                                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDetailModal({ isOpen: true, feedback, type: 'site' })}
-                            >
-                              <Expand className="w-4 h-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Pagination */}
-              {sitePagination.pages > 1 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">
-                    Page {sitePagination.page} of {sitePagination.pages}
-                  </span>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={sitePagination.page <= 1}
-                      onClick={() => setSitePagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={sitePagination.page >= sitePagination.pages}
-                      onClick={() => setSitePagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </TabsContent>
-
-            {/* Conversation Feedback Tab */}
-            <TabsContent value="conversation" className="space-y-4">
+            {/* Conversation Feedback */}
+            <div className="space-y-4">
               {/* Filters and bulk actions */}
               <div className="flex flex-wrap gap-3 items-center justify-between">
                 <div className="flex flex-wrap gap-2">
@@ -1073,7 +728,7 @@ export default function AdminFeedback() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => setDetailModal({ isOpen: true, feedback, type: 'conversation' })}
+                                  onClick={() => setDetailModal({ isOpen: true, feedback })}
                                   title="View details"
                                 >
                                   <Expand className="w-4 h-4" />
@@ -1122,8 +777,8 @@ export default function AdminFeedback() {
                   </div>
                 </div>
               )}
-            </TabsContent>
-          </Tabs>
+            </div>
+          </div>
         </div>
 
         {/* Right Panel - Resizable on desktop, full-screen overlay on mobile */}
@@ -1347,9 +1002,8 @@ export default function AdminFeedback() {
       {/* Detail Modal */}
       <FeedbackDetailModal
         feedback={detailModal.feedback}
-        type={detailModal.type}
         isOpen={detailModal.isOpen}
-        onClose={() => setDetailModal({ isOpen: false, feedback: null, type: null })}
+        onClose={() => setDetailModal({ isOpen: false, feedback: null })}
       />
 
       {/* Report Modal */}
@@ -1358,8 +1012,7 @@ export default function AdminFeedback() {
           <DialogHeader>
             <DialogTitle>Feedback Report</DialogTitle>
             <DialogDescription>
-              Generated report based on {selectedSite.length || siteFeedbacks.length} site feedbacks
-              and {selectedConv.length || convFeedbacks.length} conversation feedbacks
+              Generated report based on {selectedConv.length || convFeedbacks.length} conversation feedbacks
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="h-[50vh] border rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
