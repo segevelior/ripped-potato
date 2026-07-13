@@ -62,6 +62,11 @@ services:
         value: 2592000
       - key: MCP_AUTH_CODE_TTL_SECONDS
         value: 600
+      # Linear (site feedback → Linear issues)
+      - key: LINEAR_API_KEY
+        sync: false  # Will be set manually for security
+      - key: LINEAR_TEAM_ID
+        sync: false  # Target Linear team UUID
 
   # Frontend Static Site
   - type: static

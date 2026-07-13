@@ -425,27 +425,11 @@ class APIService {
     })
   };
 
-  // Feedback endpoints
+  // Feedback endpoints (submission opens a Linear issue server-side)
   feedback = {
     submit: (data) => this.request('/feedback', {
       method: 'POST',
       body: JSON.stringify(data)
-    }),
-    list: (params = {}) => {
-      const queryString = new URLSearchParams(params).toString();
-      return this.request(`/feedback${queryString ? `?${queryString}` : ''}`);
-    },
-    stats: () => this.request('/feedback/stats'),
-    update: (id, data) => this.request(`/feedback/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data)
-    }),
-    delete: (id) => this.request(`/feedback/${id}`, {
-      method: 'DELETE'
-    }),
-    bulkUpdate: (ids, status, adminNotes) => this.request('/feedback/bulk', {
-      method: 'PATCH',
-      body: JSON.stringify({ ids, status, adminNotes })
     }),
     // Conversation feedback endpoints
     listConversations: (params = {}) => {
@@ -461,14 +445,14 @@ class APIService {
       body: JSON.stringify({ items, status })
     }),
     // Report generation
-    generateReport: (siteFeedbackIds, conversationFeedbacks) => this.request('/feedback/report', {
+    generateReport: (conversationFeedbacks) => this.request('/feedback/report', {
       method: 'POST',
-      body: JSON.stringify({ siteFeedbackIds, conversationFeedbacks })
+      body: JSON.stringify({ conversationFeedbacks })
     }),
     // LLM Analysis
-    analyze: (siteFeedbacks, conversationFeedbacks) => this.request('/feedback/analyze', {
+    analyze: (conversationFeedbacks) => this.request('/feedback/analyze', {
       method: 'POST',
-      body: JSON.stringify({ siteFeedbacks, conversationFeedbacks })
+      body: JSON.stringify({ conversationFeedbacks })
     }),
     // Get full conversation
     getConversation: (conversationId) => this.request(`/feedback/conversation/${conversationId}`)
