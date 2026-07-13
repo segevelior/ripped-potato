@@ -23,7 +23,7 @@ const getAvailableCategories = (workouts) => {
     });
   });
 
-  // Map to readable labels
+  // Map to readable labels (disciplines not listed here get a title-cased fallback)
   const categoryLabels = {
     strength: 'Strength',
     running: 'Running',
@@ -35,14 +35,15 @@ const getAvailableCategories = (workouts) => {
     calisthenics: 'Calisthenics',
   };
 
+  const toTitleCase = (str) =>
+    str.replace(/\b\w/g, char => char.toUpperCase());
+
   const categories = [{ id: 'all', label: 'All' }];
-  disciplineSet.forEach(discipline => {
-    if (categoryLabels[discipline]) {
-      categories.push({
-        id: discipline,
-        label: categoryLabels[discipline]
-      });
-    }
+  [...disciplineSet].sort().forEach(discipline => {
+    categories.push({
+      id: discipline,
+      label: categoryLabels[discipline] || toTitleCase(discipline)
+    });
   });
 
   return categories;
