@@ -22,6 +22,7 @@ export default function Settings() {
   const { theme, toggleTheme, isDark } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState(null);
   const [user, setUser] = useState(null);
   const [editingField, setEditingField] = useState(null);
   const [newGoal, setNewGoal] = useState('');
@@ -153,8 +154,20 @@ export default function Settings() {
     }
   };
 
+  // Unset weight/height/gender live in form state as '' — the schema wants
+  // Number/enum there, so empty values must be omitted, not sent as ''.
+  const buildProfilePayload = () => {
+    const { weight, height, gender, ...rest } = formData.profile;
+    const profile = { ...rest };
+    if (weight !== '') profile.weight = Number(weight);
+    if (height !== '') profile.height = Number(height);
+    if (gender !== '') profile.gender = gender;
+    return profile;
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
+    setSaveMessage(null);
     try {
       const token = localStorage.getItem('authToken');
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/v1/auth/profile`, {
@@ -169,7 +182,7 @@ export default function Settings() {
           dateOfBirth: formData.dateOfBirth || null,
           address: formData.address,
           profilePicture: formData.profilePicture,
-          profile: formData.profile,
+          profile: buildProfilePayload(),
           settings: formData.settings
         })
       });
@@ -181,9 +194,13 @@ export default function Settings() {
         localStorage.setItem('authUser', JSON.stringify({ ...authUser, ...data.data.user }));
         setUser(data.data.user);
         setEditingField(null);
+      } else {
+        const data = await response.json().catch(() => null);
+        setSaveMessage({ type: 'error', text: data?.message || 'Failed to save changes. Please try again.' });
       }
     } catch (error) {
       console.error('Error saving profile:', error);
+      setSaveMessage({ type: 'error', text: 'Failed to save changes. Please try again.' });
     } finally {
       setIsSaving(false);
     }
@@ -228,6 +245,13 @@ export default function Settings() {
     const current = formData.profile[key] || [];
     commitProfile({ ...formData.profile, [key]: current.filter((x) => x !== value) });
   };
+
+  const renderSaveMessage = () => saveMessage && (
+    <div className="mt-2 p-3 rounded-lg flex items-center gap-2 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400">
+      <AlertCircle className="w-5 h-5 flex-shrink-0" />
+      <span className="text-sm">{saveMessage.text}</span>
+    </div>
+  );
 
   // Plain render function (NOT a nested component — that would remount the input
   // and drop focus on each keystroke).
@@ -497,6 +521,7 @@ export default function Settings() {
                       {isSaving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Save'}
                     </button>
                   </div>
+                  {renderSaveMessage()}
                 </div>
               ) : (
                 <button
@@ -580,6 +605,7 @@ export default function Settings() {
                         {isSaving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Save'}
                       </button>
                     </div>
+                    {renderSaveMessage()}
                   </div>
                 ) : (
                   <button
@@ -1041,6 +1067,7 @@ export default function Settings() {
 
         {/* Save All Changes Button */}
         <div className="mt-8 pb-4">
+          {saveMessage && <div className="mb-4">{renderSaveMessage()}</div>}
           <button
             onClick={handleSave}
             disabled={isSaving}
