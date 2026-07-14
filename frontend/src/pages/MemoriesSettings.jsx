@@ -170,6 +170,28 @@ export default function MemoriesSettings() {
     }
   };
 
+  const handleDeleteContextEntry = async (entryId) => {
+    if (!confirm('Remove this note from Sensei\'s recent context?')) return;
+
+    try {
+      await apiService.context.delete(entryId);
+      await fetchRecentContext();
+    } catch (error) {
+      console.error('Error deleting context entry:', error);
+    }
+  };
+
+  const handleClearAllContext = async () => {
+    if (!confirm('Clear ALL recent context? Sensei will forget its short-term notes from the last 14 days.')) return;
+
+    try {
+      await apiService.context.clearAll();
+      await fetchRecentContext();
+    } catch (error) {
+      console.error('Error clearing recent context:', error);
+    }
+  };
+
   const startEditing = (memory) => {
     setEditingMemory(memory);
     setFormData({
@@ -505,19 +527,27 @@ export default function MemoriesSettings() {
           )}
         </div>
 
-        {/* Recent context — the coach's short-term working memory (read-only) */}
+        {/* Recent context — the coach's short-term working memory */}
         {recentContext.length > 0 && (
           <div className="mt-8">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="w-4 h-4 text-gray-400" />
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-                Recent context
-              </h2>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-gray-400" />
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  Recent context
+                </h2>
+              </div>
+              <button
+                onClick={handleClearAllContext}
+                className="text-xs font-medium text-red-400 hover:text-red-500 transition-colors"
+              >
+                Clear all
+              </button>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
               Notes Sensei is working from right now — check-ins and conversation summaries.
-              These are short-term and automatically expire after 14 days. Anything worth keeping
-              longer becomes a memory above.
+              These are short-term and automatically expire after 14 days. Delete any note
+              that&apos;s outdated and Sensei will stop using it immediately.
             </p>
             <div className="space-y-2">
               {recentContext.map((entry) => {
@@ -539,6 +569,13 @@ export default function MemoriesSettings() {
                       <span className="text-xs text-gray-400">
                         {formatContextDate(entry.createdAt)}
                       </span>
+                      <button
+                        onClick={() => handleDeleteContextEntry(entry._id)}
+                        className="ml-auto p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                        title="Delete note"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                      </button>
                     </div>
                     <p className="text-sm text-gray-700 dark:text-gray-300">
                       {entry.content}

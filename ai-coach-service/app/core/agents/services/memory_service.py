@@ -127,8 +127,11 @@ class MemoryService:
             if not user_memory:
                 return []
 
-            # Filter to only active memories and sort by importance
-            active_memories = [m for m in user_memory.get("memories", []) if m.get("isActive", True)]
+            # Filter to only active, non-tombstoned memories and sort by importance
+            active_memories = [
+                m for m in user_memory.get("memories", [])
+                if m.get("isActive", True) and not m.get("deleted")
+            ]
 
             # Sort by importance (high first), breaking ties by recency (newest
             # first). Only the top ~15 are injected into the prompt, so an
@@ -162,12 +165,19 @@ class MemoryService:
             if not doc:
                 return
             memories = doc.get("memories", [])
-            overflow = len(memories) - max_per_user
+            # Tombstones don't count toward the cap and must never be evicted —
+            # dropping one re-opens the auto-promotion re-learn hole
+            live_memories = [m for m in memories if not m.get("deleted")]
+            overflow = len(live_memories) - max_per_user
             if overflow <= 0:
                 return
 
             def _evictable(m):
-                return m.get("category") != "health" and m.get("importance") != "high"
+                return (
+                    not m.get("deleted")
+                    and m.get("category") != "health"
+                    and m.get("importance") != "high"
+                )
 
             def _created(m):
                 ts = m.get("createdAt")
@@ -211,20 +221,23 @@ class MemoryService:
                 return {"success": False, "message": "No memories found"}
 
             memories = user_memory.get("memories", [])
-            original_count = len(memories)
 
-            # Find memories matching the search text
-            memories_to_keep = []
+            # Tombstone matching memories instead of removing them: the
+            # auto-promotion dedup reads the raw array, so a hard-deleted fact
+            # would get re-learned from old conversations
             deleted_memories = []
 
             for mem in memories:
+                if mem.get("deleted"):
+                    continue
                 content_lower = mem.get("content", "").lower()
                 category_match = not category_filter or mem.get("category") == category_filter
 
                 if search_text in content_lower and category_match:
+                    mem["deleted"] = True
+                    mem["deletedAt"] = datetime.utcnow()
+                    mem["isActive"] = False
                     deleted_memories.append(mem)
-                else:
-                    memories_to_keep.append(mem)
 
             if not deleted_memories:
                 return {"success": False, "message": f"No memories found matching '{search_text}'"}
@@ -234,7 +247,7 @@ class MemoryService:
                 {"user": ObjectId(user_id)},
                 {
                     "$set": {
-                        "memories": memories_to_keep,
+                        "memories": memories,
                         "updatedAt": datetime.utcnow()
                     }
                 }
@@ -275,8 +288,10 @@ class MemoryService:
             if category_filter:
                 memories = [m for m in memories if m.get("category") == category_filter]
 
-            # Filter to active only
-            active_memories = [m for m in memories if m.get("isActive", True)]
+            # Filter to active only (tombstoned memories stay hidden)
+            active_memories = [
+                m for m in memories if m.get("isActive", True) and not m.get("deleted")
+            ]
 
             if not active_memories:
                 if category_filter:
@@ -349,6 +364,8 @@ class MemoryService:
             updated = False
 
             for mem in memories:
+                if mem.get("deleted"):
+                    continue
                 content_lower = mem.get("content", "").lower()
                 if search_text in content_lower:
                     # Preserve old content in history for audit trail

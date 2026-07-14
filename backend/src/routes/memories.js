@@ -3,6 +3,7 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const UserMemory = require('../models/UserMemory');
 const { auth } = require('../middleware/auth');
+const { invalidateTodaysPick } = require('../utils/invalidateTodaysPick');
 
 // GET /api/v1/memories - Get all memories for the authenticated user
 router.get('/', auth, async (req, res) => {
@@ -21,7 +22,7 @@ router.get('/', auth, async (req, res) => {
       });
     }
 
-    let memories = userMemory.memories;
+    let memories = userMemory.memories.filter(m => !m.deleted);
 
     // Apply filters
     if (category) {
@@ -76,7 +77,7 @@ router.get('/active', auth, async (req, res) => {
       });
     }
 
-    const activeMemories = userMemory.memories.filter(m => m.isActive);
+    const activeMemories = userMemory.memories.filter(m => m.isActive && !m.deleted);
 
     // Sort by importance
     const importanceOrder = { high: 0, medium: 1, low: 2 };
@@ -183,7 +184,7 @@ router.put('/:memoryId', auth, async (req, res) => {
 
     const memory = userMemory.memories.id(memoryId);
 
-    if (!memory) {
+    if (!memory || memory.deleted) {
       return res.status(404).json({
         success: false,
         message: 'Memory not found'
@@ -251,7 +252,7 @@ router.patch('/:memoryId/toggle', auth, async (req, res) => {
 
     const memory = userMemory.memories.id(memoryId);
 
-    if (!memory) {
+    if (!memory || memory.deleted) {
       return res.status(404).json({
         success: false,
         message: 'Memory not found'
@@ -297,19 +298,25 @@ router.delete('/:memoryId', auth, async (req, res) => {
       });
     }
 
-    const memoryIndex = userMemory.memories.findIndex(
-      m => m._id.toString() === memoryId
-    );
+    const memory = userMemory.memories.id(memoryId);
 
-    if (memoryIndex === -1) {
+    if (!memory || memory.deleted) {
       return res.status(404).json({
         success: false,
         message: 'Memory not found'
       });
     }
 
-    userMemory.memories.splice(memoryIndex, 1);
+    // Tombstone instead of splice: auto-promotion dedups against the raw
+    // array, so a hard-deleted fact would get re-learned from old chats
+    memory.deleted = true;
+    memory.deletedAt = new Date();
+    memory.isActive = false;
     await userMemory.save();
+
+    if (memory.category === 'health') {
+      invalidateTodaysPick(req.user.id);
+    }
 
     res.json({
       success: true,

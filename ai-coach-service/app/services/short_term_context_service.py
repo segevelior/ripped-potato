@@ -29,10 +29,17 @@ CONTENT_MAX_CHARS = 400
 STALE_CONVERSATION_MINUTES = 30
 
 SUMMARIZE_PROMPT = (
-    "Summarize this coaching conversation in 2-3 sentences. Focus on what the "
-    "athlete reported (fatigue, soreness, injuries, mood), decisions made, and "
-    "anything the coach should remember over the next two weeks. Write in third "
-    "person ('The athlete...'). Return ONLY the summary text."
+    "Summarize what happened in THIS coaching conversation in 1-3 sentences, "
+    "written in third person ('The athlete...'). Include only NEW information "
+    "from this conversation: symptoms or conditions the athlete newly reported "
+    "or said had changed, decisions made, and commitments for the coming days. "
+    "Do NOT restate standing facts the coach already has on file (existing "
+    "injuries, profile details, long-term goals) unless the athlete said they "
+    "changed. Do NOT pad with negatives like 'no fatigue, soreness, or injuries "
+    "were reported' — simply omit topics that didn't come up. If the "
+    "conversation contains nothing worth remembering (greetings, small talk, a "
+    "simple question the coach answered), respond with exactly: SKIP. "
+    "Otherwise return ONLY the summary text."
 )
 
 EXTRACT_DURABLE_FACTS_PROMPT = (
@@ -133,7 +140,11 @@ class ShortTermContextService:
         if not entries:
             return ""
         kind_labels = {"checkin": "check-in", "conversation_summary": "conversation"}
-        lines = ["RECENT CONTEXT (short-term notes from the last 14 days, newest first):"]
+        lines = [
+            "RECENT CONTEXT (short-term notes from the last 14 days, newest first "
+            "— if a note conflicts with the profile or memories above, the "
+            "profile/memories are current):"
+        ]
         for entry in entries:
             created = entry.get("createdAt")
             date_str = created.strftime("%b %d") if isinstance(created, datetime) else ""
@@ -192,10 +203,11 @@ class ShortTermContextService:
             # Load current memories fresh — both as dedup context for the extractor
             # and for the substring backstop. Callers may promote several sources
             # in a row, so this must be re-read per call, not cached.
-            # Dedup must consider ALL memories, including DEACTIVATED ones: a memory
-            # the user toggled off would otherwise be re-promoted every time the
-            # fact is mentioned again. (get_user_memories filters to active — used
-            # only for prompt injection — so read the raw doc here instead.)
+            # Dedup must consider ALL memories, including DEACTIVATED and
+            # TOMBSTONED (deleted:true) ones: a memory the user toggled off or
+            # deleted would otherwise be re-promoted every time the fact is
+            # mentioned again. (get_user_memories filters those out — it's for
+            # prompt injection — so read the raw doc here instead.)
             mem_doc = await self.db.usermemories.find_one({"user": ObjectId(user_id)})
             all_memories = (mem_doc or {}).get("memories", [])
             existing_contents = [m.get("content", "") for m in all_memories if m.get("content")]
@@ -331,6 +343,16 @@ class ShortTermContextService:
                     summary = response.choices[0].message.content.strip()
                     if not summary:
                         raise ValueError("Empty summary")
+
+                    # Trivial conversation — keep the claim (must NOT go through
+                    # the ValueError path, which releases it and retries forever)
+                    # and skip promotion too: nothing durable in small talk.
+                    if summary.strip().strip(".").upper() == "SKIP":
+                        logger.info(
+                            f"Summary skipped (trivial) for conversation "
+                            f"{conv.get('conversation_id')}"
+                        )
+                        continue
 
                     inserted = await self.add_entry(
                         user_id,
