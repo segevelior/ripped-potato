@@ -111,11 +111,28 @@ class TestResolveWorkoutContent:
         assert c["exercises"][0]["targetSets"] == 4
         assert c["exercises"][0]["targetReps"] == 8
 
-    def test_missing_template_degrades(self):
+    def test_missing_template_flagged(self):
         workout = {"workoutType": "predefined", "predefinedWorkoutId": ObjectId()}
         c = _resolve_workout_content(workout, {})
         assert c["title"] == "Workout"
         assert c["exercises"] == []
+        assert c["missing_template"] is True
+
+    def test_custom_workout_keeps_exercise_id(self):
+        ex_id = ObjectId()
+        workout = {
+            "workoutType": "custom",
+            "customWorkout": {
+                "title": "Hills",
+                "exercises": [
+                    {"exerciseId": ex_id, "exerciseName": "Hill Sprint", "sets": [{"reps": 8}]},
+                    {"exerciseName": "Jog", "sets": []},
+                ],
+            },
+        }
+        c = _resolve_workout_content(workout, {})
+        assert c["exercises"][0]["exerciseId"] == ex_id
+        assert "exerciseId" not in c["exercises"][1]
 
 
 def _sample_plan():
@@ -174,22 +191,58 @@ class TestBuildEvents:
         events = _build_events(plan, SUNDAY, 1, {}, plan["userId"], plan["_id"], NOW)
         assert all(e["planWeek"] == 1 for e in events)
 
+    def test_custom_with_exercises_marked_for_template(self):
+        plan = _sample_plan()
+        plan["weeks"][0]["workouts"][0]["customWorkout"]["exercises"] = [
+            {"exerciseName": "Squat", "sets": [{"reps": 5}] * 3},
+        ]
+        events = _build_events(plan, SUNDAY, None, {}, plan["userId"], plan["_id"], NOW)
+        marked = [e for e in events if e.get("_pendingTemplate")]
+        assert len(marked) == 1
+        assert marked[0]["title"].startswith("S&C")
+        # exercise-less customs keep current behavior: scheduled, no marker
+        assert all("_pendingTemplate" not in e for e in events if e is not marked[0])
+
+    def test_missing_template_workout_dropped(self):
+        plan = _sample_plan()
+        plan["weeks"][0]["workouts"][0] = {
+            "dayOfWeek": 0, "workoutType": "predefined", "predefinedWorkoutId": ObjectId(),
+        }
+        events = _build_events(plan, SUNDAY, None, {}, plan["userId"], plan["_id"], NOW)
+        # The dangling reference is dropped: 2 remaining workouts + 1 rest = 3
+        assert len(events) == 3
+        assert all(not e["title"].startswith("Workout (") for e in events)
+
 
 # --------------------------- handler ---------------------------
 
-def _make_ctx(plan, existing_events=None, templates=None):
-    """Build a SkillContext-like mock with an async Mongo db."""
+def _make_ctx(plan, existing_events=None, templates=None, plan_tagged_templates=None):
+    """Build a SkillContext-like mock with an async Mongo db.
+
+    predefinedworkouts.find serves two queries: the template_map batch fetch
+    (by _id) and _ensure_templates' plan-tagged reuse lookup (by tags) — each
+    call gets a fresh iterator over the matching fixture list.
+    """
     existing_events = existing_events or []
     templates = templates or []
+    plan_tagged_templates = plan_tagged_templates or []
 
-    async def _template_iter():
-        for t in templates:
-            yield t
+    def _template_find(query, *a, **k):
+        docs = plan_tagged_templates if "tags" in query else templates
+
+        async def _iter():
+            for t in docs:
+                yield t
+
+        return _iter()
 
     db = MagicMock()
     db.plans.find_one = AsyncMock(return_value=plan)
     db.plans.update_one = AsyncMock(return_value=MagicMock(modified_count=1))
-    db.predefinedworkouts.find = MagicMock(return_value=_template_iter())
+    db.predefinedworkouts.find = MagicMock(side_effect=_template_find)
+    db.predefinedworkouts.insert_one = AsyncMock(
+        side_effect=lambda doc, *a, **k: MagicMock(inserted_id=ObjectId())
+    )
 
     find_result = MagicMock()
     find_result.to_list = AsyncMock(return_value=existing_events)
@@ -323,6 +376,149 @@ class TestHandler:
         )
         assert result.get("needs_input") == "start_date"
         ctx.db.calendarevents.insert_many.assert_not_called()
+
+
+# ------------------- custom-workout template creation -------------------
+
+import app.core.agents.skills.schedule_plan_skill as schedule_plan_module  # noqa: E402
+
+
+@pytest.fixture
+def fake_resolver(monkeypatch):
+    """ExerciseResolver stub that assigns an ObjectId to every exercise."""
+    async def resolve_blocks(user_id, blocks, on_ambiguous="ask"):
+        for block in blocks:
+            for ex in block.get("exercises", []):
+                ex["exercise_id"] = ex.get("exercise_id") or ObjectId()
+        return blocks, {"resolved": [], "created": [], "ambiguous": [], "pending_create": []}
+
+    resolver = MagicMock()
+    resolver.resolve_blocks = AsyncMock(side_effect=resolve_blocks)
+    monkeypatch.setattr(schedule_plan_module, "ExerciseResolver", MagicMock(return_value=resolver))
+    return resolver
+
+
+def _custom_plan_with_exercises():
+    """A 3-week plan repeating the SAME custom workout each week."""
+    workout = {
+        "dayOfWeek": 0, "workoutType": "custom",
+        "customWorkout": {
+            "title": "Hill Repeats", "type": "cardio", "durationMinutes": 40,
+            "exercises": [{"exerciseName": "Hill Sprint", "sets": [{"reps": 8}] * 4}],
+        },
+    }
+    return {
+        "_id": ObjectId(),
+        "userId": ObjectId(),
+        "name": "Run Plan",
+        "schedule": {"weeksTotal": 3},
+        "weeks": [
+            {"weekNumber": n, "deloadWeek": False, "restDays": [], "workouts": [dict(workout)]}
+            for n in (1, 2, 3)
+        ],
+    }
+
+
+class TestEnsureTemplates:
+    @pytest.mark.asyncio
+    async def test_repeated_custom_workout_creates_one_shared_template(self, fake_resolver):
+        plan = _custom_plan_with_exercises()
+        ctx = _make_ctx(plan)
+        result = await schedule_plan_to_calendar(
+            ctx, str(plan["userId"]),
+            {"plan_id": str(plan["_id"]), "start_date": "2026-07-12", "dry_run": False},
+        )
+        assert result["events_created"] == 3
+        # one template for the workout repeated across 3 weeks
+        ctx.db.predefinedworkouts.insert_one.assert_awaited_once()
+        template = ctx.db.predefinedworkouts.insert_one.call_args.args[0]
+        assert template["name"] == "Hill Repeats"
+        assert template["isCommon"] is False
+        assert template["createdBy"] == plan["userId"]
+        assert f"plan-{plan['_id']}" in template["tags"]
+        assert template["blocks"][0]["exercises"][0]["exercise_id"] is not None
+
+        inserted = ctx.db.calendarevents.insert_many.call_args.args[0]
+        template_ids = {e.get("workoutTemplateId") for e in inserted}
+        assert len(template_ids) == 1 and None not in template_ids
+        # internal marker never persisted; resolved ids backfilled into events
+        assert all("_pendingTemplate" not in e for e in inserted)
+        assert all(
+            e["workoutDetails"]["exercises"][0].get("exerciseId") is not None
+            for e in inserted
+        )
+
+    @pytest.mark.asyncio
+    async def test_dry_run_creates_no_templates(self, fake_resolver):
+        plan = _custom_plan_with_exercises()
+        ctx = _make_ctx(plan)
+        result = await schedule_plan_to_calendar(
+            ctx, str(plan["userId"]), {"plan_id": str(plan["_id"]), "start_date": "2026-07-12"},
+        )
+        assert result["dry_run"] is True
+        ctx.db.predefinedworkouts.insert_one.assert_not_called()
+        ctx.db.calendarevents.insert_many.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_rerun_reuses_plan_tagged_template(self, fake_resolver):
+        plan = _custom_plan_with_exercises()
+        existing_id = ObjectId()
+        existing_ex_id = ObjectId()
+        tagged = [{
+            "_id": existing_id,
+            "name": "Hill Repeats",
+            "tags": ["ai-generated", "plan", f"plan-{plan['_id']}"],
+            "blocks": [{"name": "Main Workout", "exercises": [
+                {"exercise_id": existing_ex_id, "exercise_name": "Hill Sprint", "volume": "4x8"},
+            ]}],
+        }]
+        ctx = _make_ctx(plan, plan_tagged_templates=tagged)
+        await schedule_plan_to_calendar(
+            ctx, str(plan["userId"]),
+            {"plan_id": str(plan["_id"]), "start_date": "2026-07-12", "dry_run": False},
+        )
+        ctx.db.predefinedworkouts.insert_one.assert_not_called()
+        inserted = ctx.db.calendarevents.insert_many.call_args.args[0]
+        assert all(e["workoutTemplateId"] == existing_id for e in inserted)
+        assert all(
+            e["workoutDetails"]["exercises"][0]["exerciseId"] == existing_ex_id
+            for e in inserted
+        )
+
+    @pytest.mark.asyncio
+    async def test_same_name_different_content_gets_own_template(self, fake_resolver):
+        plan = _custom_plan_with_exercises()
+        # Same title, different prescription (hard week) — must NOT reuse.
+        plan["weeks"][2]["workouts"][0]["customWorkout"] = {
+            "title": "Hill Repeats", "type": "cardio", "durationMinutes": 40,
+            "exercises": [{"exerciseName": "Hill Sprint", "sets": [{"reps": 12}] * 6}],
+        }
+        ctx = _make_ctx(plan)
+        await schedule_plan_to_calendar(
+            ctx, str(plan["userId"]),
+            {"plan_id": str(plan["_id"]), "start_date": "2026-07-12", "dry_run": False},
+        )
+        assert ctx.db.predefinedworkouts.insert_one.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_missing_template_workouts_skipped_with_note(self, fake_resolver):
+        plan = _custom_plan_with_exercises()
+        plan["weeks"][0]["workouts"][0] = {
+            "dayOfWeek": 0, "workoutType": "predefined", "predefinedWorkoutId": ObjectId(),
+        }
+        ctx = _make_ctx(plan)
+        preview = await schedule_plan_to_calendar(
+            ctx, str(plan["userId"]), {"plan_id": str(plan["_id"]), "start_date": "2026-07-12"},
+        )
+        assert preview["proposed_count"] == 2
+        assert "deleted workout template" in preview["message"]
+
+        result = await schedule_plan_to_calendar(
+            ctx, str(plan["userId"]),
+            {"plan_id": str(plan["_id"]), "start_date": "2026-07-12", "dry_run": False},
+        )
+        assert result["events_created"] == 2
+        assert "deleted workout template" in result["message"]
 
 
 # ------------------- skeleton plans (rolling materialization) -------------------

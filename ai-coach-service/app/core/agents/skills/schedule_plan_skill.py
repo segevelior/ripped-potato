@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional
 import structlog
 from bson import ObjectId
 
+from app.core.agents.services.exercise_resolver import ExerciseResolver
 from app.core.agents.skills.registry import SkillContext, skill
 
 logger = structlog.get_logger()
@@ -127,8 +128,11 @@ def _resolve_workout_content(workout: Dict[str, Any], template_map: Dict[str, An
                 "exercises": exercises,
                 "template_id": workout.get("predefinedWorkoutId"),
             }
-        # Referenced template is missing — degrade gracefully.
-        return {"title": "Workout", "type": "strength", "duration": 45, "exercises": [], "template_id": None}
+        # Referenced template is missing — nothing to schedule. Flagged so
+        # _build_events drops the slot instead of inserting an orphan event
+        # with an empty exercise list.
+        return {"title": "Workout", "type": "strength", "duration": 45, "exercises": [],
+                "template_id": None, "missing_template": True}
 
     # Custom inline workout
     custom = workout.get("customWorkout") or {}
@@ -136,12 +140,15 @@ def _resolve_workout_content(workout: Dict[str, Any], template_map: Dict[str, An
     for ex in custom.get("exercises", []) or []:
         sets_arr = ex.get("sets", []) or []
         first = sets_arr[0] if sets_arr and isinstance(sets_arr[0], dict) else {}
-        exercises.append({
+        entry = {
             "exerciseName": ex.get("exerciseName", ""),
             "targetSets": len(sets_arr) or 3,
             "targetReps": first.get("reps") or 10,
             "notes": "",
-        })
+        }
+        if ex.get("exerciseId"):
+            entry["exerciseId"] = ex["exerciseId"]
+        exercises.append(entry)
     return {
         "title": custom.get("title") or "Workout",
         "type": custom.get("type", "strength"),
@@ -149,6 +156,19 @@ def _resolve_workout_content(workout: Dict[str, Any], template_map: Dict[str, An
         "exercises": exercises,
         "template_id": None,
     }
+
+
+def _included_weeks(plan: Dict[str, Any], weeks_cap: Optional[int]) -> List[Dict[str, Any]]:
+    """Weeks that actually get scheduled: within the cap, and resolved.
+
+    Rolling-materialization plans: only resolved weeks have real workouts;
+    intent-only stubs are scheduled later, week by week, via resolve_week.
+    Missing `resolved` = resolved (legacy plans).
+    """
+    weeks = sorted(plan.get("weeks", []) or [], key=lambda w: w.get("weekNumber", 0))
+    if weeks_cap:
+        weeks = [w for w in weeks if w.get("weekNumber", 0) <= weeks_cap]
+    return [w for w in weeks if w.get("resolved") is not False]
 
 
 def _build_events(
@@ -165,15 +185,15 @@ def _build_events(
     Emits workout events (type 'deload' for deload weeks, else 'workout') plus a
     'rest' event for each restDays entry. Each event carries planId/planWeek/
     planDay for back-linking and idempotency.
+
+    Workout/deload events without a library template but WITH exercises (custom
+    plan workouts) carry a transient `_pendingTemplate` marker: the handler
+    creates + links a PredefinedWorkout on the confirmed write path (never on
+    dry-run) and strips the marker before insert. Workouts whose referenced
+    template was deleted are dropped entirely rather than inserted as orphans.
     """
     events: List[Dict[str, Any]] = []
-    weeks = sorted(plan.get("weeks", []) or [], key=lambda w: w.get("weekNumber", 0))
-    if weeks_cap:
-        weeks = [w for w in weeks if w.get("weekNumber", 0) <= weeks_cap]
-    # Rolling-materialization plans: only resolved weeks have real workouts;
-    # intent-only stubs are scheduled later, week by week, via resolve_week.
-    # Missing `resolved` = resolved (legacy plans).
-    weeks = [w for w in weeks if w.get("resolved") is not False]
+    weeks = _included_weeks(plan, weeks_cap)
     included_week_numbers = {w.get("weekNumber", 0) for w in weeks}
 
     for week in weeks:
@@ -184,6 +204,10 @@ def _build_events(
             day = workout.get("dayOfWeek", 1)
             date = _compute_event_date(start_date, week_number, day)
             content = _resolve_workout_content(workout, template_map)
+            if content.get("missing_template"):
+                logger.warning("plan workout references missing template — skipped",
+                               plan_id=str(plan_oid), week=week_number, day=day)
+                continue
             event = {
                 "userId": user_oid,
                 "planId": plan_oid,
@@ -204,6 +228,10 @@ def _build_events(
             }
             if content.get("template_id"):
                 event["workoutTemplateId"] = content["template_id"]
+            elif content["exercises"]:
+                # Custom plan workout — needs a library template created and
+                # linked on the write path (see _ensure_templates).
+                event["_pendingTemplate"] = content
             events.append(event)
 
         for rest_day in week.get("restDays", []) or []:
@@ -257,6 +285,124 @@ def _slot_key(event: Dict[str, Any]) -> tuple:
     # deload share it (a re-planned deload week moves the session, no duplicate).
     type_class = "workout" if etype in ("workout", "deload", None) else etype
     return (event.get("planWeek"), event.get("planDay"), type_class)
+
+
+def _template_content_key(name: str, exercises: List[Dict[str, Any]]) -> tuple:
+    """Identity of a workout's content: title + ordered exercise prescription.
+    Used to dedupe template creation (same custom workout repeated across
+    weeks → one library entry) and to match plan-tagged templates on re-runs."""
+    return (
+        name,
+        tuple(
+            (ex.get("exerciseName", ""), ex.get("targetSets", 3), ex.get("targetReps", 10))
+            for ex in exercises
+        ),
+    )
+
+
+def _template_doc_key(doc: Dict[str, Any]) -> tuple:
+    """The same content key, recomputed from a PredefinedWorkout document."""
+    exercises = []
+    for block in doc.get("blocks", []) or []:
+        for ex in block.get("exercises", []) or []:
+            sets, reps = _parse_volume(ex.get("volume"))
+            exercises.append({"exerciseName": ex.get("exercise_name", ""),
+                              "targetSets": sets, "targetReps": reps})
+    return _template_content_key(doc.get("name", ""), exercises)
+
+
+def _template_doc_exercise_ids(doc: Dict[str, Any]) -> List[Any]:
+    return [
+        ex.get("exercise_id")
+        for block in doc.get("blocks", []) or []
+        for ex in block.get("exercises", []) or []
+    ]
+
+
+async def _ensure_templates(
+    ctx: SkillContext, user_id: str, plan: Dict[str, Any], events: List[Dict[str, Any]]
+) -> int:
+    """Create (or reuse) a PredefinedWorkout for every event carrying a
+    `_pendingTemplate` marker, link it via workoutTemplateId, and backfill
+    resolved exerciseIds into the event's embedded workoutDetails.
+
+    Dedupe is by content key, both within the run (a workout repeated across
+    weeks shares ONE library entry) and across re-runs (overwrite deletes the
+    plan's events but not its templates — plan-tagged templates with matching
+    content are reused, so re-scheduling never duplicates the library). Keying
+    by content rather than name also keeps two same-titled workouts with
+    different prescriptions (e.g. easy-week vs hard-week "Intervals") apart.
+
+    Only called on the confirmed write path — dry-run previews write nothing.
+    Returns the number of templates created.
+    """
+    pending = [e for e in events if e.get("_pendingTemplate")]
+    if not pending:
+        return 0
+
+    user_oid = ObjectId(user_id)
+    plan_tag = f"plan-{plan['_id']}"
+    # key -> (template_id, ordered exercise ids)
+    known: Dict[tuple, tuple] = {}
+    async for doc in ctx.db.predefinedworkouts.find({"createdBy": user_oid, "tags": plan_tag}):
+        known[_template_doc_key(doc)] = (doc["_id"], _template_doc_exercise_ids(doc))
+
+    created = 0
+    resolver = ExerciseResolver(ctx.db)
+    now = datetime.utcnow()
+    for event in pending:
+        content = event.pop("_pendingTemplate")
+        key = _template_content_key(content["title"], content["exercises"])
+        if key not in known:
+            blocks = [{
+                "name": "Main Workout",
+                "exercises": [
+                    {
+                        "exercise_name": ex.get("exerciseName", ""),
+                        "exercise_id": ex.get("exerciseId"),
+                        "volume": f"{ex.get('targetSets', 3)}x{ex.get('targetReps', 10)}",
+                        "rest": "60s",
+                        "notes": ex.get("notes", ""),
+                    }
+                    for ex in content["exercises"]
+                ],
+            }]
+            # best_effort: the write is already user-confirmed — take the best
+            # match (or create) rather than stalling, same as schedule_to_calendar.
+            blocks, _report = await resolver.resolve_blocks(
+                user_id, blocks, on_ambiguous="best_effort"
+            )
+            template_doc = {
+                "name": content["title"],
+                "goal": f"Part of plan: {plan.get('name', 'training plan')}",
+                "primary_disciplines": [content.get("type", "strength")],
+                "estimated_duration": content.get("duration", 45),
+                "difficulty_level": "intermediate",
+                "blocks": blocks,
+                "tags": ["ai-generated", "plan", plan_tag],
+                "isCommon": False,
+                "createdBy": user_oid,
+                "popularity": 0,
+                "ratings": {"average": 0, "count": 0},
+                "createdAt": now,
+                "updatedAt": now,
+            }
+            result = await ctx.db.predefinedworkouts.insert_one(template_doc)
+            known[key] = (result.inserted_id, _template_doc_exercise_ids(template_doc))
+            created += 1
+
+        template_id, exercise_ids = known[key]
+        event["workoutTemplateId"] = template_id
+        embedded = event.get("workoutDetails", {}).get("exercises", [])
+        if len(embedded) == len(exercise_ids):
+            for entry, ex_id in zip(embedded, exercise_ids):
+                if ex_id and not entry.get("exerciseId"):
+                    entry["exerciseId"] = ex_id
+
+    if created:
+        logger.info("created plan workout templates",
+                    plan_id=str(plan["_id"]), created=created, linked=len(pending))
+    return created
 
 
 def _serialize_event(event: Dict[str, Any]) -> Dict[str, Any]:
@@ -385,7 +531,26 @@ async def schedule_plan_to_calendar(ctx: SkillContext, user_id: str, args: Dict[
 
     now = datetime.utcnow()
     proposed = _build_events(plan, start_date, weeks_cap, template_map, user_oid, plan_oid, now)
+
+    # Predefined workouts whose template was deleted are dropped by
+    # _build_events (no orphan events) — surface that instead of hiding it.
+    skipped_missing = sum(
+        1
+        for w in _included_weeks(plan, weeks_cap)
+        for wk in (w.get("workouts") or [])
+        if wk.get("workoutType") == "predefined"
+        and str(wk.get("predefinedWorkoutId")) not in template_map
+    )
+
     if not proposed:
+        if skipped_missing:
+            return {
+                "success": False,
+                "message": (
+                    f"All {skipped_missing} workout(s) in range reference deleted workout "
+                    "templates, so there's nothing to schedule. Want me to rebuild them?"
+                ),
+            }
         return {"success": False, "message": "This plan has no workouts to schedule yet."}
 
     unresolved_count = sum(
@@ -433,6 +598,11 @@ async def schedule_plan_to_calendar(ctx: SkillContext, user_id: str, args: Dict[
     ]
 
     preview_msg = _format_preview(plan, proposed, already_scheduled, moved, conflicts, start_date)
+    if skipped_missing:
+        preview_msg += (
+            f"\n\nNote: {skipped_missing} workout(s) reference a deleted workout template "
+            "and were skipped — want me to rebuild them?"
+        )
     if unresolved_count:
         preview_msg += (
             f"\n\nNote: {unresolved_count} later week(s) aren't finalized yet — they follow the plan's "
@@ -474,6 +644,12 @@ async def schedule_plan_to_calendar(ctx: SkillContext, user_id: str, args: Dict[
     else:
         insert_list = to_insert
 
+    # Custom plan workouts get a library template created + linked now (write
+    # path only — dry-run previews never reach here).
+    await _ensure_templates(ctx, user_id, plan, insert_list)
+    for e in proposed:
+        e.pop("_pendingTemplate", None)
+
     inserted_count = 0
     if insert_list:
         result = await ctx.db.calendarevents.insert_many(insert_list)
@@ -494,13 +670,19 @@ async def schedule_plan_to_calendar(ctx: SkillContext, user_id: str, args: Dict[
     )
 
     skipped_msg = f" ({len(already_scheduled)} already scheduled, skipped)" if already_scheduled and not overwrite else ""
+    message = (
+        f"Scheduled **{inserted_count}** session(s) for **{plan.get('name', 'your plan')}** "
+        f"starting {start_date.strftime('%A, %B %d')}{skipped_msg}. Your plan is now active!"
+    )
+    if skipped_missing:
+        message += (
+            f"\n\nNote: {skipped_missing} workout(s) reference a deleted workout template "
+            "and were skipped — want me to rebuild them?"
+        )
     return {
         "success": True,
         "dry_run": False,
         "written": True,
         "events_created": inserted_count,
-        "message": (
-            f"Scheduled **{inserted_count}** session(s) for **{plan.get('name', 'your plan')}** "
-            f"starting {start_date.strftime('%A, %B %d')}{skipped_msg}. Your plan is now active!"
-        ),
+        "message": message,
     }

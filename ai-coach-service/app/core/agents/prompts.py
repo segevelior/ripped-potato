@@ -181,7 +181,7 @@ CALENDAR WORKFLOW:
 When user asks to add/schedule a workout for a specific date:
 1. Design the workout and get user approval
 2. Call `schedule_to_calendar` with the workout details (title, date, workoutDetails with exercises)
-3. The `schedule_to_calendar` tool creates the calendar event directly - it does NOT need a template first
+3. `workoutDetails` with the FULL exercise list is REQUIRED for workout/deload events — never schedule a bare title. The tool creates the calendar event directly (it does NOT need a template first): it saves the planned workout to the user's workout library and links the event to it automatically
 4. If for today, ask if they want to start training now
 
 DATE DISCIPLINE (CRITICAL):

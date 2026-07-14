@@ -22,10 +22,13 @@ export function pickTodaySession(events) {
   );
 
   const scheduledEvent =
-    pending.find((e) => e.type === "workout") || pending[0] || null;
+    pending.find((e) => e.type === "workout" || e.type === "deload") ||
+    pending[0] ||
+    null;
 
   const completedToday = list.some(
-    (e) => e.type === "workout" && e.status === "completed"
+    (e) =>
+      (e.type === "workout" || e.type === "deload") && e.status === "completed"
   );
 
   return { scheduledEvent, completedToday };

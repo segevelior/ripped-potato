@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const CalendarEvent = require('../models/CalendarEvent');
 const WorkoutLog = require('../models/WorkoutLog');
 const ExternalActivity = require('../models/ExternalActivity');
+const Exercise = require('../models/Exercise');
+const PredefinedWorkout = require('../models/PredefinedWorkout');
 const StravaIntegrationService = require('../services/StravaIntegrationService');
 
 /**
@@ -10,11 +12,13 @@ const StravaIntegrationService = require('../services/StravaIntegrationService')
  * Ensures data consistency between CalendarEvent and its linked collections:
  * - WorkoutLog (from TrainNow)
  * - ExternalActivity (from Strava)
+ * - PredefinedWorkout (workout library / Workouts tab)
  *
  * Tasks:
  * 1. Find WorkoutLogs without CalendarEvent and create them
  * 2. Find ExternalActivities without CalendarEvent and create them
  * 3. Find CalendarEvents with broken links (workoutLogId or externalActivityId pointing to non-existent docs) and delete them
+ * 4. Find upcoming AI-scheduled workout events with no workoutTemplateId and back-link them to a (deduped) library template
  */
 
 class CalendarConsistencyJob {
@@ -26,6 +30,9 @@ class CalendarConsistencyJob {
       externalActivitiesProcessed: 0,
       externalActivitiesFixed: 0,
       orphanedCalendarEventsDeleted: 0,
+      orphanWorkoutEventsLinked: 0,
+      orphanTemplatesCreated: 0,
+      orphanWorkoutEventsSkipped: 0,
       errors: []
     };
   }
@@ -45,6 +52,9 @@ class CalendarConsistencyJob {
         externalActivitiesProcessed: 0,
         externalActivitiesFixed: 0,
         orphanedCalendarEventsDeleted: 0,
+        orphanWorkoutEventsLinked: 0,
+        orphanTemplatesCreated: 0,
+        orphanWorkoutEventsSkipped: 0,
         errors: []
       };
 
@@ -52,6 +62,7 @@ class CalendarConsistencyJob {
       await this.syncWorkoutLogs();
       await this.syncExternalActivities();
       await this.cleanupOrphanedCalendarEvents();
+      await this.linkOrphanWorkoutEvents();
 
       const duration = Date.now() - startTime;
       this.logger.info('[CalendarConsistencyJob] Consistency check completed', {
@@ -249,6 +260,115 @@ class CalendarConsistencyJob {
   }
 
   /**
+   * Find upcoming workout/deload CalendarEvents that have embedded exercises
+   * but no workoutTemplateId (historically created by the AI coach), create a
+   * backing PredefinedWorkout, and link them.
+   *
+   * Deduped: orphans are grouped by (user, title-minus-date-suffix, exercise
+   * prescription) and each group shares ONE template — a plan's repeated
+   * weekly session gets a single library entry, not one per event. Idempotent
+   * by construction: linked events no longer match the query. Past/completed
+   * orphans are left alone (they render from embedded details and add no
+   * Workouts-tab value).
+   */
+  async linkOrphanWorkoutEvents(userId = null) {
+    this.logger.info('[CalendarConsistencyJob] Linking orphan workout events...');
+
+    try {
+      const query = {
+        type: { $in: ['workout', 'deload'] },
+        $or: [{ workoutTemplateId: { $exists: false } }, { workoutTemplateId: null }],
+        status: 'scheduled',
+        date: { $gte: new Date() },
+        'workoutDetails.exercises.0': { $exists: true }
+      };
+      if (userId) query.userId = userId;
+
+      const orphans = await CalendarEvent.find(query).lean();
+
+      const groups = new Map();
+      for (const event of orphans) {
+        const title = (event.title || 'Workout')
+          .replace(/\s*\([A-Z][a-z]{2} \d{1,2}\)\s*$/, '')
+          .trim() || 'Workout';
+        const signature = (event.workoutDetails.exercises || [])
+          .map((ex) => `${ex.exerciseName}|${ex.targetSets || ''}|${ex.targetReps || ''}`)
+          .join(';');
+        const key = `${event.userId}::${title}::${signature}`;
+        if (!groups.has(key)) groups.set(key, { title, events: [] });
+        groups.get(key).events.push(event);
+      }
+
+      for (const { title, events } of groups.values()) {
+        try {
+          const sample = events[0];
+          const blockExercises = [];
+          for (const ex of sample.workoutDetails.exercises || []) {
+            let exerciseId = ex.exerciseId;
+            if (!exerciseId && ex.exerciseName) {
+              // blockExerciseSchema requires exercise_id — recover it by name.
+              const escaped = ex.exerciseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const match = await Exercise.findOne({ name: new RegExp(`^${escaped}$`, 'i') })
+                .select('_id')
+                .lean();
+              exerciseId = match?._id;
+            }
+            if (!exerciseId) continue;
+            blockExercises.push({
+              exercise_id: exerciseId,
+              exercise_name: ex.exerciseName,
+              volume: `${ex.targetSets || 3}x${ex.targetReps || 10}`,
+              rest: '60s',
+              notes: ex.notes || ''
+            });
+          }
+
+          if (blockExercises.length === 0) {
+            this.stats.orphanWorkoutEventsSkipped += events.length;
+            continue;
+          }
+
+          const template = await PredefinedWorkout.create({
+            name: title,
+            goal: '',
+            primary_disciplines: [sample.workoutDetails.type || 'strength'],
+            estimated_duration: sample.workoutDetails.estimatedDuration || 45,
+            difficulty_level: 'intermediate',
+            blocks: [{ name: 'Main Workout', exercises: blockExercises }],
+            tags: ['ai-generated', 'backfill'],
+            isCommon: false,
+            createdBy: sample.userId
+          });
+
+          await CalendarEvent.updateMany(
+            { _id: { $in: events.map((e) => e._id) } },
+            { $set: { workoutTemplateId: template._id } }
+          );
+
+          this.stats.orphanTemplatesCreated++;
+          this.stats.orphanWorkoutEventsLinked += events.length;
+          this.logger.info(
+            `[CalendarConsistencyJob] Linked ${events.length} orphan event(s) to new template "${title}" (${template._id})`
+          );
+        } catch (error) {
+          this.stats.errors.push({
+            phase: 'orphanWorkoutEvents',
+            title,
+            error: error.message
+          });
+        }
+      }
+
+      this.logger.info(
+        `[CalendarConsistencyJob] Orphan link complete: ${this.stats.orphanWorkoutEventsLinked} linked via ${this.stats.orphanTemplatesCreated} template(s), ${this.stats.orphanWorkoutEventsSkipped} skipped`
+      );
+    } catch (error) {
+      this.logger.error('[CalendarConsistencyJob] Orphan workout link failed', { error: error.message });
+      this.stats.errors.push({ phase: 'orphanWorkoutEvents', error: error.message });
+    }
+  }
+
+  /**
    * Run for a specific user only
    */
   async runForUser(userId) {
@@ -262,12 +382,16 @@ class CalendarConsistencyJob {
         externalActivitiesProcessed: 0,
         externalActivitiesFixed: 0,
         orphanedCalendarEventsDeleted: 0,
+        orphanWorkoutEventsLinked: 0,
+        orphanTemplatesCreated: 0,
+        orphanWorkoutEventsSkipped: 0,
         errors: []
       };
 
       await this.syncWorkoutLogsForUser(userId);
       await this.syncExternalActivitiesForUser(userId);
       await this.cleanupOrphanedCalendarEventsForUser(userId);
+      await this.linkOrphanWorkoutEvents(userId);
 
       const duration = Date.now() - startTime;
       this.logger.info(`[CalendarConsistencyJob] User ${userId} consistency check completed`, {
