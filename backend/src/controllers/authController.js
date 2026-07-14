@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const { validationResult } = require('express-validator');
+const { invalidateTodaysPick } = require('../utils/invalidateTodaysPick');
 
 // Register new user
 const register = async (req, res) => {
@@ -234,6 +235,14 @@ const updateProfile = async (req, res) => {
       updateData,
       { new: true, runValidators: true }
     );
+
+    // The day's cached AI pick bakes in the injury list it was generated with
+    if (profile && profile.injuries !== undefined) {
+      const oldInjuries = JSON.stringify(req.user.profile?.injuries || []);
+      if (JSON.stringify(profile.injuries) !== oldInjuries) {
+        invalidateTodaysPick(req.user._id);
+      }
+    }
 
     res.json({
       success: true,

@@ -30,6 +30,15 @@ const memoryItemSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  // Tombstone: deleted memories stay in the array (hidden everywhere) so the
+  // auto-promotion dedup can see them and never re-learns a deleted fact
+  deleted: {
+    type: Boolean,
+    default: false
+  },
+  deletedAt: {
+    type: Date
   }
 }, {
   timestamps: true
