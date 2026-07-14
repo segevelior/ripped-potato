@@ -12,6 +12,7 @@ import structlog
 from app.core.agents.date_utils import get_user_today, relative_day_label
 from app.core.agents.services.exercise_resolver import ExerciseResolver
 from app.core.agents.volume_utils import flatten_template_exercises
+from app.core.dedup import normalize_template_title, strip_template_date_suffix
 
 logger = structlog.get_logger()
 
@@ -69,7 +70,19 @@ class CalendarService:
                         "message": (
                             f"No workout template with id '{template_id_arg}' is available to this user. "
                             "Call list_workout_templates to find the correct id, or pass "
-                            "workoutDetails.exercises to schedule a new custom session."
+                            "workoutDetails.exercises to schedule a new custom session. "
+                            "Never guess an id — take it from a tool result."
+                        ),
+                    }
+                if not flatten_template_exercises(existing_template):
+                    return {
+                        "success": False,
+                        "error": "empty_template",
+                        "message": (
+                            f"Template '{existing_template.get('name', '')}' "
+                            f"(id={template_id_arg}) has no exercises, so it cannot be "
+                            f"scheduled. Tell the user, and either fill it in or "
+                            f"schedule a different workout."
                         ),
                     }
 
@@ -93,13 +106,29 @@ class CalendarService:
                 }
 
             # When linking a library workout, the template name is the natural
-            # default title (the caller may still override it).
+            # default title (the caller may still override it). Strip any old
+            # scheduling date suffix so it doesn't stack with the new one.
             if existing_template is not None and not args.get("title"):
-                title = existing_template.get("name", title)
+                title = strip_template_date_suffix(existing_template.get("name", title)) or title
 
             # Add date to title to make it unique and identifiable
             date_suffix = event_date.strftime("%b %d")
             title_with_date = f"{title} ({date_suffix})"
+
+            # Refuse to double-book: an equivalent event (same template or same
+            # base title) already on that date means the model is about to
+            # create the duplicate the user will have to complain about. Runs
+            # on BOTH the preview and the write path — they are separate turns.
+            if event_type in ("workout", "deload") and not args.get("allow_duplicate", False):
+                duplicate = await self._find_same_day_duplicate(
+                    user_id,
+                    event_date,
+                    normalize_template_title(title),
+                    existing_template["_id"] if existing_template else None,
+                    today,
+                )
+                if duplicate:
+                    return duplicate
 
             # Default is a dry-run PREVIEW that writes nothing (TOR-88: an
             # event was written against the user's explicit decline). The
@@ -237,6 +266,57 @@ class CalendarService:
         except Exception as e:
             logger.error(f"Error scheduling to calendar: {e}")
             return {"success": False, "message": f"Error scheduling event: {str(e)}"}
+
+    async def _find_same_day_duplicate(
+        self,
+        user_id: str,
+        event_date: datetime,
+        base_title: str,
+        template_oid,
+        today: datetime,
+    ):
+        """Return an already_scheduled refusal if an equivalent workout event
+        (same linked template, or same date-suffix-stripped title) already sits
+        on that calendar day. None when the day is clear."""
+        day_start = datetime(event_date.year, event_date.month, event_date.day)
+        day_end = day_start + timedelta(days=1)
+        cursor = self.db.calendarevents.find({
+            "userId": ObjectId(user_id),
+            "date": {"$gte": day_start, "$lt": day_end},
+            "type": {"$in": ["workout", "deload"]},
+            "status": {"$ne": "cancelled"},
+        })
+        async for event in cursor:
+            same_template = (
+                template_oid is not None
+                and event.get("workoutTemplateId") == template_oid
+            )
+            same_title = (
+                base_title
+                and normalize_template_title(event.get("title", "")) == base_title
+            )
+            if not (same_template or same_title):
+                continue
+            date_label = day_start.strftime("%A, %B %d")
+            return {
+                "success": False,
+                "error": "already_scheduled",
+                "existing_event": {
+                    "id": str(event["_id"]),
+                    "title": event.get("title", ""),
+                    "date": day_start.strftime("%Y-%m-%d"),
+                    "status": event.get("status", ""),
+                    "relativeDay": relative_day_label(day_start.date(), today.date()),
+                },
+                "message": (
+                    f"'{event.get('title', '')}' is already on the calendar for "
+                    f"{date_label} (event id {event['_id']}). Did NOT add a duplicate. "
+                    f"Tell the user it's already scheduled. If they truly want it twice "
+                    f"that day, call again with allow_duplicate=true; to replace it, "
+                    f"delete_calendar_event the existing one first."
+                ),
+            }
+        return None
 
     async def _preview_schedule(
         self,

@@ -86,13 +86,9 @@ def _compute_event_date(start_date: datetime, week_number: int, day_of_week: int
     return start_date + timedelta(days=offset + 7 * (week_number - 1))
 
 
-def _parse_volume(volume: Any) -> tuple[int, int]:
-    """Parse a PredefinedWorkout volume string like '3x10' / '3 x 8-12' into
-    (sets, reps). Falls back to (3, 10)."""
-    m = re.match(r"\s*(\d+)\s*[xX]\s*(\d+)", str(volume or ""))
-    if m:
-        return int(m.group(1)), int(m.group(2))
-    return 3, 10
+# Re-exported for existing importers/tests; implementation moved to
+# volume_utils so services can use it without a circular import.
+from app.core.agents.volume_utils import parse_volume as _parse_volume  # noqa: E402
 
 
 def _resolve_workout_content(workout: Dict[str, Any], template_map: Dict[str, Any]) -> Dict[str, Any]:
