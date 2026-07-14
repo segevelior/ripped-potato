@@ -570,7 +570,10 @@ export default function CalendarPage() {
 
   const handleAddEvent = async (workoutData) => {
     try {
-      // Convert workout data to calendar event format
+      // Convert workout data to calendar event format. Events only combine a
+      // workout with a date: when a library workout is picked we send its id
+      // and no exercises; for a custom build we send the exercises and the
+      // backend materializes a library workout to link.
       const eventData = {
         date: workoutData.date,
         title: workoutData.title,
@@ -578,15 +581,15 @@ export default function CalendarPage() {
         status: 'scheduled',
         workoutDetails: {
           type: workoutData.type || 'strength',
-          estimatedDuration: workoutData.durationMinutes || 60,
-          exercises: workoutData.exercises || []
+          estimatedDuration: workoutData.durationMinutes || 60
         },
         notes: workoutData.notes
       };
 
-      // If workoutTemplateId is provided, add it
       if (workoutData.workoutTemplateId) {
         eventData.workoutTemplateId = workoutData.workoutTemplateId;
+      } else {
+        eventData.workoutDetails.exercises = workoutData.exercises || [];
       }
 
       await CalendarEvent.create(eventData);

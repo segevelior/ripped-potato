@@ -2,6 +2,11 @@ const CalendarEvent = require('../models/CalendarEvent');
 const WorkoutLog = require('../models/WorkoutLog');
 const PredefinedWorkout = require('../models/PredefinedWorkout');
 const { validationResult } = require('express-validator');
+const { flattenTemplateExercises } = require('../utils/volume');
+const {
+  ensureTemplateForCustomEvent,
+  applyExercisesCopyOnWrite
+} = require('../services/templateMaterializer');
 
 // Get calendar events for a date range
 const getEvents = async (req, res) => {
@@ -96,27 +101,29 @@ const createEvent = async (req, res) => {
       userId: req.user._id
     };
 
-    // If a workout template is provided, populate workout details
+    // Events only reference workouts — exercises live on the template.
     if (req.body.workoutTemplateId) {
       const template = await PredefinedWorkout.findById(req.body.workoutTemplateId);
       if (template) {
         eventData.title = eventData.title || template.name;
         eventData.workoutDetails = {
+          ...(eventData.workoutDetails || {}),
           type: template.primary_disciplines?.[0]?.toLowerCase() || 'strength',
-          estimatedDuration: template.estimated_duration,
-          exercises: template.blocks?.flatMap(block =>
-            block.exercises?.map(ex => ({
-              // Omit rather than propagate a null id from a legacy template —
-              // workoutDetails.exerciseId is optional.
-              ...(ex.exercise_id ? { exerciseId: ex.exercise_id } : {}),
-              exerciseName: ex.exercise_name,
-              targetSets: parseInt(ex.volume?.split('x')[0]) || 3,
-              targetReps: parseInt(ex.volume?.split('x')[1]) || 8,
-              notes: ex.notes
-            }))
-          ) || []
+          estimatedDuration: template.estimated_duration
         };
       }
+    } else if (['workout', 'deload'].includes(eventData.type) && eventData.status !== 'completed') {
+      // Bare-exercises payload (chat flow, custom builds, legacy clients):
+      // materialize a library template so the event can link it. Completed
+      // events are historical records of performed sets and keep theirs.
+      const templateId = await ensureTemplateForCustomEvent(req.user._id, eventData);
+      if (templateId) eventData.workoutTemplateId = templateId;
+    }
+
+    // Scheduled events never persist an embedded exercise list, whatever the
+    // client sent. Completed events keep actual performed sets (workout-log flow).
+    if (eventData.status !== 'completed' && eventData.workoutDetails?.exercises) {
+      delete eventData.workoutDetails.exercises;
     }
 
     const event = new CalendarEvent(eventData);
@@ -151,10 +158,27 @@ const updateEvent = async (req, res) => {
       });
     }
 
+    const updateData = { ...req.body };
+
+    // Exercises never land on the event. If a client edits a workout's
+    // exercise list, the edit goes to the linked template — copy-on-write
+    // when the template is shared (common / other events reference it).
+    const incomingExercises = updateData.workoutDetails?.exercises;
+    if (incomingExercises) {
+      updateData.workoutDetails = { ...updateData.workoutDetails };
+      delete updateData.workoutDetails.exercises;
+
+      const existing = await CalendarEvent.findOne({ _id: req.params.id, userId: req.user._id });
+      if (existing && ['workout', 'deload'].includes(existing.type) && existing.status !== 'completed') {
+        const templateId = await applyExercisesCopyOnWrite(req.user._id, existing, incomingExercises);
+        if (templateId) updateData.workoutTemplateId = templateId;
+      }
+    }
+
     // Single query with ownership check
     const updatedEvent = await CalendarEvent.findOneAndUpdate(
       { _id: req.params.id, userId: req.user._id },
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     ).populate('workoutTemplateId', 'name goal primary_disciplines estimated_duration');
 
@@ -265,6 +289,13 @@ const startWorkout = async (req, res) => {
     // Update event status (will save after linking workoutLogId to avoid double save)
     event.status = 'in_progress';
 
+    // The linked template is the source of truth for exercises; the embedded
+    // list is a legacy fallback for unmigrated/orphan events.
+    const templateExercises = flattenTemplateExercises(event.workoutTemplateId);
+    const plannedExercises = templateExercises.length
+      ? templateExercises
+      : event.workoutDetails?.exercises || [];
+
     // Create a workout log entry
     const workoutLog = new WorkoutLog({
       userId: req.user._id,
@@ -272,7 +303,7 @@ const startWorkout = async (req, res) => {
       title: event.title,
       type: event.workoutDetails?.type || 'strength',
       startedAt: new Date(),
-      exercises: event.workoutDetails?.exercises?.map((ex, i) => ({
+      exercises: plannedExercises.map((ex, i) => ({
         exerciseId: ex.exerciseId,
         exerciseName: ex.exerciseName,
         order: i,
@@ -283,7 +314,7 @@ const startWorkout = async (req, res) => {
           isCompleted: false
         })),
         notes: ex.notes
-      })) || []
+      }))
     });
 
     await workoutLog.save();

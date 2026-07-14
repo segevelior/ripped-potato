@@ -235,23 +235,52 @@ class WorkoutService:
                 return {"success": True, "deleted": 0,
                         "message": "No matching templates of yours found (common/public templates can't be deleted)."}
 
-            preview = [{"id": str(t["_id"]), "name": t.get("name", "")} for t in targets]
+            # Calendar events reference these templates instead of embedding
+            # exercises — a template with upcoming scheduled events can't be
+            # deleted or those sessions would go empty.
+            referenced: List[Dict[str, Any]] = []
+            deletable: List[Dict[str, Any]] = []
+            for t in targets:
+                refs = await self.db.calendarevents.count_documents({
+                    "workoutTemplateId": t["_id"],
+                    "status": {"$in": ["scheduled", "in_progress"]},
+                })
+                if refs > 0:
+                    referenced.append({"id": str(t["_id"]), "name": t.get("name", ""), "upcoming_events": refs})
+                else:
+                    deletable.append(t)
+
+            preview = [{"id": str(t["_id"]), "name": t.get("name", "")} for t in deletable]
+
+            if not deletable:
+                names = ", ".join(f"{r['name']} ({r['upcoming_events']} upcoming)" for r in referenced)
+                return {"success": False, "skipped_referenced": referenced,
+                        "message": (f"Can't delete — still scheduled on the calendar: {names}. "
+                                    "Delete or reschedule those events first.")}
 
             if not args.get("confirm", False):
-                msg = f"This would delete {len(targets)} template(s): " + ", ".join(t["name"] for t in preview) + "."
+                msg = f"This would delete {len(deletable)} template(s): " + ", ".join(t["name"] for t in preview) + "."
+                if referenced:
+                    names = ", ".join(f"{r['name']} ({r['upcoming_events']} upcoming)" for r in referenced)
+                    msg += f" Skipping (scheduled on the calendar): {names}."
                 if unmatched_keeps:
                     msg += (f" ⚠️ Note: keep name(s) {unmatched_keeps} matched nothing in your library — "
                             "double-check them before confirming.")
                 msg += " Confirm to delete."
                 return {"success": True, "needs_confirmation": True, "would_delete": preview,
+                        "skipped_referenced": referenced,
                         "unmatched_keep_names": unmatched_keeps, "message": msg}
 
             result = await self.db.predefinedworkouts.delete_many(
-                {**own_filter, "_id": {"$in": [t["_id"] for t in targets]}}
+                {**own_filter, "_id": {"$in": [t["_id"] for t in deletable]}}
             )
             logger.info(f"Deleted {result.deleted_count} workout template(s) for user {user_id}")
+            msg = f"Deleted {result.deleted_count} template(s): " + ", ".join(t["name"] for t in preview) + "."
+            if referenced:
+                names = ", ".join(f"{r['name']} ({r['upcoming_events']} upcoming)" for r in referenced)
+                msg += f" Skipped (scheduled on the calendar): {names}."
             return {"success": True, "deleted": result.deleted_count,
-                    "message": f"Deleted {result.deleted_count} template(s): " + ", ".join(t["name"] for t in preview) + "."}
+                    "skipped_referenced": referenced, "message": msg}
 
         except Exception as e:
             logger.error(f"Error deleting workout template: {e}")

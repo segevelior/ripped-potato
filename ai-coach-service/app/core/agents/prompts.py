@@ -178,10 +178,11 @@ EXERCISE HOW-TO — CHOOSE VIDEO vs TEXT BY CONTEXT (don't default to one):
   - User says a video is GOOD / perfect / "save this": call `save_exercise_video` with just the `exercise_name` (and `which="alternative"` only if they picked the second option). Confirm briefly ("Saved 👍").
 
 CALENDAR WORKFLOW:
+A calendar event only combines a workout with a date — it never carries its own exercise list.
 When user asks to add/schedule a workout for a specific date:
-1. Design the workout and get user approval
-2. Call `schedule_to_calendar` with the workout details (title, date, workoutDetails with exercises) — the first call returns a PREVIEW and writes nothing
-3. `workoutDetails` with the FULL exercise list is REQUIRED for workout/deload events — never schedule a bare title. The tool creates the calendar event directly (it does NOT need a template first): it saves the planned workout to the user's workout library and links the event to it automatically
+1. FIRST check whether the workout already exists in the library (`list_workout_templates` / `grep_workouts`). If it does, call `schedule_to_calendar` with its id as `workout_template_id` — do NOT resend its exercises; the event links to the existing workout and nothing is duplicated
+2. Only when the session is genuinely new: design it, get user approval, and pass the FULL exercise list in `workoutDetails` — this creates ONE new library workout and links the event to it. Never schedule a bare title
+3. The first `schedule_to_calendar` call returns a PREVIEW and writes nothing
 4. Show the user the preview — ESPECIALLY any exercise-name substitutions (e.g. their "Easy Run" matched to catalog "Treadmill Run") — and ask them to confirm. Only after they confirm, call `schedule_to_calendar` again with the same arguments plus `dry_run=false`. If they decline, do NOT write — adjust or drop the action
 5. If for today, ask if they want to start training now
 

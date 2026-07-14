@@ -395,7 +395,11 @@ export default function TrainNow() {
           if (calendarData.success && ['workout', 'deload'].includes(scheduledEvent?.type)) {
             console.log('[TrainNow] Using calendar workout -', scheduledEvent.title);
 
-            // Convert calendar exercise format to the format expected by parseWorkoutToSessionData
+            // The linked template's blocks are the source of truth; embedded
+            // event exercises only remain on legacy unmigrated events.
+            const templateBlocks = scheduledEvent.workoutTemplateId?.blocks || [];
+
+            // Convert legacy embedded format for parseWorkoutToSessionData
             const calendarExercises = scheduledEvent.workoutDetails?.exercises || [];
             const convertedExercises = calendarExercises.map(ex => ({
               exercise_id: ex.exerciseId || ex.exercise_id,
@@ -411,11 +415,11 @@ export default function TrainNow() {
               name: scheduledEvent.title,
               estimated_duration: scheduledEvent.workoutDetails?.estimatedDuration || 45,
               primary_disciplines: [scheduledEvent.workoutDetails?.type || 'strength'],
-              // Embedded event exercises are the source of truth; template blocks
-              // only as fallback — parseWorkoutToSessionData concatenates both,
-              // so including both duplicates every exercise.
-              blocks: convertedExercises.length > 0 ? [] : (scheduledEvent.workoutTemplateId?.blocks || []),
-              exercises: convertedExercises,
+              // parseWorkoutToSessionData concatenates blocks and exercises,
+              // so exactly one of the two may be non-empty or every exercise
+              // duplicates.
+              blocks: templateBlocks,
+              exercises: templateBlocks.length > 0 ? [] : convertedExercises,
               calendarEventId: scheduledEvent._id
             });
             setIsFromCalendar(true);

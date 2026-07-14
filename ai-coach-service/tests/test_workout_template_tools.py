@@ -28,6 +28,8 @@ def _service(own_templates=None, total_matching=None, deleted=0):
         return_value=total_matching if total_matching is not None else len(own_templates))
     db.predefinedworkouts.delete_many = AsyncMock(
         return_value=MagicMock(deleted_count=deleted))
+    # Deletion guard: no calendar events reference these templates by default.
+    db.calendarevents.count_documents = AsyncMock(return_value=0)
     svc = WorkoutService(db)
     return svc, db
 
@@ -107,3 +109,29 @@ class TestDeleteTemplate:
         res = await svc.delete_workout_template(str(USER), {"name": "Does Not Exist"})
         assert res["success"] is True and res["deleted"] == 0
         db.predefinedworkouts.delete_many.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_template_with_upcoming_events_is_refused(self):
+        # Calendar events reference templates — deleting one that upcoming
+        # events link to would empty those sessions.
+        own = [_tmpl("Scheduled One")]
+        svc, db = _service(own)
+        db.calendarevents.count_documents = AsyncMock(return_value=2)
+        res = await svc.delete_workout_template(str(USER), {
+            "template_id": str(own[0]["_id"]), "confirm": True,
+        })
+        assert res["success"] is False
+        assert res["skipped_referenced"][0]["upcoming_events"] == 2
+        db.predefinedworkouts.delete_many.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_referenced_templates_skipped_others_deleted(self):
+        own = [_tmpl("Scheduled One"), _tmpl("Unused One")]
+        svc, db = _service(own, deleted=1)
+        db.calendarevents.count_documents = AsyncMock(
+            side_effect=lambda q: 3 if q["workoutTemplateId"] == own[0]["_id"] else 0)
+        res = await svc.delete_workout_template(str(USER), {"keep_only": ["nothing kept"], "confirm": True})
+        assert res["success"] is True and res["deleted"] == 1
+        assert res["skipped_referenced"][0]["name"] == "Scheduled One"
+        deleted_ids = db.predefinedworkouts.delete_many.call_args.args[0]["_id"]["$in"]
+        assert deleted_ids == [own[1]["_id"]]

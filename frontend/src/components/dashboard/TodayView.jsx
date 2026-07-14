@@ -83,8 +83,17 @@ export default function TodayView() {
             duration:
               scheduledEvent.workoutDetails?.durationMinutes ||
               scheduledEvent.workoutDetails?.estimatedDuration ||
+              scheduledEvent.workoutTemplateId?.estimated_duration ||
               null,
-            exercises: scheduledEvent.workoutDetails?.exercises?.length || null,
+            // Exercise count comes from the linked template; embedded list
+            // is a legacy fallback for unmigrated events.
+            exercises:
+              scheduledEvent.workoutTemplateId?.blocks?.reduce(
+                (n, b) => n + (b.exercises?.length || 0),
+                0
+              ) ||
+              scheduledEvent.workoutDetails?.exercises?.length ||
+              null,
             eventId: scheduledEvent.id,
           });
           setSessionLoading(false);

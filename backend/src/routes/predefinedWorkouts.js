@@ -1,5 +1,6 @@
 const express = require('express');
 const PredefinedWorkout = require('../models/PredefinedWorkout');
+const CalendarEvent = require('../models/CalendarEvent');
 const WorkoutService = require('../services/WorkoutService');
 const { auth, optionalAuth } = require('../middleware/auth');
 const router = express.Router();
@@ -223,8 +224,29 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ error: 'Predefined workout not found' });
     }
 
+    // Calendar events reference workouts instead of embedding exercises, so
+    // deleting a workout that upcoming events link to would empty those
+    // sessions. Completed/skipped history may dangle (readers null-guard).
+    const upcomingRefs = await CalendarEvent.countDocuments({
+      workoutTemplateId: workout._id,
+      status: { $in: ['scheduled', 'in_progress'] }
+    });
+    const forceDelete = req.user.role === 'superAdmin' && req.query.force === 'true';
+    if (upcomingRefs > 0 && !forceDelete) {
+      return res.status(409).json({
+        error: `This workout is scheduled on the calendar (${upcomingRefs} upcoming event(s)). ` +
+          'Delete or reschedule those events first.'
+      });
+    }
+
     // SuperAdmin can delete any workout, including common ones
     if (req.user.role === 'superAdmin') {
+      if (upcomingRefs > 0) {
+        await CalendarEvent.updateMany(
+          { workoutTemplateId: workout._id, status: { $in: ['scheduled', 'in_progress'] } },
+          { $unset: { workoutTemplateId: 1 } }
+        );
+      }
       await workout.deleteOne();
       return res.json({ message: 'Predefined workout deleted successfully' });
     }
