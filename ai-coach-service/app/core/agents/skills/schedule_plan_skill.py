@@ -214,11 +214,14 @@ def _build_events(
                 "type": "deload" if is_deload else "workout",
                 "status": "scheduled",
                 "notes": workout.get("notes") or "",
+                # Events only carry display scalars — the exercises live on
+                # the linked template. _exerciseCount is transient (popped
+                # before insert) so previews can still show counts.
                 "workoutDetails": {
                     "type": content["type"],
                     "estimatedDuration": content["duration"],
-                    "exercises": content["exercises"],
                 },
+                "_exerciseCount": len(content["exercises"]),
                 "createdAt": now,
                 "updatedAt": now,
             }
@@ -319,8 +322,8 @@ async def _ensure_templates(
     ctx: SkillContext, user_id: str, plan: Dict[str, Any], events: List[Dict[str, Any]]
 ) -> int:
     """Create (or reuse) a PredefinedWorkout for every event carrying a
-    `_pendingTemplate` marker, link it via workoutTemplateId, and backfill
-    resolved exerciseIds into the event's embedded workoutDetails.
+    `_pendingTemplate` marker and link it via workoutTemplateId (events don't
+    embed exercises — the template is the only copy).
 
     Dedupe is by content key, both within the run (a workout repeated across
     weeks shares ONE library entry) and across re-runs (overwrite deletes the
@@ -387,13 +390,8 @@ async def _ensure_templates(
             known[key] = (result.inserted_id, _template_doc_exercise_ids(template_doc))
             created += 1
 
-        template_id, exercise_ids = known[key]
+        template_id, _exercise_ids = known[key]
         event["workoutTemplateId"] = template_id
-        embedded = event.get("workoutDetails", {}).get("exercises", [])
-        if len(embedded) == len(exercise_ids):
-            for entry, ex_id in zip(embedded, exercise_ids):
-                if ex_id and not entry.get("exerciseId"):
-                    entry["exerciseId"] = ex_id
 
     if created:
         logger.info("created plan workout templates",
@@ -410,7 +408,7 @@ def _serialize_event(event: Dict[str, Any]) -> Dict[str, Any]:
         "week": event["planWeek"],
         "title": event["title"],
         "type": event["type"],
-        "exerciseCount": len(event.get("workoutDetails", {}).get("exercises", [])),
+        "exerciseCount": event.get("_exerciseCount", 0),
     }
 
 
@@ -645,6 +643,7 @@ async def schedule_plan_to_calendar(ctx: SkillContext, user_id: str, args: Dict[
     await _ensure_templates(ctx, user_id, plan, insert_list)
     for e in proposed:
         e.pop("_pendingTemplate", None)
+        e.pop("_exerciseCount", None)
 
     inserted_count = 0
     if insert_list:

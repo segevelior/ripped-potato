@@ -40,6 +40,24 @@ const WORKOUT_TYPE_COLORS = {
   hybrid: { bg: "bg-teal-50", text: "text-teal-700", badge: "bg-teal-500" }
 };
 
+// Scheduled events reference their workout — flatten the populated template
+// blocks into the display shape (volume "3x10" → targetSets/targetReps).
+const flattenTemplateBlocks = (blocks) => {
+  if (!Array.isArray(blocks)) return [];
+  return blocks.flatMap(block =>
+    (block.exercises || []).map(ex => {
+      const m = /^\s*(\d+)\s*[xX]\s*(\d+)/.exec(ex.volume || '');
+      return {
+        exerciseId: ex.exercise_id,
+        exerciseName: ex.exercise_name,
+        targetSets: m ? parseInt(m[1], 10) : 3,
+        targetReps: m ? parseInt(m[2], 10) : 10,
+        notes: ex.notes
+      };
+    })
+  );
+};
+
 export default function CalendarEventDetailModal({ event, onClose, onStartWorkout, onDelete }) {
   if (!event) return null;
 
@@ -50,8 +68,15 @@ export default function CalendarEventDetailModal({ event, onClose, onStartWorkou
   const workoutType = event.workoutDetails?.type || event.eventType || "strength";
   const typeColors = WORKOUT_TYPE_COLORS[workoutType] || WORKOUT_TYPE_COLORS.strength;
 
-  const exercises = event.workoutDetails?.exercises || [];
-  const duration = event.workoutDetails?.estimatedDuration || event.workoutDetails?.durationMinutes || 60;
+  // Completed events embed the ACTUAL performed sets; scheduled events read
+  // the plan from the linked workout template (embedded list is a legacy
+  // fallback for unmigrated events).
+  const embeddedExercises = event.workoutDetails?.exercises || [];
+  const templateExercises = flattenTemplateBlocks(event.workoutTemplateId?.blocks);
+  const exercises = status === 'completed'
+    ? (embeddedExercises.length ? embeddedExercises : templateExercises)
+    : (templateExercises.length ? templateExercises : embeddedExercises);
+  const duration = event.workoutDetails?.estimatedDuration || event.workoutDetails?.durationMinutes || event.workoutTemplateId?.estimated_duration || 60;
   const notes = event.workoutDetails?.notes || event.notes || "";
 
   const eventDate = typeof event.date === 'string' ? new Date(event.date) : event.date;
@@ -154,7 +179,9 @@ export default function CalendarEventDetailModal({ event, onClose, onStartWorkou
                           </span>
                         </div>
                         <span className="text-xs text-gray-500">
-                          {setsCompleted}/{totalSets} sets
+                          {totalSets > 0
+                            ? `${setsCompleted}/${totalSets} sets`
+                            : `${exercise.targetSets || 3} × ${exercise.targetReps || '-'}`}
                         </span>
                       </div>
 

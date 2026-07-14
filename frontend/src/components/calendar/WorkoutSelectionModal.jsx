@@ -149,6 +149,9 @@ I want to add a workout to my calendar for ${dateStr}. Please help me decide wha
       title: selectedWorkout.name || "Unnamed Workout",
       type: workoutType,
       durationMinutes: selectedWorkout.estimated_duration || selectedWorkout.duration_minutes || 60,
+      // The library workout's id: the calendar event links to it instead of
+      // carrying its own exercise copy (exercises stay for local preview).
+      workoutTemplateId: selectedWorkout._id || selectedWorkout.id,
       exercises: workoutExercises,
       notes: `Applied from: ${selectedWorkout.name}\n\nGoal: ${selectedWorkout.goal || "No goal specified"}`,
       totalStrain: 0,

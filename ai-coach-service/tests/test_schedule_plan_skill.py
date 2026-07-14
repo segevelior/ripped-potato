@@ -441,12 +441,11 @@ class TestEnsureTemplates:
         inserted = ctx.db.calendarevents.insert_many.call_args.args[0]
         template_ids = {e.get("workoutTemplateId") for e in inserted}
         assert len(template_ids) == 1 and None not in template_ids
-        # internal marker never persisted; resolved ids backfilled into events
+        # internal markers never persisted; events reference the template
+        # instead of embedding exercises
         assert all("_pendingTemplate" not in e for e in inserted)
-        assert all(
-            e["workoutDetails"]["exercises"][0].get("exerciseId") is not None
-            for e in inserted
-        )
+        assert all("_exerciseCount" not in e for e in inserted)
+        assert all("exercises" not in e["workoutDetails"] for e in inserted)
 
     @pytest.mark.asyncio
     async def test_dry_run_creates_no_templates(self, fake_resolver):
@@ -480,10 +479,7 @@ class TestEnsureTemplates:
         ctx.db.predefinedworkouts.insert_one.assert_not_called()
         inserted = ctx.db.calendarevents.insert_many.call_args.args[0]
         assert all(e["workoutTemplateId"] == existing_id for e in inserted)
-        assert all(
-            e["workoutDetails"]["exercises"][0]["exerciseId"] == existing_ex_id
-            for e in inserted
-        )
+        assert all("exercises" not in e["workoutDetails"] for e in inserted)
 
     @pytest.mark.asyncio
     async def test_same_name_different_content_gets_own_template(self, fake_resolver):

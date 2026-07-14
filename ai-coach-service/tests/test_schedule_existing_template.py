@@ -76,12 +76,14 @@ class TestExistingTemplateMode:
                       "workout_template_id": str(TEMPLATE_ID)}
         )
         assert res["success"] is True
-        assert "nothing new was created" in res["message"]
+        assert "Linked to" in res["message"]
+        assert res["workout_template_id"] == str(TEMPLATE_ID)
         db.predefinedworkouts.insert_one.assert_not_called()
         event_doc = db.calendarevents.insert_one.call_args[0][0]
         assert event_doc["workoutTemplateId"] == TEMPLATE_ID
-        assert len(event_doc["workoutDetails"]["exercises"]) == 2
-        assert event_doc["workoutDetails"]["exercises"][0]["exerciseName"] == "Run"
+        # Reference architecture: the event never embeds exercises — they
+        # live on the linked template.
+        assert "exercises" not in event_doc["workoutDetails"]
         # Title falls back to the template name.
         assert event_doc["title"].startswith("Endurance 1 (")
 
@@ -93,7 +95,7 @@ class TestExistingTemplateMode:
         )
         assert res["success"] is False
         assert res["error"] == "template_not_found"
-        assert "never guess an id" in res["message"]
+        assert "never guess an id" in res["message"].lower()
 
     async def test_invalid_id_is_corrective_not_crash(self):
         service, db = _service(template=None)
@@ -142,7 +144,7 @@ class TestSameDayDuplicate:
                       "workoutDetails": {"exercises": [{"exerciseName": "Run"}]}}
         )
         assert res["error"] == "already_scheduled"
-        assert res["existing_event"]["exerciseCount"] == 1
+        assert res["existing_event"]["title"] == "Endurance 1 (Jul 20)"
         assert "allow_duplicate=true" in res["message"]
         db.calendarevents.insert_one.assert_not_called()
 

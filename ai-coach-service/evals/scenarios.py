@@ -141,6 +141,20 @@ async def _empty_templates(db, user_id: str):
     ) if not any((b.get("exercises") or []) for b in (t.get("blocks") or []))]
 
 
+async def _event_exercise_count(db, event) -> int:
+    """Exercises of an event under the reference architecture: embedded list
+    (legacy events) or the linked template's flattened blocks."""
+    embedded = (event.get("workoutDetails") or {}).get("exercises") or []
+    if embedded:
+        return len(embedded)
+    tid = event.get("workoutTemplateId")
+    if tid:
+        t = await db.predefinedworkouts.find_one({"_id": tid})
+        if t:
+            return sum(len(b.get("exercises") or []) for b in (t.get("blocks") or []))
+    return 0
+
+
 # ----------------------------- scenarios -----------------------------
 
 
@@ -160,8 +174,8 @@ async def _check_schedule_existing(db, user_id, refs, trace):
             f"event not linked to the existing Endurance 1 template "
             f"(workoutTemplateId={events[0].get('workoutTemplateId')})"
         )
-    elif len((events[0].get("workoutDetails") or {}).get("exercises") or []) != len(EXERCISES):
-        problems.append("event's embedded exercises don't match the template")
+    elif await _event_exercise_count(db, events[0]) != len(EXERCISES):
+        problems.append("event's exercises don't match the template")
     if await _template_count(db, user_id) != refs["template_count"]:
         problems.append("a new template was created instead of reusing Endurance 1")
     if await _empty_templates(db, user_id):
@@ -291,10 +305,10 @@ async def _check_correction(db, user_id, refs, trace):
     if len(events) != 1:
         problems.append(f"expected exactly 1 event today after the fix, found {len(events)}")
         return problems
-    exercises = (events[0].get("workoutDetails") or {}).get("exercises") or []
-    if len(exercises) < 4:
+    count = await _event_exercise_count(db, events[0])
+    if count < 4:
         problems.append(
-            f"today's event still has {len(exercises)} exercises — the empty "
+            f"today's event still has {count} exercises — the empty "
             f"placeholder was not replaced with the real Endurance 1"
         )
     return problems

@@ -13,7 +13,7 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "schedule_to_calendar",
-                "description": "Schedule a workout or event to the user's calendar for a specific date. Two modes for 'workout'/'deload' events: (1) EXISTING library workout — pass workout_template_id (find it first with grep_workouts / list_workout_templates); the event uses that template's exercises and links to it, nothing new is created. PREFERRED whenever the user asks to schedule a workout they already have by name — never re-type its exercises inline. (2) New one-off session — plan the full session and pass it in workoutDetails.exercises; the tool saves it to the user's workout library (Workouts tab) and links the calendar event to it automatically. Never schedule a bare title. Refuses to double-book: if an equivalent event already exists on that date it returns already_scheduled instead of writing. Defaults to a dry-run PREVIEW that writes nothing and shows how each exercise name matched the user's exercise catalog. Present the preview to the user; ONLY after they confirm, call again with the same arguments plus dry_run=false to actually write. If the user declines the preview, do NOT call again.",
+                "description": "Schedule a workout or event to the user's calendar for a specific date. A calendar event only combines a workout with a date — it never carries its own exercise list. For 'workout' and 'deload' events, EITHER pass workout_template_id for an existing library workout (find it with list_workout_templates / grep_workouts — ALWAYS prefer this; it links the event without creating anything new), OR plan a brand-new session and pass workoutDetails.exercises (this creates a new library workout and links it). Never schedule a bare title. Refuses to double-book: if an equivalent event already exists on that date it returns already_scheduled instead of writing. Defaults to a dry-run PREVIEW that writes nothing. Present the preview to the user; ONLY after they confirm, call again with the same arguments plus dry_run=false to actually write. If the user declines the preview, do NOT call again.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -23,7 +23,7 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
                         },
                         "title": {
                             "type": "string",
-                            "description": "Title for the calendar event (e.g., 'Upper Body Strength', 'Active Recovery', 'Rest Day')"
+                            "description": "Title for the calendar event (e.g., 'Upper Body Strength', 'Active Recovery', 'Rest Day'). When linking a library workout via workout_template_id, omit to default to the workout's name."
                         },
                         "type": {
                             "type": "string",
@@ -32,7 +32,7 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
                         },
                         "workout_template_id": {
                             "type": "string",
-                            "description": "ID of an EXISTING workout template from the user's library (take it from a list_workout_templates / grep_workouts result in THIS conversation — never invent one). When set, the event uses that template's exercises and links to it; omit workoutDetails. PREFERRED whenever the user asks to schedule a workout they already have by name."
+                            "description": "ID of an existing library workout to schedule (take it from a list_workout_templates / grep_workouts result in THIS conversation — never invent one). ALWAYS pass this instead of workoutDetails when the workout already exists — do NOT resend its exercises."
                         },
                         "allow_duplicate": {
                             "type": "boolean",
@@ -40,7 +40,7 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
                         },
                         "workoutDetails": {
                             "type": "object",
-                            "description": "Details for a NEW one-off workout session. REQUIRED (with a non-empty exercises list) for type 'workout' and 'deload' unless workout_template_id is set.",
+                            "description": "Details for a NEWLY designed workout session — creates a new library workout. For 'workout'/'deload' events, required only when workout_template_id is not given.",
                             "properties": {
                                 "workoutType": {
                                     "type": "string",
@@ -76,8 +76,7 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
                                         "required": ["exerciseName"]
                                     }
                                 }
-                            },
-                            "required": ["exercises"]
+                            }
                         },
                         "notes": {
                             "type": "string",

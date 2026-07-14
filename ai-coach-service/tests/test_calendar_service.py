@@ -265,10 +265,12 @@ class TestScheduleToCalendarTemplateLink:
         template = db.predefinedworkouts.insert_one.call_args[0][0]
         assert template["isCommon"] is False
         assert template["createdBy"] == ObjectId(USER_ID)
+        assert template["blocks"][0]["exercises"][0]["exercise_id"] is not None
 
+        # The event only references the template — exercises are never embedded.
         event = db.calendarevents.insert_one.call_args[0][0]
         assert event["workoutTemplateId"] is not None
-        assert event["workoutDetails"]["exercises"][0]["exerciseId"] is not None
+        assert "exercises" not in event["workoutDetails"]
 
     async def test_rest_event_needs_no_exercises(self, monkeypatch):
         _anchor(monkeypatch)
@@ -280,6 +282,113 @@ class TestScheduleToCalendarTemplateLink:
         )
 
         assert result["success"] is True
+        db.predefinedworkouts.insert_one.assert_not_called()
+
+
+# ------------------- schedule_to_calendar: linking an existing template -------------------
+
+LIBRARY_TEMPLATE_ID = ObjectId()
+
+
+def _library_template(is_common=True, created_by=None):
+    return {
+        "_id": LIBRARY_TEMPLATE_ID,
+        "name": "Endurance 1",
+        "primary_disciplines": ["Calisthenics"],
+        "estimated_duration": 75,
+        "isCommon": is_common,
+        **({"createdBy": created_by} if created_by else {}),
+        "blocks": [{
+            "name": "Main Workout",
+            "exercises": [
+                {"exercise_id": ObjectId(), "exercise_name": "Pull-Ups", "volume": "4x8", "rest": "60s", "notes": ""},
+                {"exercise_id": ObjectId(), "exercise_name": "Dips", "volume": "3x12", "rest": "60s", "notes": ""},
+            ],
+        }],
+    }
+
+
+class TestScheduleToCalendarExistingTemplate:
+    async def test_template_id_links_without_creating_template(self, monkeypatch):
+        _anchor(monkeypatch)
+        db = _insert_db()
+        db.predefinedworkouts.find_one = AsyncMock(return_value=_library_template())
+        service = CalendarService(db)
+
+        result = await service.schedule_to_calendar(
+            USER_ID,
+            {"date": "today", "type": "workout", "dry_run": False,
+             "workout_template_id": str(LIBRARY_TEMPLATE_ID)},
+        )
+
+        assert result["success"] is True
+        # No duplicate template is ever created for a library workout.
+        db.predefinedworkouts.insert_one.assert_not_called()
+        event = db.calendarevents.insert_one.call_args[0][0]
+        assert event["workoutTemplateId"] == LIBRARY_TEMPLATE_ID
+        assert "exercises" not in event["workoutDetails"]
+        assert event["workoutDetails"]["estimatedDuration"] == 75
+        # Title defaults to the template name (plus the date suffix).
+        assert event["title"].startswith("Endurance 1")
+        assert result["workout_template_id"] == str(LIBRARY_TEMPLATE_ID)
+
+    async def test_template_id_not_found_errors(self, monkeypatch):
+        _anchor(monkeypatch)
+        db = _insert_db()
+        # Covers both a bogus id and another user's private template — the
+        # access-scoped find_one returns nothing either way.
+        db.predefinedworkouts.find_one = AsyncMock(return_value=None)
+        service = CalendarService(db)
+
+        result = await service.schedule_to_calendar(
+            USER_ID,
+            {"date": "today", "type": "workout", "dry_run": False,
+             "workout_template_id": str(ObjectId())},
+        )
+
+        assert result["success"] is False
+        assert result["error"] == "template_not_found"
+        db.calendarevents.insert_one.assert_not_called()
+        db.predefinedworkouts.insert_one.assert_not_called()
+
+    async def test_template_lookup_scoped_to_user_visible(self, monkeypatch):
+        _anchor(monkeypatch)
+        db = _insert_db()
+        db.predefinedworkouts.find_one = AsyncMock(return_value=_library_template())
+        service = CalendarService(db)
+
+        await service.schedule_to_calendar(
+            USER_ID,
+            {"date": "today", "type": "workout", "dry_run": False,
+             "workout_template_id": str(LIBRARY_TEMPLATE_ID)},
+        )
+
+        query = db.predefinedworkouts.find_one.call_args[0][0]
+        assert query["_id"] == LIBRARY_TEMPLATE_ID
+        assert {"isCommon": True} in query["$or"]
+        assert {"createdBy": ObjectId(USER_ID)} in query["$or"]
+
+    async def test_template_id_dry_run_previews_without_resolver(self, monkeypatch):
+        _anchor(monkeypatch)
+        resolver_cls = MagicMock()
+        monkeypatch.setattr(calendar_service_module, "ExerciseResolver", resolver_cls)
+        db = _insert_db()
+        db.predefinedworkouts.find_one = AsyncMock(return_value=_library_template())
+        service = CalendarService(db)
+
+        result = await service.schedule_to_calendar(
+            USER_ID,
+            {"date": "today", "type": "workout",
+             "workout_template_id": str(LIBRARY_TEMPLATE_ID)},
+        )
+
+        assert result["success"] is True
+        assert result["dry_run"] is True
+        # Template exercises are canonical — the resolver must not run.
+        resolver_cls.assert_not_called()
+        assert "Endurance 1" in result["message"]
+        assert "Pull-Ups" in result["message"]
+        db.calendarevents.insert_one.assert_not_called()
         db.predefinedworkouts.insert_one.assert_not_called()
 
 
