@@ -8,8 +8,11 @@ from unittest.mock import AsyncMock, MagicMock
 from bson import ObjectId
 
 from app.core.dedup import (
+    exercise_content_signature,
     existing_template_duplicate_response,
+    find_reusable_template,
     normalize_template_title,
+    template_doc_signature,
 )
 from app.core.agents.services.workout_service import WorkoutService
 
@@ -89,6 +92,82 @@ class TestExistingTemplateDuplicateResponse:
     async def test_new_name_returns_none(self):
         db = _db_with_templates([])
         assert await existing_template_duplicate_response(db, USER_ID, "Endurance 1") is None
+
+
+def _exercises(*prescriptions):
+    return [
+        {"exerciseName": name, "targetSets": sets, "targetReps": reps}
+        for name, sets, reps in prescriptions
+    ]
+
+
+class TestContentSignature:
+    def test_name_normalization_case_and_whitespace(self):
+        assert exercise_content_signature(_exercises(("Bench  Press", 3, 8))) == \
+            exercise_content_signature(_exercises(("bench press ", 3, 8)))
+
+    def test_order_sensitive(self):
+        a = exercise_content_signature(_exercises(("Run", 1, 30), ("Burpees", 3, 15)))
+        b = exercise_content_signature(_exercises(("Burpees", 3, 15), ("Run", 1, 30)))
+        assert a != b
+
+    def test_prescription_change_changes_signature(self):
+        assert exercise_content_signature(_exercises(("Run", 3, 10))) != \
+            exercise_content_signature(_exercises(("Run", 5, 5)))
+
+    def test_doc_signature_matches_inline_signature(self):
+        doc = {"blocks": [{"exercises": [
+            {"exercise_name": "Run", "volume": "1x30"},
+            {"exercise_name": "Burpees", "volume": "3x15"},
+        ]}]}
+        assert template_doc_signature(doc) == \
+            exercise_content_signature(_exercises(("Run", 1, 30), ("Burpees", 3, 15)))
+
+
+class TestFindReusableTemplate:
+    EXERCISES = _exercises(("Run", 1, 30), ("Burpees", 3, 15))
+
+    def _doc(self, name, is_common=False, oid=None):
+        return {
+            "_id": oid or ObjectId(),
+            "name": name,
+            "isCommon": is_common,
+            "blocks": [{"exercises": [
+                {"exercise_name": "Run", "volume": "1x30"},
+                {"exercise_name": "Burpees", "volume": "3x15"},
+            ]}],
+        }
+
+    async def test_no_content_match_returns_none(self):
+        db = _db_with_templates([self._doc("Endurance 1")])
+        assert await find_reusable_template(
+            db, USER_ID, "Endurance 1", _exercises(("Run", 5, 5))
+        ) is None
+
+    async def test_empty_exercises_returns_none(self):
+        db = _db_with_templates([self._doc("Endurance 1")])
+        assert await find_reusable_template(db, USER_ID, "Endurance 1", []) is None
+
+    async def test_name_match_beats_common(self):
+        named = self._doc("Endurance 1 (Jul 07)")
+        common = self._doc("Aerobic Base", is_common=True)
+        db = _db_with_templates([common, named])
+        match = await find_reusable_template(db, USER_ID, "Endurance 1", self.EXERCISES)
+        assert match["_id"] == named["_id"]
+
+    async def test_common_beats_private_when_names_equal(self):
+        private = self._doc("Endurance 1")
+        common = self._doc("Endurance 1", is_common=True)
+        db = _db_with_templates([private, common])
+        match = await find_reusable_template(db, USER_ID, "Endurance 1", self.EXERCISES)
+        assert match["_id"] == common["_id"]
+
+    async def test_oldest_wins_as_final_tiebreak(self):
+        older = self._doc("Endurance 1", oid=ObjectId("6" + "0" * 23))
+        newer = self._doc("Endurance 1", oid=ObjectId("7" + "0" * 23))
+        db = _db_with_templates([newer, older])
+        match = await find_reusable_template(db, USER_ID, "Endurance 1", self.EXERCISES)
+        assert match["_id"] == older["_id"]
 
 
 class TestCreateWorkoutTemplateGuards:

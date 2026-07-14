@@ -12,7 +12,11 @@ import structlog
 from app.core.agents.date_utils import get_user_today, relative_day_label
 from app.core.agents.services.exercise_resolver import ExerciseResolver
 from app.core.agents.volume_utils import flatten_template_exercises
-from app.core.dedup import normalize_template_title, strip_template_date_suffix
+from app.core.dedup import (
+    find_reusable_template,
+    normalize_template_title,
+    strip_template_date_suffix,
+)
 
 logger = structlog.get_logger()
 
@@ -141,6 +145,7 @@ class CalendarService:
                 )
 
             workout_template_id = None
+            reused_inline_match = False
 
             if existing_template is not None:
                 # Link the existing library workout — never duplicate it.
@@ -173,25 +178,45 @@ class CalendarService:
                     user_id, blocks, on_ambiguous="best_effort"
                 )
 
-                # Save workout to user's library (PredefinedWorkout collection)
-                workout_template = {
-                    "name": title_with_date,
-                    "goal": workout_details.get("goal", f"Workout for {date_suffix}"),
-                    "primary_disciplines": workout_details.get("disciplines", ["General Fitness"]),
-                    "estimated_duration": workout_details.get("estimatedDuration", 45),
-                    "difficulty_level": workout_details.get("difficulty", "intermediate"),
-                    "blocks": blocks,
-                    "tags": ["ai-generated", date_suffix.lower().replace(" ", "-")],
-                    "isCommon": False,
-                    "createdBy": ObjectId(user_id),
-                    "createdAt": datetime.utcnow(),
-                    "updatedAt": datetime.utcnow()
-                }
+                # Reuse-first (match AFTER resolution so canonical names are
+                # compared): identical content means the same session — link the
+                # existing library workout instead of minting a per-date copy.
+                # Only genuinely adjusted exercises warrant a new template.
+                reused = await find_reusable_template(
+                    self.db, user_id, title,
+                    flatten_template_exercises({"blocks": blocks}),
+                )
+                if reused is not None:
+                    existing_template = reused
+                    reused_inline_match = True
+                    workout_template_id = reused["_id"]
+                    logger.info(
+                        "schedule_to_calendar reused existing template",
+                        template_id=str(reused["_id"]), name=reused.get("name"),
+                    )
+                else:
+                    # New content → one library entry with a STABLE name (no
+                    # date suffix) so the next schedule of the same session
+                    # links this template instead of creating "X (Jul 21)".
+                    template_name = strip_template_date_suffix(title) or title
+                    workout_template = {
+                        "name": template_name,
+                        "goal": workout_details.get("goal", "Custom workout"),
+                        "primary_disciplines": workout_details.get("disciplines", ["General Fitness"]),
+                        "estimated_duration": workout_details.get("estimatedDuration", 45),
+                        "difficulty_level": workout_details.get("difficulty", "intermediate"),
+                        "blocks": blocks,
+                        "tags": ["ai-generated"],
+                        "isCommon": False,
+                        "createdBy": ObjectId(user_id),
+                        "createdAt": datetime.utcnow(),
+                        "updatedAt": datetime.utcnow()
+                    }
 
-                template_result = await self.db.predefinedworkouts.insert_one(workout_template)
-                if template_result.inserted_id:
-                    workout_template_id = template_result.inserted_id
-                    logger.info(f"Saved workout '{title_with_date}' to user's library")
+                    template_result = await self.db.predefinedworkouts.insert_one(workout_template)
+                    if template_result.inserted_id:
+                        workout_template_id = template_result.inserted_id
+                        logger.info(f"Saved workout '{template_name}' to user's library")
 
             # Build the calendar event document
             event_data = {
@@ -238,7 +263,12 @@ class CalendarService:
                     duration = workout_details.get("estimatedDuration", 45) if workout_details else 45
 
                 response_msg = f"Scheduled **{title_with_date}** for **{formatted_date}**!"
-                if existing_template is not None:
+                if reused_inline_match:
+                    response_msg += (
+                        f"\n\nLinked to your existing library workout "
+                        f"**{existing_template.get('name')}** — no duplicate was created."
+                    )
+                elif existing_template is not None:
                     response_msg += f"\n\nLinked to **{existing_template.get('name')}** from your workout library."
                 elif workout_template_id:
                     response_msg += "\n\n**Saved to your workout library** - you can reuse this workout anytime!"
@@ -334,6 +364,7 @@ class CalendarService:
         preview_msg = f"**Preview — nothing scheduled yet**\n\n**{title_with_date}** on **{formatted_date}** ({event_type})"
 
         resolved_exercises = []
+        reuses_template = None
         if existing_template is not None:
             # Linking a library workout: nothing to resolve — the template's
             # exercises are already canonical. Just show what gets linked.
@@ -386,6 +417,37 @@ class CalendarService:
             duration = workout_details.get("estimatedDuration", 45)
             preview_msg += f", ~{duration} min:\n" + "\n".join(lines)
 
+            # Keep the preview honest about the library side effect: identical
+            # content links an existing workout, only new content creates one.
+            # (create_pending exercises can't exist in any stored template, so
+            # the lookup is skipped — the confirmed write re-checks anyway.)
+            if not any(res["status"] == "create_pending" for res in resolutions):
+                base_title = strip_template_date_suffix(title_with_date)
+                reusable = await find_reusable_template(
+                    self.db, user_id, base_title,
+                    [
+                        {
+                            "exerciseName": res.get("matched_name") or ex.get("exerciseName", ""),
+                            "targetSets": ex.get("targetSets", 3),
+                            "targetReps": ex.get("targetReps", 10),
+                        }
+                        for ex, res in zip(workout_exercises, resolutions)
+                    ],
+                )
+                if reusable is not None:
+                    reuses_template = {
+                        "id": str(reusable["_id"]),
+                        "name": reusable.get("name", ""),
+                    }
+                    preview_msg += (
+                        f"\n\nWill LINK your existing library workout "
+                        f"**{reusable.get('name')}** — no new workout will be created."
+                    )
+                else:
+                    preview_msg += (
+                        f"\n\nWill create a new library workout **{base_title}**."
+                    )
+
         preview_msg += (
             "\n\nShow this preview to the user and ask them to confirm. "
             "If they confirm, call `schedule_to_calendar` again with the SAME arguments plus `dry_run=false`. "
@@ -405,6 +467,7 @@ class CalendarService:
                 "relativeDay": relative_day_label(event_date.date(), today.date()),
             },
             "resolved_exercises": resolved_exercises,
+            "reuses_template": reuses_template,
         }
 
     async def get_calendar_events(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:

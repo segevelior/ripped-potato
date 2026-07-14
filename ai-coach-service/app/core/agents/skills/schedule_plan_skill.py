@@ -26,6 +26,11 @@ from bson import ObjectId
 
 from app.core.agents.services.exercise_resolver import ExerciseResolver
 from app.core.agents.skills.registry import SkillContext, skill
+from app.core.dedup import (
+    exercise_content_signature,
+    normalize_template_title,
+    template_doc_signature,
+)
 
 logger = structlog.get_logger()
 
@@ -289,25 +294,18 @@ def _slot_key(event: Dict[str, Any]) -> tuple:
 def _template_content_key(name: str, exercises: List[Dict[str, Any]]) -> tuple:
     """Identity of a workout's content: title + ordered exercise prescription.
     Used to dedupe template creation (same custom workout repeated across
-    weeks → one library entry) and to match plan-tagged templates on re-runs."""
-    return (
-        name,
-        tuple(
-            (ex.get("exerciseName", ""), ex.get("targetSets", 3), ex.get("targetReps", 10))
-            for ex in exercises
-        ),
-    )
+    weeks → one library entry) and to match plan-tagged templates on re-runs.
+    Thin wrapper over the shared dedup signature so this key can never drift
+    from schedule_to_calendar's reuse-first matching."""
+    return (normalize_template_title(name), exercise_content_signature(exercises))
 
 
 def _template_doc_key(doc: Dict[str, Any]) -> tuple:
     """The same content key, recomputed from a PredefinedWorkout document."""
-    exercises = []
-    for block in doc.get("blocks", []) or []:
-        for ex in block.get("exercises", []) or []:
-            sets, reps = _parse_volume(ex.get("volume"))
-            exercises.append({"exerciseName": ex.get("exercise_name", ""),
-                              "targetSets": sets, "targetReps": reps})
-    return _template_content_key(doc.get("name", ""), exercises)
+    return (
+        normalize_template_title(doc.get("name", "")),
+        template_doc_signature(doc),
+    )
 
 
 def _template_doc_exercise_ids(doc: Dict[str, Any]) -> List[Any]:
