@@ -13,7 +13,7 @@ def get_workout_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "create_workout_template",
-                "description": "Create a reusable workout template (PredefinedWorkout). THIS is what appears under the user's 'Workouts' tab / workout library. Use it whenever the user wants to add or save a whole WORKOUT — one made of multiple exercises/drills — including a workout they upload as an image/screenshot or paste as a list. Do NOT use add_exercise for a multi-exercise workout. Workouts are organized into blocks (Warm-up, Main Work, Finisher, etc.). Refer to exercises by NAME only — ids are resolved server-side against the exercise catalog (close name matches are reused; genuinely new exercises are auto-created). If a name is ambiguous the tool returns candidate matches: ask the user which they meant, then call again with the chosen exact name — or, if the user wants it as a new exercise, call add_exercise for it first and then retry (never repeat the identical call).",
+                "description": "Create a reusable workout template (PredefinedWorkout). THIS is what appears under the user's 'Workouts' tab / workout library. Use it whenever the user wants to add or save a whole WORKOUT — one made of multiple exercises/drills — including a workout they upload as an image/screenshot or paste as a list. Do NOT use add_exercise for a multi-exercise workout. Workouts are organized into blocks (Warm-up, Main Work, Finisher, etc.). Refer to exercises by NAME only — ids are resolved server-side against the exercise catalog (close name matches are reused; genuinely new exercises are auto-created). If a name is ambiguous the tool returns candidate matches: ask the user which they meant, then call again with the chosen exact name — or, if the user wants it as a new exercise, call add_exercise for it first and then retry (never repeat the identical call). If a template with the same name already exists the tool refuses and returns its id — reuse that template (schedule it with schedule_to_calendar + workout_template_id) instead of creating a copy. Every block must contain at least one exercise — never create an empty/placeholder template.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -39,8 +39,13 @@ def get_workout_tools() -> List[Dict[str, Any]]:
                             "enum": ["beginner", "intermediate", "advanced"],
                             "description": "Overall difficulty level"
                         },
+                        "confirm_duplicate": {
+                            "type": "boolean",
+                            "description": "Set true ONLY when the user has explicitly confirmed they want a second template with a name that already exists. Default false — the tool rejects duplicate names and points at the existing template."
+                        },
                         "blocks": {
                             "type": "array",
+                            "minItems": 1,
                             "description": "Workout blocks (sections) containing exercises",
                             "items": {
                                 "type": "object",
@@ -51,6 +56,7 @@ def get_workout_tools() -> List[Dict[str, Any]]:
                                     },
                                     "exercises": {
                                         "type": "array",
+                                        "minItems": 1,
                                         "items": {
                                             "type": "object",
                                             "properties": {

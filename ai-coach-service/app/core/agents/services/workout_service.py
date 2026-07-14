@@ -12,6 +12,7 @@ from app.core.agents.services.exercise_resolver import (
     ExerciseResolver,
     format_ambiguous_message,
 )
+from app.core.dedup import existing_template_duplicate_response
 
 logger = structlog.get_logger()
 
@@ -25,6 +26,33 @@ class WorkoutService:
     async def create_workout_template(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Create a workout template (PredefinedWorkout) with blocks structure"""
         try:
+            # A template with zero exercises is a placeholder, never a real
+            # request — refuse before touching the resolver or the db.
+            if not any(
+                (block.get("exercises") or []) for block in (args.get("blocks") or [])
+            ):
+                return {
+                    "success": False,
+                    "error": "empty_workout_template",
+                    "message": (
+                        "Refusing to create a workout template with no exercises. "
+                        "If the user referenced a workout they already have, search "
+                        "the library (grep_workouts / list_workout_templates) and "
+                        "reuse it. If it is genuinely new, gather its exercises "
+                        "first, then retry."
+                    ),
+                }
+
+            # Same-name templates are almost always the model re-creating
+            # something that exists; redirect to the existing one unless the
+            # user explicitly confirmed a duplicate.
+            if not args.get("confirm_duplicate", False):
+                dup = await existing_template_duplicate_response(
+                    self.db, user_id, args.get("name", "")
+                )
+                if dup:
+                    return dup
+
             # Normalize blocks. muscles/discipline are resolver inputs the LLM
             # supplies for exercises that may need creating — the resolver
             # strips them before anything is persisted.

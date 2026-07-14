@@ -11,6 +11,8 @@ import structlog
 
 from app.core.agents.date_utils import get_user_today, relative_day_label
 from app.core.agents.services.exercise_resolver import ExerciseResolver
+from app.core.agents.volume_utils import parse_volume as _parse_volume
+from app.core.dedup import normalize_template_title, strip_template_date_suffix
 
 logger = structlog.get_logger()
 
@@ -41,22 +43,43 @@ class CalendarService:
                     # Try parsing as YYYY-MM-DD
                     event_date = datetime.strptime(date_str, "%Y-%m-%d")
 
-            title = args.get("title", "Workout")
             event_type = args.get("type", "workout")
             workout_details = args.get("workoutDetails", {})
             notes = args.get("notes", "")
 
+            # Existing-template mode: the event reuses a library workout the
+            # model found via list_workout_templates / grep_workouts — nothing
+            # new gets created and the event links to the EXISTING template.
+            existing_template = None
+            if args.get("workout_template_id"):
+                existing_template, tmpl_error = await self._load_template(
+                    user_id, args["workout_template_id"]
+                )
+                if tmpl_error:
+                    return tmpl_error
+
+            title = args.get("title") or (
+                strip_template_date_suffix(existing_template.get("name", ""))
+                if existing_template else "Workout"
+            )
+
             # Hard gate: a workout on the calendar must be a planned session
             # backed by a library template — never a bare title. Returning a
             # tool error here makes the agent plan the exercises and retry.
-            if event_type in ("workout", "deload") and not workout_details.get("exercises"):
+            if (
+                event_type in ("workout", "deload")
+                and existing_template is None
+                and not workout_details.get("exercises")
+            ):
                 return {
                     "success": False,
                     "error": "missing_workout_details",
                     "message": (
-                        "A workout calendar event must include workoutDetails.exercises. "
-                        "Plan the session first (exercise names, targetSets, targetReps, muscles), "
-                        "then call schedule_to_calendar again with the full workoutDetails."
+                        "A workout calendar event must include workoutDetails.exercises — "
+                        "or pass workout_template_id for a workout that already exists in "
+                        "the user's library. For a new session, plan it first (exercise "
+                        "names, targetSets, targetReps, muscles), then call "
+                        "schedule_to_calendar again with the full workoutDetails."
                     ),
                 }
 
@@ -64,20 +87,47 @@ class CalendarService:
             date_suffix = event_date.strftime("%b %d")
             title_with_date = f"{title} ({date_suffix})"
 
+            # Refuse to double-book: an equivalent event (same template or same
+            # base title) already on that date means the model is about to
+            # create the duplicate the user will have to complain about. Runs
+            # on BOTH the preview and the write path — they are separate turns.
+            if event_type in ("workout", "deload") and not args.get("allow_duplicate", False):
+                duplicate = await self._find_same_day_duplicate(
+                    user_id,
+                    event_date,
+                    normalize_template_title(title),
+                    existing_template["_id"] if existing_template else None,
+                    today,
+                )
+                if duplicate:
+                    return duplicate
+
             # Default is a dry-run PREVIEW that writes nothing (TOR-88: an
             # event was written against the user's explicit decline). The
             # preview surfaces how each exercise name resolved against the
             # catalog — silent substitutions must be visible BEFORE any write.
             if args.get("dry_run", True):
                 return await self._preview_schedule(
-                    user_id, event_date, title_with_date, event_type, workout_details, today
+                    user_id, event_date, title_with_date, event_type, workout_details,
+                    today, template=existing_template,
                 )
 
             workout_template_id = None
             exercises = []
 
+            if existing_template is not None:
+                # Link to the EXISTING library template — do not insert a new
+                # PredefinedWorkout (PR #113 invariant: the event still carries
+                # workoutTemplateId AND embeds the exercises for the UI).
+                workout_template_id = existing_template["_id"]
+                exercises = self._template_to_event_exercises(existing_template)
+                workout_details = {
+                    "workoutType": workout_details.get("workoutType", "strength"),
+                    "estimatedDuration": existing_template.get("estimated_duration", 45),
+                    "exercises": exercises,
+                }
             # If this is a workout event with details, first save it to user's workout library
-            if event_type in ("workout", "deload") and workout_details:
+            elif event_type in ("workout", "deload") and workout_details:
                 # Build the blocks structure; the shared resolver fills in real
                 # exercise ids (exact → fuzzy → vector → create) so neither the
                 # PredefinedWorkout nor the CalendarEvent can carry a null id.
@@ -167,7 +217,12 @@ class CalendarService:
                 exercise_count = len(workout_details.get("exercises", [])) if workout_details else 0
 
                 response_msg = f"Scheduled **{title_with_date}** for **{formatted_date}**!"
-                if workout_template_id:
+                if existing_template is not None:
+                    response_msg += (
+                        f"\n\n**Linked to your existing library workout "
+                        f"'{existing_template.get('name', '')}'** — nothing new was created."
+                    )
+                elif workout_template_id:
                     response_msg += "\n\n**Saved to your workout library** - you can reuse this workout anytime!"
                 if event_type in ("workout", "deload") and exercise_count > 0:
                     duration = workout_details.get("estimatedDuration", 45)
@@ -194,6 +249,119 @@ class CalendarService:
             logger.error(f"Error scheduling to calendar: {e}")
             return {"success": False, "message": f"Error scheduling event: {str(e)}"}
 
+    @staticmethod
+    def _template_to_event_exercises(template: Dict[str, Any]) -> list:
+        """Flatten a PredefinedWorkout's blocks into calendar-event exercises."""
+        exercises = []
+        for block in template.get("blocks") or []:
+            for ex in block.get("exercises") or []:
+                sets, reps = _parse_volume(ex.get("volume"))
+                entry = {
+                    "exerciseName": ex.get("exercise_name", ""),
+                    "targetSets": sets,
+                    "targetReps": reps,
+                    "notes": ex.get("notes", ""),
+                }
+                # Templates should never carry a null exercise_id, but if a
+                # legacy one does, omit the key rather than propagate the null.
+                if ex.get("exercise_id"):
+                    entry["exerciseId"] = ex["exercise_id"]
+                else:
+                    logger.warning("template exercise missing exercise_id",
+                                   template=template.get("name"),
+                                   exercise=entry["exerciseName"])
+                exercises.append(entry)
+        return exercises
+
+    async def _load_template(self, user_id: str, template_id: str):
+        """Fetch a workout template visible to this user. Returns
+        (template, None) or (None, corrective_error) — the error text tells
+        the model the legal next step instead of leaving it to improvise."""
+        try:
+            oid = ObjectId(template_id)
+        except Exception:
+            oid = None
+        template = None
+        if oid is not None:
+            template = await self.db.predefinedworkouts.find_one({
+                "_id": oid,
+                "$or": [{"isCommon": True}, {"createdBy": ObjectId(user_id)}],
+            })
+        if template is None:
+            return None, {
+                "success": False,
+                "error": "template_not_found",
+                "message": (
+                    f"No workout template with id '{template_id}' is visible to this "
+                    f"user. Call list_workout_templates or grep_workouts and pass an "
+                    f"id taken from that result — never guess an id."
+                ),
+            }
+        if not any((b.get("exercises") or []) for b in (template.get("blocks") or [])):
+            return None, {
+                "success": False,
+                "error": "empty_template",
+                "message": (
+                    f"Template '{template.get('name', '')}' (id={template_id}) has no "
+                    f"exercises, so it cannot be scheduled. Tell the user, and either "
+                    f"fill it in or schedule a different workout."
+                ),
+            }
+        return template, None
+
+    async def _find_same_day_duplicate(
+        self,
+        user_id: str,
+        event_date: datetime,
+        base_title: str,
+        template_oid,
+        today: datetime,
+    ):
+        """Return an already_scheduled refusal if an equivalent workout event
+        (same linked template, or same date-suffix-stripped title) already sits
+        on that calendar day. None when the day is clear."""
+        day_start = datetime(event_date.year, event_date.month, event_date.day)
+        day_end = day_start + timedelta(days=1)
+        cursor = self.db.calendarevents.find({
+            "userId": ObjectId(user_id),
+            "date": {"$gte": day_start, "$lt": day_end},
+            "type": {"$in": ["workout", "deload"]},
+            "status": {"$ne": "cancelled"},
+        })
+        async for event in cursor:
+            same_template = (
+                template_oid is not None
+                and event.get("workoutTemplateId") == template_oid
+            )
+            same_title = (
+                base_title
+                and normalize_template_title(event.get("title", "")) == base_title
+            )
+            if not (same_template or same_title):
+                continue
+            date_label = day_start.strftime("%A, %B %d")
+            details = event.get("workoutDetails") or {}
+            return {
+                "success": False,
+                "error": "already_scheduled",
+                "existing_event": {
+                    "id": str(event["_id"]),
+                    "title": event.get("title", ""),
+                    "date": day_start.strftime("%Y-%m-%d"),
+                    "status": event.get("status", ""),
+                    "exerciseCount": len(details.get("exercises") or []),
+                    "relativeDay": relative_day_label(day_start.date(), today.date()),
+                },
+                "message": (
+                    f"'{event.get('title', '')}' is already on the calendar for "
+                    f"{date_label} (event id {event['_id']}). Did NOT add a duplicate. "
+                    f"Tell the user it's already scheduled. If they truly want it twice "
+                    f"that day, call again with allow_duplicate=true; to replace it, "
+                    f"delete_calendar_event the existing one first."
+                ),
+            }
+        return None
+
     async def _preview_schedule(
         self,
         user_id: str,
@@ -202,6 +370,7 @@ class CalendarService:
         event_type: str,
         workout_details: Dict[str, Any],
         today: datetime,
+        template: Dict[str, Any] = None,
     ) -> Dict[str, Any]:
         """Dry-run preview for schedule_to_calendar: resolve exercise names
         without creating anything, and return what a confirmed call would write."""
@@ -209,7 +378,27 @@ class CalendarService:
         preview_msg = f"**Preview — nothing scheduled yet**\n\n**{title_with_date}** on **{formatted_date}** ({event_type})"
 
         resolved_exercises = []
-        if event_type in ("workout", "deload") and workout_details:
+        if template is not None:
+            # Existing library template: ids are already resolved — list its
+            # exercises verbatim, no resolver pass and nothing to create.
+            lines = []
+            for ex in self._template_to_event_exercises(template):
+                resolved_exercises.append({
+                    "given": ex["exerciseName"],
+                    "resolved": ex["exerciseName"],
+                    "is_new": False,
+                    "method": "existing_template",
+                })
+                lines.append(
+                    f"- **{ex['exerciseName']}** — {ex['targetSets']}x{ex['targetReps']}"
+                )
+            duration = template.get("estimated_duration", 45)
+            preview_msg += (
+                f", ~{duration} min — from your existing library workout "
+                f"**{template.get('name', '')}** (nothing new will be created):\n"
+                + "\n".join(lines)
+            )
+        elif event_type in ("workout", "deload") and workout_details:
             workout_exercises = workout_details.get("exercises", [])
             items = [
                 {
@@ -251,10 +440,13 @@ class CalendarService:
         preview_msg += (
             "\n\nShow this preview to the user and ask them to confirm. "
             "If they confirm, call `schedule_to_calendar` again with the SAME arguments plus `dry_run=false`. "
-            "If they want a matched exercise kept under its ORIGINAL name instead, call `add_exercise` "
-            "with that exact name first, then retry with `dry_run=false`. "
-            "If the user declines, do NOT call this tool again."
         )
+        if template is None:
+            preview_msg += (
+                "If they want a matched exercise kept under its ORIGINAL name instead, call `add_exercise` "
+                "with that exact name first, then retry with `dry_run=false`. "
+            )
+        preview_msg += "If the user declines, do NOT call this tool again."
 
         return {
             "success": True,

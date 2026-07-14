@@ -27,6 +27,7 @@ from app.core.agents.skills import find_similar_exercises_skill  # noqa: F401,E4
 from app.core.agents.skills import suggest_exercises_skill  # noqa: F401,E402
 from app.core.agents.skills import review_progress_skill  # noqa: F401,E402
 from app.core.agents.skills import reschedule_session_skill  # noqa: F401,E402
+from app.core.agents.skills import delete_calendar_event_skill  # noqa: F401,E402
 from app.core.agents.skills import adjust_plan_skill  # noqa: F401,E402
 from app.core.agents.skills import update_calendar_workout_skill  # noqa: F401,E402
 from app.core.agents.skills import resolve_week_skill  # noqa: F401,E402

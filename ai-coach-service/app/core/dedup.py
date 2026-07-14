@@ -1,4 +1,4 @@
-"""Shared dedup helper for the exercise-creation tool paths.
+"""Shared dedup helpers for the exercise- and workout-template-creation tool paths.
 
 Both write paths that can insert an exercise (ExerciseService.add_exercise and the
 MCP McpTools._add_exercise) use this so the reuse message + workout hint can never
@@ -8,6 +8,23 @@ import re
 from typing import Any, Dict, Optional
 
 from bson import ObjectId
+
+# schedule_to_calendar appends a "(Jul 14)" style suffix to template names it
+# creates — strip it so "Endurance 1 (Jul 14)" collides with "Endurance 1".
+_DATE_SUFFIX_RE = re.compile(
+    r"\s*\((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2}\)$"
+)
+
+
+def strip_template_date_suffix(name: str) -> str:
+    """Remove the scheduling date suffix from a template/event title, keeping case."""
+    return _DATE_SUFFIX_RE.sub("", name or "")
+
+
+def normalize_template_title(name: str) -> str:
+    """Normalize a workout-template title for duplicate comparison:
+    strip the date suffix, collapse whitespace, lowercase."""
+    return re.sub(r"\s+", " ", strip_template_date_suffix(name)).strip().lower()
 
 
 async def existing_exercise_reuse_response(db, user_id: str, name: str) -> Optional[Dict[str, Any]]:
@@ -35,4 +52,51 @@ async def existing_exercise_reuse_response(db, user_id: str, name: str) -> Optio
             "A workout template with this name also exists; if the user asked to add a "
             "WORKOUT, call create_workout_template instead of adding an exercise."
         ) if template else None,
+    }
+
+
+async def existing_template_duplicate_response(
+    db, user_id: str, name: str
+) -> Optional[Dict[str, Any]]:
+    """Return a "reuse, don't duplicate" tool error if a workout template with this
+    title already exists for the user (common OR their own). Returns None when the
+    name is new (caller should insert).
+
+    Matching is normalized-exact (case/whitespace/date-suffix insensitive), NOT
+    fuzzy — "Push Day" must never block "Push Day B". The message is a corrective
+    mini-prompt: it names the existing template's id and the exact call that
+    schedules it, so the model's laziest path becomes the correct one.
+    """
+    normalized = normalize_template_title(name)
+    if not normalized:
+        return None
+    visibility = {"$or": [{"isCommon": True}, {"createdBy": ObjectId(user_id)}]}
+    match_id = None
+    async for doc in db.predefinedworkouts.find(visibility, {"name": 1}):
+        if normalize_template_title(doc.get("name", "")) == normalized:
+            match_id = doc["_id"]
+            break
+    if match_id is None:
+        return None
+    t = await db.predefinedworkouts.find_one({"_id": match_id})
+    total_exercises = sum(len(b.get("exercises") or []) for b in (t.get("blocks") or []))
+    return {
+        "success": False,
+        "error": "duplicate_template",
+        "already_exists": True,
+        "existing": {
+            "id": str(t["_id"]),
+            "name": t.get("name", ""),
+            "total_exercises": total_exercises,
+            "goal": t.get("goal", ""),
+        },
+        "message": (
+            f"A workout template named '{t.get('name', '')}' already exists "
+            f"(id={t['_id']}, {total_exercises} exercises). Did NOT create anything. "
+            f"If the user meant this existing workout: to put it on the calendar, call "
+            f"schedule_to_calendar with workout_template_id='{t['_id']}' — do not "
+            f"re-create it. Only retry create_workout_template with "
+            f"confirm_duplicate=true if the user explicitly wants a second, separate "
+            f"template with this name."
+        ),
     }

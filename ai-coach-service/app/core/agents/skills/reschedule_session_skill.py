@@ -43,8 +43,10 @@ def resolve_reschedule(
     name="reschedule_session",
     description=(
         "Reschedule ONE calendar session the user missed or wants to move: skip it, shift "
-        "it to another date, or let me auto-decide. Previews the change first; only writes "
-        "after the user confirms (dry_run=false)."
+        "it to another date, or let me auto-decide. Skip marks status='skipped' — the event "
+        "STAYS on the calendar and counts in adherence stats. NOT for removal: when the user "
+        "says remove/delete, use delete_calendar_event instead. Previews the change first; "
+        "only writes after the user confirms (dry_run=false)."
     ),
     parameters={
         "type": "object",

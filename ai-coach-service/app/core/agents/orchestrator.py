@@ -423,6 +423,11 @@ USER DATA:
                 else f"Previewing {function_args.get('title', 'event')} for {function_args.get('date', 'your calendar')}"
             ),
             "get_calendar_events": "Checking your calendar",
+            "delete_calendar_event": (
+                "Removing event from your calendar"
+                if function_args.get("confirm") is True
+                else "Previewing calendar event removal"
+            ),
             # Daily suggestion
             "get_daily_recommendation": "Checking your Today's Pick",
             # Web search & research
