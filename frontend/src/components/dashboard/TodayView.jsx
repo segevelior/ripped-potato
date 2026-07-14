@@ -149,11 +149,10 @@ export default function TodayView() {
   }, []);
 
   const startSession = () => {
-    if (session?.eventId) {
-      navigate(createPageUrl(`Calendar`));
-    } else {
-      navigate(createPageUrl("TrainNow"));
-    }
+    // TrainNow shows calendar-scheduled sessions as the "Scheduled Today" card
+    // (same pickTodaySession selection) and owns the LiveWorkout launch flow,
+    // including the active-session conflict guard.
+    navigate(createPageUrl("TrainNow"));
   };
 
   // Tap an answer chip → short inline coach reply (no navigation)

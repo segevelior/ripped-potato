@@ -13,7 +13,7 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "schedule_to_calendar",
-                "description": "Schedule a workout or event to the user's calendar for a specific date. Use this when the user wants to add a workout to their calendar, schedule a rest day, or plan future training.",
+                "description": "Schedule a workout or event to the user's calendar for a specific date. Use this when the user wants to add a workout to their calendar, schedule a rest day, or plan future training. For 'workout' and 'deload' events you MUST plan the full session first and pass it in workoutDetails.exercises — never schedule a bare title. The tool saves the planned workout to the user's workout library (Workouts tab) and links the calendar event to it automatically.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -32,7 +32,7 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
                         },
                         "workoutDetails": {
                             "type": "object",
-                            "description": "Details for workout events",
+                            "description": "Details for workout events. REQUIRED (with a non-empty exercises list) for type 'workout' and 'deload'.",
                             "properties": {
                                 "workoutType": {
                                     "type": "string",
@@ -46,6 +46,7 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
                                 "exercises": {
                                     "type": "array",
                                     "description": "Exercises for this workout",
+                                    "minItems": 1,
                                     "items": {
                                         "type": "object",
                                         "properties": {
@@ -67,7 +68,8 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
                                         "required": ["exerciseName"]
                                     }
                                 }
-                            }
+                            },
+                            "required": ["exercises"]
                         },
                         "notes": {
                             "type": "string",

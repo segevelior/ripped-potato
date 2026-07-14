@@ -46,6 +46,20 @@ class CalendarService:
             workout_details = args.get("workoutDetails", {})
             notes = args.get("notes", "")
 
+            # Hard gate: a workout on the calendar must be a planned session
+            # backed by a library template — never a bare title. Returning a
+            # tool error here makes the agent plan the exercises and retry.
+            if event_type in ("workout", "deload") and not workout_details.get("exercises"):
+                return {
+                    "success": False,
+                    "error": "missing_workout_details",
+                    "message": (
+                        "A workout calendar event must include workoutDetails.exercises. "
+                        "Plan the session first (exercise names, targetSets, targetReps, muscles), "
+                        "then call schedule_to_calendar again with the full workoutDetails."
+                    ),
+                }
+
             # Add date to title to make it unique and identifiable
             date_suffix = event_date.strftime("%b %d")
             title_with_date = f"{title} ({date_suffix})"
@@ -54,7 +68,7 @@ class CalendarService:
             exercises = []
 
             # If this is a workout event with details, first save it to user's workout library
-            if event_type == "workout" and workout_details:
+            if event_type in ("workout", "deload") and workout_details:
                 # Build the blocks structure; the shared resolver fills in real
                 # exercise ids (exact → fuzzy → vector → create) so neither the
                 # PredefinedWorkout nor the CalendarEvent can carry a null id.
@@ -128,7 +142,7 @@ class CalendarService:
                 event_data["workoutTemplateId"] = workout_template_id
 
             # Add workout details to calendar event
-            if event_type == "workout" and workout_details:
+            if event_type in ("workout", "deload") and workout_details:
                 event_data["workoutDetails"] = {
                     "type": workout_details.get("workoutType", "strength"),
                     "estimatedDuration": workout_details.get("estimatedDuration", 45),
@@ -146,7 +160,7 @@ class CalendarService:
                 response_msg = f"Scheduled **{title_with_date}** for **{formatted_date}**!"
                 if workout_template_id:
                     response_msg += "\n\n**Saved to your workout library** - you can reuse this workout anytime!"
-                if event_type == "workout" and exercise_count > 0:
+                if event_type in ("workout", "deload") and exercise_count > 0:
                     duration = workout_details.get("estimatedDuration", 45)
                     response_msg += f"\n\n**{exercise_count} exercises** | **~{duration} min**"
 
