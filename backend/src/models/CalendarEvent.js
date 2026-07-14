@@ -33,7 +33,14 @@ const calendarEventSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'PredefinedWorkout'
   },
-  // Workout details (can be from template or custom)
+  // Display metadata for the event. Scheduled events must NOT embed
+  // exercises — the linked workoutTemplateId is the source of truth
+  // (see templateMaterializer / migrate-calendar-embedded-exercises).
+  // The exercises path stays in the schema for two reasons: completed
+  // events store ACTUAL performed sets here (workout-log flow), and
+  // legacy unmigrated events still hydrate their embedded copy.
+  // NOTE: ai-coach-service (Python) writes this collection too — keep
+  // its event shape (calendar_service.py, schedule_plan_skill.py) in sync.
   workoutDetails: {
     type: {
       type: String
@@ -114,7 +121,9 @@ calendarEventSchema.statics.getByDateRange = function(userId, startDate, endDate
     status: { $ne: 'cancelled' }
   })
   .sort({ date: 1 })
-  .populate('workoutTemplateId', 'name goal primary_disciplines estimated_duration');
+  // blocks included: events don't embed exercises, so range consumers
+  // (calendar page, detail modal, MCP list) read them off the template.
+  .populate('workoutTemplateId', 'name goal primary_disciplines estimated_duration blocks');
 };
 
 // Static method to get today's events

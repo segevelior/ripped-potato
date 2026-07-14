@@ -144,8 +144,11 @@ async def load_calendar_context(db, user_id: str, timezone: str = 'UTC') -> Dict
         }).to_list(20)
 
         # Get recent completed workouts (last 14 days) — completed calendar
-        # events carry workoutDetails.exercises, the only live source of what
-        # the user actually did (the workouts collection is unused).
+        # events carry workoutDetails.exercises (ACTUAL performed sets), the
+        # only live source of what the user actually did (the workouts
+        # collection is unused). Scheduled events no longer embed exercises —
+        # they reference a template — but completed history is exempt.
+        # TODO: long-term, read this from workoutlogs via workoutLogId.
         two_weeks_ago = start_of_today - timedelta(days=14)
         recent_workouts = await db.calendarevents.find({
             "userId": user_oid,

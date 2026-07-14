@@ -357,9 +357,14 @@ class CalendarConsistencyJob {
             createdBy: sample.userId
           });
 
+          // Link the template and drop the embedded copy in one pass — the
+          // template is now the only source of the planned exercises.
           await CalendarEvent.updateMany(
             { _id: { $in: events.map((e) => e._id) } },
-            { $set: { workoutTemplateId: template._id } }
+            {
+              $set: { workoutTemplateId: template._id },
+              $unset: { 'workoutDetails.exercises': 1 }
+            }
           );
 
           this.stats.orphanTemplatesCreated++;
