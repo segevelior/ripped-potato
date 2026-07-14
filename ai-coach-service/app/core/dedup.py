@@ -5,9 +5,11 @@ MCP McpTools._add_exercise) use this so the reuse message + workout hint can nev
 drift between them.
 """
 import re
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
+
+from app.core.agents.volume_utils import flatten_template_exercises
 
 # schedule_to_calendar appends a "(Jul 14)" style suffix to template names it
 # creates — strip it so "Endurance 1 (Jul 14)" collides with "Endurance 1".
@@ -25,6 +27,61 @@ def normalize_template_title(name: str) -> str:
     """Normalize a workout-template title for duplicate comparison:
     strip the date suffix, collapse whitespace, lowercase."""
     return re.sub(r"\s+", " ", strip_template_date_suffix(name)).strip().lower()
+
+
+def _normalize_exercise_name(name: str) -> str:
+    return re.sub(r"\s+", " ", name or "").strip().lower()
+
+
+def exercise_content_signature(exercises: List[Dict[str, Any]]) -> tuple:
+    """Identity of a workout's exercise content: the ordered prescription
+    (normalized name, sets, reps). Deliberately order-sensitive and blind to
+    rest/notes/duration — matching this means "the same session", so scheduling
+    it again must LINK the existing template, never mint a copy."""
+    return tuple(
+        (
+            _normalize_exercise_name(ex.get("exerciseName", "")),
+            ex.get("targetSets", 3),
+            ex.get("targetReps", 10),
+        )
+        for ex in exercises
+    )
+
+
+def template_doc_signature(doc: Dict[str, Any]) -> tuple:
+    """The same content signature, recomputed from a PredefinedWorkout doc
+    (blocks[].exercises[] with '3x10'-style volume strings)."""
+    return exercise_content_signature(flatten_template_exercises(doc))
+
+
+async def find_reusable_template(
+    db, user_id: str, name: str, exercises: List[Dict[str, Any]]
+) -> Optional[Dict[str, Any]]:
+    """Find an existing library template (the user's own OR a common one) whose
+    exercise content exactly matches — the reuse-first rule for scheduling with
+    inline workoutDetails. Returns the best match, or None (caller inserts).
+
+    The hard rule: content must match exactly. A same-named template with
+    different exercises is an ADJUSTED workout and must NOT be linked. Name is
+    only a tie-breaker among content matches (then common over private, then
+    oldest), so repeated schedules converge on one stable template."""
+    signature = exercise_content_signature(exercises)
+    if not signature:
+        return None
+    normalized_name = normalize_template_title(name)
+    visibility = {"$or": [{"isCommon": True}, {"createdBy": ObjectId(user_id)}]}
+    matches = []
+    async for doc in db.predefinedworkouts.find(visibility):
+        if template_doc_signature(doc) == signature:
+            matches.append(doc)
+    if not matches:
+        return None
+    matches.sort(key=lambda d: (
+        normalize_template_title(d.get("name", "")) != normalized_name,
+        not d.get("isCommon", False),
+        str(d.get("_id", "")),
+    ))
+    return matches[0]
 
 
 async def existing_exercise_reuse_response(db, user_id: str, name: str) -> Optional[Dict[str, Any]]:

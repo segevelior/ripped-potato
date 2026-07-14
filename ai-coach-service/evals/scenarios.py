@@ -343,6 +343,46 @@ AMBIGUOUS_NAME = Scenario(
 )
 
 
+async def _workout_events_on(db, user_id: str, date: datetime):
+    return [e async for e in db.calendarevents.find({
+        "userId": ObjectId(user_id),
+        "date": {"$gte": date, "$lt": date + timedelta(days=1)},
+        "type": {"$in": ["workout", "deload"]},
+    })]
+
+
+async def _check_twice_one_template(db, user_id, refs, trace):
+    """Scheduling the same workout on two days must yield two events linked to
+    ONE template — the original duplication bug minted a library copy per date."""
+    problems = []
+    for label, date in (("today", _today()), ("tomorrow", _today() + timedelta(days=1))):
+        events = await _workout_events_on(db, user_id, date)
+        if len(events) != 1:
+            problems.append(f"expected exactly 1 workout event {label}, found {len(events)}")
+        elif events[0].get("workoutTemplateId") != refs["template_id"]:
+            problems.append(
+                f"{label}'s event is not linked to the seeded Endurance 1 template "
+                f"(workoutTemplateId={events[0].get('workoutTemplateId')})"
+            )
+    if await _template_count(db, user_id) != refs["template_count"]:
+        problems.append(
+            "the library gained a template — scheduling twice must reuse "
+            "the ONE existing Endurance 1, never copy it per date"
+        )
+    return problems
+
+
+SCHEDULE_TWICE_ONE_TEMPLATE = Scenario(
+    id="schedule-twice-one-template",
+    turns=["Add my Endurance 1 workout to my calendar for today",
+           "Yes, go ahead",
+           "Great — put the same workout on my calendar for tomorrow too",
+           "Yes, confirm"],
+    seed=_seed_endurance,
+    final_state_check=_check_twice_one_template,
+)
+
+
 SCENARIOS = [
     SCHEDULE_EXISTING,
     SCHEDULE_NONEXISTENT,
@@ -350,4 +390,5 @@ SCENARIOS = [
     DUPLICATE_CLEANUP,
     CORRECTION_TURN,
     AMBIGUOUS_NAME,
+    SCHEDULE_TWICE_ONE_TEMPLATE,
 ]
