@@ -417,7 +417,11 @@ USER DATA:
             "update_goal": "Updating your fitness goal",
             "list_goals": "Fetching your fitness goals",
             # Calendar tools
-            "schedule_to_calendar": f"Scheduling {function_args.get('title', 'event')} for {function_args.get('date', 'your calendar')}",
+            "schedule_to_calendar": (
+                f"Scheduling {function_args.get('title', 'event')} for {function_args.get('date', 'your calendar')}"
+                if function_args.get("dry_run") is False
+                else f"Previewing {function_args.get('title', 'event')} for {function_args.get('date', 'your calendar')}"
+            ),
             "get_calendar_events": "Checking your calendar",
             # Daily suggestion
             "get_daily_recommendation": "Checking your Today's Pick",

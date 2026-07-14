@@ -123,9 +123,13 @@ class ExerciseResolver:
         items: List[Dict[str, Any]],
         *,
         on_ambiguous: str = "ask",
+        create: bool = True,
     ) -> List[Dict[str, Any]]:
         """Resolve each {exercise_name, exercise_id?, muscles?, discipline?, ...}
-        to {status, exercise_id, matched_name, method, score, candidates}."""
+        to {status, exercise_id, matched_name, method, score, candidates}.
+
+        create=False is a preview probe: genuinely-new names stay
+        "create_pending" and nothing is written to the catalog."""
         user_oid = ObjectId(user_id)
         visibility = {"$or": [{"isCommon": True}, {"createdBy": user_oid}]}
 
@@ -161,7 +165,7 @@ class ExerciseResolver:
         # entries for a workout that never persists would leave phantom
         # exercises behind.
         has_ambiguous = any(r["status"] == "ambiguous" for r in results)
-        if pending and not (on_ambiguous == "ask" and has_ambiguous):
+        if pending and create and not (on_ambiguous == "ask" and has_ambiguous):
             for idx in pending:
                 name = (items[idx].get("exercise_name") or "").strip()
                 cached = by_lower_name.get(name.lower())

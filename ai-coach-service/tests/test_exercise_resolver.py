@@ -107,6 +107,18 @@ class TestResolutionLadder:
         assert blocks[0]["exercises"][0]["exercise_id"] == PUSH_UP["_id"]
         assert report["resolved"][0]["method"] == "vector"
 
+    async def test_create_false_probe_leaves_pending_and_writes_nothing(self):
+        # Preview probe (TOR-88): dry-run resolution must not leave phantom
+        # catalog exercises behind if the user declines the preview.
+        db = _db(catalog=[PLANK])
+        results = await ExerciseResolver(db).resolve(
+            str(USER), [{"exercise_name": "Zercher Carry"}],
+            on_ambiguous="best_effort", create=False,
+        )
+        assert results[0]["status"] == "create_pending"
+        assert results[0]["exercise_id"] is None
+        db.exercises.insert_one.assert_not_called()
+
     async def test_no_match_creates_private_exercise(self):
         created = ObjectId()
         db = _db(catalog=[PLANK], created_id=created)
