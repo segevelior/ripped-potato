@@ -46,8 +46,17 @@ const { contentSignature, normalizeTemplateName } = require('../src/services/tem
 const APPLY = process.argv.includes('--apply');
 const userFlagIdx = process.argv.indexOf('--user');
 const USER_ID = userFlagIdx > -1 ? process.argv[userFlagIdx + 1] : null;
+// A typo'd `--apply --user` with no id must never silently become a
+// full-production apply.
+if (userFlagIdx > -1 && (!USER_ID || USER_ID.startsWith('-'))) {
+  console.error('--user requires a user id');
+  process.exit(1);
+}
 
-const DATE_SUFFIX_RE = /\s*\([A-Z][a-z]{2} \d{1,2}\)\s*$/;
+// Month-anchored, matching ai-coach-service's dedup.py — a looser
+// [A-Z][a-z]{2} would fold non-date parentheticals like "(Set 5)" into the
+// grouping key.
+const DATE_SUFFIX_RE = /\s*\((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2}\)\s*$/;
 
 async function eventCounts(templateId) {
   const rows = await CalendarEvent.aggregate([

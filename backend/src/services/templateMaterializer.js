@@ -1,7 +1,12 @@
 const CalendarEvent = require('../models/CalendarEvent');
 const PredefinedWorkout = require('../models/PredefinedWorkout');
 const Exercise = require('../models/Exercise');
+const Plan = require('../models/Plan');
 const { flattenTemplateExercises } = require('../utils/volume');
+
+// Month-anchored (mirrors ai-coach-service's dedup.py): only real scheduling
+// date suffixes are stripped, not parentheticals like "(Set 5)".
+const DATE_SUFFIX_RE = /\s*\((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2}\)\s*$/;
 
 // Calendar events only reference workouts — they never carry their own
 // exercise list. Clients that still send bare exercises (chat ActionButtons,
@@ -59,7 +64,7 @@ const contentSignature = (exercises) =>
     .join(';');
 const normalizeTemplateName = (name) =>
   (name || '')
-    .replace(/\s*\([A-Z][a-z]{2} \d{1,2}\)\s*$/, '')
+    .replace(DATE_SUFFIX_RE, '')
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
@@ -105,7 +110,7 @@ const ensureTemplateForCustomEvent = async (userId, eventData) => {
   if (!exercises?.length) return null;
 
   const name = (eventData.title || 'Workout')
-    .replace(/\s*\([A-Z][a-z]{2} \d{1,2}\)\s*$/, '')
+    .replace(DATE_SUFFIX_RE, '')
     .trim() || 'Workout';
 
   const blocks = await buildBlocks(userId, exercises);
@@ -129,8 +134,9 @@ const ensureTemplateForCustomEvent = async (userId, eventData) => {
 };
 
 // A template is shared when editing it in place would change something the
-// user didn't ask to change: the common library, another user's workout, or
-// other calendar events still pointing at it.
+// user didn't ask to change: the common library, another user's workout,
+// other calendar events still pointing at it, or a training plan that
+// schedules it.
 const isTemplateShared = async (userId, template, excludeEventId) => {
   if (template.isCommon) return true;
   if (template.createdBy && String(template.createdBy) !== String(userId)) return true;
@@ -139,8 +145,20 @@ const isTemplateShared = async (userId, template, excludeEventId) => {
     _id: { $ne: excludeEventId },
     status: { $nin: ['cancelled'] }
   });
-  return otherRefs > 0;
+  if (otherRefs > 0) return true;
+  const planRefs = await Plan.countDocuments({
+    'weeks.workouts.predefinedWorkoutId': template._id
+  });
+  return planRefs > 0;
 };
+
+// Only templates minted as disposable per-event copies (by this materializer
+// or the AI coach's scheduler) may be edited in place. A curated library
+// workout that reuse-first linked to a single event must never be silently
+// rewritten by a one-session edit — clone instead.
+const MATERIALIZED_TAGS = ['user-created', 'ai-generated'];
+const isMaterializedCopy = (template) =>
+  (template.tags || []).some((t) => MATERIALIZED_TAGS.includes(t));
 
 // Copy-on-write for per-event exercise edits: shared template → clone with
 // the new exercises and relink the event; exclusively-owned template → edit
@@ -160,7 +178,7 @@ const applyExercisesCopyOnWrite = async (userId, event, exercises) => {
     });
   }
 
-  if (await isTemplateShared(userId, template, event._id)) {
+  if (!isMaterializedCopy(template) || await isTemplateShared(userId, template, event._id)) {
     const clone = await PredefinedWorkout.create({
       name: template.name,
       goal: template.goal || '',
