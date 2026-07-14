@@ -7,6 +7,7 @@ tool-call trace at the single execution choke point (_execute_tool), and
 grades trajectories with deterministic checks only (no LLM judge — see
 development/ai-coach/evaluation/05-planner-eval-loop.md for why).
 """
+import asyncio
 import json
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
@@ -42,20 +43,32 @@ def instrument(orchestrator, trace: Trace):
 
 
 async def run_turn(orchestrator, message: str, history: list, user_id: str) -> str:
-    """Run one user turn through the streaming path; return the final text."""
-    final = None
-    tokens: List[str] = []
-    async for event in orchestrator.process_request_streaming(
-        message, {"user_id": user_id}, conversation_history=history or None
-    ):
-        etype = event.get("type")
-        if etype == "token":
-            tokens.append(event.get("content", ""))
-        elif etype == "complete":
-            final = event.get("full_response")
-        elif etype == "error":
-            raise AssertionError(f"agent returned error event: {event}")
-    return final if final is not None else "".join(tokens)
+    """Run one user turn through the streaming path; return the final text.
+    OpenAI rate limits (429) are infrastructure noise, not agent behavior —
+    retry the whole turn with backoff instead of failing the scenario."""
+    last_error = None
+    for attempt in range(4):
+        final = None
+        tokens: List[str] = []
+        error = None
+        async for event in orchestrator.process_request_streaming(
+            message, {"user_id": user_id}, conversation_history=history or None
+        ):
+            etype = event.get("type")
+            if etype == "token":
+                tokens.append(event.get("content", ""))
+            elif etype == "complete":
+                final = event.get("full_response")
+            elif etype == "error":
+                error = event
+        if error is None:
+            return final if final is not None else "".join(tokens)
+        message_text = str(error.get("message", ""))
+        if "429" not in message_text and "rate_limit" not in message_text:
+            raise AssertionError(f"agent returned error event: {error}")
+        last_error = error
+        await asyncio.sleep(15 * (attempt + 1))
+    raise AssertionError(f"rate-limited on every retry: {last_error}")
 
 
 # ----------------------------- graders -----------------------------
