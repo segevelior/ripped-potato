@@ -1,6 +1,7 @@
 const CalendarEvent = require('../models/CalendarEvent');
 const PredefinedWorkout = require('../models/PredefinedWorkout');
 const Exercise = require('../models/Exercise');
+const { flattenTemplateExercises } = require('../utils/volume');
 
 // Calendar events only reference workouts — they never carry their own
 // exercise list. Clients that still send bare exercises (chat ActionButtons,
@@ -48,8 +49,57 @@ const buildBlocks = async (userId, exercises) => {
   return [{ name: 'Main Workout', exercises: blockExercises }];
 };
 
+// Identity of a workout's exercise content: the ordered prescription
+// (normalized name, sets, reps). Mirrors ai-coach-service's
+// exercise_content_signature — matching this means "the same session".
+const normalizeExerciseName = (name) => (name || '').replace(/\s+/g, ' ').trim().toLowerCase();
+const contentSignature = (exercises) =>
+  exercises
+    .map((ex) => `${normalizeExerciseName(ex.exerciseName)}|${ex.targetSets ?? 3}|${ex.targetReps ?? 10}`)
+    .join(';');
+const normalizeTemplateName = (name) =>
+  (name || '')
+    .replace(/\s*\([A-Z][a-z]{2} \d{1,2}\)\s*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+// Reuse-first: an existing library workout (the user's own or a common one)
+// whose exercise content exactly matches must be LINKED, never re-created.
+// Name is only a tie-breaker among content matches (then common over private,
+// then oldest) — same-named but adjusted content still gets its own template.
+const findMatchingTemplate = async (userId, name, blockExercises) => {
+  const signature = contentSignature(
+    blockExercises.map((ex) => {
+      const [sets, reps] = (ex.volume || '').split(/[xX]/).map((n) => parseInt(n, 10));
+      return { exerciseName: ex.exercise_name, targetSets: sets || 3, targetReps: reps || 10 };
+    })
+  );
+  if (!signature) return null;
+
+  const candidates = await PredefinedWorkout.find({
+    $or: [{ isCommon: true }, { createdBy: userId }]
+  })
+    .select('name blocks isCommon')
+    .lean();
+
+  const wantedName = normalizeTemplateName(name);
+  const matches = candidates.filter(
+    (t) => contentSignature(flattenTemplateExercises(t)) === signature
+  );
+  if (!matches.length) return null;
+
+  matches.sort((a, b) =>
+    (normalizeTemplateName(a.name) !== wantedName) - (normalizeTemplateName(b.name) !== wantedName) ||
+    !a.isCommon - !b.isCommon ||
+    String(a._id).localeCompare(String(b._id))
+  );
+  return matches[0];
+};
+
 // Create a user-owned template from a bare-exercises event payload and
-// return its id, or null when there is nothing to materialize.
+// return its id, or null when there is nothing to materialize. Identical
+// content reuses an existing library workout instead of minting a copy.
 const ensureTemplateForCustomEvent = async (userId, eventData) => {
   const exercises = eventData.workoutDetails?.exercises;
   if (!exercises?.length) return null;
@@ -60,6 +110,9 @@ const ensureTemplateForCustomEvent = async (userId, eventData) => {
 
   const blocks = await buildBlocks(userId, exercises);
   if (!blocks[0].exercises.length) return null;
+
+  const existing = await findMatchingTemplate(userId, name, blocks[0].exercises);
+  if (existing) return existing._id;
 
   const template = await PredefinedWorkout.create({
     name,
@@ -127,4 +180,10 @@ const applyExercisesCopyOnWrite = async (userId, event, exercises) => {
   return template._id;
 };
 
-module.exports = { ensureTemplateForCustomEvent, applyExercisesCopyOnWrite };
+module.exports = {
+  ensureTemplateForCustomEvent,
+  applyExercisesCopyOnWrite,
+  findMatchingTemplate,
+  contentSignature,
+  normalizeTemplateName
+};
