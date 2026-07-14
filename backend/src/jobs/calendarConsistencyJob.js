@@ -275,11 +275,16 @@ class CalendarConsistencyJob {
     this.logger.info('[CalendarConsistencyJob] Linking orphan workout events...');
 
     try {
+      // Start-of-day UTC: event dates are stored as midnight UTC, so plain
+      // new Date() would exclude today's orphans.
+      const startOfTodayUtc = new Date();
+      startOfTodayUtc.setUTCHours(0, 0, 0, 0);
+
       const query = {
         type: { $in: ['workout', 'deload'] },
         $or: [{ workoutTemplateId: { $exists: false } }, { workoutTemplateId: null }],
         status: 'scheduled',
-        date: { $gte: new Date() },
+        date: { $gte: startOfTodayUtc },
         'workoutDetails.exercises.0': { $exists: true }
       };
       if (userId) query.userId = userId;
@@ -302,13 +307,18 @@ class CalendarConsistencyJob {
       for (const { title, events } of groups.values()) {
         try {
           const sample = events[0];
+          const sourceExercises = sample.workoutDetails.exercises || [];
           const blockExercises = [];
-          for (const ex of sample.workoutDetails.exercises || []) {
+          for (const ex of sourceExercises) {
             let exerciseId = ex.exerciseId;
             if (!exerciseId && ex.exerciseName) {
-              // blockExerciseSchema requires exercise_id — recover it by name.
+              // blockExerciseSchema requires exercise_id — recover it by name,
+              // scoped to exercises this user can see (commons + their own).
               const escaped = ex.exerciseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-              const match = await Exercise.findOne({ name: new RegExp(`^${escaped}$`, 'i') })
+              const match = await Exercise.findOne({
+                name: new RegExp(`^${escaped}$`, 'i'),
+                $or: [{ isCommon: true }, { createdBy: sample.userId }]
+              })
                 .select('_id')
                 .lean();
               exerciseId = match?._id;
@@ -323,8 +333,15 @@ class CalendarConsistencyJob {
             });
           }
 
-          if (blockExercises.length === 0) {
+          // All-or-nothing: a partially resolved template would show a
+          // mangled version of the session in the Workouts tab — worse than
+          // leaving the event unlinked.
+          if (blockExercises.length !== sourceExercises.length) {
             this.stats.orphanWorkoutEventsSkipped += events.length;
+            this.logger.info(
+              `[CalendarConsistencyJob] Skipped ${events.length} orphan event(s) for "${title}": ` +
+              `${sourceExercises.length - blockExercises.length}/${sourceExercises.length} exercises unresolved`
+            );
             continue;
           }
 
