@@ -13,7 +13,7 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "schedule_to_calendar",
-                "description": "Schedule a workout or event to the user's calendar for a specific date. Use this when the user wants to add a workout to their calendar, schedule a rest day, or plan future training. For 'workout' and 'deload' events you MUST plan the full session first and pass it in workoutDetails.exercises — never schedule a bare title. The tool saves the planned workout to the user's workout library (Workouts tab) and links the calendar event to it automatically.",
+                "description": "Schedule a workout or event to the user's calendar for a specific date. Use this when the user wants to add a workout to their calendar, schedule a rest day, or plan future training. For 'workout' and 'deload' events you MUST plan the full session first and pass it in workoutDetails.exercises — never schedule a bare title. The tool saves the planned workout to the user's workout library (Workouts tab) and links the calendar event to it automatically. Defaults to a dry-run PREVIEW that writes nothing and shows how each exercise name matched the user's exercise catalog. Present the preview to the user; ONLY after they confirm, call again with the same arguments plus dry_run=false to actually write. If the user declines the preview, do NOT call again.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -74,6 +74,10 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
                         "notes": {
                             "type": "string",
                             "description": "Additional notes for the calendar event"
+                        },
+                        "dry_run": {
+                            "type": "boolean",
+                            "description": "Preview only, no writes. Default true. Set false ONLY after the user has confirmed the preview."
                         }
                     },
                     "required": ["date", "title", "type"]

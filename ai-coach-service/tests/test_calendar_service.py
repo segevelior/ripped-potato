@@ -172,7 +172,7 @@ class TestScheduleToCalendar:
         service = CalendarService(db)
 
         result = await service.schedule_to_calendar(
-            USER_ID, {"date": "today", "title": "Recovery Walk", "type": "event"}
+            USER_ID, {"date": "today", "title": "Recovery Walk", "type": "event", "dry_run": False}
         )
 
         assert result["success"] is True
@@ -254,7 +254,7 @@ class TestScheduleToCalendarTemplateLink:
 
         result = await service.schedule_to_calendar(
             USER_ID,
-            {"date": "today", "title": "Leg Day", "type": event_type,
+            {"date": "today", "title": "Leg Day", "type": event_type, "dry_run": False,
              "workoutDetails": {"exercises": [
                  {"exerciseName": "Squat", "targetSets": 5, "targetReps": 5},
              ]}},
@@ -276,8 +276,94 @@ class TestScheduleToCalendarTemplateLink:
         service = CalendarService(db)
 
         result = await service.schedule_to_calendar(
-            USER_ID, {"date": "today", "title": "Rest Day", "type": "rest"}
+            USER_ID, {"date": "today", "title": "Rest Day", "type": "rest", "dry_run": False}
         )
 
         assert result["success"] is True
         db.predefinedworkouts.insert_one.assert_not_called()
+
+
+# ------------------- schedule_to_calendar: dry-run preview (TOR-88) -------------------
+#
+# The incident: the agent scheduled "Easy Run" and silently resolved the
+# exercise to catalog "Treadmill Run"; the user's later "no" changed nothing.
+# schedule_to_calendar now defaults to a preview that writes nothing and
+# surfaces resolution, so a decline means dry_run=false is simply never sent.
+
+def _preview_resolver(monkeypatch, resolutions):
+    """ExerciseResolver stub whose resolve() returns the given resolutions."""
+    resolver = MagicMock()
+    resolver.resolve = AsyncMock(return_value=resolutions)
+    monkeypatch.setattr(calendar_service_module, "ExerciseResolver", MagicMock(return_value=resolver))
+    return resolver
+
+
+def _resolved(given, matched, method="fuzzy"):
+    return {"status": "resolved", "exercise_id": ObjectId(), "exercise_name": given,
+            "matched_name": matched, "method": method, "score": 0.9, "candidates": []}
+
+
+def _create_pending(given):
+    return {"status": "create_pending", "exercise_id": None, "exercise_name": given,
+            "matched_name": None, "method": "create_pending", "score": None, "candidates": []}
+
+
+EASY_RUN_ARGS = {
+    "date": "today", "title": "Easy Run", "type": "workout",
+    "workoutDetails": {"estimatedDuration": 20, "exercises": [
+        {"exerciseName": "Easy Run", "targetSets": 1, "targetReps": 1},
+    ]},
+}
+
+
+class TestScheduleToCalendarDryRun:
+    async def test_default_dry_run_writes_nothing(self, monkeypatch):
+        # TOR-88 regression: a call without dry_run=false must never write,
+        # so a declined confirmation can no longer produce a calendar event.
+        _anchor(monkeypatch)
+        resolver = _preview_resolver(monkeypatch, [_resolved("Easy Run", "Treadmill Run")])
+        db = _insert_db()
+        service = CalendarService(db)
+
+        result = await service.schedule_to_calendar(USER_ID, dict(EASY_RUN_ARGS))
+
+        assert result["success"] is True
+        assert result["dry_run"] is True
+        db.calendarevents.insert_one.assert_not_called()
+        db.predefinedworkouts.insert_one.assert_not_called()
+        # The probe must not create catalog exercises for a declined workout.
+        assert resolver.resolve.call_args.kwargs["create"] is False
+
+    async def test_preview_surfaces_resolved_name(self, monkeypatch):
+        _anchor(monkeypatch)
+        _preview_resolver(monkeypatch, [_resolved("Easy Run", "Treadmill Run")])
+        service = CalendarService(_insert_db())
+
+        result = await service.schedule_to_calendar(USER_ID, dict(EASY_RUN_ARGS))
+
+        assert "Treadmill Run" in result["message"]
+        assert result["resolved_exercises"] == [
+            {"given": "Easy Run", "resolved": "Treadmill Run", "is_new": False, "method": "fuzzy"},
+        ]
+
+    async def test_preview_marks_new_exercises(self, monkeypatch):
+        _anchor(monkeypatch)
+        _preview_resolver(monkeypatch, [_create_pending("Easy Run")])
+        service = CalendarService(_insert_db())
+
+        result = await service.schedule_to_calendar(USER_ID, dict(EASY_RUN_ARGS))
+
+        assert result["resolved_exercises"][0]["is_new"] is True
+        assert "new" in result["message"]
+
+    async def test_preview_rest_event_writes_nothing(self, monkeypatch):
+        _anchor(monkeypatch)
+        db = _insert_db()
+        service = CalendarService(db)
+
+        result = await service.schedule_to_calendar(
+            USER_ID, {"date": "today", "title": "Rest Day", "type": "rest"}
+        )
+
+        assert result["dry_run"] is True
+        db.calendarevents.insert_one.assert_not_called()

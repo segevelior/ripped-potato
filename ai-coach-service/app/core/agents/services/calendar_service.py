@@ -64,6 +64,15 @@ class CalendarService:
             date_suffix = event_date.strftime("%b %d")
             title_with_date = f"{title} ({date_suffix})"
 
+            # Default is a dry-run PREVIEW that writes nothing (TOR-88: an
+            # event was written against the user's explicit decline). The
+            # preview surfaces how each exercise name resolved against the
+            # catalog — silent substitutions must be visible BEFORE any write.
+            if args.get("dry_run", True):
+                return await self._preview_schedule(
+                    user_id, event_date, title_with_date, event_type, workout_details, today
+                )
+
             workout_template_id = None
             exercises = []
 
@@ -184,6 +193,81 @@ class CalendarService:
         except Exception as e:
             logger.error(f"Error scheduling to calendar: {e}")
             return {"success": False, "message": f"Error scheduling event: {str(e)}"}
+
+    async def _preview_schedule(
+        self,
+        user_id: str,
+        event_date: datetime,
+        title_with_date: str,
+        event_type: str,
+        workout_details: Dict[str, Any],
+        today: datetime,
+    ) -> Dict[str, Any]:
+        """Dry-run preview for schedule_to_calendar: resolve exercise names
+        without creating anything, and return what a confirmed call would write."""
+        formatted_date = event_date.strftime("%A, %B %d, %Y")
+        preview_msg = f"**Preview — nothing scheduled yet**\n\n**{title_with_date}** on **{formatted_date}** ({event_type})"
+
+        resolved_exercises = []
+        if event_type in ("workout", "deload") and workout_details:
+            workout_exercises = workout_details.get("exercises", [])
+            items = [
+                {
+                    "exercise_name": ex.get("exerciseName", ""),
+                    "muscles": ex.get("muscles"),
+                    "discipline": workout_details.get("disciplines"),
+                    "equipment": ex.get("equipment"),
+                    "difficulty": workout_details.get("difficulty"),
+                }
+                for ex in workout_exercises
+            ]
+            # create=False: a preview must not leave phantom catalog entries
+            # behind if the user declines.
+            resolutions = await ExerciseResolver(self.db).resolve(
+                user_id, items, on_ambiguous="best_effort", create=False
+            )
+
+            lines = []
+            for ex, res in zip(workout_exercises, resolutions):
+                given = ex.get("exerciseName", "")
+                is_new = res["status"] == "create_pending"
+                matched = res.get("matched_name")
+                resolved_exercises.append({
+                    "given": given,
+                    "resolved": given if is_new else matched,
+                    "is_new": is_new,
+                    "method": res.get("method"),
+                })
+                volume = f"{ex.get('targetSets', 3)}x{ex.get('targetReps', 10)}"
+                if is_new:
+                    lines.append(f"- **{given}** — {volume} (new — will be added to your exercise catalog)")
+                elif matched and matched.lower() != given.lower():
+                    lines.append(f"- \"{given}\" → matched to existing **{matched}** — {volume}")
+                else:
+                    lines.append(f"- **{matched or given}** — {volume}")
+            duration = workout_details.get("estimatedDuration", 45)
+            preview_msg += f", ~{duration} min:\n" + "\n".join(lines)
+
+        preview_msg += (
+            "\n\nShow this preview to the user and ask them to confirm. "
+            "If they confirm, call `schedule_to_calendar` again with the SAME arguments plus `dry_run=false`. "
+            "If they want a matched exercise kept under its ORIGINAL name instead, call `add_exercise` "
+            "with that exact name first, then retry with `dry_run=false`. "
+            "If the user declines, do NOT call this tool again."
+        )
+
+        return {
+            "success": True,
+            "dry_run": True,
+            "message": preview_msg,
+            "proposed_event": {
+                "title": title_with_date,
+                "date": event_date.strftime("%Y-%m-%d"),
+                "type": event_type,
+                "relativeDay": relative_day_label(event_date.date(), today.date()),
+            },
+            "resolved_exercises": resolved_exercises,
+        }
 
     async def get_calendar_events(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Get user's calendar events for a date range"""
