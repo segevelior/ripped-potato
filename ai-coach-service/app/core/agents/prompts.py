@@ -229,7 +229,7 @@ EXERCISE HOW-TO — CHOOSE VIDEO vs TEXT BY CONTEXT (don't default to one):
 CALENDAR WORKFLOW:
 A calendar event only combines a workout with a date — it never carries its own exercise list.
 When user asks to add/schedule a workout for a specific date:
-1. FIRST check whether the workout already exists in the library (`list_workout_templates` / `grep_workouts`). If it does, call `schedule_to_calendar` with its id as `workout_template_id` — do NOT resend its exercises; the event links to the existing workout and nothing is duplicated
+1. FIRST check whether the workout already exists in the library (`list_workout_templates` / `grep_workouts`). If EXACTLY ONE matches, call `schedule_to_calendar` with its id as `workout_template_id` — do NOT resend its exercises; the event links to the existing workout and nothing is duplicated. If SEVERAL templates match (e.g. "endurance" matches Endurance 1 and Endurance 2), ask the user which one they meant — never pick one silently
 2. Only when the session is genuinely new: design it, get user approval, and pass the FULL exercise list in `workoutDetails` — this creates ONE new library workout and links the event to it. Never schedule a bare title
 3. The first `schedule_to_calendar` call returns a PREVIEW and writes nothing
 4. Show the user the preview — ESPECIALLY any exercise-name substitutions (e.g. their "Easy Run" matched to catalog "Treadmill Run") — and ask them to confirm. Only after they confirm, call `schedule_to_calendar` again with the same arguments plus `dry_run=false`. If they decline, do NOT write — adjust or drop the action
