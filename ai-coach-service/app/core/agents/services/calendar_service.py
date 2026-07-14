@@ -11,7 +11,7 @@ import structlog
 
 from app.core.agents.date_utils import get_user_today, relative_day_label
 from app.core.agents.services.exercise_resolver import ExerciseResolver
-from app.core.agents.volume_utils import flatten_template_exercises
+from app.core.agents.volume_utils import flatten_template_exercises, parse_volume
 from app.core.dedup import (
     find_reusable_template,
     normalize_template_title,
@@ -187,6 +187,17 @@ class CalendarService:
                     flatten_template_exercises({"blocks": blocks}),
                 )
                 if reused is not None:
+                    # The earlier same-day check ran without a template id (the
+                    # match didn't exist yet) — re-check so an inline-reuse of a
+                    # template already scheduled that day under another title is
+                    # refused exactly like an explicit workout_template_id.
+                    if not args.get("allow_duplicate", False):
+                        duplicate = await self._find_same_day_duplicate(
+                            user_id, event_date,
+                            normalize_template_title(title), reused["_id"], today,
+                        )
+                        if duplicate:
+                            return duplicate
                     existing_template = reused
                     reused_inline_match = True
                     workout_template_id = reused["_id"]
@@ -423,16 +434,21 @@ class CalendarService:
             # the lookup is skipped — the confirmed write re-checks anyway.)
             if not any(res["status"] == "create_pending" for res in resolutions):
                 base_title = strip_template_date_suffix(title_with_date)
+                # Coerce sets/reps through the same volume round-trip as the
+                # write path (str/float/None inputs must not change the verdict
+                # between the preview the user confirms and the actual write).
+                sig_exercises = []
+                for ex, res in zip(workout_exercises, resolutions):
+                    sets, reps = parse_volume(
+                        f"{ex.get('targetSets', 3)}x{ex.get('targetReps', 10)}"
+                    )
+                    sig_exercises.append({
+                        "exerciseName": res.get("matched_name") or ex.get("exerciseName", ""),
+                        "targetSets": sets,
+                        "targetReps": reps,
+                    })
                 reusable = await find_reusable_template(
-                    self.db, user_id, base_title,
-                    [
-                        {
-                            "exerciseName": res.get("matched_name") or ex.get("exerciseName", ""),
-                            "targetSets": ex.get("targetSets", 3),
-                            "targetReps": ex.get("targetReps", 10),
-                        }
-                        for ex, res in zip(workout_exercises, resolutions)
-                    ],
+                    self.db, user_id, base_title, sig_exercises
                 )
                 if reusable is not None:
                     reuses_template = {
