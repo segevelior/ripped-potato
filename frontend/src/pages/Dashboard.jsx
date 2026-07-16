@@ -1,6 +1,7 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Workout, UserGoalProgress, Plan } from "@/api/entities";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Calendar, Target, ChevronRight, Activity, Trophy, Clock, Play, Users, MoreVertical, Trash2, FileText, Plus } from "lucide-react";
 import { format, startOfWeek, addDays, isToday, parseISO, isValid, isAfter } from "date-fns";
 import { Link, useNavigate } from "react-router-dom";
@@ -165,10 +166,18 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState('overview'); // 'overview' or 'plan'
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const loadedRef = useRef(false);
 
+  // Desktop-only data: mobile renders TodayView, which loads its own data.
+  // Load once when the viewport is (or becomes) desktop, so crossing the
+  // breakpoint after a mobile-first mount still populates the grid.
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isMobile && !loadedRef.current) {
+      loadedRef.current = true;
+      loadData();
+    }
+  }, [isMobile]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -225,35 +234,32 @@ export default function Dashboard() {
     }
   };
 
+  // Mobile: the redesigned Today view owns its own data — render only it so
+  // the hidden desktop grid (and its fetches) never mount.
+  if (isMobile) {
+    return (
+      <div className="-m-4">
+        <TodayView />
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
-      <>
-        {/* Mobile Today view loads its own data independently of the desktop dashboard */}
-        <div className="md:hidden -m-4">
-          <TodayView />
+      <div className="space-y-6">
+        <div className="animate-pulse h-8 bg-gray-200 rounded w-64"></div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {Array(3).fill(0).map((_, i) => (
+            <div key={i} className="animate-pulse bg-gray-200 h-24 rounded-xl"></div>
+          ))}
         </div>
-        <div className="hidden md:block space-y-6">
-          <div className="animate-pulse h-8 bg-gray-200 rounded w-64"></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {Array(3).fill(0).map((_, i) => (
-              <div key={i} className="animate-pulse bg-gray-200 h-24 rounded-xl"></div>
-            ))}
-          </div>
-          <div className="animate-pulse h-64 bg-gray-200 rounded-xl"></div>
-        </div>
-      </>
+        <div className="animate-pulse h-64 bg-gray-200 rounded-xl"></div>
+      </div>
     );
   }
 
   return (
-    <>
-    {/* Mobile: redesigned Today view */}
-    <div className="md:hidden -m-4">
-      <TodayView />
-    </div>
-
-    {/* Desktop: existing dashboard */}
-    <div className="hidden md:block space-y-8">
+    <div className="space-y-8">
       {/* Header with View Toggle */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -578,6 +584,5 @@ export default function Dashboard() {
         </div>
       )}
     </div>
-    </>
   );
 }
