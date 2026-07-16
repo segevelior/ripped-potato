@@ -228,9 +228,9 @@ export default function MemoriesSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 pb-24 md:pb-8">
+    <div className="-mx-4 -mt-4 -mb-24 md:-mx-6 md:-mt-6 md:-mb-8 lg:-mx-8 lg:-mt-8 min-h-full bg-white dark:bg-gray-900 pb-24 md:pb-8">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 shadow-sm">
+      <div className="sticky -top-4 md:-top-6 lg:-top-8 z-40 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 shadow-sm">
         <div className="flex items-center justify-between px-4 md:px-6 py-4">
           <button
             onClick={() => navigate(-1)}
