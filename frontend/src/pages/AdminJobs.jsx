@@ -11,7 +11,8 @@ import {
   AlertTriangle,
   Clock,
   RefreshCw,
-  User
+  User,
+  Newspaper
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -219,6 +220,19 @@ export default function AdminJobs() {
           return await apiService.adminJobs.runCalendarConsistencyForUser(userId);
         }
         return await apiService.adminJobs.runCalendarConsistency();
+      }
+    },
+    {
+      id: 'sports-news',
+      name: 'Sports News Fetch',
+      description: 'Refreshes the cached sports-news articles from ESPN feeds',
+      details: 'Fetches every configured per-sport ESPN news feed plus any seasonally-active top-event feeds (e.g. World Cup) into the newsarticles cache collection. Failing feeds are recorded in stats without aborting the run.',
+      icon: <Newspaper className="w-5 h-5 text-white" />,
+      color: 'bg-emerald-500',
+      schedule: 'Every 4 hours',
+      supportsUser: false,
+      run: async () => {
+        return await apiService.adminJobs.runSportsNews();
       }
     }
   ];

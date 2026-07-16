@@ -227,7 +227,16 @@ const updateProfile = async (req, res) => {
     }
     if (settings) {
       const existingSettings = req.user.settings ? (req.user.settings.toObject ? req.user.settings.toObject() : req.user.settings) : {};
-      updateData.settings = { ...existingSettings, ...settings };
+      // Deep merge sportsNews (like profile.preferences above): a partial
+      // update such as { sportsNews: { enabled: false } } must not wipe the
+      // user's followed-sports list.
+      updateData.settings = {
+        ...existingSettings,
+        ...settings,
+        ...(settings.sportsNews
+          ? { sportsNews: { ...(existingSettings.sportsNews || {}), ...settings.sportsNews } }
+          : {})
+      };
     }
 
     const user = await User.findByIdAndUpdate(

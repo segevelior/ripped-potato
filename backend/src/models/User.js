@@ -108,6 +108,16 @@ const userSchema = new mongoose.Schema({
     timezone: {
       type: String,
       default: 'UTC' // e.g., 'Asia/Jerusalem', 'America/New_York'
+    },
+    // Sports-news dashboard widget. `sports` are the sports the user follows
+    // for news — distinct from profile.sportPreferences (sports they train),
+    // which feeds AI-coach context.
+    sportsNews: {
+      enabled: {
+        type: Boolean,
+        default: true
+      },
+      sports: [String] // canonical slugs from config/sportsNews.js
     }
   }
 }, {
