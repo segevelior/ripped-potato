@@ -118,6 +118,15 @@ const userSchema = new mongoose.Schema({
         default: true
       },
       sports: [String] // canonical slugs from config/sportsNews.js
+    },
+    // Per-user dashboard widget layout. Ids reference the frontend widget
+    // registry (frontend/src/components/dashboard/widgets/registry.js);
+    // unknown/missing ids are reconciled client-side.
+    dashboard: {
+      mobileLayout: {
+        order: { type: [String], default: undefined },
+        hidden: { type: [String], default: undefined }
+      }
     }
   }
 }, {

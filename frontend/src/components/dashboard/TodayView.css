@@ -210,3 +210,57 @@
 }
 .tv-rung:first-child::before { display: none; }
 .tv-rung.done::before, .tv-rung.now::before { background: var(--rung-c); }
+
+/* ---- Edit layout (widget reorder/hide) ---- */
+.tv-edit-row { display: flex; justify-content: flex-end; margin-bottom: -6px; }
+.tv-edit-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 8px;
+  background: transparent; border: 1px solid var(--tv-border);
+  color: var(--tv-text-muted); cursor: pointer;
+}
+.tv-save-error {
+  font-size: 12px; color: var(--tv-accent-strong);
+  background: var(--tv-surface-2); border: 1px solid var(--tv-border);
+  border-radius: 10px; padding: 8px 10px;
+}
+
+.tv-edit { display: flex; flex-direction: column; gap: 12px; }
+.tv-edit-head { display: flex; align-items: center; justify-content: space-between; }
+.tv-edit-actions { display: flex; align-items: center; gap: 12px; }
+.tv-edit-reset {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font-size: 11px; color: var(--tv-text-muted);
+}
+.tv-edit-done {
+  background: var(--tv-fill-primary); color: var(--tv-on-primary);
+  border: none; border-radius: 999px; padding: 6px 16px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+
+.tv-edit-list { display: flex; flex-direction: column; gap: 8px; }
+.tv-edit-card {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--tv-surface-2); border: 1px solid var(--tv-border);
+  border-radius: 14px; padding: 12px;
+}
+.tv-edit-card.is-hidden { opacity: 0.45; }
+.tv-edit-card.is-dragging {
+  border-color: var(--tv-border-stronger);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+.tv-edit-grip {
+  display: inline-flex; color: var(--tv-text-muted);
+  touch-action: none; cursor: grab;
+}
+.tv-edit-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.tv-edit-title { font-size: 14px; font-weight: 600; }
+.tv-edit-sub { font-size: 11px; color: var(--tv-text-muted); }
+.tv-edit-sub-link { text-decoration: underline; cursor: pointer; }
+.tv-edit-eye {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--tv-text-secondary);
+}
+.tv-edit-eye:disabled { color: var(--tv-text-muted); cursor: default; }
