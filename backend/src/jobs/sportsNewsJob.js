@@ -1,7 +1,7 @@
 const SportsNewsService = require('../services/SportsNewsService');
 const User = require('../models/User');
 const NewsArticle = require('../models/NewsArticle');
-const { SPORT_FEEDS, legacySlugFeeds, getLeagueBySlug } = require('../config/sportsNews');
+const { SPORT_FEEDS, legacySlugFeeds, getLeagueBySlug, isWhitelistedSlug } = require('../config/sportsNews');
 
 /**
  * Sports News Job
@@ -44,6 +44,10 @@ class SportsNewsJob {
       const sportsNews = user.settings?.sportsNews || {};
       for (const follow of sportsNews.follows || []) {
         for (const slug of follow.feeds || []) {
+          // The resolve endpoint only writes whitelisted slugs, but re-check
+          // here so a misbehaving future writer can't make the job fetch
+          // arbitrary URLs.
+          if (!isWhitelistedSlug(slug)) continue;
           if (!feeds.has(slug)) {
             feeds.set(slug, {
               label: getLeagueBySlug(slug)?.name || follow.label,

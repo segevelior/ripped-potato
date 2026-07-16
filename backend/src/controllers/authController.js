@@ -231,6 +231,11 @@ const updateProfile = async (req, res) => {
       // POST /news/follows appending to sportsNews.follows) are never
       // clobbered by a stale settings snapshot.
       for (const [key, value] of Object.entries(settings)) {
+        // Client keys become Mongo update paths here, so a crafted key like
+        // "sportsNews.follows" (or a $-operator) would bypass the sportsNews
+        // guard below and write arbitrary nested paths. Plain schema keys
+        // never contain '.' or '$'.
+        if (key.includes('.') || key.includes('$')) continue;
         if (key === 'sportsNews') {
           // Only `enabled` (and legacy `sports`, until the follows migration
           // completes) are client-settable. `follows` is written exclusively

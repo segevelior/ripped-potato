@@ -74,7 +74,7 @@ async function main() {
   const users = await User.find(query, { email: 1, 'settings.sportsNews': 1 }).lean();
   console.log(`Examined: ${users.length} user(s) with legacy followed sports`);
 
-  const stats = { migrated: 0, skippedHasFollows: 0, entriesCreated: 0 };
+  const stats = { migrated: 0, skippedHasFollows: 0, skippedNoFeeds: 0, entriesCreated: 0 };
   const droppedBySport = {};
 
   for (const user of users) {
@@ -99,7 +99,11 @@ async function main() {
       (dropped.length ? `\n    dropped (no feed): ${dropped.join(', ')}` : '')
     );
 
-    if (APPLY && follows.length > 0) {
+    if (follows.length === 0) {
+      stats.skippedNoFeeds++;
+      continue;
+    }
+    if (APPLY) {
       await User.updateOne(
         { _id: user._id, 'settings.sportsNews.follows.0': { $exists: false } },
         { $set: { 'settings.sportsNews.follows': follows } }
@@ -141,6 +145,7 @@ async function main() {
   console.log(`  users migrated:        ${stats.migrated}`);
   console.log(`  follow entries:        ${stats.entriesCreated}`);
   console.log(`  skipped (has follows): ${stats.skippedHasFollows}`);
+  console.log(`  skipped (no feeds):    ${stats.skippedNoFeeds}`);
   console.log(`  seeds:                 ${seeded}`);
   const droppedReport = Object.entries(droppedBySport).map(([s, n]) => `${s}×${n}`).join(', ');
   console.log(`  dropped slugs:         ${droppedReport || '(none)'}`);
