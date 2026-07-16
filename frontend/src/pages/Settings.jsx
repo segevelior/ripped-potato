@@ -16,15 +16,6 @@ import {
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 
-// Canonical sport slugs for the news feature — must match keys of
-// SPORT_FEEDS in backend/src/config/sportsNews.js that have at least one
-// feed. Sports with no feed (cycling, running) are omitted: a chip that can
-// never produce an article would be a silent dead end.
-const NEWS_SPORTS = [
-  'soccer', 'basketball', 'football', 'baseball', 'hockey',
-  'tennis', 'golf', 'motorsport', 'mma'
-];
-
 export default function Settings() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -36,6 +27,12 @@ export default function Settings() {
   const [editingField, setEditingField] = useState(null);
   const [newGoal, setNewGoal] = useState('');
   const [newInjury, setNewInjury] = useState('');
+
+  // Sports-news follows state (free-text add flow)
+  const [newsQuery, setNewsQuery] = useState('');
+  const [newsAdding, setNewsAdding] = useState(false);
+  const [newsError, setNewsError] = useState(null);
+  const [newsSuggestions, setNewsSuggestions] = useState([]);
 
   // Strava integration state
   const [stravaStatus, setStravaStatus] = useState(null);
@@ -72,13 +69,14 @@ export default function Settings() {
       theme: 'light',
       weekStartDay: 0, // 0 = Sunday, 1 = Monday
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      sportsNews: { enabled: true, sports: [] }
+      sportsNews: { enabled: true, follows: [] }
     }
   });
 
   useEffect(() => {
     fetchUserProfile();
     fetchStravaStatus();
+    fetchNewsSuggestions();
   }, []);
 
   // Handle Strava OAuth callback
@@ -156,7 +154,7 @@ export default function Settings() {
             timezone: userData.settings?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
             sportsNews: {
               enabled: userData.settings?.sportsNews?.enabled ?? true,
-              sports: userData.settings?.sportsNews?.sports || []
+              follows: userData.settings?.sportsNews?.follows || []
             }
           }
         });
@@ -246,9 +244,9 @@ export default function Settings() {
     }
   };
 
-  // Persist a full settings object immediately (like commitProfile). Always
-  // sends the complete sportsNews sub-object — the server deep-merges it, and
-  // a partial send must never wipe the followed-sports list.
+  // Persist a full settings object immediately (like commitProfile). The
+  // server applies dot-path sets per key; sportsNews.follows is ignored here
+  // by design — only POST /news/follows can write it.
   const commitSettings = async (nextSettings) => {
     setFormData((prev) => ({ ...prev, settings: nextSettings }));
     setIsSaving(true);
@@ -272,15 +270,59 @@ export default function Settings() {
     }
   };
 
-  const toggleFollowedSport = (slug) => {
-    const current = formData.settings.sportsNews?.sports || [];
-    const next = current.includes(slug)
-      ? current.filter((s) => s !== slug)
-      : [...current, slug];
-    commitSettings({
-      ...formData.settings,
-      sportsNews: { ...formData.settings.sportsNews, sports: next }
-    });
+  const fetchNewsSuggestions = async () => {
+    try {
+      const data = await apiService.news.suggestions();
+      setNewsSuggestions(data.suggestions || []);
+    } catch {
+      setNewsSuggestions([]);
+    }
+  };
+
+  // Follows are written only via the news endpoints (feeds are LLM-resolved
+  // and live-validated server-side) — never through commitSettings, which
+  // only carries the enabled flag.
+  const applyFollows = (follows) => {
+    setFormData((prev) => ({
+      ...prev,
+      settings: { ...prev.settings, sportsNews: { ...prev.settings.sportsNews, follows } }
+    }));
+    const authUser = JSON.parse(localStorage.getItem('authUser') || '{}');
+    localStorage.setItem('authUser', JSON.stringify({
+      ...authUser,
+      settings: {
+        ...(authUser.settings || {}),
+        sportsNews: { ...(authUser.settings?.sportsNews || {}), follows }
+      }
+    }));
+  };
+
+  const addNewsFollow = async (query) => {
+    const q = (query || '').trim();
+    if (!q || newsAdding) return;
+    setNewsAdding(true);
+    setNewsError(null);
+    try {
+      // Server resolves via LLM + live ESPN checks — can take up to ~35s.
+      const data = await apiService.news.addFollow(q);
+      applyFollows(data.follows || []);
+      setNewsQuery('');
+      fetchNewsSuggestions();
+    } catch (error) {
+      setNewsError(error.message || `Couldn't find ESPN coverage for "${q}" — try a league name`);
+    } finally {
+      setNewsAdding(false);
+    }
+  };
+
+  const removeNewsFollow = async (label) => {
+    try {
+      const data = await apiService.news.removeFollow(label);
+      applyFollows(data.follows || []);
+      fetchNewsSuggestions();
+    } catch (error) {
+      setNewsError(error.message || 'Failed to remove');
+    }
   };
 
   const addProfileItem = (key, value, clear) => {
@@ -731,25 +773,78 @@ export default function Settings() {
               <p className="text-sm font-bold text-gray-500 dark:text-gray-400 tracking-wide mb-2">
                 Sports I Follow
               </p>
-              <div className="flex flex-wrap gap-2">
-                {NEWS_SPORTS.map((slug) => {
-                  const selected = (formData.settings.sportsNews?.sports || []).includes(slug);
-                  return (
-                    <button
-                      key={slug}
-                      onClick={() => toggleFollowedSport(slug)}
-                      disabled={isSaving}
-                      className={`px-3 py-1 rounded-full text-sm capitalize transition-colors ${
-                        selected
-                          ? 'bg-primary-400 text-gray-900 font-semibold'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                      }`}
+              <div className="flex flex-wrap gap-2 mb-2">
+                {(formData.settings.sportsNews?.follows || []).length === 0 ? (
+                  <span className="text-sm text-gray-400 dark:text-gray-500">
+                    Not following anything yet — add a sport or league below
+                  </span>
+                ) : (
+                  (formData.settings.sportsNews?.follows || []).map((follow) => (
+                    <span
+                      key={follow.label}
+                      className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary-100 dark:bg-primary-900/30 text-sm text-gray-800 dark:text-gray-200"
                     >
-                      {slug}
-                    </button>
-                  );
-                })}
+                      {follow.label}
+                      <button onClick={() => removeNewsFollow(follow.label)} className="hover:text-red-500" title="Unfollow">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  ))
+                )}
               </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newsQuery}
+                  onChange={(e) => { setNewsQuery(e.target.value); setNewsError(null); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addNewsFollow(newsQuery);
+                    }
+                  }}
+                  disabled={newsAdding}
+                  maxLength={100}
+                  placeholder="e.g. Premier League, F1, college football"
+                  className="flex-1 px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400/50 disabled:opacity-60"
+                />
+                <button
+                  onClick={() => addNewsFollow(newsQuery)}
+                  disabled={!newsQuery.trim() || newsAdding}
+                  className="px-4 py-2 bg-primary-400 text-gray-900 font-semibold rounded-xl hover:bg-primary-500 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {newsAdding && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {newsAdding ? 'Finding…' : 'Follow'}
+                </button>
+              </div>
+              {newsAdding && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  Finding ESPN coverage — this can take a little while…
+                </p>
+              )}
+              {newsError && (
+                <div className="mt-2 p-3 rounded-lg flex items-center gap-2 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span className="text-sm">{newsError}</span>
+                </div>
+              )}
+              {newsSuggestions.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-1.5">Popular</p>
+                  <div className="flex flex-wrap gap-2">
+                    {newsSuggestions.map((label) => (
+                      <button
+                        key={label}
+                        onClick={() => addNewsFollow(label)}
+                        disabled={newsAdding}
+                        className="px-3 py-1 rounded-full text-sm bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                      >
+                        + {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

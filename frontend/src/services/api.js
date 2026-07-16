@@ -546,7 +546,18 @@ class APIService {
 
   // Sports news endpoints
   news = {
-    list: (limit = 15) => this.request(`/news?limit=${limit}`)
+    list: (limit = 15) => this.request(`/news?limit=${limit}`),
+    // Resolving free text costs an LLM call + live ESPN validation; the
+    // server may take up to ~35s before answering (retry loop).
+    addFollow: (query) => this.request('/news/follows', {
+      method: 'POST',
+      body: JSON.stringify({ query })
+    }),
+    removeFollow: (label) => this.request('/news/follows', {
+      method: 'DELETE',
+      body: JSON.stringify({ label })
+    }),
+    suggestions: () => this.request('/news/suggestions')
   };
 
   // Alias endpoints for naming compatibility
