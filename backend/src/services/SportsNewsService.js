@@ -11,8 +11,8 @@ const ESPN_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports';
 /**
  * Fetches sports news from ESPN's unofficial API and caches it in the
  * newsarticles collection. The API is undocumented, so parsing is defensive:
- * malformed articles are skipped, requests time out at 10s, and a failed
- * feed never throws past its caller's per-feed error isolation.
+ * malformed articles are skipped, requests time out at 10s, and fetchFeed
+ * never throws — callers branch on its returned status.
  */
 class SportsNewsService {
   constructor(logger = console) {
@@ -20,21 +20,40 @@ class SportsNewsService {
   }
 
   /**
-   * Fetch one ESPN news feed and map it to NewsArticle-shaped objects.
-   * Filters out items unusable as news cards: missing url/headline,
+   * Fetch one ESPN league news feed and map it to NewsArticle-shaped
+   * objects. Filters out items unusable as news cards: missing url/headline,
    * ESPN+ premium (paywalled), and video clips.
-   * @param {string} endpoint - e.g. 'racing/f1/news'
-   * @returns {Promise<Array>} mapped articles (possibly empty)
+   *
+   * Never throws. `status` distinguishes what a failure means:
+   *  - 'ok'      — feed exists (200 + articles array); may still be empty
+   *                for an off-season league
+   *  - 'invalid' — the slug is wrong (HTTP 4xx or shape without an articles
+   *                array): a fact about the slug, safe to cache
+   *  - 'network' — timeout / connection error / 5xx: transient, must not be
+   *                cached as a failure
+   * @param {string} slug - bare league slug, e.g. 'racing/f1'
+   * @returns {Promise<{status: string, articles: Array, error?: string}>}
    */
-  async fetchFeed(endpoint) {
-    const response = await axios.get(`${ESPN_BASE_URL}/${endpoint}`, {
-      timeout: 10000,
-      params: { limit: MAX_ARTICLES_PER_FEED }
-    });
+  async fetchFeed(slug) {
+    let response;
+    try {
+      response = await axios.get(`${ESPN_BASE_URL}/${slug}/news`, {
+        timeout: 10000,
+        params: { limit: MAX_ARTICLES_PER_FEED }
+      });
+    } catch (error) {
+      const httpStatus = error.response?.status;
+      if (httpStatus && httpStatus >= 400 && httpStatus < 500) {
+        return { status: 'invalid', articles: [], error: `HTTP ${httpStatus}` };
+      }
+      return { status: 'network', articles: [], error: error.message };
+    }
 
-    const articles = Array.isArray(response.data?.articles) ? response.data.articles : [];
+    if (!Array.isArray(response.data?.articles)) {
+      return { status: 'invalid', articles: [], error: 'malformed response (no articles array)' };
+    }
 
-    return articles
+    const articles = response.data.articles
       .map((a) => ({
         articleUrl: a.links?.web?.href,
         headline: a.headline,
@@ -53,18 +72,23 @@ class SportsNewsService {
         return true;
       })
       .map(({ type, premium, ...article }) => article);
+
+    return { status: 'ok', articles };
   }
 
   /**
    * Upsert a feed's articles, deduping on articleUrl. A story seen in
-   * several feeds accumulates all their sport slugs; refetching refreshes
-   * expiresAt so the cache survives source outages.
-   * @param {Array} articles - output of fetchFeed
-   * @param {string|null} sportSlug - canonical slug, or null for global feeds
-   * @param {boolean} isTopEvent - whether the feed is an active global top feed
+   * several feeds accumulates all their league slugs (feeds) and display
+   * labels (sports); refetching refreshes expiresAt so the cache survives
+   * source outages.
+   * @param {Array} articles - articles from fetchFeed
+   * @param {Object} opts
+   * @param {string} opts.feedSlug - bare league slug the articles came from
+   * @param {string} opts.label - league display label for the card badge
+   * @param {boolean} opts.isTopEvent - whether the feed is an active global top feed
    * @returns {Promise<number>} number of articles upserted
    */
-  async upsertArticles(articles, sportSlug, isTopEvent) {
+  async upsertArticles(articles, { feedSlug, label, isTopEvent = false }) {
     if (articles.length === 0) return 0;
 
     const now = new Date();
@@ -81,8 +105,12 @@ class SportsNewsService {
           expiresAt
         }
       };
-      if (sportSlug) {
-        update.$addToSet = { sports: sportSlug };
+      const addToSet = {
+        ...(feedSlug ? { feeds: feedSlug } : {}),
+        ...(label ? { sports: label } : {})
+      };
+      if (Object.keys(addToSet).length > 0) {
+        update.$addToSet = addToSet;
       }
       if (isTopEvent) {
         // A top-feed sighting flips the flag and it stays flipped

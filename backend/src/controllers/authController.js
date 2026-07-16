@@ -226,17 +226,24 @@ const updateProfile = async (req, res) => {
       };
     }
     if (settings) {
-      const existingSettings = req.user.settings ? (req.user.settings.toObject ? req.user.settings.toObject() : req.user.settings) : {};
-      // Deep merge sportsNews (like profile.preferences above): a partial
-      // update such as { sportsNews: { enabled: false } } must not wipe the
-      // user's followed-sports list.
-      updateData.settings = {
-        ...existingSettings,
-        ...settings,
-        ...(settings.sportsNews
-          ? { sportsNews: { ...(existingSettings.sportsNews || {}), ...settings.sportsNews } }
-          : {})
-      };
+      // Dot-path $sets rather than a merged whole-object write: a partial
+      // update touches only the keys it names, so concurrent writers (e.g.
+      // POST /news/follows appending to sportsNews.follows) are never
+      // clobbered by a stale settings snapshot.
+      for (const [key, value] of Object.entries(settings)) {
+        if (key === 'sportsNews') {
+          // Only `enabled` (and legacy `sports`, until the follows migration
+          // completes) are client-settable. `follows` is written exclusively
+          // by POST /api/v1/news/follows, where feeds are LLM-resolved and
+          // live-validated — never accepted from the client.
+          if (value && typeof value === 'object') {
+            if (value.enabled !== undefined) updateData['settings.sportsNews.enabled'] = value.enabled;
+            if (value.sports !== undefined) updateData['settings.sportsNews.sports'] = value.sports;
+          }
+        } else {
+          updateData[`settings.${key}`] = value;
+        }
+      }
     }
 
     const user = await User.findByIdAndUpdate(

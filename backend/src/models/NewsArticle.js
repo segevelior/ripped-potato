@@ -7,7 +7,8 @@ const mongoose = require('mongoose');
  * outages, and articles that drop out expire via the TTL index.
  *
  * The same story can appear in multiple league feeds; it is deduped on
- * `articleUrl` and accumulates all matching sport slugs in `sports`.
+ * `articleUrl` and accumulates every league slug that surfaced it in `feeds`
+ * and the matching display labels in `sports`.
  */
 const newsArticleSchema = new mongoose.Schema({
   articleUrl: {
@@ -21,8 +22,16 @@ const newsArticleSchema = new mongoose.Schema({
   },
   description: String,
   imageUrl: String,
-  // Canonical sport slugs from config/sportsNews.js SPORT_FEEDS
+  // League display labels ("Premier League", "Formula 1") — shown as the
+  // card badge. Pre-v2 documents hold legacy sport slugs here until the job's
+  // cleanup pass or the 3-day TTL retires them.
   sports: {
+    type: [String],
+    default: []
+  },
+  // Bare ESPN league slugs ("soccer/eng.1") that surfaced this article —
+  // matched against the user's follows[].feeds.
+  feeds: {
     type: [String],
     default: []
   },
@@ -49,6 +58,7 @@ const newsArticleSchema = new mongoose.Schema({
 // TTL index: articles no longer refreshed by the job are removed automatically.
 newsArticleSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 newsArticleSchema.index({ sports: 1, publishedAt: -1 });
+newsArticleSchema.index({ feeds: 1, publishedAt: -1 });
 newsArticleSchema.index({ isTopEvent: 1, publishedAt: -1 });
 
 module.exports = mongoose.model('NewsArticle', newsArticleSchema);
