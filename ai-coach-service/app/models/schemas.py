@@ -184,3 +184,37 @@ class ExerciseSuggestionResponse(BaseModel):
     """Response containing exercise suggestions."""
     suggestions: ExerciseSuggestion
     confidence: float = Field(..., ge=0.0, le=1.0)
+
+# ============ League Map Models (sports-news follows) ============
+
+class LeagueMapWhitelistEntry(BaseModel):
+    """One whitelisted ESPN league the query may be mapped to."""
+    slug: str  # e.g. "soccer/eng.1"
+    name: str  # e.g. "Premier League"
+    aliases: List[str] = []
+
+
+class LeagueMapTriedEntry(BaseModel):
+    """A slug a previous attempt proposed that failed live validation."""
+    slug: str
+    error: str
+
+
+class LeagueMapRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=100)
+    whitelist: List[LeagueMapWhitelistEntry] = Field(..., min_length=1)
+    tried_and_failed: List[LeagueMapTriedEntry] = []
+
+
+class LeagueMapResponse(BaseModel):
+    """Either unmatched=true with a reason, or a label plus 1-4 candidate slugs.
+
+    `rejected` lists model proposals that were filtered out server-side
+    (hallucinated or already-tried slugs) so the caller can add them to
+    tried_and_failed instead of receiving the same hallucination again.
+    """
+    unmatched: bool = False
+    reason: Optional[str] = None
+    label: Optional[str] = None
+    candidates: List[str] = []
+    rejected: List[str] = []

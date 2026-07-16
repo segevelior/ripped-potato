@@ -7,7 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import redis.asyncio as redis
 
 from app.config import get_settings, Settings
-from app.api.v1 import health, chat, chat_stream, conversations, documents, exercises, internal, progressions, suggestions, train_now, coach_question
+from app.api.v1 import health, chat, chat_stream, conversations, documents, exercises, internal, league_map, progressions, suggestions, train_now, coach_question
 from app.services.coach_question_service import CoachQuestionService
 from app.services.conversation_service import ConversationService
 from app.services.recommendation_service import RecommendationService
@@ -98,6 +98,7 @@ app.include_router(suggestions.router, prefix="/api/v1/suggestions", tags=["sugg
 app.include_router(train_now.router, prefix="/api/v1/train-now", tags=["train-now"])
 app.include_router(coach_question.router, prefix="/api/v1/coach-question", tags=["coach-question"])
 app.include_router(internal.router, prefix="/api/v1/internal", tags=["internal"])
+app.include_router(league_map.router, prefix="/api/v1/news/league-map", tags=["news"])
 
 
 @app.exception_handler(Exception)

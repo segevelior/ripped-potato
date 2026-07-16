@@ -226,23 +226,39 @@ const updateProfile = async (req, res) => {
       };
     }
     if (settings) {
-      const existingSettings = req.user.settings ? (req.user.settings.toObject ? req.user.settings.toObject() : req.user.settings) : {};
-      // Deep merge sportsNews (like profile.preferences above): a partial
-      // update such as { sportsNews: { enabled: false } } must not wipe the
-      // user's followed-sports list.
-      updateData.settings = {
-        ...existingSettings,
-        ...settings,
-        ...(settings.sportsNews
-          ? { sportsNews: { ...(existingSettings.sportsNews || {}), ...settings.sportsNews } }
-          : {}),
-        // One merge level only: clients must send each layout (e.g.
-        // mobileLayout) complete — a partial { mobileLayout: { hidden } }
-        // would wipe that layout's order.
-        ...(settings.dashboard
-          ? { dashboard: { ...(existingSettings.dashboard || {}), ...settings.dashboard } }
-          : {})
-      };
+      // Dot-path $sets rather than a merged whole-object write: a partial
+      // update touches only the keys it names, so concurrent writers (e.g.
+      // POST /news/follows appending to sportsNews.follows) are never
+      // clobbered by a stale settings snapshot.
+      for (const [key, value] of Object.entries(settings)) {
+        // Client keys become Mongo update paths here, so a crafted key like
+        // "sportsNews.follows" (or a $-operator) would bypass the sportsNews
+        // guard below and write arbitrary nested paths. Plain schema keys
+        // never contain '.' or '$'.
+        if (key.includes('.') || key.includes('$')) continue;
+        if (key === 'sportsNews') {
+          // Only `enabled` (and legacy `sports`, until the follows migration
+          // completes) are client-settable. `follows` is written exclusively
+          // by POST /api/v1/news/follows, where feeds are LLM-resolved and
+          // live-validated — never accepted from the client.
+          if (value && typeof value === 'object') {
+            if (value.enabled !== undefined) updateData['settings.sportsNews.enabled'] = value.enabled;
+            if (value.sports !== undefined) updateData['settings.sportsNews.sports'] = value.sports;
+          }
+        } else if (key === 'dashboard') {
+          // One merge level only: clients must send each layout (e.g.
+          // mobileLayout) complete — a partial { mobileLayout: { hidden } }
+          // would wipe that layout's order.
+          if (value && typeof value === 'object') {
+            for (const [layoutKey, layoutValue] of Object.entries(value)) {
+              if (layoutKey.includes('.') || layoutKey.includes('$')) continue;
+              updateData[`settings.dashboard.${layoutKey}`] = layoutValue;
+            }
+          }
+        } else {
+          updateData[`settings.${key}`] = value;
+        }
+      }
     }
 
     const user = await User.findByIdAndUpdate(

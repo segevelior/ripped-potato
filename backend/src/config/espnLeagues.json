@@ -1,0 +1,2638 @@
+[
+  {
+    "slug": "australian-football/afl",
+    "sport": "australian-football",
+    "name": "AFL",
+    "aliases": []
+  },
+  {
+    "slug": "baseball/caribbean-series",
+    "sport": "baseball",
+    "name": "Caribbean Series",
+    "aliases": [
+      "CBWS"
+    ]
+  },
+  {
+    "slug": "baseball/college-baseball",
+    "sport": "baseball",
+    "name": "NCAA Baseball",
+    "aliases": [
+      "CBASE"
+    ]
+  },
+  {
+    "slug": "baseball/college-softball",
+    "sport": "baseball",
+    "name": "NCAA Softball",
+    "aliases": [
+      "CSOFT"
+    ]
+  },
+  {
+    "slug": "baseball/dominican-winter-league",
+    "sport": "baseball",
+    "name": "Dominican Winter League",
+    "aliases": [
+      "DOMWL"
+    ]
+  },
+  {
+    "slug": "baseball/llb",
+    "sport": "baseball",
+    "name": "Little League Baseball",
+    "aliases": [
+      "Little League Baseball World Series"
+    ]
+  },
+  {
+    "slug": "baseball/lls",
+    "sport": "baseball",
+    "name": "Little League Softball",
+    "aliases": [
+      "Little League Softball World Series"
+    ]
+  },
+  {
+    "slug": "baseball/mexican-winter-league",
+    "sport": "baseball",
+    "name": "Mexican League",
+    "aliases": [
+      "LMB"
+    ]
+  },
+  {
+    "slug": "baseball/mlb",
+    "sport": "baseball",
+    "name": "MLB",
+    "aliases": [
+      "Major League Baseball"
+    ]
+  },
+  {
+    "slug": "baseball/olympics-baseball",
+    "sport": "baseball",
+    "name": "Olympic Men's Baseball",
+    "aliases": [
+      "Olympics Men's Baseball",
+      "OLYBB"
+    ]
+  },
+  {
+    "slug": "baseball/puerto-rican-winter-league",
+    "sport": "baseball",
+    "name": "Puerto Rican Winter League",
+    "aliases": [
+      "PUERT"
+    ]
+  },
+  {
+    "slug": "baseball/venezuelan-winter-league",
+    "sport": "baseball",
+    "name": "Venezuelan Winter League",
+    "aliases": [
+      "VENWL"
+    ]
+  },
+  {
+    "slug": "baseball/world-baseball-classic",
+    "sport": "baseball",
+    "name": "World Baseball Classic",
+    "aliases": [
+      "WBBC"
+    ]
+  },
+  {
+    "slug": "basketball/fiba",
+    "sport": "basketball",
+    "name": "FIBA",
+    "aliases": [
+      "FIBA World Cup"
+    ]
+  },
+  {
+    "slug": "basketball/mens-college-basketball",
+    "sport": "basketball",
+    "name": "NCAA Men's Basketball",
+    "aliases": [
+      "NCAAM"
+    ]
+  },
+  {
+    "slug": "basketball/mens-olympics-basketball",
+    "sport": "basketball",
+    "name": "OLY Basketball (M)",
+    "aliases": [
+      "Olympics Men's Basketball",
+      "Olympics"
+    ]
+  },
+  {
+    "slug": "basketball/nba",
+    "sport": "basketball",
+    "name": "NBA",
+    "aliases": [
+      "National Basketball Association"
+    ]
+  },
+  {
+    "slug": "basketball/nba-development",
+    "sport": "basketball",
+    "name": "NBA G League",
+    "aliases": []
+  },
+  {
+    "slug": "basketball/nba-summer-california",
+    "sport": "basketball",
+    "name": "NBA California Classic Summer League",
+    "aliases": [
+      "NBACC"
+    ]
+  },
+  {
+    "slug": "basketball/nba-summer-golden-state",
+    "sport": "basketball",
+    "name": "Golden State Summer League",
+    "aliases": [
+      "NBAGS"
+    ]
+  },
+  {
+    "slug": "basketball/nba-summer-las-vegas",
+    "sport": "basketball",
+    "name": "Las Vegas Summer League",
+    "aliases": [
+      "NBALV"
+    ]
+  },
+  {
+    "slug": "basketball/nba-summer-orlando",
+    "sport": "basketball",
+    "name": "Orlando Summer League",
+    "aliases": [
+      "NBAOR"
+    ]
+  },
+  {
+    "slug": "basketball/nba-summer-sacramento",
+    "sport": "basketball",
+    "name": "Sacramento Summer League",
+    "aliases": [
+      "NBAGS"
+    ]
+  },
+  {
+    "slug": "basketball/nba-summer-utah",
+    "sport": "basketball",
+    "name": "Utah Summer League",
+    "aliases": [
+      "Salt Lake City Summer League",
+      "NBAUT"
+    ]
+  },
+  {
+    "slug": "basketball/nbl",
+    "sport": "basketball",
+    "name": "National Basketball League",
+    "aliases": [
+      "NBL"
+    ]
+  },
+  {
+    "slug": "basketball/wnba",
+    "sport": "basketball",
+    "name": "WNBA",
+    "aliases": [
+      "Women's National Basketball Association"
+    ]
+  },
+  {
+    "slug": "basketball/womens-college-basketball",
+    "sport": "basketball",
+    "name": "NCAA Women's Basketball",
+    "aliases": [
+      "NCAAW"
+    ]
+  },
+  {
+    "slug": "basketball/womens-olympics-basketball",
+    "sport": "basketball",
+    "name": "OLY Basketball (W)",
+    "aliases": [
+      "Olympics Women's Basketball",
+      "Olympics"
+    ]
+  },
+  {
+    "slug": "field-hockey/womens-college-field-hockey",
+    "sport": "field-hockey",
+    "name": "NCAA Women's Field Hockey",
+    "aliases": [
+      "CFHOC"
+    ]
+  },
+  {
+    "slug": "football/cfl",
+    "sport": "football",
+    "name": "CFL",
+    "aliases": [
+      "Canadian Football League"
+    ]
+  },
+  {
+    "slug": "football/college-football",
+    "sport": "football",
+    "name": "NCAA Football",
+    "aliases": [
+      "NCAA - Football",
+      "NCAAF"
+    ]
+  },
+  {
+    "slug": "football/nfl",
+    "sport": "football",
+    "name": "NFL",
+    "aliases": [
+      "National Football League"
+    ]
+  },
+  {
+    "slug": "football/ufl",
+    "sport": "football",
+    "name": "UFL",
+    "aliases": [
+      "United Football League"
+    ]
+  },
+  {
+    "slug": "football/xfl",
+    "sport": "football",
+    "name": "XFL",
+    "aliases": []
+  },
+  {
+    "slug": "golf/champions-tour",
+    "sport": "golf",
+    "name": "PGA TOUR Champions",
+    "aliases": [
+      "SGA"
+    ]
+  },
+  {
+    "slug": "golf/eur",
+    "sport": "golf",
+    "name": "DP World Tour",
+    "aliases": [
+      "EUR",
+      "DP World"
+    ]
+  },
+  {
+    "slug": "golf/liv",
+    "sport": "golf",
+    "name": "LIV Golf Invitational Series",
+    "aliases": [
+      "LIV"
+    ]
+  },
+  {
+    "slug": "golf/lpga",
+    "sport": "golf",
+    "name": "Ladies Pro Golf Association",
+    "aliases": [
+      "LPGA"
+    ]
+  },
+  {
+    "slug": "golf/mens-olympics-golf",
+    "sport": "golf",
+    "name": "Olympic Golf - Men",
+    "aliases": [
+      "OLYM",
+      "OLY Golf (M)"
+    ]
+  },
+  {
+    "slug": "golf/ntw",
+    "sport": "golf",
+    "name": "Korn Ferry Tour",
+    "aliases": [
+      "Korn Ferry"
+    ]
+  },
+  {
+    "slug": "golf/pga",
+    "sport": "golf",
+    "name": "PGA TOUR",
+    "aliases": [
+      "PGA"
+    ]
+  },
+  {
+    "slug": "golf/tgl",
+    "sport": "golf",
+    "name": "TGL",
+    "aliases": []
+  },
+  {
+    "slug": "golf/womens-olympics-golf",
+    "sport": "golf",
+    "name": "Olympic Golf - Women",
+    "aliases": [
+      "OLYW",
+      "OLY Golf (W)"
+    ]
+  },
+  {
+    "slug": "hockey/hockey-world-cup",
+    "sport": "hockey",
+    "name": "WCH",
+    "aliases": [
+      "World Cup of Hockey"
+    ]
+  },
+  {
+    "slug": "hockey/mens-college-hockey",
+    "sport": "hockey",
+    "name": "NCAA Men's Hockey",
+    "aliases": [
+      "NCAA Men's Ice Hockey",
+      "NCAAH"
+    ]
+  },
+  {
+    "slug": "hockey/nhl",
+    "sport": "hockey",
+    "name": "NHL",
+    "aliases": [
+      "National Hockey League"
+    ]
+  },
+  {
+    "slug": "hockey/olympics-mens-ice-hockey",
+    "sport": "hockey",
+    "name": "Men's Ice Hockey",
+    "aliases": [
+      "OLYMH"
+    ]
+  },
+  {
+    "slug": "hockey/olympics-womens-ice-hockey",
+    "sport": "hockey",
+    "name": "Women's Ice Hockey",
+    "aliases": [
+      "OLYWH"
+    ]
+  },
+  {
+    "slug": "hockey/womens-college-hockey",
+    "sport": "hockey",
+    "name": "NCAA Women's Hockey",
+    "aliases": [
+      "CWHOC"
+    ]
+  },
+  {
+    "slug": "lacrosse/mens-college-lacrosse",
+    "sport": "lacrosse",
+    "name": "NCAA Men's Lacrosse",
+    "aliases": [
+      "NCAAM Lacrosse"
+    ]
+  },
+  {
+    "slug": "lacrosse/nll",
+    "sport": "lacrosse",
+    "name": "National Lacrosse League",
+    "aliases": [
+      "NLL"
+    ]
+  },
+  {
+    "slug": "lacrosse/pll",
+    "sport": "lacrosse",
+    "name": "PLL",
+    "aliases": [
+      "Premier Lacrosse League"
+    ]
+  },
+  {
+    "slug": "lacrosse/womens-college-lacrosse",
+    "sport": "lacrosse",
+    "name": "NCAA Women's Lacrosse",
+    "aliases": [
+      "NCAAW Lacrosse"
+    ]
+  },
+  {
+    "slug": "mma/absolute",
+    "sport": "mma",
+    "name": "Absolute",
+    "aliases": [
+      "Absolute Championship Berkut",
+      "ACB"
+    ]
+  },
+  {
+    "slug": "mma/affliction",
+    "sport": "mma",
+    "name": "Affliction",
+    "aliases": [
+      "AFFLICTION"
+    ]
+  },
+  {
+    "slug": "mma/bang-fighting",
+    "sport": "mma",
+    "name": "Bang",
+    "aliases": [
+      "Bang Fighting Championships",
+      "BFC"
+    ]
+  },
+  {
+    "slug": "mma/banni-fight",
+    "sport": "mma",
+    "name": "Banni",
+    "aliases": [
+      "Banni Fight Combat",
+      "BFC"
+    ]
+  },
+  {
+    "slug": "mma/banzay",
+    "sport": "mma",
+    "name": "Banzay",
+    "aliases": [
+      "Banzay Fight Championship",
+      "BFC"
+    ]
+  },
+  {
+    "slug": "mma/barracao",
+    "sport": "mma",
+    "name": "Barracao",
+    "aliases": [
+      "Barracao Fight Championship",
+      "BFC"
+    ]
+  },
+  {
+    "slug": "mma/battlezone",
+    "sport": "mma",
+    "name": "Battlezone",
+    "aliases": [
+      "Battlezone Fighting Championships",
+      "BFC"
+    ]
+  },
+  {
+    "slug": "mma/bellator",
+    "sport": "mma",
+    "name": "Bellator",
+    "aliases": [
+      "Bellator Fighting Championship",
+      "BFC"
+    ]
+  },
+  {
+    "slug": "mma/benevides",
+    "sport": "mma",
+    "name": "Benevides",
+    "aliases": [
+      "Benevides Fight Championship",
+      "BFC"
+    ]
+  },
+  {
+    "slug": "mma/big-fight",
+    "sport": "mma",
+    "name": "Big Fight",
+    "aliases": [
+      "Big Fight Champions",
+      "BFC"
+    ]
+  },
+  {
+    "slug": "mma/blackout",
+    "sport": "mma",
+    "name": "Blackout",
+    "aliases": [
+      "Blackout Fighting Championship",
+      "BFC"
+    ]
+  },
+  {
+    "slug": "mma/bosnia",
+    "sport": "mma",
+    "name": "Bosnia",
+    "aliases": [
+      "Bosnia Fight Championship",
+      "BFC"
+    ]
+  },
+  {
+    "slug": "mma/boxe",
+    "sport": "mma",
+    "name": "Boxe",
+    "aliases": [
+      "Boxe Fight Combat",
+      "BFC"
+    ]
+  },
+  {
+    "slug": "mma/brazilian-freestyle",
+    "sport": "mma",
+    "name": "Brazilian",
+    "aliases": [
+      "Brazilian Freestyle Circuit",
+      "BFC"
+    ]
+  },
+  {
+    "slug": "mma/budo",
+    "sport": "mma",
+    "name": "Budo",
+    "aliases": [
+      "Budo Fighting Championships",
+      "BFC"
+    ]
+  },
+  {
+    "slug": "mma/cage-warriors",
+    "sport": "mma",
+    "name": "Cage Warriors",
+    "aliases": [
+      "Cage Warriors Fighting Championship",
+      "CWFC"
+    ]
+  },
+  {
+    "slug": "mma/dream",
+    "sport": "mma",
+    "name": "Dream",
+    "aliases": [
+      "DREAM"
+    ]
+  },
+  {
+    "slug": "mma/fng",
+    "sport": "mma",
+    "name": "Fng",
+    "aliases": [
+      "Fight Nights Global",
+      "FNG"
+    ]
+  },
+  {
+    "slug": "mma/ifc",
+    "sport": "mma",
+    "name": "Invicta",
+    "aliases": [
+      "Invicta FC",
+      "IFC"
+    ]
+  },
+  {
+    "slug": "mma/ifl",
+    "sport": "mma",
+    "name": "IFL",
+    "aliases": [
+      "International Fight League"
+    ]
+  },
+  {
+    "slug": "mma/k1",
+    "sport": "mma",
+    "name": "K-1",
+    "aliases": []
+  },
+  {
+    "slug": "mma/ksw",
+    "sport": "mma",
+    "name": "Konfrontacja",
+    "aliases": [
+      "Konfrontacja Sztuk Walki",
+      "KSW"
+    ]
+  },
+  {
+    "slug": "mma/lfa",
+    "sport": "mma",
+    "name": "Legacy Alliance",
+    "aliases": [
+      "Legacy Fighting Alliance",
+      "LFA"
+    ]
+  },
+  {
+    "slug": "mma/lfc",
+    "sport": "mma",
+    "name": "Legacy",
+    "aliases": [
+      "Legacy Fighting Championship",
+      "LFC"
+    ]
+  },
+  {
+    "slug": "mma/m1",
+    "sport": "mma",
+    "name": "M-1",
+    "aliases": [
+      "M-1 Mix-Fight Championship"
+    ]
+  },
+  {
+    "slug": "mma/mfc",
+    "sport": "mma",
+    "name": "Maximum",
+    "aliases": [
+      "Maximum Fighting Championship",
+      "MAX"
+    ]
+  },
+  {
+    "slug": "mma/mvp",
+    "sport": "mma",
+    "name": "MVP",
+    "aliases": []
+  },
+  {
+    "slug": "mma/ofc",
+    "sport": "mma",
+    "name": "One",
+    "aliases": [
+      "One Fighting Championship",
+      "OFC"
+    ]
+  },
+  {
+    "slug": "mma/other",
+    "sport": "mma",
+    "name": "Other",
+    "aliases": [
+      "OTHER"
+    ]
+  },
+  {
+    "slug": "mma/pancrase",
+    "sport": "mma",
+    "name": "Pancrase",
+    "aliases": [
+      "PANCRASE"
+    ]
+  },
+  {
+    "slug": "mma/pfl",
+    "sport": "mma",
+    "name": "PFL",
+    "aliases": [
+      "Professional Fighters League"
+    ]
+  },
+  {
+    "slug": "mma/pride",
+    "sport": "mma",
+    "name": "PRIDE",
+    "aliases": [
+      "PRIDE Fighting Championships"
+    ]
+  },
+  {
+    "slug": "mma/proelite",
+    "sport": "mma",
+    "name": "ProElite",
+    "aliases": [
+      "PE"
+    ]
+  },
+  {
+    "slug": "mma/rfa",
+    "sport": "mma",
+    "name": "Resurrection",
+    "aliases": [
+      "Resurrection Fighting Alliance",
+      "RFA"
+    ]
+  },
+  {
+    "slug": "mma/rizin",
+    "sport": "mma",
+    "name": "Rizin",
+    "aliases": [
+      "Rizin Fight Federation",
+      "RFF"
+    ]
+  },
+  {
+    "slug": "mma/roc",
+    "sport": "mma",
+    "name": "Ring of Combat",
+    "aliases": [
+      "ROC"
+    ]
+  },
+  {
+    "slug": "mma/sfl",
+    "sport": "mma",
+    "name": "SFL",
+    "aliases": [
+      "Super Fight League"
+    ]
+  },
+  {
+    "slug": "mma/shark-fights",
+    "sport": "mma",
+    "name": "SHARK",
+    "aliases": [
+      "Shark Fights"
+    ]
+  },
+  {
+    "slug": "mma/shooto-brazil",
+    "sport": "mma",
+    "name": "Shooto Brazil",
+    "aliases": [
+      "SHOOTOB"
+    ]
+  },
+  {
+    "slug": "mma/shooto-japan",
+    "sport": "mma",
+    "name": "Shooto Japan",
+    "aliases": [
+      "SHOOTOJ"
+    ]
+  },
+  {
+    "slug": "mma/shoxc",
+    "sport": "mma",
+    "name": "ShoXC",
+    "aliases": [
+      "ShoXC: Showtime Xtreme Combat",
+      "SHOXC"
+    ]
+  },
+  {
+    "slug": "mma/strikeforce",
+    "sport": "mma",
+    "name": "Strikeforce",
+    "aliases": [
+      "SF"
+    ]
+  },
+  {
+    "slug": "mma/tfc",
+    "sport": "mma",
+    "name": "Titan",
+    "aliases": [
+      "Titan Fighting Championships",
+      "TFC"
+    ]
+  },
+  {
+    "slug": "mma/tpf",
+    "sport": "mma",
+    "name": "Tachi Palace",
+    "aliases": [
+      "Tachi Palace Fights",
+      "TPF"
+    ]
+  },
+  {
+    "slug": "mma/ufc",
+    "sport": "mma",
+    "name": "UFC",
+    "aliases": [
+      "Ultimate Fighting Championship"
+    ]
+  },
+  {
+    "slug": "mma/vfc",
+    "sport": "mma",
+    "name": "Victory",
+    "aliases": [
+      "Victory Fighting Championship",
+      "VFC"
+    ]
+  },
+  {
+    "slug": "mma/wec",
+    "sport": "mma",
+    "name": "WEC",
+    "aliases": [
+      "World Extreme Cagefighting"
+    ]
+  },
+  {
+    "slug": "mma/xfc",
+    "sport": "mma",
+    "name": "Xtreme",
+    "aliases": [
+      "Xtreme Fighting Championships",
+      "XFC"
+    ]
+  },
+  {
+    "slug": "racing/f1",
+    "sport": "racing",
+    "name": "F1",
+    "aliases": [
+      "Formula 1"
+    ]
+  },
+  {
+    "slug": "racing/irl",
+    "sport": "racing",
+    "name": "IndyCar",
+    "aliases": [
+      "IndyCar Series",
+      "IRL"
+    ]
+  },
+  {
+    "slug": "racing/nascar-premier",
+    "sport": "racing",
+    "name": "NASCAR Cup Series",
+    "aliases": [
+      "NASCAR-PREMIER"
+    ]
+  },
+  {
+    "slug": "racing/nascar-secondary",
+    "sport": "racing",
+    "name": "NASCAR O'Reilly Auto Parts Series",
+    "aliases": [
+      "NASCAR-SECONDARY"
+    ]
+  },
+  {
+    "slug": "racing/nascar-truck",
+    "sport": "racing",
+    "name": "NASCAR Truck Series",
+    "aliases": [
+      "NASCAR-TRUCK"
+    ]
+  },
+  {
+    "slug": "rugby-league/3",
+    "sport": "rugby-league",
+    "name": "Rugby League",
+    "aliases": [
+      "NRL"
+    ]
+  },
+  {
+    "slug": "rugby/164205",
+    "sport": "rugby",
+    "name": "Rugby World Cup",
+    "aliases": []
+  },
+  {
+    "slug": "rugby/180659",
+    "sport": "rugby",
+    "name": "Six Nations",
+    "aliases": []
+  },
+  {
+    "slug": "rugby/244293",
+    "sport": "rugby",
+    "name": "The Rugby Championship",
+    "aliases": [
+      "Rugby Championship"
+    ]
+  },
+  {
+    "slug": "rugby/271937",
+    "sport": "rugby",
+    "name": "European Rugby Champions Cup",
+    "aliases": []
+  },
+  {
+    "slug": "rugby/272073",
+    "sport": "rugby",
+    "name": "European Rugby Challenge Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/afc.asian.cup",
+    "sport": "soccer",
+    "name": "AFC Asian Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/afc.champions",
+    "sport": "soccer",
+    "name": "AFC Champions League",
+    "aliases": [
+      "AFC Champions League Elite"
+    ]
+  },
+  {
+    "slug": "soccer/afc.cup",
+    "sport": "soccer",
+    "name": "AFC Champions League Two",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/afc.cup_qual",
+    "sport": "soccer",
+    "name": "AFC Champions League Two Qualifying",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/afc.cupq",
+    "sport": "soccer",
+    "name": "AFC Asian Cup Qualifiers",
+    "aliases": [
+      "AFC Cup Qualifying",
+      "Asian Cup Qualifiers"
+    ]
+  },
+  {
+    "slug": "soccer/afc.saff.championship",
+    "sport": "soccer",
+    "name": "SAFF Championship",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/afc.w.asian.cup",
+    "sport": "soccer",
+    "name": "AFC Women's Asian Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/aff.championship",
+    "sport": "soccer",
+    "name": "AFF Cup",
+    "aliases": [
+      "ASEAN Championship",
+      "ASEAN Champ"
+    ]
+  },
+  {
+    "slug": "soccer/arg.1",
+    "sport": "soccer",
+    "name": "Argentine Primera División",
+    "aliases": [
+      "Argentine Liga Profesional de Fútbol",
+      "Argentine LPF"
+    ]
+  },
+  {
+    "slug": "soccer/arg.2",
+    "sport": "soccer",
+    "name": "Nacional B de Argentina",
+    "aliases": [
+      "Argentine Nacional B"
+    ]
+  },
+  {
+    "slug": "soccer/arg.3",
+    "sport": "soccer",
+    "name": "Primera División B de Argentina",
+    "aliases": [
+      "Argentine Primera B"
+    ]
+  },
+  {
+    "slug": "soccer/arg.copa",
+    "sport": "soccer",
+    "name": "Copa Argentina",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/arg.copa_de_la_superliga",
+    "sport": "soccer",
+    "name": "Copa Superliga de Argentina",
+    "aliases": [
+      "Argentine Copa de la Superliga",
+      "ASUPERPLIGA",
+      "ARGCOPASUPERLIGA"
+    ]
+  },
+  {
+    "slug": "soccer/arg.supercopa",
+    "sport": "soccer",
+    "name": "Supercopa Argentina",
+    "aliases": [
+      "Argentine Supercopa"
+    ]
+  },
+  {
+    "slug": "soccer/arg.supercopa.internacional",
+    "sport": "soccer",
+    "name": "Supercopa Internacional",
+    "aliases": [
+      "Argentine Supercopa Internacional"
+    ]
+  },
+  {
+    "slug": "soccer/arg.trofeo_de_la_campeones",
+    "sport": "soccer",
+    "name": "Argentine Trofeo de Campeones",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/aus.1",
+    "sport": "soccer",
+    "name": "Australian A-League",
+    "aliases": [
+      "Australian A-League Men",
+      "A-League Men"
+    ]
+  },
+  {
+    "slug": "soccer/aus.w.1",
+    "sport": "soccer",
+    "name": "Women's Australian League",
+    "aliases": [
+      "Australian A-League Women",
+      "A-League Women"
+    ]
+  },
+  {
+    "slug": "soccer/aut.1",
+    "sport": "soccer",
+    "name": "Austrian Bundesliga",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/bangabandhu.cup",
+    "sport": "soccer",
+    "name": "Bangabandhu Cup",
+    "aliases": [
+      "BGC"
+    ]
+  },
+  {
+    "slug": "soccer/bel.1",
+    "sport": "soccer",
+    "name": "Belgian Pro League",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/bel.promotion.relegation",
+    "sport": "soccer",
+    "name": "Belgian Pro League Pro/Rel",
+    "aliases": [
+      "Belgian Pro League Promotion/Relegation Playoffs"
+    ]
+  },
+  {
+    "slug": "soccer/bol.1",
+    "sport": "soccer",
+    "name": "Bolivian Liga Profesional",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/bol.copa",
+    "sport": "soccer",
+    "name": "Copa Bolivia",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/bol.ply.rel",
+    "sport": "soccer",
+    "name": "Bolivian Liga Profesional Promotion/Relegation Playoffs",
+    "aliases": [
+      "Bolivian Liga Pro/Rel"
+    ]
+  },
+  {
+    "slug": "soccer/bra.1",
+    "sport": "soccer",
+    "name": "Brazilian Futebol",
+    "aliases": [
+      "Brazilian Serie A",
+      "Brazil Serie A"
+    ]
+  },
+  {
+    "slug": "soccer/bra.2",
+    "sport": "soccer",
+    "name": "Brasileirao B",
+    "aliases": [
+      "Brazilian Serie B",
+      "Brazil Serie B"
+    ]
+  },
+  {
+    "slug": "soccer/bra.camp.carioca",
+    "sport": "soccer",
+    "name": "Campeonato Carioca",
+    "aliases": [
+      "Brazilian Campeonato Carioca",
+      "Brazil Carioca"
+    ]
+  },
+  {
+    "slug": "soccer/bra.camp.gaucho",
+    "sport": "soccer",
+    "name": "Campeonato Gaucho",
+    "aliases": [
+      "Brazilian Campeonato Gaucho",
+      "Brazil Gaucho"
+    ]
+  },
+  {
+    "slug": "soccer/bra.camp.mineiro",
+    "sport": "soccer",
+    "name": "Campeonato Mineiro",
+    "aliases": [
+      "Brazilian Campeonato Mineiro",
+      "Brazil Mineiro"
+    ]
+  },
+  {
+    "slug": "soccer/bra.camp.paulista",
+    "sport": "soccer",
+    "name": "Campeonato Paulista",
+    "aliases": [
+      "Brazilian Campeonato Paulista",
+      "Brazil Paulista"
+    ]
+  },
+  {
+    "slug": "soccer/bra.copa_do_brazil",
+    "sport": "soccer",
+    "name": "Copa Do Brazil",
+    "aliases": [
+      "Copa do Brasil",
+      "Copa do Brazil"
+    ]
+  },
+  {
+    "slug": "soccer/bra.supercopa_do_brazil",
+    "sport": "soccer",
+    "name": "SDB",
+    "aliases": [
+      "Brazilian Supercopa Rei",
+      "Supercopa Rei"
+    ]
+  },
+  {
+    "slug": "soccer/caf.champions",
+    "sport": "soccer",
+    "name": "CAF Champions League",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/caf.championship",
+    "sport": "soccer",
+    "name": "African Nations Championship",
+    "aliases": [
+      "CHAN"
+    ]
+  },
+  {
+    "slug": "soccer/caf.championship_qual",
+    "sport": "soccer",
+    "name": "African Nations Championship Qualifying",
+    "aliases": [
+      "CHAN Qualifying"
+    ]
+  },
+  {
+    "slug": "soccer/caf.confed",
+    "sport": "soccer",
+    "name": "CAF Confederation Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/caf.cosafa",
+    "sport": "soccer",
+    "name": "COSAFA Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/caf.nations",
+    "sport": "soccer",
+    "name": "Africa Cup of Nations",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/caf.nations_qual",
+    "sport": "soccer",
+    "name": "African Nations Cup Qualifying",
+    "aliases": [
+      "Africa Cup of Nations Qualifying",
+      "AFCON Qualifying"
+    ]
+  },
+  {
+    "slug": "soccer/caf.w.nations",
+    "sport": "soccer",
+    "name": "Women's Africa Cup of Nations",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/campeones.cup",
+    "sport": "soccer",
+    "name": "Campeones Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/can.w.nsl",
+    "sport": "soccer",
+    "name": "Northern Super League",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/chi.1",
+    "sport": "soccer",
+    "name": "Chilean Primera División",
+    "aliases": [
+      "Chilean Primera"
+    ]
+  },
+  {
+    "slug": "soccer/chi.1.promotion.relegation",
+    "sport": "soccer",
+    "name": "Chilean Pro/Rel",
+    "aliases": [
+      "Chilean Primera División Promotion/Relegation Playoffs"
+    ]
+  },
+  {
+    "slug": "soccer/chi.copa_chi",
+    "sport": "soccer",
+    "name": "Copa Chile",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/chi.super_cup",
+    "sport": "soccer",
+    "name": "Chilean Supercopa",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/chn.1",
+    "sport": "soccer",
+    "name": "Chinese Super League",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/chn.1.promotion.relegation",
+    "sport": "soccer",
+    "name": "Chinese Super League Promotion/Relegation Playoffs",
+    "aliases": [
+      "Chinese Pro/Rel"
+    ]
+  },
+  {
+    "slug": "soccer/club.friendly",
+    "sport": "soccer",
+    "name": "Club Friendly",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/col.1",
+    "sport": "soccer",
+    "name": "Colombian Fútbol Profesional",
+    "aliases": [
+      "Colombian Primera A"
+    ]
+  },
+  {
+    "slug": "soccer/col.copa",
+    "sport": "soccer",
+    "name": "Copa Águila",
+    "aliases": [
+      "Copa Colombia"
+    ]
+  },
+  {
+    "slug": "soccer/col.superliga",
+    "sport": "soccer",
+    "name": "Colombian Superliga",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/concacaf.central.american.cup",
+    "sport": "soccer",
+    "name": "Central American Cup",
+    "aliases": [
+      "Concacaf Central American Cup"
+    ]
+  },
+  {
+    "slug": "soccer/concacaf.champions",
+    "sport": "soccer",
+    "name": "Concacaf Champions Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/concacaf.champions_cup",
+    "sport": "soccer",
+    "name": "Champions Cup",
+    "aliases": [
+      "CONCACAF Champions Cup",
+      "Conc CC"
+    ]
+  },
+  {
+    "slug": "soccer/concacaf.confederations_playoff",
+    "sport": "soccer",
+    "name": "Confederations Cup Playoff",
+    "aliases": [
+      "Concacaf Cup",
+      "Conf Pl",
+      "Confed Cup Playoff"
+    ]
+  },
+  {
+    "slug": "soccer/concacaf.gold",
+    "sport": "soccer",
+    "name": "CONCACAF Gold Cup",
+    "aliases": [
+      "Concacaf Gold Cup",
+      "Gold Cup"
+    ]
+  },
+  {
+    "slug": "soccer/concacaf.gold_qual",
+    "sport": "soccer",
+    "name": "Gold Cup Qualifying",
+    "aliases": [
+      "Concacaf Gold Cup Qualifying"
+    ]
+  },
+  {
+    "slug": "soccer/concacaf.leagues.cup",
+    "sport": "soccer",
+    "name": "Leagues Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/concacaf.nations.league",
+    "sport": "soccer",
+    "name": "Concacaf Nations League",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/concacaf.u23",
+    "sport": "soccer",
+    "name": "CONCACAF U23 Tournament",
+    "aliases": [
+      "Conc U23"
+    ]
+  },
+  {
+    "slug": "soccer/concacaf.w.champions_cup",
+    "sport": "soccer",
+    "name": "W Champions Cup",
+    "aliases": [
+      "Concacaf W Champions Cup"
+    ]
+  },
+  {
+    "slug": "soccer/concacaf.w.gold",
+    "sport": "soccer",
+    "name": "W Gold Cup",
+    "aliases": [
+      "Concacaf W Gold Cup",
+      " W Gold Cup"
+    ]
+  },
+  {
+    "slug": "soccer/concacaf.womens.championship",
+    "sport": "soccer",
+    "name": "concacaf.womens.championship",
+    "aliases": [
+      "Concacaf W Championship"
+    ]
+  },
+  {
+    "slug": "soccer/conmebol.america",
+    "sport": "soccer",
+    "name": "Copa América",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/conmebol.america.femenina",
+    "sport": "soccer",
+    "name": "Copa América Femenina",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/conmebol.libertadores",
+    "sport": "soccer",
+    "name": "CONMEBOL Libertadores",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/conmebol.recopa",
+    "sport": "soccer",
+    "name": "Recopa Sudamericana",
+    "aliases": [
+      "CONMEBOL Recopa"
+    ]
+  },
+  {
+    "slug": "soccer/conmebol.sudamericana",
+    "sport": "soccer",
+    "name": "CONMEBOL Sudamericana",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/crc.1",
+    "sport": "soccer",
+    "name": "Primera División de Costa Rica",
+    "aliases": [
+      "Costa Rican Primera Division",
+      "Liga FPD"
+    ]
+  },
+  {
+    "slug": "soccer/den.1",
+    "sport": "soccer",
+    "name": "Danish SAS-Ligaen",
+    "aliases": [
+      "Danish Superliga"
+    ]
+  },
+  {
+    "slug": "soccer/ecu.1",
+    "sport": "soccer",
+    "name": "Ecuadoran Primera A",
+    "aliases": [
+      "LigaPro Ecuador"
+    ]
+  },
+  {
+    "slug": "soccer/eng.1",
+    "sport": "soccer",
+    "name": "Premier League",
+    "aliases": [
+      "English Premier League"
+    ]
+  },
+  {
+    "slug": "soccer/eng.2",
+    "sport": "soccer",
+    "name": "English League Championship",
+    "aliases": [
+      "EFL Championship"
+    ]
+  },
+  {
+    "slug": "soccer/eng.3",
+    "sport": "soccer",
+    "name": "English League One",
+    "aliases": [
+      "EFL League One"
+    ]
+  },
+  {
+    "slug": "soccer/eng.4",
+    "sport": "soccer",
+    "name": "English League Two",
+    "aliases": [
+      "EFL League Two"
+    ]
+  },
+  {
+    "slug": "soccer/eng.5",
+    "sport": "soccer",
+    "name": "English Conference",
+    "aliases": [
+      "English National League",
+      "National League"
+    ]
+  },
+  {
+    "slug": "soccer/eng.charity",
+    "sport": "soccer",
+    "name": "English FA Community Shield",
+    "aliases": [
+      "Community Shield"
+    ]
+  },
+  {
+    "slug": "soccer/eng.fa",
+    "sport": "soccer",
+    "name": "English FA Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/eng.league_cup",
+    "sport": "soccer",
+    "name": "English Carabao Cup",
+    "aliases": [
+      "Carabao Cup"
+    ]
+  },
+  {
+    "slug": "soccer/eng.trophy",
+    "sport": "soccer",
+    "name": "Johnstone's Paint Trophy",
+    "aliases": [
+      "English EFL Trophy",
+      "EFL Trophy"
+    ]
+  },
+  {
+    "slug": "soccer/eng.w.1",
+    "sport": "soccer",
+    "name": "FA Women's Super League",
+    "aliases": [
+      "English Women's Super League",
+      "Women's Super League"
+    ]
+  },
+  {
+    "slug": "soccer/eng.w.fa",
+    "sport": "soccer",
+    "name": "Women's FA Cup",
+    "aliases": [
+      "English Women's FA Cup"
+    ]
+  },
+  {
+    "slug": "soccer/eng.w.league_cup",
+    "sport": "soccer",
+    "name": "Women's League Cup",
+    "aliases": [
+      "English Women's League Cup"
+    ]
+  },
+  {
+    "slug": "soccer/eng.w.promotion.relegation",
+    "sport": "soccer",
+    "name": "Women's Super League Pro/Rel",
+    "aliases": [
+      "English Women's Super League Promotion/Relegation Playoff"
+    ]
+  },
+  {
+    "slug": "soccer/esp.1",
+    "sport": "soccer",
+    "name": "LALIGA",
+    "aliases": [
+      "Spanish LALIGA"
+    ]
+  },
+  {
+    "slug": "soccer/esp.2",
+    "sport": "soccer",
+    "name": "Spanish LALIGA 2",
+    "aliases": [
+      "LALIGA 2"
+    ]
+  },
+  {
+    "slug": "soccer/esp.copa_de_la_reina",
+    "sport": "soccer",
+    "name": "Spanish Copa de la Reina",
+    "aliases": [
+      "Copa de la Reina"
+    ]
+  },
+  {
+    "slug": "soccer/esp.copa_del_rey",
+    "sport": "soccer",
+    "name": "Spanish Copa del Rey",
+    "aliases": [
+      "Copa del Rey"
+    ]
+  },
+  {
+    "slug": "soccer/esp.joan_gamper",
+    "sport": "soccer",
+    "name": "Trofeo Joan Gamper",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/esp.super_cup",
+    "sport": "soccer",
+    "name": "Spanish Super Cup",
+    "aliases": [
+      "Spanish Supercopa"
+    ]
+  },
+  {
+    "slug": "soccer/esp.w.1",
+    "sport": "soccer",
+    "name": "Liga F",
+    "aliases": [
+      "Spanish Liga F"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.concacaf.olympicsq",
+    "sport": "soccer",
+    "name": "Men's Olympic Qualifying Playoff",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/fifa.conmebol.olympicsq",
+    "sport": "soccer",
+    "name": "CONMEBOL Pre-Olympic Tournament",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/fifa.cwc",
+    "sport": "soccer",
+    "name": "FIFA Club World Cup",
+    "aliases": [
+      "Club World Cup"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.friendly",
+    "sport": "soccer",
+    "name": "International Friendly",
+    "aliases": [
+      "Men's International Friendly"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.friendly_u21",
+    "sport": "soccer",
+    "name": "Men's U-21 Friendly",
+    "aliases": [
+      "Under-21 International Friendly"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.friendly.w",
+    "sport": "soccer",
+    "name": "Women's International Friendly",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/fifa.intercontinental_cup",
+    "sport": "soccer",
+    "name": "Intercontinental Cup",
+    "aliases": [
+      "FIFA Intercontinental Cup"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.intercontinental.cup",
+    "sport": "soccer",
+    "name": "Intercontinental Cup",
+    "aliases": [
+      "Intercontinental Cup (India)"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.olympics",
+    "sport": "soccer",
+    "name": "Men's Olympic Soccer Tournament",
+    "aliases": [
+      "OLY Soccer (M)"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.shebelieves",
+    "sport": "soccer",
+    "name": "SheBelieves Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/fifa.w.champions_cup",
+    "sport": "soccer",
+    "name": "Women's Champions Cup",
+    "aliases": [
+      "FIFA Women's Champions Cup"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.w.concacaf.olympicsq",
+    "sport": "soccer",
+    "name": "Concacaf Women's Olympic Qualifying",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/fifa.w.olympics",
+    "sport": "soccer",
+    "name": "Women's Olympic Soccer Tournament",
+    "aliases": [
+      "OLY Soccer (W)"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.wcq.ply",
+    "sport": "soccer",
+    "name": "WCQ - Playoff Tournament",
+    "aliases": [
+      "FIFA World Cup Qualifying - Playoff Tournament"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.world",
+    "sport": "soccer",
+    "name": "World Cup",
+    "aliases": [
+      "FIFA World Cup"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.world.u17",
+    "sport": "soccer",
+    "name": "U-17 World Cup",
+    "aliases": [
+      "FIFA Under-17 World Cup",
+      "FIFA U-17 World Cup"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.world.u20",
+    "sport": "soccer",
+    "name": "U-20 World Cup",
+    "aliases": [
+      "FIFA Under-20 World Cup",
+      "FIFA U-20 World Cup"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.worldq.afc",
+    "sport": "soccer",
+    "name": "World Cup Qualifying - AFC ",
+    "aliases": [
+      "FIFA World Cup Qualifying - AFC",
+      "WCQ - AFC"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.worldq.caf",
+    "sport": "soccer",
+    "name": "World Cup Qualifying - CAF ",
+    "aliases": [
+      "FIFA World Cup Qualifying - CAF",
+      "WCQ - CAF"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.worldq.concacaf",
+    "sport": "soccer",
+    "name": "World Cup Qualifying - CONCACAF ",
+    "aliases": [
+      "FIFA World Cup Qualifying - Concacaf",
+      "WCQ - Concacaf"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.worldq.conmebol",
+    "sport": "soccer",
+    "name": "World Cup Qualifying - CONMEBOL",
+    "aliases": [
+      "FIFA World Cup Qualifying - CONMEBOL",
+      "WCQ - CONMEBOL"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.worldq.ofc",
+    "sport": "soccer",
+    "name": "World Cup Qualifying - OFC ",
+    "aliases": [
+      "FIFA World Cup Qualifying - OFC",
+      "WCQ - OFC"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.worldq.uefa",
+    "sport": "soccer",
+    "name": "World Cup Qualifying - UEFA",
+    "aliases": [
+      "FIFA World Cup Qualifying - UEFA",
+      "WCQ - UEFA"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.wwc",
+    "sport": "soccer",
+    "name": "Women's World Cup",
+    "aliases": [
+      "FIFA Women's World Cup"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.wwcq.ply",
+    "sport": "soccer",
+    "name": "WWCQ - Playoff Tournament",
+    "aliases": [
+      "FIFA Women's World Cup Qualifying - Playoff Tournament"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.wworld.u17",
+    "sport": "soccer",
+    "name": "FIFA Under-17 Women's World Cup",
+    "aliases": [
+      "FIFA U-17 Women's World Cup",
+      "U-17 WWC"
+    ]
+  },
+  {
+    "slug": "soccer/fifa.wworldq.uefa",
+    "sport": "soccer",
+    "name": "FIFA Women's World Cup Qualifying - UEFA",
+    "aliases": [
+      "WWCQ - UEFA"
+    ]
+  },
+  {
+    "slug": "soccer/fra.1",
+    "sport": "soccer",
+    "name": "French Ligue 1",
+    "aliases": [
+      "Ligue 1"
+    ]
+  },
+  {
+    "slug": "soccer/fra.1.promotion.relegation",
+    "sport": "soccer",
+    "name": "French Ligue 1 Promotion/Relegation Playoffs",
+    "aliases": [
+      "Ligue 1 Pro/Rel"
+    ]
+  },
+  {
+    "slug": "soccer/fra.2",
+    "sport": "soccer",
+    "name": "French Ligue 2",
+    "aliases": [
+      "Ligue 2"
+    ]
+  },
+  {
+    "slug": "soccer/fra.coupe_de_france",
+    "sport": "soccer",
+    "name": "French Coupe de France",
+    "aliases": [
+      "Coupe de France"
+    ]
+  },
+  {
+    "slug": "soccer/fra.super_cup",
+    "sport": "soccer",
+    "name": "Trophee des Champions",
+    "aliases": [
+      "French Trophee des Champions"
+    ]
+  },
+  {
+    "slug": "soccer/fra.w.1",
+    "sport": "soccer",
+    "name": "Division 1 Féminine",
+    "aliases": [
+      "French Première Ligue",
+      "Première Ligue"
+    ]
+  },
+  {
+    "slug": "soccer/friendly.emirates_cup",
+    "sport": "soccer",
+    "name": "Emirates Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/ger.1",
+    "sport": "soccer",
+    "name": "Bundesliga",
+    "aliases": [
+      "German Bundesliga"
+    ]
+  },
+  {
+    "slug": "soccer/ger.2",
+    "sport": "soccer",
+    "name": "German 2. Bundesliga",
+    "aliases": [
+      "2. Bundesliga"
+    ]
+  },
+  {
+    "slug": "soccer/ger.2.promotion.relegation",
+    "sport": "soccer",
+    "name": "2. Bundesliga Pro/Rel",
+    "aliases": [
+      "German Bundesliga 2. Promotion/Relegation Playoffs"
+    ]
+  },
+  {
+    "slug": "soccer/ger.dfb_pokal",
+    "sport": "soccer",
+    "name": "German DFB Pokal",
+    "aliases": [
+      "German Cup"
+    ]
+  },
+  {
+    "slug": "soccer/ger.playoff.relegation",
+    "sport": "soccer",
+    "name": "Bundesliga Pro/Rel",
+    "aliases": [
+      "German Bundesliga Promotion/Relegation Playoff"
+    ]
+  },
+  {
+    "slug": "soccer/ger.super_cup",
+    "sport": "soccer",
+    "name": "German SuperCup",
+    "aliases": [
+      "German Supercup"
+    ]
+  },
+  {
+    "slug": "soccer/global.arnold.clark_cup",
+    "sport": "soccer",
+    "name": "Arnold Clark Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/global.club_challenge",
+    "sport": "soccer",
+    "name": "CONMEBOL-UEFA Club Challenge",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/global.finalissima",
+    "sport": "soccer",
+    "name": "CONMEBOL-UEFA Cup of Champions",
+    "aliases": [
+      "Men's Finalissima"
+    ]
+  },
+  {
+    "slug": "soccer/global.gulf_cup",
+    "sport": "soccer",
+    "name": "Arabian Gulf Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/global.pinatar_cup",
+    "sport": "soccer",
+    "name": "Pinatar Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/global.toulon",
+    "sport": "soccer",
+    "name": "Tournoi Maurice Revello",
+    "aliases": [
+      "Maurice Revello Tournament"
+    ]
+  },
+  {
+    "slug": "soccer/global.u20.intercontinental_cup",
+    "sport": "soccer",
+    "name": "U20 Intercontinental Cup",
+    "aliases": [
+      "CONMEBOL-UEFA U20 Intercontinental Cup"
+    ]
+  },
+  {
+    "slug": "soccer/global.w.finalissima",
+    "sport": "soccer",
+    "name": "Women's Finalissima",
+    "aliases": [
+      "CONMEBOL-UEFA Women's Cup of Champions"
+    ]
+  },
+  {
+    "slug": "soccer/gre.1",
+    "sport": "soccer",
+    "name": "Greek Super League",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/gua.1",
+    "sport": "soccer",
+    "name": "Liga Nacional de Guatemala",
+    "aliases": [
+      "Guatemalan Liga Nacional"
+    ]
+  },
+  {
+    "slug": "soccer/hon.1",
+    "sport": "soccer",
+    "name": "Primera División de Honduras",
+    "aliases": [
+      "Honduran Liga Nacional"
+    ]
+  },
+  {
+    "slug": "soccer/ind.1",
+    "sport": "soccer",
+    "name": "Indian Super League",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/ind.2",
+    "sport": "soccer",
+    "name": "Indian I-League",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/ita.1",
+    "sport": "soccer",
+    "name": "Italian Serie A",
+    "aliases": [
+      "Serie A"
+    ]
+  },
+  {
+    "slug": "soccer/ita.2",
+    "sport": "soccer",
+    "name": "Italian Serie B",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/ita.coppa_italia",
+    "sport": "soccer",
+    "name": "Italian Coppa Italia",
+    "aliases": [
+      "Coppa Italia"
+    ]
+  },
+  {
+    "slug": "soccer/ita.super_cup",
+    "sport": "soccer",
+    "name": "Italian Supercoppa",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/jpn.1",
+    "sport": "soccer",
+    "name": "Japanese J League",
+    "aliases": [
+      "Japanese J.League",
+      "Japanese J1 League"
+    ]
+  },
+  {
+    "slug": "soccer/jpn.world_challenge",
+    "sport": "soccer",
+    "name": "Japanese J.League World Challenge",
+    "aliases": [
+      "J.League World Challenge"
+    ]
+  },
+  {
+    "slug": "soccer/ksa.1",
+    "sport": "soccer",
+    "name": "Saudi Pro League",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/ksa.kings.cup",
+    "sport": "soccer",
+    "name": " Saudi King's Cup",
+    "aliases": [
+      "Saudi King's Cup"
+    ]
+  },
+  {
+    "slug": "soccer/mex.1",
+    "sport": "soccer",
+    "name": "Mexican Liga MX",
+    "aliases": [
+      "Mexican Liga BBVA MX",
+      "Liga MX"
+    ]
+  },
+  {
+    "slug": "soccer/mex.2",
+    "sport": "soccer",
+    "name": "Mexican Ascenso MX",
+    "aliases": [
+      "Mexican Liga de Expansión MX",
+      "Liga de Expansión MX"
+    ]
+  },
+  {
+    "slug": "soccer/mex.campeon",
+    "sport": "soccer",
+    "name": "Mexican Campeon de Campeones",
+    "aliases": [
+      "Campeon de Campeones"
+    ]
+  },
+  {
+    "slug": "soccer/ned.1",
+    "sport": "soccer",
+    "name": "Dutch Eredivisie",
+    "aliases": [
+      "Eredivisie"
+    ]
+  },
+  {
+    "slug": "soccer/ned.2",
+    "sport": "soccer",
+    "name": "Dutch Eerste Divisie",
+    "aliases": [
+      "Dutch Keuken Kampioen Divisie",
+      "Keuken Kampioen Divisie"
+    ]
+  },
+  {
+    "slug": "soccer/ned.3.promotion.relegation",
+    "sport": "soccer",
+    "name": "Dutch Tweede Divisie Promotion/Relegation Playoffs",
+    "aliases": [
+      "Dutch Playoffs 3/4",
+      "Dutch Tweede Divisie Pro/Rel Playoffs"
+    ]
+  },
+  {
+    "slug": "soccer/ned.cup",
+    "sport": "soccer",
+    "name": "Dutch Cup",
+    "aliases": [
+      "Dutch KNVB Beker",
+      "KNVB Beker"
+    ]
+  },
+  {
+    "slug": "soccer/ned.playoff.relegation",
+    "sport": "soccer",
+    "name": "Eredivisie Pro/Rel",
+    "aliases": [
+      "Dutch Eredivisie Promotion/Relegation Playoffs"
+    ]
+  },
+  {
+    "slug": "soccer/ned.supercup",
+    "sport": "soccer",
+    "name": "Dutch Johan Cruyff Shield",
+    "aliases": [
+      "Johan Cruyff Shield"
+    ]
+  },
+  {
+    "slug": "soccer/ned.w.1",
+    "sport": "soccer",
+    "name": "Dutch Vrouwen Eredivisie",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/ned.w.knvb_cup",
+    "sport": "soccer",
+    "name": "Dutch KNVB Beker Vrouwen",
+    "aliases": [
+      "Dutch Vrouwen KNVB Beker"
+    ]
+  },
+  {
+    "slug": "soccer/nonfifa",
+    "sport": "soccer",
+    "name": "Non-FIFA Friendly",
+    "aliases": [
+      "NONFIFA"
+    ]
+  },
+  {
+    "slug": "soccer/nor.1",
+    "sport": "soccer",
+    "name": "Norwegian Tippeligaen",
+    "aliases": [
+      "Norwegian Eliteserien"
+    ]
+  },
+  {
+    "slug": "soccer/nor.1.promotion.relegation",
+    "sport": "soccer",
+    "name": "Norwegian Eliteserien Pro/Rel",
+    "aliases": [
+      "Norwegian Eliteserien Promotion/Relegation Playoffs",
+      "Eliteserien Pro/Rel"
+    ]
+  },
+  {
+    "slug": "soccer/par.1",
+    "sport": "soccer",
+    "name": "Primera División de Paraguay",
+    "aliases": [
+      "Paraguayan Primera División",
+      "Paraguayan Primera"
+    ]
+  },
+  {
+    "slug": "soccer/par.1.supercopa",
+    "sport": "soccer",
+    "name": "Paraguayan Supercopa",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/per.1",
+    "sport": "soccer",
+    "name": "Peruvian Primera Profesional",
+    "aliases": [
+      "Peruvian Liga 1",
+      "Peru Liga 1"
+    ]
+  },
+  {
+    "slug": "soccer/por.1",
+    "sport": "soccer",
+    "name": "Portuguese Liga",
+    "aliases": [
+      "Portuguese Primeira Liga",
+      "Liga Portugal"
+    ]
+  },
+  {
+    "slug": "soccer/por.1.promotion.relegation",
+    "sport": "soccer",
+    "name": "Portuguese Liga Pro/Rel",
+    "aliases": [
+      "Portuguese Primeira Liga Promotion/Relegation Playoffs"
+    ]
+  },
+  {
+    "slug": "soccer/por.taca.portugal",
+    "sport": "soccer",
+    "name": "Taca de Portugal",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/rsa.1",
+    "sport": "soccer",
+    "name": "South African Premier",
+    "aliases": [
+      "South African Premiership"
+    ]
+  },
+  {
+    "slug": "soccer/rus.1",
+    "sport": "soccer",
+    "name": "Russian Premier League",
+    "aliases": [
+      "Russian Premier"
+    ]
+  },
+  {
+    "slug": "soccer/rus.1.promotion.relegation",
+    "sport": "soccer",
+    "name": "Russian Premier League Pro/Rel",
+    "aliases": [
+      "Russian Premier League Relegation/Promotion Playoffs"
+    ]
+  },
+  {
+    "slug": "soccer/sco.1",
+    "sport": "soccer",
+    "name": "Scottish Premiership",
+    "aliases": [
+      "SPFL Premiership"
+    ]
+  },
+  {
+    "slug": "soccer/sco.1.promotion.relegation",
+    "sport": "soccer",
+    "name": "SPFL Premiership Pro/Rel",
+    "aliases": [
+      "Scottish Premiership Promotion/Relegation Playoffs"
+    ]
+  },
+  {
+    "slug": "soccer/sco.2",
+    "sport": "soccer",
+    "name": "Scottish Championship",
+    "aliases": [
+      "SPFL Championship"
+    ]
+  },
+  {
+    "slug": "soccer/sco.2.promotion.relegation",
+    "sport": "soccer",
+    "name": "Scottish Championship Promotion/Relegation Playoffs",
+    "aliases": [
+      "SPFL Championship Pro/Rel"
+    ]
+  },
+  {
+    "slug": "soccer/sco.challenge",
+    "sport": "soccer",
+    "name": "Scottish League Challenge Cup",
+    "aliases": [
+      "SPFL Challenge Cup"
+    ]
+  },
+  {
+    "slug": "soccer/sco.cis",
+    "sport": "soccer",
+    "name": "Scottish Communities League Cup",
+    "aliases": [
+      "Scottish League Cup",
+      "SLC"
+    ]
+  },
+  {
+    "slug": "soccer/sco.tennents",
+    "sport": "soccer",
+    "name": "Scottish Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/sco.tennents_qual",
+    "sport": "soccer",
+    "name": "Scottish Cup Qualifying",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/slv.1",
+    "sport": "soccer",
+    "name": "Primera División de El Salvador",
+    "aliases": [
+      "Salvadoran Primera Division",
+      "Salvadoran Primera"
+    ]
+  },
+  {
+    "slug": "soccer/swe.1",
+    "sport": "soccer",
+    "name": "Swedish Allsvenskanliga",
+    "aliases": [
+      "Swedish Allsvenskan"
+    ]
+  },
+  {
+    "slug": "soccer/swe.1.promotion.relegation",
+    "sport": "soccer",
+    "name": "Swedish Allsvenskan Pro/Rel",
+    "aliases": [
+      "Swedish Allsvenskan Promotion/Relegation Playoffs"
+    ]
+  },
+  {
+    "slug": "soccer/tur.1",
+    "sport": "soccer",
+    "name": "Turkish Super Lig",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/uefa.champions",
+    "sport": "soccer",
+    "name": "UEFA Champions League",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/uefa.champions_qual",
+    "sport": "soccer",
+    "name": "UEFA Champions League Qualifying",
+    "aliases": [
+      "UCL Qualifying"
+    ]
+  },
+  {
+    "slug": "soccer/uefa.euro",
+    "sport": "soccer",
+    "name": "European Championship",
+    "aliases": [
+      "UEFA European Championship",
+      "EURO"
+    ]
+  },
+  {
+    "slug": "soccer/uefa.euro_u21",
+    "sport": "soccer",
+    "name": "European Under-21 Championship",
+    "aliases": [
+      "UEFA European Under-21 Championship",
+      "EURO Under-21"
+    ]
+  },
+  {
+    "slug": "soccer/uefa.euro_u21_qual",
+    "sport": "soccer",
+    "name": "UEFA European Under-21 Championship Qualifying",
+    "aliases": [
+      "EURO U-21 Qualifying"
+    ]
+  },
+  {
+    "slug": "soccer/uefa.euro.u19",
+    "sport": "soccer",
+    "name": "European Under-19 Championship",
+    "aliases": [
+      "UEFA European Under-19 Championship",
+      "EURO Under-19"
+    ]
+  },
+  {
+    "slug": "soccer/uefa.europa",
+    "sport": "soccer",
+    "name": "UEFA Europa League",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/uefa.europa_qual",
+    "sport": "soccer",
+    "name": "Europa League Qualfiying",
+    "aliases": [
+      "UEFA Europa League Qualifying",
+      "UEFA Europa League Qualfiying",
+      "UEL Qualifying"
+    ]
+  },
+  {
+    "slug": "soccer/uefa.europa.conf",
+    "sport": "soccer",
+    "name": "UEFA Europa Conference",
+    "aliases": [
+      "UEFA Conference League"
+    ]
+  },
+  {
+    "slug": "soccer/uefa.europa.conf_qual",
+    "sport": "soccer",
+    "name": "UEFA Conference Qualifying",
+    "aliases": [
+      "UEFA Conference League Qualifying",
+      "UECL Qualifying"
+    ]
+  },
+  {
+    "slug": "soccer/uefa.euroq",
+    "sport": "soccer",
+    "name": "European Championship Qualifying",
+    "aliases": [
+      "UEFA European Championship Qualifying",
+      "EURO Qualifying"
+    ]
+  },
+  {
+    "slug": "soccer/uefa.nations",
+    "sport": "soccer",
+    "name": "UEFA Nations League",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/uefa.super_cup",
+    "sport": "soccer",
+    "name": "UEFA Super Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/uefa.w.europa",
+    "sport": "soccer",
+    "name": "Women's Europa Cup",
+    "aliases": [
+      "UEFA Women's Europa Cup"
+    ]
+  },
+  {
+    "slug": "soccer/uefa.w.nations",
+    "sport": "soccer",
+    "name": "Women's Nations League",
+    "aliases": [
+      "UEFA Women's Nations League"
+    ]
+  },
+  {
+    "slug": "soccer/uefa.wchampions",
+    "sport": "soccer",
+    "name": "UEFA Women's Champions League",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/uefa.wchampions_qual",
+    "sport": "soccer",
+    "name": "UEFA Women's Champions League Qualifying",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/uefa.weuro",
+    "sport": "soccer",
+    "name": "UEFA Women's European Championship",
+    "aliases": [
+      "Women's EURO"
+    ]
+  },
+  {
+    "slug": "soccer/uru.1",
+    "sport": "soccer",
+    "name": "Liga AUF Uruguaya",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/uru.2",
+    "sport": "soccer",
+    "name": "URU2",
+    "aliases": [
+      "Segunda División de Uruguay",
+      "Seg",
+      "Segunda"
+    ]
+  },
+  {
+    "slug": "soccer/usa.1",
+    "sport": "soccer",
+    "name": "MLS",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/usa.ncaa.m.1",
+    "sport": "soccer",
+    "name": "NCAA Men's Soccer",
+    "aliases": [
+      "CMSOC",
+      "NCAAM Soccer"
+    ]
+  },
+  {
+    "slug": "soccer/usa.ncaa.w.1",
+    "sport": "soccer",
+    "name": "NCAA Women's Soccer",
+    "aliases": [
+      "CWSOC",
+      "NCAAW Soccer"
+    ]
+  },
+  {
+    "slug": "soccer/usa.nwsl",
+    "sport": "soccer",
+    "name": "NWSL",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/usa.nwsl.cup",
+    "sport": "soccer",
+    "name": "NWSL Challenge Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/usa.open",
+    "sport": "soccer",
+    "name": "U.S. Open Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/usa.usl.1",
+    "sport": "soccer",
+    "name": "USL Championship",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/usa.usl.l1",
+    "sport": "soccer",
+    "name": "USL League One",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/usa.usl.l1.cup",
+    "sport": "soccer",
+    "name": "USL Cup",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/usa.w.usl.1",
+    "sport": "soccer",
+    "name": "USL Super League",
+    "aliases": []
+  },
+  {
+    "slug": "soccer/ven.1",
+    "sport": "soccer",
+    "name": "Primera División de Venezuela",
+    "aliases": [
+      "Venezuelan Primera División",
+      "Liga FUTVE"
+    ]
+  },
+  {
+    "slug": "tennis/atp",
+    "sport": "tennis",
+    "name": "ATP",
+    "aliases": []
+  },
+  {
+    "slug": "tennis/wta",
+    "sport": "tennis",
+    "name": "WTA",
+    "aliases": []
+  },
+  {
+    "slug": "volleyball/mens-college-volleyball",
+    "sport": "volleyball",
+    "name": "NCAA Men's Volleyball",
+    "aliases": []
+  },
+  {
+    "slug": "volleyball/womens-college-volleyball",
+    "sport": "volleyball",
+    "name": "NCAA Women's Volleyball",
+    "aliases": []
+  },
+  {
+    "slug": "water-polo/mens-college-water-polo",
+    "sport": "water-polo",
+    "name": "NCAA Men's Water Polo",
+    "aliases": [
+      "NCAAM Water Polo"
+    ]
+  },
+  {
+    "slug": "water-polo/womens-college-water-polo",
+    "sport": "water-polo",
+    "name": "NCAA Women's Water Polo",
+    "aliases": [
+      "NCAAW Water Polo"
+    ]
+  }
+]

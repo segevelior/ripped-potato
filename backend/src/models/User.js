@@ -109,15 +109,25 @@ const userSchema = new mongoose.Schema({
       type: String,
       default: 'UTC' // e.g., 'Asia/Jerusalem', 'America/New_York'
     },
-    // Sports-news dashboard widget. `sports` are the sports the user follows
+    // Sports-news dashboard widget. `follows` are the leagues the user follows
     // for news — distinct from profile.sportPreferences (sports they train),
-    // which feeds AI-coach context.
+    // which feeds AI-coach context. Only POST /api/v1/news/follows writes
+    // `follows` (feeds are LLM-resolved + live-validated there); profile
+    // updates may only touch `enabled`.
     sportsNews: {
       enabled: {
         type: Boolean,
         default: true
       },
-      sports: [String] // canonical slugs from config/sportsNews.js
+      // LEGACY (pre-v2): canonical slugs from config/sportsNews.js SPORT_FEEDS.
+      // Migrated to `follows` by scripts/migrate-sports-news-follows.js;
+      // removed in the cleanup PR.
+      sports: [String],
+      follows: [{
+        _id: false,
+        label: String, // display name, e.g. "MotoGP"
+        feeds: [String] // validated bare ESPN league slugs, e.g. "racing/irl"
+      }]
     },
     // Per-user dashboard widget layout. Ids reference the frontend widget
     // registry (frontend/src/components/dashboard/widgets/registry.js);
