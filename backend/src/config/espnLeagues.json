@@ -834,6 +834,82 @@
     ]
   },
   {
+    "slug": "onefeed:boxing",
+    "sport": "boxing",
+    "name": "Boxing",
+    "aliases": []
+  },
+  {
+    "slug": "onefeed:cricket",
+    "sport": "cricket",
+    "name": "Cricket",
+    "aliases": []
+  },
+  {
+    "slug": "onefeed:horse-racing",
+    "sport": "horse-racing",
+    "name": "Horse Racing",
+    "aliases": []
+  },
+  {
+    "slug": "onefeed:motogp",
+    "sport": "racing",
+    "name": "MotoGP",
+    "aliases": [
+      "Moto GP",
+      "MotoGP World Championship"
+    ]
+  },
+  {
+    "slug": "onefeed:nhra",
+    "sport": "racing",
+    "name": "NHRA",
+    "aliases": [
+      "Drag Racing"
+    ]
+  },
+  {
+    "slug": "onefeed:olympics",
+    "sport": "olympics",
+    "name": "Olympics",
+    "aliases": [
+      "Olympic Games"
+    ]
+  },
+  {
+    "slug": "onefeed:poker",
+    "sport": "poker",
+    "name": "Poker",
+    "aliases": []
+  },
+  {
+    "slug": "onefeed:tgl",
+    "sport": "golf",
+    "name": "TGL",
+    "aliases": [
+      "TGL Golf"
+    ]
+  },
+  {
+    "slug": "onefeed:wwe",
+    "sport": "wrestling",
+    "name": "WWE",
+    "aliases": [
+      "Pro Wrestling",
+      "Wrestling"
+    ]
+  },
+  {
+    "slug": "onefeed:x-games",
+    "sport": "action-sports",
+    "name": "X Games",
+    "aliases": [
+      "Action Sports",
+      "Skateboarding",
+      "BMX"
+    ]
+  },
+  {
     "slug": "racing/f1",
     "sport": "racing",
     "name": "F1",
@@ -973,9 +1049,9 @@
   {
     "slug": "soccer/arg.1",
     "sport": "soccer",
-    "name": "Argentine Primera División",
+    "name": "Argentine Primera Divisi\u00f3n",
     "aliases": [
-      "Argentine Liga Profesional de Fútbol",
+      "Argentine Liga Profesional de F\u00fatbol",
       "Argentine LPF"
     ]
   },
@@ -990,7 +1066,7 @@
   {
     "slug": "soccer/arg.3",
     "sport": "soccer",
-    "name": "Primera División B de Argentina",
+    "name": "Primera Divisi\u00f3n B de Argentina",
     "aliases": [
       "Argentine Primera B"
     ]
@@ -1241,7 +1317,7 @@
   {
     "slug": "soccer/chi.1",
     "sport": "soccer",
-    "name": "Chilean Primera División",
+    "name": "Chilean Primera Divisi\u00f3n",
     "aliases": [
       "Chilean Primera"
     ]
@@ -1251,7 +1327,7 @@
     "sport": "soccer",
     "name": "Chilean Pro/Rel",
     "aliases": [
-      "Chilean Primera División Promotion/Relegation Playoffs"
+      "Chilean Primera Divisi\u00f3n Promotion/Relegation Playoffs"
     ]
   },
   {
@@ -1289,7 +1365,7 @@
   {
     "slug": "soccer/col.1",
     "sport": "soccer",
-    "name": "Colombian Fútbol Profesional",
+    "name": "Colombian F\u00fatbol Profesional",
     "aliases": [
       "Colombian Primera A"
     ]
@@ -1297,7 +1373,7 @@
   {
     "slug": "soccer/col.copa",
     "sport": "soccer",
-    "name": "Copa Águila",
+    "name": "Copa \u00c1guila",
     "aliases": [
       "Copa Colombia"
     ]
@@ -1406,13 +1482,13 @@
   {
     "slug": "soccer/conmebol.america",
     "sport": "soccer",
-    "name": "Copa América",
+    "name": "Copa Am\u00e9rica",
     "aliases": []
   },
   {
     "slug": "soccer/conmebol.america.femenina",
     "sport": "soccer",
-    "name": "Copa América Femenina",
+    "name": "Copa Am\u00e9rica Femenina",
     "aliases": []
   },
   {
@@ -1438,7 +1514,7 @@
   {
     "slug": "soccer/crc.1",
     "sport": "soccer",
-    "name": "Primera División de Costa Rica",
+    "name": "Primera Divisi\u00f3n de Costa Rica",
     "aliases": [
       "Costa Rican Primera Division",
       "Liga FPD"
@@ -1648,6 +1724,12 @@
     ]
   },
   {
+    "slug": "soccer/fifa.friendly.w",
+    "sport": "soccer",
+    "name": "Women's International Friendly",
+    "aliases": []
+  },
+  {
     "slug": "soccer/fifa.friendly_u21",
     "sport": "soccer",
     "name": "Men's U-21 Friendly",
@@ -1656,10 +1738,12 @@
     ]
   },
   {
-    "slug": "soccer/fifa.friendly.w",
+    "slug": "soccer/fifa.intercontinental.cup",
     "sport": "soccer",
-    "name": "Women's International Friendly",
-    "aliases": []
+    "name": "Intercontinental Cup",
+    "aliases": [
+      "Intercontinental Cup (India)"
+    ]
   },
   {
     "slug": "soccer/fifa.intercontinental_cup",
@@ -1667,14 +1751,6 @@
     "name": "Intercontinental Cup",
     "aliases": [
       "FIFA Intercontinental Cup"
-    ]
-  },
-  {
-    "slug": "soccer/fifa.intercontinental.cup",
-    "sport": "soccer",
-    "name": "Intercontinental Cup",
-    "aliases": [
-      "Intercontinental Cup (India)"
     ]
   },
   {
@@ -1877,10 +1953,10 @@
   {
     "slug": "soccer/fra.w.1",
     "sport": "soccer",
-    "name": "Division 1 Féminine",
+    "name": "Division 1 F\u00e9minine",
     "aliases": [
-      "French Première Ligue",
-      "Première Ligue"
+      "French Premi\u00e8re Ligue",
+      "Premi\u00e8re Ligue"
     ]
   },
   {
@@ -2010,7 +2086,7 @@
   {
     "slug": "soccer/hon.1",
     "sport": "soccer",
-    "name": "Primera División de Honduras",
+    "name": "Primera Divisi\u00f3n de Honduras",
     "aliases": [
       "Honduran Liga Nacional"
     ]
@@ -2100,8 +2176,8 @@
     "sport": "soccer",
     "name": "Mexican Ascenso MX",
     "aliases": [
-      "Mexican Liga de Expansión MX",
-      "Liga de Expansión MX"
+      "Mexican Liga de Expansi\u00f3n MX",
+      "Liga de Expansi\u00f3n MX"
     ]
   },
   {
@@ -2205,9 +2281,9 @@
   {
     "slug": "soccer/par.1",
     "sport": "soccer",
-    "name": "Primera División de Paraguay",
+    "name": "Primera Divisi\u00f3n de Paraguay",
     "aliases": [
-      "Paraguayan Primera División",
+      "Paraguayan Primera Divisi\u00f3n",
       "Paraguayan Primera"
     ]
   },
@@ -2337,7 +2413,7 @@
   {
     "slug": "soccer/slv.1",
     "sport": "soccer",
-    "name": "Primera División de El Salvador",
+    "name": "Primera Divisi\u00f3n de El Salvador",
     "aliases": [
       "Salvadoran Primera Division",
       "Salvadoran Primera"
@@ -2389,6 +2465,15 @@
     ]
   },
   {
+    "slug": "soccer/uefa.euro.u19",
+    "sport": "soccer",
+    "name": "European Under-19 Championship",
+    "aliases": [
+      "UEFA European Under-19 Championship",
+      "EURO Under-19"
+    ]
+  },
+  {
     "slug": "soccer/uefa.euro_u21",
     "sport": "soccer",
     "name": "European Under-21 Championship",
@@ -2406,29 +2491,10 @@
     ]
   },
   {
-    "slug": "soccer/uefa.euro.u19",
-    "sport": "soccer",
-    "name": "European Under-19 Championship",
-    "aliases": [
-      "UEFA European Under-19 Championship",
-      "EURO Under-19"
-    ]
-  },
-  {
     "slug": "soccer/uefa.europa",
     "sport": "soccer",
     "name": "UEFA Europa League",
     "aliases": []
-  },
-  {
-    "slug": "soccer/uefa.europa_qual",
-    "sport": "soccer",
-    "name": "Europa League Qualfiying",
-    "aliases": [
-      "UEFA Europa League Qualifying",
-      "UEFA Europa League Qualfiying",
-      "UEL Qualifying"
-    ]
   },
   {
     "slug": "soccer/uefa.europa.conf",
@@ -2445,6 +2511,16 @@
     "aliases": [
       "UEFA Conference League Qualifying",
       "UECL Qualifying"
+    ]
+  },
+  {
+    "slug": "soccer/uefa.europa_qual",
+    "sport": "soccer",
+    "name": "Europa League Qualfiying",
+    "aliases": [
+      "UEFA Europa League Qualifying",
+      "UEFA Europa League Qualfiying",
+      "UEL Qualifying"
     ]
   },
   {
@@ -2515,7 +2591,7 @@
     "sport": "soccer",
     "name": "URU2",
     "aliases": [
-      "Segunda División de Uruguay",
+      "Segunda Divisi\u00f3n de Uruguay",
       "Seg",
       "Segunda"
     ]
@@ -2589,9 +2665,9 @@
   {
     "slug": "soccer/ven.1",
     "sport": "soccer",
-    "name": "Primera División de Venezuela",
+    "name": "Primera Divisi\u00f3n de Venezuela",
     "aliases": [
-      "Venezuelan Primera División",
+      "Venezuelan Primera Divisi\u00f3n",
       "Liga FUTVE"
     ]
   },
