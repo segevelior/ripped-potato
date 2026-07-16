@@ -6,6 +6,7 @@ import apiService from "@/services/api";
 import aiService from "@/services/aiService";
 import { pickTodaySession } from "@/utils/todaySession";
 import SportsNewsCards from "./SportsNewsCards";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getDisciplineColor } from "@/styles/designTokens";
 import {
   Play, Sparkles, X, ChevronRight, ArrowRight, Check, Bike, Dumbbell,
@@ -40,10 +41,12 @@ function fmtTime(dateStr) {
 export default function TodayView() {
   const navigate = useNavigate();
   const [goals, setGoals] = useState([]);
+  const [goalsLoading, setGoalsLoading] = useState(true);
   const [session, setSession] = useState(null);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [sessionDone, setSessionDone] = useState(false);
   const [coach, setCoach] = useState(null);
+  const [coachLoading, setCoachLoading] = useState(true);
   const [coachDismissed, setCoachDismissed] = useState(false);
   const [coachAnswer, setCoachAnswer] = useState(null);
   const [coachReply, setCoachReply] = useState(null);
@@ -63,8 +66,11 @@ export default function TodayView() {
           .filter((g) => g.is_active && !g.completed_date)
           .slice(0, 2);
         setGoals(active);
+        setGoalsLoading(false);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (alive) setGoalsLoading(false);
+      });
 
     // Today's session — calendar first (same selection rule as the TrainNow
     // page), then the same server-persisted AI suggestion TrainNow uses, so
@@ -137,9 +143,13 @@ export default function TodayView() {
     aiService
       .getCoachQuestion()
       .then((q) => {
-        if (alive && q) setCoach(q);
+        if (!alive) return;
+        if (q) setCoach(q);
+        setCoachLoading(false);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (alive) setCoachLoading(false);
+      });
 
     // Progression — first in-progress skill ladder
     apiService.progressions
@@ -211,7 +221,26 @@ export default function TodayView() {
           </span>
         </div>
         <div className="tv-goals">
-          {goals.length > 0 ? (
+          {goalsLoading ? (
+            [0, 1].map((i) => (
+              <div
+                key={i}
+                className="tv-goal"
+                style={{ "--goal-c": GOAL_COLORS.default }}
+              >
+                <div className="tv-goal-kicker">
+                  <Skeleton className="h-3 w-14" />
+                </div>
+                <div className="tv-goal-title">
+                  <Skeleton className="h-4 w-24" />
+                </div>
+                <div className="tv-goal-sub">
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <div className="tv-goal-track" />
+              </div>
+            ))
+          ) : goals.length > 0 ? (
             goals.map((g) => {
               const c = goalColor(g.category || "skill");
               const pct = Math.min(((g.current_level || 0) / 10) * 100, 100);
@@ -333,7 +362,22 @@ export default function TodayView() {
         </div>
 
         {/* COACH QUESTION — memory-driven */}
-        {coach && !coachDismissed && (
+        {coachLoading && !coachDismissed && (
+          <div className="tv-coach">
+            <span className="tv-sparkle">
+              <Sparkles className="tv-ico" />
+            </span>
+            <div className="tv-coach-body">
+              <div className="tv-coach-text" style={{ opacity: 0.55 }}>
+                Sensei is checking your status…
+              </div>
+              <div className="tv-coach-reply tv-typing">
+                <span /><span /><span />
+              </div>
+            </div>
+          </div>
+        )}
+        {!coachLoading && coach && !coachDismissed && (
           <div className="tv-coach">
             <span className="tv-sparkle">
               <Sparkles className="tv-ico" />

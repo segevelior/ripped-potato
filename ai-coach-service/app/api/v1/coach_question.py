@@ -22,6 +22,7 @@ from app.middleware.auth import get_current_user
 from app.core.agents.data_reader import DataReaderAgent
 from app.core.agents.prompts import SYSTEM_PROMPT
 from app.core.agents.services import MemoryService
+from app.services.coach_question_service import CoachQuestionService
 from app.services.conversation_service import ConversationService
 from app.services.recommendation_service import RecommendationService
 from app.services.short_term_context_service import ShortTermContextService, spawn_background
@@ -68,10 +69,30 @@ async def get_coach_question(
 
     settings = get_settings()
     client = AsyncOpenAI(api_key=settings.openai_api_key)
-    data_reader = DataReaderAgent(db)
-    memory_service = MemoryService(db)
 
     user_id = current_user["user_id"]
+
+    # Serve the cached question while it's fresh (same local day, generated
+    # within the short TTL) so dashboard opens don't each pay an LLM call.
+    # Answering a question invalidates the cache (see post_coach_reply).
+    cache = CoachQuestionService(db)
+    cached = await cache.get_fresh(user_id)
+    if cached:
+        # This endpoint is one of only two triggers for the opportunistic
+        # stale-conversation summarizer — keep nudging it on cache hits too.
+        spawn_background(
+            ShortTermContextService(db).summarize_stale_conversations(user_id, client, settings)
+        )
+        return {
+            "success": True,
+            "question": cached.get("question"),
+            "chips": cached.get("chips") or [],
+            "source": cached.get("source") or "your training",
+            "cached": True,
+        }
+
+    data_reader = DataReaderAgent(db)
+    memory_service = MemoryService(db)
 
     try:
         user_context = {
@@ -189,6 +210,12 @@ USER DATA:
 
         logger.info(f"Generated coach question for user {user_id}: {question}")
 
+        # Cache only real generations — a transient failure must not pin the
+        # generic fallback question for the whole TTL window.
+        await cache.save(
+            user_id, today_date, timezone, question, chips, source or "your training"
+        )
+
         return {
             "success": True,
             "question": question,
@@ -291,6 +318,11 @@ async def post_coach_reply(
         # the answer across conversations (14-day TTL)
         await _save_checkin_entry(db, user_id, question, answer, reply, client, settings)
 
+        # Answered questions must not be re-served — drop the cache so the
+        # next dashboard open asks something new (which can reference this
+        # check-in via short-term context). Best-effort, never fails the reply.
+        await CoachQuestionService(db).invalidate(user_id)
+
         return {"success": True, "reply": reply}
 
     except Exception as e:
@@ -298,6 +330,7 @@ async def post_coach_reply(
         fallback_reply = "Got it — I've noted that. Tap continue if you want to talk it through."
         # The athlete's answer is the valuable part — persist it even on fallback
         await _save_checkin_entry(db, user_id, question, answer, fallback_reply, client, settings)
+        await CoachQuestionService(db).invalidate(user_id)
         return {
             "success": True,
             "reply": fallback_reply,
