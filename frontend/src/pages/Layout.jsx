@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot, TrendingUp, Settings, MessageSquare, Shield, Cog, Play, Home, User } from "lucide-react";
+import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot, TrendingUp, Settings, MessageSquare, Cog, Play, Home, User } from "lucide-react";
 import { hasActiveWorkout } from "@/utils/workoutSession";
 import {
   Sidebar,
@@ -228,17 +228,6 @@ export default function Layout({ children }) {
                 {JSON.parse(localStorage.getItem('authUser') || '{}')?.role === 'superAdmin' && (
                   <>
                     <Link
-                      to="/Admin/Feedback"
-                      className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all text-sm font-medium ${
-                        location.pathname === '/Admin/Feedback'
-                          ? 'bg-amber-100 text-amber-900'
-                          : 'text-amber-600 hover:bg-amber-50 hover:text-amber-900'
-                      }`}
-                    >
-                      <Shield className="w-5 h-5" />
-                      Feedback Admin
-                    </Link>
-                    <Link
                       to="/Admin/Jobs"
                       className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all text-sm font-medium ${
                         location.pathname === '/Admin/Jobs'
@@ -299,7 +288,7 @@ export default function Layout({ children }) {
           {/* Main Content Area */}
           <main
             ref={mainContentRef}
-            className={`flex-1 overflow-y-auto scroll-smooth ${isChatPage ? 'p-0' : 'p-4 md:p-6 lg:p-8 pb-24 md:pb-8'}`}
+            className={`flex-1 overflow-y-auto overflow-x-hidden scroll-smooth ${isChatPage ? 'p-0' : 'p-4 md:p-6 lg:p-8 pb-24 md:pb-8'}`}
           >
             <Outlet />
           </main>
