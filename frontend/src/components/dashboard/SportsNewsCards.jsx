@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import apiService from "@/services/api";
 import { motion, AnimatePresence } from "framer-motion";
-import { Newspaper, Star, ChevronRight, X } from "lucide-react";
+import { Newspaper, Star, ChevronRight, X, RotateCcw, CheckCircle2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 const DISMISSED_KEY = "sportsNews.dismissed";
@@ -41,9 +41,23 @@ function saveDismissed(id) {
   }
 }
 
+function unsaveDismissed(ids) {
+  try {
+    const remove = new Set(ids);
+    const raw = JSON.parse(localStorage.getItem(DISMISSED_KEY)) || [];
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(raw.filter((d) => !remove.has(d.id))));
+  } catch {
+    // localStorage unavailable — nothing to remove
+  }
+}
+
 export default function SportsNewsCards() {
   const navigate = useNavigate();
+  const [allArticles, setAllArticles] = useState([]);
   const [stack, setStack] = useState([]);
+  // Cards dismissed in this component instance, most recent last — the
+  // undo button walks back through these one at a time
+  const [history, setHistory] = useState([]);
   const [state, setState] = useState("loading"); // loading | ready | nudge | hidden
   // Direction of the last dismissing swipe, read by the exit animation
   const flyOut = useRef({ x: 0, y: 0 });
@@ -59,8 +73,12 @@ export default function SportsNewsCards() {
           return;
         }
         const dismissed = loadDismissed();
-        const articles = (data?.articles || []).filter((a) => !dismissed.has(a.id));
-        if (articles.length > 0) {
+        const fetched = data?.articles || [];
+        const articles = fetched.filter((a) => !dismissed.has(a.id));
+        setAllArticles(fetched);
+        if (articles.length > 0 || fetched.length > 0) {
+          // Even with everything already dismissed, stay visible: the
+          // caught-up card lets the user bring stories back
           setStack(articles);
           setState("ready");
         } else if (!data?.followsSports && !localStorage.getItem(NUDGE_DISMISSED_KEY)) {
@@ -86,8 +104,26 @@ export default function SportsNewsCards() {
       };
       const top = stack[0];
       saveDismissed(top.id);
+      setHistory((prev) => [...prev, top]);
       setStack((prev) => prev.slice(1));
     }
+  };
+
+  // Step back one dismissal (this session's history)
+  const undoDismiss = () => {
+    const last = history[history.length - 1];
+    if (!last) return;
+    unsaveDismissed([last.id]);
+    setHistory((prev) => prev.slice(0, -1));
+    setStack((prev) => [last, ...prev]);
+  };
+
+  // Bring back every fetched story (covers dismissals from before reload,
+  // where there is no session history to step through)
+  const restoreAll = () => {
+    unsaveDismissed(allArticles.map((a) => a.id));
+    setHistory([]);
+    setStack(allArticles);
   };
 
   if (state === "loading" || state === "hidden") return null;
@@ -123,11 +159,34 @@ export default function SportsNewsCards() {
     );
   }
 
-  if (stack.length === 0) return null;
+  if (stack.length === 0) {
+    if (allArticles.length === 0) return null;
+    // Everything swiped away — say so instead of vanishing, and offer a way back
+    return (
+      <div className="mt-2">
+        <SectionHeader onUndo={history.length > 0 ? undoDismiss : undefined} />
+        <div className="flex items-center justify-between bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-gray-900">You're all caught up</p>
+              <p className="text-sm text-gray-500">New stories land every few hours</p>
+            </div>
+          </div>
+          <button
+            onClick={restoreAll}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors flex-shrink-0"
+          >
+            <RotateCcw className="w-3.5 h-3.5" /> Show again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-2">
-      <SectionHeader />
+      <SectionHeader onUndo={history.length > 0 ? undoDismiss : undefined} />
       <div className="relative h-60 select-none">
         <AnimatePresence>
           {stack.slice(0, 3).map((article, i) => (
@@ -145,11 +204,21 @@ export default function SportsNewsCards() {
   );
 }
 
-function SectionHeader() {
+function SectionHeader({ onUndo }) {
   return (
     <div className="flex items-center gap-2 mb-3">
       <Newspaper className="w-4 h-4 text-gray-500" />
       <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Sports news</h3>
+      {onUndo && (
+        <button
+          onClick={onUndo}
+          className="ml-auto flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors"
+          title="Bring back the last dismissed story"
+          aria-label="Undo dismiss"
+        >
+          <RotateCcw className="w-3.5 h-3.5" /> Undo
+        </button>
+      )}
     </div>
   );
 }
