@@ -81,6 +81,10 @@ class APIService {
       return Promise.resolve();
     },
     me: () => this.request('/auth/profile'),
+    updateProfile: (payload) => this.request('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    }),
     // Set (Google-only account) or change the account password.
     // `currentPassword` is only needed when the account already has one.
     setPassword: (newPassword, currentPassword) => this.request('/auth/set-password', {

@@ -235,6 +235,12 @@ const updateProfile = async (req, res) => {
         ...settings,
         ...(settings.sportsNews
           ? { sportsNews: { ...(existingSettings.sportsNews || {}), ...settings.sportsNews } }
+          : {}),
+        // One merge level only: clients must send each layout (e.g.
+        // mobileLayout) complete — a partial { mobileLayout: { hidden } }
+        // would wipe that layout's order.
+        ...(settings.dashboard
+          ? { dashboard: { ...(existingSettings.dashboard || {}), ...settings.dashboard } }
           : {})
       };
     }
