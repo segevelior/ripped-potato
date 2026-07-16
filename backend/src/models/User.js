@@ -128,6 +128,15 @@ const userSchema = new mongoose.Schema({
         label: String, // display name, e.g. "MotoGP"
         feeds: [String] // validated bare ESPN league slugs, e.g. "racing/irl"
       }]
+    },
+    // Per-user dashboard widget layout. Ids reference the frontend widget
+    // registry (frontend/src/components/dashboard/widgets/registry.js);
+    // unknown/missing ids are reconciled client-side.
+    dashboard: {
+      mobileLayout: {
+        order: { type: [String], default: undefined },
+        hidden: { type: [String], default: undefined }
+      }
     }
   }
 }, {

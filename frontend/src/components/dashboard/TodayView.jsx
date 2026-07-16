@@ -1,15 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { CalendarEvent, UserGoalProgress } from "@/api/entities";
 import apiService from "@/services/api";
 import aiService from "@/services/aiService";
+import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { pickTodaySession } from "@/utils/todaySession";
 import SportsNewsCards from "./SportsNewsCards";
+import DashboardEditMode from "./DashboardEditMode";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getDisciplineColor } from "@/styles/designTokens";
 import {
   Play, Sparkles, X, ChevronRight, ArrowRight, Check, Bike, Dumbbell,
+  SlidersHorizontal,
 } from "lucide-react";
 import { format, parseISO, isValid } from "date-fns";
 import "./TodayView.css";
@@ -54,6 +57,35 @@ export default function TodayView() {
   const [continuing, setContinuing] = useState(false);
   const [progression, setProgression] = useState(null);
   const [horizon, setHorizon] = useState([]);
+  const [editing, setEditing] = useState(false);
+  const {
+    layout,
+    updateLayout,
+    saveLayout,
+    beginEdit,
+    saveError,
+    sportsNewsEnabled,
+  } = useDashboardLayout();
+  // Layout as it was when edit mode opened — Done skips the PUT if unchanged.
+  const editSnapshot = useRef(null);
+  // Once-per-mount guards for the visibility-gated fetches below, so a widget
+  // unhidden via Done fetches its data exactly once.
+  const sessionFetched = useRef(false);
+  const coachFetched = useRef(false);
+  // Liveness for those fetches is scoped to the MOUNT, not to each effect run:
+  // a hiddenKey change must not abandon an in-flight fetch (the fetched ref
+  // already blocks any retry, so abandoning it would strand the loading state).
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  const isVisible = (id) => !layout.hidden.includes(id);
+  // Stable dep for the gated effects — hidden is a fresh array each resolve.
+  const hiddenKey = layout.hidden.join(",");
 
   useEffect(() => {
     let alive = true;
@@ -72,12 +104,37 @@ export default function TodayView() {
         if (alive) setGoalsLoading(false);
       });
 
-    // Today's session — calendar first (same selection rule as the TrainNow
-    // page), then the same server-persisted AI suggestion TrainNow uses, so
-    // both surfaces always show the same thing.
+    // Progression — first in-progress skill ladder
+    apiService.progressions
+      .list()
+      .then((data) => {
+        if (!alive) return;
+        const list = Array.isArray(data) ? data : [];
+        const active =
+          list.find((p) => p.userProgress?.status === "in_progress") || list[0];
+        if (active) setProgression(active);
+      })
+      .catch(() => {});
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Today's session — gated on the widget being visible because the
+  // no-calendar-event path generates a persisted AI suggestion (an LLM call);
+  // a hidden widget must not keep paying for it. Also paused while editing so
+  // eye-toggles don't fire the paid call before Done commits them.
+  useEffect(() => {
+    if (editing || !isVisible("todaySession") || sessionFetched.current) return;
+    sessionFetched.current = true;
+
+    // Calendar first (same selection rule as the TrainNow page), then the
+    // same server-persisted AI suggestion TrainNow uses, so both surfaces
+    // always show the same thing.
     CalendarEvent.today()
       .then(async (events) => {
-        if (!alive) return;
+        if (!mounted.current) return;
         const { scheduledEvent, completedToday } = pickTodaySession(events);
         if (scheduledEvent) {
           setSession({
@@ -113,7 +170,7 @@ export default function TodayView() {
         }
         // No calendar event — fetch (or generate) today's persisted suggestion
         const data = await aiService.getTodayWorkout();
-        if (!alive) return;
+        if (!mounted.current) return;
         if (data?.suggestion) {
           const s = data.suggestion;
           if (s.type === "rest") {
@@ -136,37 +193,29 @@ export default function TodayView() {
         setSessionLoading(false);
       })
       .catch(() => {
-        if (alive) setSessionLoading(false);
+        if (mounted.current) setSessionLoading(false);
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hiddenKey, editing]);
 
-    // Coach question — memory-driven
+  // Coach question — memory-driven; hits the ai-coach service, so gated the
+  // same way as the session fetch above.
+  useEffect(() => {
+    if (editing || !isVisible("coachQuestion") || coachFetched.current) return;
+    coachFetched.current = true;
+
     aiService
       .getCoachQuestion()
       .then((q) => {
-        if (!alive) return;
+        if (!mounted.current) return;
         if (q) setCoach(q);
         setCoachLoading(false);
       })
       .catch(() => {
-        if (alive) setCoachLoading(false);
+        if (mounted.current) setCoachLoading(false);
       });
-
-    // Progression — first in-progress skill ladder
-    apiService.progressions
-      .list()
-      .then((data) => {
-        if (!alive) return;
-        const list = Array.isArray(data) ? data : [];
-        const active =
-          list.find((p) => p.userProgress?.status === "in_progress") || list[0];
-        if (active) setProgression(active);
-      })
-      .catch(() => {});
-
-    return () => {
-      alive = false;
-    };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hiddenKey, editing]);
 
   const startSession = () => {
     // TrainNow shows calendar-scheduled sessions as the "Scheduled Today" card
@@ -210,10 +259,11 @@ export default function TodayView() {
   // Build a compact ladder (<=5 rungs) centered on the current step
   const rungs = buildRungs(progression);
 
-  return (
-    <div className="today-view">
-      <div className="tv-stack">
-        {/* GOALS — on top */}
+  // Widget renderers, keyed by registry id. Order/visibility come from the
+  // saved layout; adding a widget = registry entry + renderer here.
+  const sections = {
+    goals: () => (
+      <React.Fragment key="goals">
         <div className="tv-goals-head">
           <span className="tv-h">Your goals</span>
           <span className="tv-all" onClick={() => navigate(createPageUrl("Goals"))}>
@@ -276,9 +326,11 @@ export default function TodayView() {
             </div>
           )}
         </div>
+      </React.Fragment>
+    ),
 
-        {/* HERO SESSION */}
-        <div className="tv-hero">
+    todaySession: () => (
+      <div className="tv-hero" key="todaySession">
           {sessionLoading ? (
             <>
               <div className="tv-hero-kicker" style={{ color: "var(--tv-accent)" }}>
@@ -360,10 +412,15 @@ export default function TodayView() {
             </div>
           )}
         </div>
+    ),
 
-        {/* COACH QUESTION — memory-driven */}
-        {coachLoading && !coachDismissed && (
-          <div className="tv-coach">
+    // Memory-driven; placeholder while the question loads, self-hides when
+    // there's no question or it was dismissed. When the widget is hidden the
+    // fetch is skipped entirely, so the placeholder only ever shows while a
+    // fetch is actually in flight.
+    coachQuestion: () =>
+      coachLoading && !coachDismissed ? (
+          <div className="tv-coach" key="coachQuestion">
             <span className="tv-sparkle">
               <Sparkles className="tv-ico" />
             </span>
@@ -376,9 +433,9 @@ export default function TodayView() {
               </div>
             </div>
           </div>
-        )}
-        {!coachLoading && coach && !coachDismissed && (
-          <div className="tv-coach">
+      ) : (
+        coach && !coachDismissed && (
+          <div className="tv-coach" key="coachQuestion">
             <span className="tv-sparkle">
               <Sparkles className="tv-ico" />
             </span>
@@ -432,11 +489,13 @@ export default function TodayView() {
               <X className="tv-ico-sm" />
             </span>
           </div>
-        )}
+        )
+      ),
 
-        {/* PROGRESSION — horizontal ladder */}
-        {progression && rungs.length > 0 && (
-          <>
+    // Self-hides when there's no active ladder
+    progression: () =>
+      progression && rungs.length > 0 && (
+          <React.Fragment key="progression">
             <div className="tv-goals-head">
               <span className="tv-h">Progression</span>
               <span
@@ -475,11 +534,58 @@ export default function TodayView() {
                 ))}
               </div>
             </div>
-          </>
-        )}
+          </React.Fragment>
+      ),
 
-        {/* SPORTS NEWS — swipeable cards */}
-        <SportsNewsCards />
+    // Swipeable cards; self-hides on error or when disabled in Settings
+    sportsNews: () => <SportsNewsCards key="sportsNews" />,
+  };
+
+  if (editing) {
+    return (
+      <div className="today-view">
+        <DashboardEditMode
+          layout={layout}
+          sportsNewsEnabled={sportsNewsEnabled}
+          onChange={updateLayout}
+          onDone={() => {
+            setEditing(false);
+            // Skip the PUT when nothing changed — unless an earlier save
+            // failed, in which case Done doubles as the retry.
+            if (saveError || JSON.stringify(layout) !== editSnapshot.current) {
+              saveLayout(layout);
+            }
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="today-view">
+      <div className="tv-stack">
+        <div className="tv-edit-row">
+          <button
+            className="tv-edit-btn"
+            aria-label="Edit layout"
+            onClick={() => {
+              beginEdit();
+              editSnapshot.current = JSON.stringify(layout);
+              setEditing(true);
+            }}
+          >
+            <SlidersHorizontal className="tv-ico-sm" />
+          </button>
+        </div>
+        {saveError && (
+          <div className="tv-save-error">
+            Couldn&rsquo;t save your layout — it may reset when you leave this
+            page. Edit again to retry.
+          </div>
+        )}
+        {layout.order
+          .filter((id) => !layout.hidden.includes(id))
+          .map((id) => sections[id]?.() || null)}
       </div>
     </div>
   );
