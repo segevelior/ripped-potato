@@ -8,6 +8,7 @@ import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { pickTodaySession } from "@/utils/todaySession";
 import SportsNewsCards from "./SportsNewsCards";
 import DashboardEditMode from "./DashboardEditMode";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getDisciplineColor } from "@/styles/designTokens";
 import {
   Play, Sparkles, X, ChevronRight, ArrowRight, Check, Bike, Dumbbell,
@@ -43,10 +44,12 @@ function fmtTime(dateStr) {
 export default function TodayView() {
   const navigate = useNavigate();
   const [goals, setGoals] = useState([]);
+  const [goalsLoading, setGoalsLoading] = useState(true);
   const [session, setSession] = useState(null);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [sessionDone, setSessionDone] = useState(false);
   const [coach, setCoach] = useState(null);
+  const [coachLoading, setCoachLoading] = useState(true);
   const [coachDismissed, setCoachDismissed] = useState(false);
   const [coachAnswer, setCoachAnswer] = useState(null);
   const [coachReply, setCoachReply] = useState(null);
@@ -95,8 +98,11 @@ export default function TodayView() {
           .filter((g) => g.is_active && !g.completed_date)
           .slice(0, 2);
         setGoals(active);
+        setGoalsLoading(false);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (alive) setGoalsLoading(false);
+      });
 
     // Progression — first in-progress skill ladder
     apiService.progressions
@@ -201,9 +207,13 @@ export default function TodayView() {
     aiService
       .getCoachQuestion()
       .then((q) => {
-        if (mounted.current && q) setCoach(q);
+        if (!mounted.current) return;
+        if (q) setCoach(q);
+        setCoachLoading(false);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (mounted.current) setCoachLoading(false);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hiddenKey, editing]);
 
@@ -261,7 +271,26 @@ export default function TodayView() {
           </span>
         </div>
         <div className="tv-goals">
-          {goals.length > 0 ? (
+          {goalsLoading ? (
+            [0, 1].map((i) => (
+              <div
+                key={i}
+                className="tv-goal"
+                style={{ "--goal-c": GOAL_COLORS.default }}
+              >
+                <div className="tv-goal-kicker">
+                  <Skeleton className="h-3 w-14" />
+                </div>
+                <div className="tv-goal-title">
+                  <Skeleton className="h-4 w-24" />
+                </div>
+                <div className="tv-goal-sub">
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <div className="tv-goal-track" />
+              </div>
+            ))
+          ) : goals.length > 0 ? (
             goals.map((g) => {
               const c = goalColor(g.category || "skill");
               const pct = Math.min(((g.current_level || 0) / 10) * 100, 100);
@@ -385,9 +414,27 @@ export default function TodayView() {
         </div>
     ),
 
-    // Memory-driven; self-hides when there's no question or it was dismissed
+    // Memory-driven; placeholder while the question loads, self-hides when
+    // there's no question or it was dismissed. When the widget is hidden the
+    // fetch is skipped entirely, so the placeholder only ever shows while a
+    // fetch is actually in flight.
     coachQuestion: () =>
-      coach && !coachDismissed && (
+      coachLoading && !coachDismissed ? (
+          <div className="tv-coach" key="coachQuestion">
+            <span className="tv-sparkle">
+              <Sparkles className="tv-ico" />
+            </span>
+            <div className="tv-coach-body">
+              <div className="tv-coach-text" style={{ opacity: 0.55 }}>
+                Sensei is checking your status…
+              </div>
+              <div className="tv-coach-reply tv-typing">
+                <span /><span /><span />
+              </div>
+            </div>
+          </div>
+      ) : (
+        coach && !coachDismissed && (
           <div className="tv-coach" key="coachQuestion">
             <span className="tv-sparkle">
               <Sparkles className="tv-ico" />
@@ -442,6 +489,7 @@ export default function TodayView() {
               <X className="tv-ico-sm" />
             </span>
           </div>
+        )
       ),
 
     // Self-hides when there's no active ladder
