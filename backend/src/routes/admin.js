@@ -6,6 +6,7 @@ const Exercise = require('../models/Exercise');
 const Goal = require('../models/Goal');
 const PredefinedWorkout = require('../models/PredefinedWorkout');
 const CalendarConsistencyJob = require('../jobs/calendarConsistencyJob');
+const SportsNewsJob = require('../jobs/sportsNewsJob');
 
 // All routes require authentication and admin role
 router.use(auth);
@@ -320,6 +321,30 @@ router.post('/jobs/calendar-consistency', async (req, res) => {
     res.json({
       success: result.success,
       message: result.success ? 'Calendar consistency job completed' : 'Job completed with errors',
+      data: {
+        duration: `${result.duration}ms`,
+        stats: result.stats
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// @route   POST /api/v1/admin/jobs/sports-news
+// @desc    Run sports news fetch job (refresh cached ESPN feeds)
+// @access  Admin only
+router.post('/jobs/sports-news', async (req, res) => {
+  try {
+    const job = new SportsNewsJob(console);
+    const result = await job.run();
+
+    res.json({
+      success: result.success,
+      message: result.stats.feedsFailed === 0 ? 'Sports news job completed' : 'Job completed with errors',
       data: {
         duration: `${result.duration}ms`,
         stats: result.stats

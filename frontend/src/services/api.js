@@ -534,7 +534,15 @@ class APIService {
     }),
     runCalendarConsistencyForUser: (userId) => this.request(`/admin/jobs/calendar-consistency/user/${userId}`, {
       method: 'POST'
+    }),
+    runSportsNews: () => this.request('/admin/jobs/sports-news', {
+      method: 'POST'
     })
+  };
+
+  // Sports news endpoints
+  news = {
+    list: (limit = 15) => this.request(`/news?limit=${limit}`)
   };
 
   // Alias endpoints for naming compatibility

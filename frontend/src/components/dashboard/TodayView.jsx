@@ -5,6 +5,7 @@ import { CalendarEvent, UserGoalProgress } from "@/api/entities";
 import apiService from "@/services/api";
 import aiService from "@/services/aiService";
 import { pickTodaySession } from "@/utils/todaySession";
+import SportsNewsCards from "./SportsNewsCards";
 import { getDisciplineColor } from "@/styles/designTokens";
 import {
   Play, Sparkles, X, ChevronRight, ArrowRight, Check, Bike, Dumbbell,
@@ -432,6 +433,9 @@ export default function TodayView() {
             </div>
           </>
         )}
+
+        {/* SPORTS NEWS — swipeable cards */}
+        <SportsNewsCards />
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import { createPageUrl } from "@/utils";
 import BodyRegionChart from "../components/dashboard/BodyRegionChart";
 import WeeklyOptimization from "../components/dashboard/WeeklyOptimization"; // New import
 import TodayView from "../components/dashboard/TodayView";
+import SportsNewsCards from "../components/dashboard/SportsNewsCards";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -457,6 +458,9 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
+
+              {/* Sports News */}
+              <SportsNewsCards />
             </div>
           </div>
         </>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Camera, Moon, Sun, Loader2, Brain, Link, Unlink, RefreshCw, CheckCircle, AlertCircle, Trash2, Copy, Sparkles, KeyRound, X, Target, HeartPulse } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Camera, Moon, Sun, Loader2, Brain, Link, Unlink, RefreshCw, CheckCircle, AlertCircle, Trash2, Copy, Sparkles, KeyRound, X, Target, HeartPulse, Newspaper } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -15,6 +15,15 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+
+// Canonical sport slugs for the news feature — must match keys of
+// SPORT_FEEDS in backend/src/config/sportsNews.js that have at least one
+// feed. Sports with no feed (cycling, running) are omitted: a chip that can
+// never produce an article would be a silent dead end.
+const NEWS_SPORTS = [
+  'soccer', 'basketball', 'football', 'baseball', 'hockey',
+  'tennis', 'golf', 'motorsport', 'mma'
+];
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -62,7 +71,8 @@ export default function Settings() {
       notifications: true,
       theme: 'light',
       weekStartDay: 0, // 0 = Sunday, 1 = Monday
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      sportsNews: { enabled: true, sports: [] }
     }
   });
 
@@ -143,7 +153,11 @@ export default function Settings() {
             notifications: userData.settings?.notifications ?? true,
             theme: userData.settings?.theme || 'light',
             weekStartDay: userData.settings?.weekStartDay ?? 0,
-            timezone: userData.settings?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+            timezone: userData.settings?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+            sportsNews: {
+              enabled: userData.settings?.sportsNews?.enabled ?? true,
+              sports: userData.settings?.sportsNews?.sports || []
+            }
           }
         });
       }
@@ -230,6 +244,43 @@ export default function Settings() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Persist a full settings object immediately (like commitProfile). Always
+  // sends the complete sportsNews sub-object — the server deep-merges it, and
+  // a partial send must never wipe the followed-sports list.
+  const commitSettings = async (nextSettings) => {
+    setFormData((prev) => ({ ...prev, settings: nextSettings }));
+    setIsSaving(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/v1/auth/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ settings: nextSettings })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const authUser = JSON.parse(localStorage.getItem('authUser') || '{}');
+        localStorage.setItem('authUser', JSON.stringify({ ...authUser, ...data.data.user }));
+        setUser(data.data.user);
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const toggleFollowedSport = (slug) => {
+    const current = formData.settings.sportsNews?.sports || [];
+    const next = current.includes(slug)
+      ? current.filter((s) => s !== slug)
+      : [...current, slug];
+    commitSettings({
+      ...formData.settings,
+      sportsNews: { ...formData.settings.sportsNews, sports: next }
+    });
   };
 
   const addProfileItem = (key, value, clear) => {
@@ -643,6 +694,63 @@ export default function Settings() {
           <div className="space-y-1">
             {renderChipEditor('Goals', 'goals', Target, newGoal, setNewGoal, 'e.g. 20 consecutive pull-ups')}
             {renderChipEditor('Injuries', 'injuries', HeartPulse, newInjury, setNewInjury, 'e.g. right shoulder — avoid overhead')}
+          </div>
+        </div>
+
+        {/* Sports News Section */}
+        <div className="mt-8">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Sports News</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            News from sports you follow shows up as cards on your dashboard.
+          </p>
+          <div className="space-y-1">
+            <div className="py-4 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Newspaper className="w-5 h-5 text-primary-400" />
+                  <div>
+                    <p className="text-sm font-bold text-gray-500 dark:text-gray-400 tracking-wide">
+                      Show Sports News
+                    </p>
+                    <p className="text-base font-medium text-gray-900 dark:text-white mt-1">
+                      {formData.settings.sportsNews?.enabled ? 'Enabled' : 'Disabled'}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={formData.settings.sportsNews?.enabled ?? true}
+                  onCheckedChange={(checked) => commitSettings({
+                    ...formData.settings,
+                    sportsNews: { ...formData.settings.sportsNews, enabled: checked }
+                  })}
+                  className="data-[state=checked]:bg-primary-400"
+                />
+              </div>
+            </div>
+            <div className="py-4 border-b border-gray-100 dark:border-gray-800">
+              <p className="text-sm font-bold text-gray-500 dark:text-gray-400 tracking-wide mb-2">
+                Sports I Follow
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {NEWS_SPORTS.map((slug) => {
+                  const selected = (formData.settings.sportsNews?.sports || []).includes(slug);
+                  return (
+                    <button
+                      key={slug}
+                      onClick={() => toggleFollowedSport(slug)}
+                      disabled={isSaving}
+                      className={`px-3 py-1 rounded-full text-sm capitalize transition-colors ${
+                        selected
+                          ? 'bg-primary-400 text-gray-900 font-semibold'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {slug}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 

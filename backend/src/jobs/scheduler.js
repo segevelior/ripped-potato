@@ -1,4 +1,5 @@
 const CalendarConsistencyJob = require('./calendarConsistencyJob');
+const SportsNewsJob = require('./sportsNewsJob');
 
 /**
  * Job Scheduler
@@ -37,6 +38,18 @@ class JobScheduler {
       true // Run immediately on startup
     );
     this.intervals.push(calendarConsistencyInterval);
+
+    // Sports News Job - refreshes the cached ESPN feeds every 4 hours
+    const sportsNewsInterval = this.scheduleJob(
+      'SportsNewsFetch',
+      async () => {
+        const job = new SportsNewsJob(this.logger);
+        return await job.run();
+      },
+      4 * 60 * 60 * 1000, // 4 hours in milliseconds
+      true // Run immediately on startup
+    );
+    this.intervals.push(sportsNewsInterval);
 
     this.logger.info('[JobScheduler] Scheduler started successfully');
   }
