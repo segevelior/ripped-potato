@@ -245,6 +245,16 @@ const updateProfile = async (req, res) => {
             if (value.enabled !== undefined) updateData['settings.sportsNews.enabled'] = value.enabled;
             if (value.sports !== undefined) updateData['settings.sportsNews.sports'] = value.sports;
           }
+        } else if (key === 'dashboard') {
+          // One merge level only: clients must send each layout (e.g.
+          // mobileLayout) complete — a partial { mobileLayout: { hidden } }
+          // would wipe that layout's order.
+          if (value && typeof value === 'object') {
+            for (const [layoutKey, layoutValue] of Object.entries(value)) {
+              if (layoutKey.includes('.') || layoutKey.includes('$')) continue;
+              updateData[`settings.dashboard.${layoutKey}`] = layoutValue;
+            }
+          }
         } else {
           updateData[`settings.${key}`] = value;
         }

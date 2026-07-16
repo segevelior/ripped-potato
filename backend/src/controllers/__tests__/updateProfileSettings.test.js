@@ -43,6 +43,17 @@ describe('updateProfile settings writes', () => {
     expect(updateData['settings.sportsNews']).toBeUndefined();
   });
 
+  test('dashboard layouts write one dot-path per layout (other layouts untouched)', async () => {
+    await updateProfile(
+      makeReq({ dashboard: { mobileLayout: { order: ['a', 'b'], hidden: [] } } }),
+      makeRes()
+    );
+
+    const updateData = User.findByIdAndUpdate.mock.calls[0][1];
+    expect(updateData['settings.dashboard.mobileLayout']).toEqual({ order: ['a', 'b'], hidden: [] });
+    expect(updateData['settings.dashboard']).toBeUndefined();
+  });
+
   test('dotted keys cannot smuggle nested paths past the sportsNews guard', async () => {
     await updateProfile(
       makeReq({
