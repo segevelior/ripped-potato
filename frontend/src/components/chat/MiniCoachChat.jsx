@@ -247,7 +247,7 @@ export default function MiniCoachChat({
           onChange={(e) => setInput(e.target.value)}
           placeholder="Why do you want to swap?"
           maxLength={1000}
-          className="flex-1 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+          className="flex-1 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-base sm:text-sm"
         />
         <button
           type="submit"
