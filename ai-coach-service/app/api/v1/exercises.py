@@ -677,9 +677,18 @@ async def substitute_chat(
         original_muscles=", ".join((original or {}).get("muscles", []) or []) or "n/a",
         candidates_block=candidates_block,
     )
+    # Replay assistant turns in the SAME JSON shape the contract demands.
+    # The client stores them as plain text (the rendered reply); echoing that
+    # verbatim teaches the model to answer in prose, which breaks parsing —
+    # and each failed turn adds more prose to history, so it never recovers.
+    def _history_message(m: SubstituteChatMessage) -> Dict[str, str]:
+        if m.role == "assistant":
+            return {"role": "assistant", "content": json.dumps({"reply": m.content, "options": []})}
+        return {"role": m.role, "content": m.content}
+
     messages = (
         [{"role": "system", "content": system_prompt}]
-        + [{"role": m.role, "content": m.content} for m in history]
+        + [_history_message(m) for m in history]
         + [{"role": "user", "content": request.message}]
     )
 
@@ -689,11 +698,22 @@ async def substitute_chat(
         response = await client.chat.completions.create(
             model=settings.openai_model_fast,
             messages=messages,
-            max_completion_tokens=700,
+            # Roomy cap: in environments with reasoning_effort != "none",
+            # reasoning tokens draw from this same budget before any output.
+            max_completion_tokens=2000,
             **settings.llm_tuning_params(temperature=0.4),
         )
-        content = _strip_json_fences(response.choices[0].message.content)
-        data = json.loads(content)
+        content = _strip_json_fences(response.choices[0].message.content or "")
+        if not content:
+            raise ValueError("LLM returned empty content")
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError:
+            # The model answered in prose despite the contract. That text IS a
+            # usable coaching reply — surface it (options only ever come from
+            # validated JSON, so none here) instead of the fallback message.
+            logger.warning("substitute_chat got non-JSON reply, using as plain text")
+            return SubstituteChatResponse(reply=content)
         reply = (data.get("reply") or "").strip()
         if not reply:
             raise ValueError("LLM returned no reply text")
