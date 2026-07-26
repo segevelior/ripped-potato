@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/drawer";
 import ReplaceExerciseModal from "@/components/exercise/ReplaceExerciseModal";
 import ExerciseSearchInput from "@/components/exercise/ExerciseSearchInput";
+import { ExerciseSwapContext } from "@/contexts/ExerciseSwapContext";
+import { materializeExercise } from "@/utils/materializeExercise";
 import { apiService } from "@/services/api";
 import { toast } from "@/components/ui/use-toast";
 
@@ -724,6 +726,42 @@ export default function LiveWorkout() {
     }
   };
 
+  // Apply a swap proposed by the coach chat's <exercise-swap> card. Targets
+  // the exercise the modal was opened for; falls back to matching by the
+  // card's old id/name if the index no longer lines up.
+  const applySwapFromChat = async (payload, { permanent } = {}) => {
+    let idx = replaceIndex;
+    if (idx === null || !workout.exercises[idx]) {
+      idx = workout.exercises.findIndex(
+        (e) =>
+          (payload.old?.id && e.exercise_id === payload.old.id) ||
+          (payload.old?.name && e.exercise_name === payload.old.name)
+      );
+    }
+    if (idx === null || idx < 0) {
+      toast({
+        title: "Couldn't find that exercise in this session",
+        description: "Pick it from the Browse tab instead.",
+        variant: "destructive",
+      });
+      throw new Error("swap target not found");
+    }
+
+    let picked;
+    if (payload.new?.id) {
+      // Fetch the full catalog doc so default sets come from its real strain.
+      picked = await apiService.exercises.get(payload.new.id).catch(() => null);
+      picked = picked || { _id: payload.new.id, name: payload.new.name, muscles: payload.new.muscles || [] };
+    } else {
+      picked = await materializeExercise({
+        name: payload.new?.name,
+        muscles: payload.new?.muscles || [],
+        equipment: payload.new?.equipment || [],
+      });
+    }
+    handleReplaceExercise(idx, picked, { permanent: Boolean(permanent) });
+  };
+
   const handleAddExercise = (exIndex, position, picked) => {
     const insertAt = position === 'above' ? exIndex : exIndex + 1;
     const nextExercises = withOrder([
@@ -960,15 +998,28 @@ export default function LiveWorkout() {
         </div>
       )}
 
-      {/* Replace exercise modal (Similar / Ask the Sensei / Search) */}
+      {/* Replace exercise modal (Browse / Ask the Sensei coach chat) */}
       {replaceIndex !== null && (
-        <ReplaceExerciseModal
-          exercise={workout.exercises[replaceIndex]}
-          onClose={() => setReplaceIndex(null)}
-          onReplace={(picked, opts) => handleReplaceExercise(replaceIndex, picked, opts)}
-          canPersist={Boolean(workout.sourceWorkoutId && workout.exercises[replaceIndex]?.exercise_id)}
-          isCommonTemplate={Boolean(workout.sourceWorkoutIsCommon)}
-        />
+        <ExerciseSwapContext.Provider
+          value={{
+            applySwap: applySwapFromChat,
+            canPersist: Boolean(workout.sourceWorkoutId),
+          }}
+        >
+          <ReplaceExerciseModal
+            exercise={workout.exercises[replaceIndex]}
+            onClose={() => setReplaceIndex(null)}
+            onReplace={(picked, opts) => handleReplaceExercise(replaceIndex, picked, opts)}
+            canPersist={Boolean(workout.sourceWorkoutId && workout.exercises[replaceIndex]?.exercise_id)}
+            isCommonTemplate={Boolean(workout.sourceWorkoutIsCommon)}
+            workoutTitle={workout.title}
+            sourceWorkoutId={workout.sourceWorkoutId}
+            sessionExercises={workout.exercises}
+            elapsedMinutes={Math.floor(totalWorkoutTime / 60)}
+            conversationId={workout.senseiConversationId || null}
+            onConversationId={(id) => setWorkout((w) => ({ ...w, senseiConversationId: id }))}
+          />
+        </ExerciseSwapContext.Provider>
       )}
 
       {/* Add exercise picker (above / below) */}

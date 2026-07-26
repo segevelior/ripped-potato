@@ -64,7 +64,16 @@ _GROUNDING_INTENT_RE = re.compile(
 
 def _needs_grounding(message: str) -> bool:
     """True when the message references the user's own data and the first
-    LLM round should be forced to call a tool (tool_choice='required')."""
+    LLM round should be forced to call a tool (tool_choice='required').
+
+    [EXERCISE SWAP ...] messages are exempt: the marker itself injects the
+    authoritative live-session state (client-composed), so there is nothing
+    stale to read — and forcing a tool on turn 1 would slam a swap card into
+    a pain conversation before the coach can ask a single question. Later
+    turns ("ok swap it") match the regex again, which is correct: by then
+    propose_exercise_swap is the right call and satisfies the round."""
+    if (message or "").lstrip().startswith("[EXERCISE SWAP"):
+        return False
     return bool(_GROUNDING_INTENT_RE.search(message or ""))
 
 
@@ -82,22 +91,24 @@ def _collect_video_tags(result: Dict[str, Any], into: Dict[str, str]) -> None:
 
 
 def _build_preview_card_tag(result: Any) -> str | None:
-    """Turn a dry-run preview result into a <calendar-preview> token so the
-    chat UI renders a card. Explicitly closed — parse5 (rehype-raw) ignores the
+    """Turn a dry-run preview result into a card token (<calendar-preview> by
+    default; a skill can pick its own tag via `preview_card_tag`) so the chat
+    UI renders a card. Explicitly closed — parse5 (rehype-raw) ignores the
     self-closing slash on unknown elements, and a dangling open tag would
     swallow everything streamed after it."""
     card = result.get("preview_card") if isinstance(result, dict) else None
     if not card or not result.get("dry_run"):
         return None
+    tag = result.get("preview_card_tag") or "calendar-preview"
     payload = base64.b64encode(json.dumps(card).encode()).decode()
-    return f'\n\n<calendar-preview payload="{payload}"></calendar-preview>\n\n'
+    return f'\n\n<{tag} payload="{payload}"></{tag}>\n\n'
 
 
 def _model_facing_result(result: Any) -> Any:
     """preview_card is UI payload: keeping it in the tool message wastes tokens
     and the model may parrot the base64 blob into its reply."""
-    if isinstance(result, dict) and "preview_card" in result:
-        return {k: v for k, v in result.items() if k != "preview_card"}
+    if isinstance(result, dict) and ("preview_card" in result or "preview_card_tag" in result):
+        return {k: v for k, v in result.items() if k not in ("preview_card", "preview_card_tag")}
     return result
 
 
@@ -149,15 +160,15 @@ def _call_is_write(name: str, arguments_json: str | None) -> bool:
     return False
 
 
-# The calendar-preview card tag carries a base64 payload in saved content;
-# replaying the blob to the model is pure token waste (and parrot bait).
-_CALENDAR_PREVIEW_TAG_RE = re.compile(
-    r'<calendar-preview\s+payload="[^"]*">\s*</calendar-preview>'
+# Preview-card tags carry a base64 payload in saved content; replaying the
+# blob to the model is pure token waste (and parrot bait).
+_PREVIEW_CARD_TAG_RE = re.compile(
+    r'<(calendar-preview|exercise-swap)\s+payload="[^"]*">\s*</\1>'
 )
 
 
 def _sanitize_replayed_content(content: str) -> str:
-    return _CALENDAR_PREVIEW_TAG_RE.sub("<calendar-preview/>", content or "")
+    return _PREVIEW_CARD_TAG_RE.sub(r"<\1/>", content or "")
 
 
 def _replayable_indexes(conversation_history: List[Dict[str, Any]]) -> set:
