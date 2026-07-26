@@ -350,13 +350,11 @@ class TestReflectionExecution:
 
         # Verify the call used config values
         call_kwargs = orchestrator.client.chat.completions.create.call_args.kwargs
-        # Tuning comes from settings: reasoning_effort when enabled, else the
-        # config temperature.
-        if orchestrator.settings.openai_reasoning_effort != "none":
-            assert call_kwargs["reasoning_effort"] == orchestrator.settings.openai_reasoning_effort
-            assert "temperature" not in call_kwargs
-        else:
-            assert call_kwargs["temperature"] == REFLECTION_CONFIG["temperature"]
+        # Tuning comes from settings: reasoning_effort is always sent explicitly
+        # (gpt-5.6 rejects function tools unless it is "none") and temperature
+        # never is (gpt-5.6 only accepts the default).
+        assert call_kwargs["reasoning_effort"] == orchestrator.settings.openai_reasoning_effort
+        assert "temperature" not in call_kwargs
         # GPT-5 models require max_completion_tokens (see commit #69); the value
         # still comes from the config's max_tokens entry.
         assert call_kwargs["max_completion_tokens"] == REFLECTION_CONFIG["max_tokens"]

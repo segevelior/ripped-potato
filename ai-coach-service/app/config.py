@@ -38,8 +38,9 @@ class Settings(BaseSettings):
     # reasoning). None = fall back to openai_model; resolve at the call site.
     openai_model_planner: Optional[str] = None
     # Reasoning effort for all OpenAI calls: none | low | medium | high | xhigh.
-    # Default "none": gpt-5.4-mini 400s on function tools + reasoning_effort, so
-    # every orchestrator chat call would fail. Opt in explicitly per environment
+    # Default "none": reasoning burns latency/tokens with no measured plan-quality
+    # gain (A/B eval), and gpt-5.6 chat/completions rejects function tools unless
+    # reasoning_effort is explicitly "none". Opt in per environment
     # (e.g. OPENAI_REASONING_EFFORT=medium on Render once verified).
     openai_reasoning_effort: str = "none"
 
@@ -79,12 +80,12 @@ class Settings(BaseSettings):
     def llm_tuning_params(self, temperature: Optional[float] = None) -> dict:
         """Sampling/reasoning kwargs for chat.completions.create.
 
-        Reasoning models only accept the default temperature while thinking,
-        so temperature is sent only when reasoning is off ("none").
+        gpt-5.6 models accept only the default temperature (custom values 400),
+        so temperature is never sent — the parameter is kept for call-site
+        documentation of intent. reasoning_effort is always sent explicitly:
+        gpt-5.6 rejects function tools on chat/completions unless it is "none".
         """
-        if self.openai_reasoning_effort != "none":
-            return {"reasoning_effort": self.openai_reasoning_effort}
-        return {"temperature": temperature} if temperature is not None else {}
+        return {"reasoning_effort": self.openai_reasoning_effort}
 
     # Security
     jwt_secret_key: str
