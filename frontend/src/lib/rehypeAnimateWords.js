@@ -27,6 +27,7 @@ const SKIP_TAGS = new Set([
   'tool-executing',
   'tool-complete',
   'video-embed',
+  'calendar-preview',
 ]);
 
 // Matches runs of whitespace vs. non-whitespace so we can preserve spacing.

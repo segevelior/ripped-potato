@@ -7,7 +7,9 @@ REFLECTION_CONFIG = {
     # Feature flag - disabled: the reflection pass was replacing good answers
     # with generic "provide your equipment info" messages (over-triggering on
     # content patterns like "reps"/"warm-up"). Re-enable only after the trigger
-    # and revision logic are reworked.
+    # and revision logic are reworked. The rework must also make revision
+    # preserve injected tags (tool pills, <calendar-preview>) — a revision
+    # event wholesale-replaces the live message and would drop them.
     "enabled": False,
 
     # Model selection: None = use settings.openai_model_fast (from .env).

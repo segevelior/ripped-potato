@@ -376,6 +376,9 @@ class CalendarService:
 
         resolved_exercises = []
         reuses_template = None
+        card_exercises = []
+        card_duration = None
+        card_link = {"mode": "none", "name": None}
         if existing_template is not None:
             # Linking a library workout: nothing to resolve — the template's
             # exercises are already canonical. Just show what gets linked.
@@ -384,7 +387,18 @@ class CalendarService:
                 f"- **{ex['exerciseName']}** — {ex['targetSets']}x{ex['targetReps']}"
                 for ex in flat
             ]
+            card_exercises = [
+                {
+                    "name": ex["exerciseName"],
+                    "volume": f"{ex['targetSets']}x{ex['targetReps']}",
+                    "isNew": False,
+                    "matchedFrom": None,
+                }
+                for ex in flat
+            ]
             duration = existing_template.get("estimated_duration", 45)
+            card_duration = duration
+            card_link = {"mode": "links_existing", "name": existing_template.get("name")}
             preview_msg += (
                 f"\n\nLinks existing library workout **{existing_template.get('name')}** "
                 f"(no new workout is created), ~{duration} min:\n" + "\n".join(lines)
@@ -419,13 +433,23 @@ class CalendarService:
                     "method": res.get("method"),
                 })
                 volume = f"{ex.get('targetSets', 3)}x{ex.get('targetReps', 10)}"
+                substituted = not is_new and matched and matched.lower() != given.lower()
+                card_exercises.append({
+                    "name": given if is_new else (matched or given),
+                    "volume": volume,
+                    "isNew": is_new,
+                    "matchedFrom": given if substituted else None,
+                })
                 if is_new:
                     lines.append(f"- **{given}** — {volume} (new — will be added to your exercise catalog)")
-                elif matched and matched.lower() != given.lower():
+                elif substituted:
                     lines.append(f"- \"{given}\" → matched to existing **{matched}** — {volume}")
                 else:
                     lines.append(f"- **{matched or given}** — {volume}")
             duration = workout_details.get("estimatedDuration", 45)
+            card_duration = duration
+            # Reuse verdict may flip this to links_existing below.
+            card_link = {"mode": "creates_new", "name": strip_template_date_suffix(title_with_date)}
             preview_msg += f", ~{duration} min:\n" + "\n".join(lines)
 
             # Keep the preview honest about the library side effect: identical
@@ -455,6 +479,7 @@ class CalendarService:
                         "id": str(reusable["_id"]),
                         "name": reusable.get("name", ""),
                     }
+                    card_link = {"mode": "links_existing", "name": reusable.get("name", "")}
                     preview_msg += (
                         f"\n\nWill LINK your existing library workout "
                         f"**{reusable.get('name')}** — no new workout will be created."
@@ -465,13 +490,18 @@ class CalendarService:
                     )
 
         preview_msg += (
-            "\n\nShow this preview to the user and ask them to confirm. "
+            "\n\nThe user is already shown a preview card in the UI — do NOT repeat "
+            "the exercise list or event details in prose, and NEVER output a "
+            "<calendar-preview> tag yourself. Reply with ONE short sentence asking "
+            "them to confirm (mention a name substitution only in one brief phrase "
+            "if there is one), plus a <quick-replies> block (Yes / No). "
             "If they confirm, call `schedule_to_calendar` again with the SAME arguments plus `dry_run=false`. "
             "If they want a matched exercise kept under its ORIGINAL name instead, call `add_exercise` "
             "with that exact name first, then retry with `dry_run=false`. "
             "If the user declines, do NOT call this tool again."
         )
 
+        relative_day = relative_day_label(event_date.date(), today.date())
         return {
             "success": True,
             "dry_run": True,
@@ -480,10 +510,23 @@ class CalendarService:
                 "title": title_with_date,
                 "date": event_date.strftime("%Y-%m-%d"),
                 "type": event_type,
-                "relativeDay": relative_day_label(event_date.date(), today.date()),
+                "relativeDay": relative_day,
             },
             "resolved_exercises": resolved_exercises,
             "reuses_template": reuses_template,
+            # Rendered as a <calendar-preview> card by the chat UI; stripped from
+            # the tool result the model sees (orchestrator). Title drops the
+            # date suffix — the card's date badges already carry it.
+            "preview_card": {
+                "v": 1,
+                "title": strip_template_date_suffix(title_with_date),
+                "date": event_date.strftime("%Y-%m-%d"),
+                "relativeDay": relative_day,
+                "type": event_type,
+                "durationMin": card_duration,
+                "link": card_link,
+                "exercises": card_exercises,
+            },
         }
 
     async def get_calendar_events(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
