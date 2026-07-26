@@ -107,6 +107,11 @@ class ConversationService:
         # Strip force flags from title (but keep in message for AI context)
         clean_message = re.sub(r'^\[(WEB_SEARCH|DEEP_RESEARCH)\]\s*', '', message)
 
+        # Mid-workout swap chat: title by the target exercise, not the marker.
+        if clean_message.startswith("[EXERCISE SWAP"):
+            name_match = re.search(r'exercise="([^"]+)"', clean_message)
+            return f"Swap: {name_match.group(1)}"[:100] if name_match else "Exercise swap"
+
         # Check if this is a workout request with hidden context
         if clean_message.startswith("[WORKOUT REQUEST"):
             # Try to extract the user's actual input

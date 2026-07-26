@@ -1,15 +1,28 @@
 import { useState } from "react";
 import { X, Sparkles, Search, AlertTriangle } from "lucide-react";
-import { apiService } from "@/services/api";
+import { materializeExercise } from "@/utils/materializeExercise";
 import BrowseTab from "./replace/BrowseTab";
-import SenseiChatTab from "./replace/SenseiChatTab";
+import MiniCoachChat from "@/components/chat/MiniCoachChat";
 
 const TABS = [
   { key: "browse", label: "Browse", icon: Search },
   { key: "sensei", label: "Ask the Sensei", icon: Sparkles },
 ];
 
-export default function ReplaceExerciseModal({ exercise, onClose, onReplace, canPersist = false, isCommonTemplate = false }) {
+export default function ReplaceExerciseModal({
+  exercise,
+  onClose,
+  onReplace,
+  canPersist = false,
+  isCommonTemplate = false,
+  // Live-session context for the embedded coach chat
+  workoutTitle,
+  sourceWorkoutId,
+  sessionExercises,
+  elapsedMinutes,
+  conversationId,
+  onConversationId,
+}) {
   const [tab, setTab] = useState("browse");
   const [error, setError] = useState(null);
   const [materializingId, setMaterializingId] = useState(null);
@@ -31,22 +44,7 @@ export default function ReplaceExerciseModal({ exercise, onClose, onReplace, can
     setError(null);
     setMaterializingId(opt.name);
     try {
-      const matches = await apiService.exercises.list({ search: opt.name, limit: 5 });
-      const existing = (Array.isArray(matches) ? matches : []).find(
-        (e) => (e.name || "").toLowerCase() === (opt.name || "").toLowerCase()
-      );
-      if (existing) { handlePick(existing); return; }
-
-      const created = await apiService.exercises.create({
-        name: opt.name,
-        muscles: opt.muscles || [],
-        secondaryMuscles: opt.secondaryMuscles || [],
-        discipline: opt.discipline || ["strength"],
-        equipment: opt.equipment || [],
-        difficulty: opt.difficulty || "beginner",
-        strain: opt.strain || undefined,
-      });
-      handlePick(created);
+      handlePick(await materializeExercise(opt));
     } catch (err) {
       console.error("Failed to create generated exercise:", err);
       setError(`Couldn't add “${opt.name}”. Pick another option or search instead.`);
@@ -118,11 +116,14 @@ export default function ReplaceExerciseModal({ exercise, onClose, onReplace, can
           </div>
 
           <div className={tab === "sensei" ? "" : "hidden"}>
-            <SenseiChatTab
-              exerciseId={exerciseId}
-              exerciseName={exerciseName}
-              onPickOption={pickOption}
-              materializingId={materializingId}
+            <MiniCoachChat
+              exercise={exercise}
+              workoutTitle={workoutTitle}
+              sourceWorkoutId={sourceWorkoutId}
+              exercises={sessionExercises}
+              elapsedMinutes={elapsedMinutes}
+              conversationId={conversationId}
+              onConversationId={onConversationId}
             />
           </div>
         </div>
