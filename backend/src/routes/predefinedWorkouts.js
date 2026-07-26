@@ -300,6 +300,137 @@ router.post('/:id/rate', auth, async (req, res) => {
   }
 });
 
+// POST /api/predefined-workouts/:id/swap-exercise - Replace an exercise in the
+// template "for good". Own template: edited in place. Common template: cloned
+// into a private copy (clone-on-modify) and the user's live references
+// (upcoming calendar events, active plan weeks, modification row) move to the
+// clone. Completed/skipped history intentionally keeps pointing at the
+// original.
+router.post('/:id/swap-exercise', auth, async (req, res) => {
+  try {
+    const { fromExerciseId, toExerciseId } = req.body;
+    if (!fromExerciseId || !toExerciseId) {
+      return res.status(400).json({ error: 'fromExerciseId and toExerciseId are required' });
+    }
+
+    const workout = await PredefinedWorkout.findById(req.params.id);
+    if (!workout) {
+      return res.status(404).json({ error: 'Predefined workout not found' });
+    }
+
+    if (!workout.canUserEdit(req.user.id) && !workout.isCommon) {
+      return res.status(403).json({ error: 'You can only modify your own workouts' });
+    }
+
+    const Exercise = require('../models/Exercise');
+    const replacement = await Exercise.findOne({
+      _id: toExerciseId,
+      $or: [{ isCommon: true }, { createdBy: req.user.id }]
+    }).select('_id name');
+    if (!replacement) {
+      return res.status(400).json({ error: 'Replacement exercise not found' });
+    }
+
+    // The same movement may appear in several blocks (e.g. warm-up + main
+    // work); a "for good" swap means all of them.
+    const applySwap = (doc) => {
+      let replacedCount = 0;
+      for (const block of doc.blocks || []) {
+        for (const ex of block.exercises || []) {
+          if (ex.exercise_id?.toString() === fromExerciseId.toString()) {
+            ex.exercise_id = replacement._id;
+            ex.exercise_name = replacement.name;
+            replacedCount += 1;
+          }
+        }
+      }
+      return replacedCount;
+    };
+
+    if (workout.canUserEdit(req.user.id)) {
+      const replacedCount = applySwap(workout);
+      if (replacedCount === 0) {
+        return res.status(400).json({ error: 'Exercise not found in this workout' });
+      }
+      await workout.save();
+      const workoutObj = workout.toObject();
+      workoutObj.id = workoutObj._id;
+      return res.json({ workout: workoutObj, cloned: false, replacedCount });
+    }
+
+    // Common template: clone-on-modify.
+    const cloneData = workout.toObject();
+    delete cloneData._id;
+    delete cloneData.createdAt;
+    delete cloneData.updatedAt;
+    delete cloneData.__v;
+    cloneData.createdBy = req.user.id;
+    cloneData.isCommon = false;
+    cloneData.popularity = 0;
+    cloneData.ratings = { average: 0, count: 0 };
+
+    // The user's modification overlay (custom title/description/duration +
+    // favorite/PR metadata) is applied on every read — bake the field
+    // overrides into the clone and move the row so the metadata follows.
+    const UserWorkoutModification = require('../models/UserWorkoutModification');
+    const modification = await UserWorkoutModification.findOne({
+      userId: req.user.id,
+      workoutId: workout._id
+    });
+    if (modification?.modifications) {
+      if (modification.modifications.title) cloneData.name = modification.modifications.title;
+      if (modification.modifications.description) cloneData.goal = modification.modifications.description;
+      if (modification.modifications.durationMinutes) {
+        cloneData.estimated_duration = modification.modifications.durationMinutes;
+      }
+    }
+
+    const clone = new PredefinedWorkout(cloneData);
+    const replacedCount = applySwap(clone);
+    if (replacedCount === 0) {
+      return res.status(400).json({ error: 'Exercise not found in this workout' });
+    }
+    await clone.save();
+
+    if (modification) {
+      modification.workoutId = clone._id;
+      // Field overrides are baked into the clone now; keeping them on the row
+      // would double-apply if the user later edits the clone directly.
+      if (modification.modifications) {
+        modification.modifications.title = undefined;
+        modification.modifications.description = undefined;
+        modification.modifications.durationMinutes = undefined;
+        modification.markModified('modifications');
+      }
+      await modification.save();
+    }
+
+    // Move the user's live references to the fork so "for good" holds for
+    // already-scheduled sessions and plan-driven scheduling.
+    await CalendarEvent.updateMany(
+      {
+        userId: req.user.id,
+        workoutTemplateId: workout._id,
+        status: { $in: ['scheduled', 'in_progress'] }
+      },
+      { $set: { workoutTemplateId: clone._id } }
+    );
+
+    const Plan = require('../models/Plan');
+    await Plan.updateMany(
+      { userId: req.user.id, 'weeks.workouts.predefinedWorkoutId': workout._id },
+      { $set: { 'weeks.$[].workouts.$[w].predefinedWorkoutId': clone._id } },
+      { arrayFilters: [{ 'w.predefinedWorkoutId': workout._id }] }
+    );
+
+    const cloneObj = clone.toObject();
+    cloneObj.id = cloneObj._id;
+    return res.json({ workout: cloneObj, cloned: true, replacedCount });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Modification endpoints
 
 // PUT /api/predefined-workouts/:id/modifications - Create or update workout modification

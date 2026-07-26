@@ -420,7 +420,9 @@ export default function TrainNow() {
               // duplicates.
               blocks: templateBlocks,
               exercises: templateBlocks.length > 0 ? [] : convertedExercises,
-              calendarEventId: scheduledEvent._id
+              calendarEventId: scheduledEvent._id,
+              sourceWorkoutId: scheduledEvent.workoutTemplateId?._id,
+              isCommon: scheduledEvent.workoutTemplateId?.isCommon
             });
             setIsFromCalendar(true);
             setSuggestionLoading(false);
@@ -493,7 +495,13 @@ export default function TrainNow() {
 
   const doStartWorkout = (workout) => {
     try {
-      const sessionData = parseWorkoutToSessionData(workout);
+      // sourceWorkoutId is set explicitly on the calendar suggestion; library
+      // cards carry _id. AI-generated suggestions have neither (no template).
+      // Never fall back to .id here — on the calendar path it's the event id.
+      const sessionData = parseWorkoutToSessionData(workout, {
+        sourceWorkoutId: workout.sourceWorkoutId || workout._id,
+        sourceWorkoutIsCommon: workout.isCommon
+      });
       startWorkoutSession(sessionData);
       navigate(createPageUrl('LiveWorkout')); // No ID param needed
     } catch (error) {

@@ -260,6 +260,12 @@ class APIService {
       method: 'POST',
       body: JSON.stringify(data)
     }),
+    // Returns { workout, cloned, replacedCount } — the route responds with a
+    // bare object (no data envelope), so no extra unwrap here.
+    swapExercise: (id, data) => this.request(`/predefined-workouts/${id}/swap-exercise`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
     favorite: (id) => this.request(`/predefined-workouts/${id}/favorite`, {
       method: 'PUT'
     })

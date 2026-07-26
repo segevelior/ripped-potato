@@ -198,7 +198,10 @@ export default function PredefinedWorkouts() {
 
   const doStartWorkout = (workout) => {
     try {
-      const sessionData = parseWorkoutToSessionData(workout);
+      const sessionData = parseWorkoutToSessionData(workout, {
+        sourceWorkoutId: workout._id || workout.id,
+        sourceWorkoutIsCommon: workout.isCommon
+      });
       startWorkoutSession(sessionData);
       navigate(createPageUrl('LiveWorkout')); // No ID param needed
     } catch (error) {

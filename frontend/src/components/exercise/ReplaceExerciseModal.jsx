@@ -44,14 +44,22 @@ function ExerciseResultRow({ name, subtitle, badge, onPick, disabled }) {
   );
 }
 
-export default function ReplaceExerciseModal({ exercise, onClose, onReplace }) {
+export default function ReplaceExerciseModal({ exercise, onClose, onReplace, canPersist = false, isCommonTemplate = false }) {
   const [tab, setTab] = useState("similar");
   const [reason, setReason] = useState(null);
   const [error, setError] = useState(null);
   const [materializingId, setMaterializingId] = useState(null);
+  // When the session is linked to a template, a pick pauses on a scope step
+  // ("just this session" vs "from now on") instead of replacing immediately.
+  const [pendingPick, setPendingPick] = useState(null);
 
   const exerciseId = exercise?.exercise_id || null;
   const exerciseName = exercise?.exercise_name || "";
+
+  const handlePick = (ex) => {
+    if (canPersist) setPendingPick(ex);
+    else onReplace(ex, { permanent: false });
+  };
 
   // If there's no real id we can't query "similar" — default to Search.
   useEffect(() => {
@@ -121,7 +129,7 @@ export default function ReplaceExerciseModal({ exercise, onClose, onReplace }) {
       const existing = (Array.isArray(matches) ? matches : []).find(
         (e) => (e.name || "").toLowerCase() === (opt.name || "").toLowerCase()
       );
-      if (existing) { onReplace(existing); return; }
+      if (existing) { handlePick(existing); return; }
 
       const created = await apiService.exercises.create({
         name: opt.name,
@@ -132,7 +140,7 @@ export default function ReplaceExerciseModal({ exercise, onClose, onReplace }) {
         difficulty: opt.difficulty || "beginner",
         strain: opt.strain || undefined,
       });
-      onReplace(created);
+      handlePick(created);
     } catch (err) {
       console.error("Failed to create generated exercise:", err);
       setError(`Couldn't add “${opt.name}”. Pick another option or search instead.`);
@@ -143,7 +151,7 @@ export default function ReplaceExerciseModal({ exercise, onClose, onReplace }) {
 
   const pickOption = (opt) => {
     if (opt.source === "new") return pickGenerated(opt);
-    return onReplace(opt); // catalog pick already has a real id + strain
+    return handlePick(opt); // catalog pick already has a real id + strain
   };
 
   const availableTabs = TABS.filter((t) => t.key !== "similar" || exerciseId);
@@ -226,7 +234,7 @@ export default function ReplaceExerciseModal({ exercise, onClose, onReplace }) {
                   key={ex._id || ex.id}
                   name={ex.name}
                   subtitle={(ex.muscles || []).join(", ")}
-                  onPick={() => onReplace(ex)}
+                  onPick={() => handlePick(ex)}
                 />
               ))}
               {!similarLoading && similar && similar.length === 0 && (
@@ -308,10 +316,40 @@ export default function ReplaceExerciseModal({ exercise, onClose, onReplace }) {
               autoFocus
               excludeId={exerciseId}
               placeholder="Search for a replacement…"
-              onSelect={(ex) => onReplace(ex)}
+              onSelect={(ex) => handlePick(ex)}
             />
           )}
         </div>
+
+        {/* Scope step: only reachable when the session is template-linked */}
+        {pendingPick && (
+          <div className="border-t border-gray-100 p-5 space-y-2.5 bg-gray-50 rounded-b-3xl sm:rounded-b-2xl">
+            <p className="text-sm text-gray-700">
+              Swap in <span className="font-semibold text-gray-900">{pendingPick.name}</span> — for how long?
+            </p>
+            <button
+              onClick={() => onReplace(pendingPick, { permanent: false })}
+              className="w-full py-3 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700"
+            >
+              Just this session
+            </button>
+            <button
+              onClick={() => onReplace(pendingPick, { permanent: true })}
+              className="w-full py-3 bg-white border border-gray-300 text-gray-800 rounded-xl font-semibold hover:border-gray-400"
+            >
+              From now on
+              <span className="block text-xs font-normal text-gray-500 mt-0.5">
+                {isCommonTemplate ? "Creates your own copy of this workout" : "Updates this workout"}
+              </span>
+            </button>
+            <button
+              onClick={() => setPendingPick(null)}
+              className="w-full text-sm text-gray-500 py-1.5 hover:text-gray-700"
+            >
+              Choose something else
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

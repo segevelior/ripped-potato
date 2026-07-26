@@ -123,7 +123,8 @@ calendarEventSchema.statics.getByDateRange = function(userId, startDate, endDate
   .sort({ date: 1 })
   // blocks included: events don't embed exercises, so range consumers
   // (calendar page, detail modal, MCP list) read them off the template.
-  .populate('workoutTemplateId', 'name goal primary_disciplines estimated_duration blocks');
+  // isCommon included so session launches know a permanent swap will clone.
+  .populate('workoutTemplateId', 'name goal primary_disciplines estimated_duration blocks isCommon');
 };
 
 // Static method to get today's events
@@ -141,7 +142,7 @@ calendarEventSchema.statics.getToday = function(userId) {
       $lte: endOfDay
     },
     status: { $ne: 'cancelled' }
-  }).populate('workoutTemplateId', 'name goal primary_disciplines estimated_duration blocks');
+  }).populate('workoutTemplateId', 'name goal primary_disciplines estimated_duration blocks isCommon');
 };
 
 module.exports = mongoose.model('CalendarEvent', calendarEventSchema);
