@@ -11,7 +11,7 @@ based on (and correct the coach if a memory is wrong).
 
 from fastapi import APIRouter, Depends, Body
 from typing import Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import json
 import structlog
@@ -21,7 +21,7 @@ from app.config import get_settings
 from app.middleware.auth import get_current_user
 from app.core.agents.data_reader import DataReaderAgent
 from app.core.agents.prompts import SYSTEM_PROMPT
-from app.core.agents.services import MemoryService
+from app.core.agents.services import CalendarService, MemoryService
 from app.services.coach_question_service import CoachQuestionService
 from app.services.conversation_service import ConversationService
 from app.services.recommendation_service import RecommendationService
@@ -39,20 +39,25 @@ Rules:
 1. Ground the question in something specific you actually know - a recent workout,
    a recent dated check-in or note, a standing injury memory, a schedule
    constraint, or today's plan. Do NOT invent facts that aren't in the context.
-2. Keep it to one or two sentences, warm and concise. Offer to adapt if relevant
+2. TODAY'S CALENDAR is the source of truth for what is planned today. If a
+   workout is scheduled there, treat it as today's session and refer to it by
+   its title - do NOT ask about or suggest a different workout instead. Only
+   when nothing is scheduled today may you mention other ideas (e.g. the
+   Today's Pick suggestion).
+3. Keep it to one or two sentences, warm and concise. Offer to adapt if relevant
    (e.g. "I can ease the intervals if you need it").
-3. Provide 2-4 short quick-reply chips (each <= 14 chars) the athlete can tap to
+4. Provide 2-4 short quick-reply chips (each <= 14 chars) the athlete can tap to
    answer. Order them best-state to worst-state where that makes sense
    (e.g. "Fresh", "A bit heavy", "Cooked"). Do NOT pre-select one.
-4. Provide a short provenance label (<= 32 chars) naming what the question is based
+5. Provide a short provenance label (<= 32 chars) naming what the question is based
    on, e.g. "run log - Jul 10", "knee note - Jul 12", "your Tuesday plan".
-5. Recency: memories and notes above are dated. Prefer signals from the last few
+6. Recency: memories and notes above are dated. Prefer signals from the last few
    days. NEVER ask about transient state (sleep, fatigue, soreness, mood,
    illness, stress) based on a note older than 3 days - treat it as expired.
    Standing facts (injuries, goals, schedule, preferences) may be referenced at
    any age, but if a newer check-in or note contradicts an older one, the newer
    one wins - ignore the older note entirely.
-6. When the question is based on a dated note or check-in, include its date in
+7. When the question is based on a dated note or check-in, include its date in
    the provenance label, e.g. "check-in - Jul 24".
 
 Return ONLY a JSON object, nothing else, in exactly this shape:
@@ -155,6 +160,77 @@ RECENT WORKOUTS:{workouts_str or ' none logged recently'}
 USER DATA:
 - {len(data_context.get('goals', []))} active goals
 - {len(data_context.get('plans', []))} training plans"""
+
+        # Calendar anchors: today's scheduled session(s) plus the nearest
+        # neighbours (last completed session, next upcoming event) so the
+        # question is grounded in what's actually planned, not just the
+        # Today's Pick suggestion. Best-effort — a calendar failure must not
+        # block the question.
+        events = []
+        try:
+            window_start = (local_now - timedelta(days=14)).strftime("%Y-%m-%d")
+            window_end = (local_now + timedelta(days=14)).strftime("%Y-%m-%d")
+            cal = await CalendarService(db).get_calendar_events(
+                user_id, {"startDate": window_start, "endDate": window_end}
+            )
+            if cal.get("success"):
+                events = cal.get("events", [])
+        except Exception:
+            logger.warning(
+                f"Failed to load calendar context for coach question (user {user_id})",
+                exc_info=True,
+            )
+
+        def fmt_event(ev):
+            line = (
+                f"\n- {ev.get('date')} ({ev.get('dayOfWeek')}) "
+                f"{ev.get('type', 'workout')} \"{ev.get('title')}\" "
+                f"[{ev.get('status', 'scheduled')}]"
+            )
+            if ev.get("duration"):
+                line += f", ~{ev['duration']} min"
+            if ev.get("notes"):
+                line += f" (note: {ev['notes']})"
+            return line
+
+        def fmt_external(act):
+            line = (
+                f"\n- {act.get('date')} {act.get('sport_type') or 'activity'} "
+                f"\"{act.get('name') or 'external activity'}\" "
+                f"[completed, via {act.get('source') or 'external'}]"
+            )
+            if act.get("duration_mins"):
+                line += f", {act['duration_mins']} min"
+            if act.get("distance_km"):
+                line += f", {act['distance_km']} km"
+            return line
+
+        todays = [e for e in events if e.get("date") == today_date]
+        last_done = next(
+            (e for e in reversed(events)
+             if e.get("date") < today_date and e.get("status") == "completed"),
+            None,
+        )
+        next_up = next((e for e in events if e.get("date") > today_date), None)
+
+        # The last completed session may live on the calendar or come from a
+        # synced tracker (e.g. Strava) — pick whichever is more recent.
+        ext_activities = data_context.get("external_activities") or []
+        latest_ext = next((a for a in ext_activities if a.get("date")), None)
+        last_done_line = fmt_event(last_done) if last_done else None
+        if latest_ext and (not last_done or latest_ext["date"] >= last_done.get("date", "")):
+            last_done_line = fmt_external(latest_ext)
+
+        calendar_str = "TODAY'S CALENDAR:"
+        calendar_str += (
+            "".join(fmt_event(e) for e in todays) or " nothing scheduled today"
+        )
+        calendar_str += "\nLAST COMPLETED SESSION:"
+        calendar_str += last_done_line or " none recently"
+        calendar_str += "\nNEXT UPCOMING EVENT:"
+        calendar_str += fmt_event(next_up) if next_up else " nothing scheduled in the next 14 days"
+
+        context_str += f"\n\n{calendar_str}"
 
         memory_block = MemoryService.format_for_prompt(user_memories, limit=15)
         if memory_block:
