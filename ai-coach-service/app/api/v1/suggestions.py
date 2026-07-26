@@ -22,19 +22,21 @@ logger = structlog.get_logger()
 
 SUGGESTIONS_PROMPT = """Based on the user's profile, fitness data, and memories provided above, generate exactly 4 personalized conversation starter suggestions.
 
+Each suggestion is a message the USER sends to you (the coach) by tapping it. Write it in the user's voice: first person, addressed to the coach, natural enough to send exactly as written ("Build me...", "Can you...", "What should I...", "I want to..."). Never write a headline or workout title like "Conservative comeback session" or "Easy walk + stretch recovery" — those read as labels, not something a person would type to their coach.
+
 These suggestions should:
 1. Be relevant to the user's current fitness level, goals, and history
 2. Consider any health conditions or limitations from their memories
 3. Reference their available equipment, preferred workout duration, or training style if known
 4. Be actionable and specific to their situation
-5. Be concise (under 40 characters each ideally, max 50)
+5. Be concise (under 50 characters each ideally, max 60)
 
 Generate suggestions that feel personal and helpful for THIS specific user. Examples of good personalization:
-- If user has a shoulder injury: "Shoulder-safe upper body workout"
-- If user does calisthenics: "Progress my pull-up strength"
+- If user has a shoulder injury: "Build me a shoulder-safe upper body workout"
+- If user does calisthenics: "Help me progress my pull-up strength"
 - If user has a weekly plan: "What should I train today?"
-- If user is intermediate: "Help me break through my plateau"
-- If user prefers short workouts: "Quick 20-min full body blast"
+- If user is intermediate: "How do I break through my plateau?"
+- If user prefers short workouts: "Make me a quick 20-min full-body workout"
 
 Return ONLY a JSON array of exactly 4 strings, nothing else. Example format:
 ["suggestion 1", "suggestion 2", "suggestion 3", "suggestion 4"]"""
