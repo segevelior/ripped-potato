@@ -476,3 +476,103 @@ class TestScheduleToCalendarDryRun:
 
         assert result["dry_run"] is True
         db.calendarevents.insert_one.assert_not_called()
+
+
+# ------------------- schedule_to_calendar: preview card payload -------------------
+#
+# The dry-run result carries a structured preview_card that the orchestrator
+# emits as a <calendar-preview> token for the chat UI to render as a card
+# (the model-facing tool result has it stripped).
+
+class TestPreviewCard:
+    async def test_inline_preview_creates_new(self, monkeypatch):
+        _anchor(monkeypatch)
+        _preview_resolver(monkeypatch, [_resolved("Easy Run", "Easy Run", method="exact")])
+        service = CalendarService(_insert_db())
+
+        result = await service.schedule_to_calendar(USER_ID, dict(EASY_RUN_ARGS))
+
+        card = result["preview_card"]
+        assert card["v"] == 1
+        # Date suffix is stripped — the card's date badges carry the date.
+        assert card["title"] == "Easy Run"
+        assert card["date"] == "2026-07-13"
+        assert card["relativeDay"] == "today"
+        assert card["type"] == "workout"
+        assert card["durationMin"] == 20
+        assert card["link"] == {"mode": "creates_new", "name": "Easy Run"}
+        assert card["exercises"] == [
+            {"name": "Easy Run", "volume": "1x1", "isNew": False, "matchedFrom": None},
+        ]
+
+    async def test_substitution_sets_matched_from(self, monkeypatch):
+        _anchor(monkeypatch)
+        _preview_resolver(monkeypatch, [_resolved("Easy Run", "Treadmill Run")])
+        service = CalendarService(_insert_db())
+
+        result = await service.schedule_to_calendar(USER_ID, dict(EASY_RUN_ARGS))
+
+        assert result["preview_card"]["exercises"] == [
+            {"name": "Treadmill Run", "volume": "1x1", "isNew": False, "matchedFrom": "Easy Run"},
+        ]
+
+    async def test_create_pending_marks_new(self, monkeypatch):
+        _anchor(monkeypatch)
+        _preview_resolver(monkeypatch, [_create_pending("Easy Run")])
+        service = CalendarService(_insert_db())
+
+        result = await service.schedule_to_calendar(USER_ID, dict(EASY_RUN_ARGS))
+
+        assert result["preview_card"]["exercises"] == [
+            {"name": "Easy Run", "volume": "1x1", "isNew": True, "matchedFrom": None},
+        ]
+        # A pending exercise can't exist in any stored template, so the
+        # verdict stays creates_new without a reuse lookup.
+        assert result["preview_card"]["link"]["mode"] == "creates_new"
+
+    async def test_template_link_card(self, monkeypatch):
+        _anchor(monkeypatch)
+        db = _insert_db()
+        db.predefinedworkouts.find_one = AsyncMock(return_value=_library_template())
+        service = CalendarService(db)
+
+        result = await service.schedule_to_calendar(
+            USER_ID,
+            {"date": "today", "type": "workout",
+             "workout_template_id": str(LIBRARY_TEMPLATE_ID)},
+        )
+
+        card = result["preview_card"]
+        assert card["link"] == {"mode": "links_existing", "name": "Endurance 1"}
+        assert card["durationMin"] == 75
+        assert card["exercises"] == [
+            {"name": "Pull-Ups", "volume": "4x8", "isNew": False, "matchedFrom": None},
+            {"name": "Dips", "volume": "3x12", "isNew": False, "matchedFrom": None},
+        ]
+
+    async def test_reuse_detection_flips_to_links_existing(self, monkeypatch):
+        _anchor(monkeypatch)
+        _preview_resolver(monkeypatch, [_resolved("Easy Run", "Easy Run", method="exact")])
+        monkeypatch.setattr(
+            calendar_service_module, "find_reusable_template",
+            AsyncMock(return_value={"_id": ObjectId(), "name": "Easy Run"}),
+        )
+        service = CalendarService(_insert_db())
+
+        result = await service.schedule_to_calendar(USER_ID, dict(EASY_RUN_ARGS))
+
+        assert result["preview_card"]["link"] == {"mode": "links_existing", "name": "Easy Run"}
+
+    async def test_rest_event_card_has_no_exercises(self, monkeypatch):
+        _anchor(monkeypatch)
+        service = CalendarService(_insert_db())
+
+        result = await service.schedule_to_calendar(
+            USER_ID, {"date": "today", "title": "Rest Day", "type": "rest"}
+        )
+
+        card = result["preview_card"]
+        assert card["type"] == "rest"
+        assert card["exercises"] == []
+        assert card["durationMin"] is None
+        assert card["link"] == {"mode": "none", "name": None}

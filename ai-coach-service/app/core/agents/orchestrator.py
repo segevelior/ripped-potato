@@ -3,6 +3,7 @@ Enhanced Agent Orchestrator - OpenAI with comprehensive fitness tools
 """
 
 import asyncio
+import base64
 import json
 import re
 import time
@@ -76,6 +77,26 @@ def _collect_video_tags(result: Dict[str, Any], into: Dict[str, str]) -> None:
     msg = result.get("message") or ""
     for m in _VIDEO_EMBED_RE.finditer(msg):
         into.setdefault(m.group(1), m.group(0))
+
+
+def _build_preview_card_tag(result: Any) -> str | None:
+    """Turn a dry-run preview result into a <calendar-preview> token so the
+    chat UI renders a card. Explicitly closed — parse5 (rehype-raw) ignores the
+    self-closing slash on unknown elements, and a dangling open tag would
+    swallow everything streamed after it."""
+    card = result.get("preview_card") if isinstance(result, dict) else None
+    if not card or not result.get("dry_run"):
+        return None
+    payload = base64.b64encode(json.dumps(card).encode()).decode()
+    return f'\n\n<calendar-preview payload="{payload}"></calendar-preview>\n\n'
+
+
+def _model_facing_result(result: Any) -> Any:
+    """preview_card is UI payload: keeping it in the tool message wastes tokens
+    and the model may parrot the base64 blob into its reply."""
+    if isinstance(result, dict) and "preview_card" in result:
+        return {k: v for k, v in result.items() if k != "preview_card"}
+    return result
 
 
 class AgentOrchestrator:
@@ -328,7 +349,7 @@ USER DATA:
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tool_result["tool_call_id"],
-                        "content": json.dumps(tool_result["result"])
+                        "content": json.dumps(_model_facing_result(tool_result["result"]))
                     })
 
                 final_response = await self.client.chat.completions.create(
@@ -353,8 +374,18 @@ USER DATA:
                         final_content = reflection_result["revised_response"]
                         logger.info(f"Response revised. Issues fixed: {reflection_result['issues']}")
 
+                final_content = dedupe_repeated_response(final_content)
+
+                # The prompts tell the model the UI renders the preview card, so
+                # the non-streaming reply must carry the tag too (the streaming
+                # path emits it as a token).
+                for tool_result in tool_results:
+                    preview_tag = _build_preview_card_tag(tool_result["result"])
+                    if preview_tag:
+                        final_content = preview_tag + (final_content or "")
+
                 return {
-                    "message": dedupe_repeated_response(final_content),
+                    "message": final_content,
                     "type": "tool_execution",
                     "confidence": 0.95
                 }
@@ -666,7 +697,7 @@ USER DATA:
                         tool_results.append({
                             "tool_call_id": tool_data["id"],
                             "role": "tool",
-                            "content": json.dumps(result)
+                            "content": json.dumps(_model_facing_result(result))
                         })
 
                         # Yield tool complete event
@@ -676,6 +707,13 @@ USER DATA:
                             "success": result.get("success", False),
                             "message": result.get("message", "")
                         }
+
+                        # Emit dry-run previews as a token: chat_stream persists
+                        # token content and the frontend renders it live, so the
+                        # card survives both paths without extra plumbing.
+                        preview_tag = _build_preview_card_tag(result)
+                        if preview_tag:
+                            yield {"type": "token", "content": preview_tag}
 
                     # Build message history with tool results for final response
                     messages.append({
@@ -786,7 +824,7 @@ USER DATA:
                                     follow_up_results.append({
                                         "tool_call_id": tool_data["id"],
                                         "role": "tool",
-                                        "content": json.dumps(result)
+                                        "content": json.dumps(_model_facing_result(result))
                                     })
 
                                     # Yield tool complete event
@@ -796,6 +834,12 @@ USER DATA:
                                         "success": result.get("success", False),
                                         "message": result.get("message", "")
                                     }
+
+                                    # Emit dry-run previews as a token (see first
+                                    # tool site for why this renders + persists).
+                                    preview_tag = _build_preview_card_tag(result)
+                                    if preview_tag:
+                                        yield {"type": "token", "content": preview_tag}
 
                                 # Add to messages for next round
                                 messages.append({

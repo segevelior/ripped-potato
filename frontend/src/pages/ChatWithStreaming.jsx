@@ -15,6 +15,7 @@ import { FeedbackButtons } from "@/components/chat/FeedbackButtons";
 import { QuickReplies, parseQuickReplies } from "@/components/chat/QuickReplies";
 import { ActionButtons, parseActionButtons } from "@/components/chat/ActionButtons";
 import VideoEmbed from "@/components/chat/VideoEmbed";
+import CalendarPreviewCard from "@/components/chat/CalendarPreviewCard";
 import { aiService } from "@/services/aiService";
 
 // API Base URL
@@ -38,6 +39,9 @@ const MARKDOWN_COMPONENTS = {
   ),
   'video-embed': ({ videoid, title, url }) => (
     <VideoEmbed videoid={videoid} title={title} url={url} />
+  ),
+  'calendar-preview': ({ payload }) => (
+    <CalendarPreviewCard payload={payload} />
   ),
   h1: ({ children }) => (
     <h1 className="flex items-center gap-2 text-lg font-bold text-gray-900 mt-4 mb-2 pb-1 border-b border-gray-100">
