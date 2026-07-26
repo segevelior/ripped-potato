@@ -21,6 +21,69 @@ from app.core.dedup import (
 logger = structlog.get_logger()
 
 
+def format_calendar_anchors(
+    events: list,
+    today_date: str,
+    external_activities: list = None,
+) -> str:
+    """Render the calendar anchors block shared by the Today-dashboard coach
+    question and the sensei chat context: today's scheduled session(s) plus the
+    nearest neighbours (last completed session, next upcoming event), so the
+    model is grounded in what's actually planned rather than only the Today's
+    Pick suggestion. `events` is the get_calendar_events result list (assumed
+    date-ascending); `external_activities` are synced tracker sessions
+    (e.g. Strava), newest first."""
+
+    def fmt_event(ev):
+        line = (
+            f"\n- {ev.get('date')} ({ev.get('dayOfWeek')}) "
+            f"{ev.get('type', 'workout')} \"{ev.get('title')}\" "
+            f"[{ev.get('status', 'scheduled')}]"
+        )
+        if ev.get("duration"):
+            line += f", ~{ev['duration']} min"
+        if ev.get("notes"):
+            line += f" (note: {ev['notes']})"
+        return line
+
+    def fmt_external(act):
+        line = (
+            f"\n- {act.get('date')} {act.get('sport_type') or 'activity'} "
+            f"\"{act.get('name') or 'external activity'}\" "
+            f"[completed, via {act.get('source') or 'external'}]"
+        )
+        if act.get("duration_mins"):
+            line += f", {act['duration_mins']} min"
+        if act.get("distance_km"):
+            line += f", {act['distance_km']} km"
+        return line
+
+    todays = [e for e in events if e.get("date") == today_date]
+    last_done = next(
+        (e for e in reversed(events)
+         if e.get("date") < today_date and e.get("status") == "completed"),
+        None,
+    )
+    next_up = next((e for e in events if e.get("date") > today_date), None)
+
+    # The last completed session may live on the calendar or come from a
+    # synced tracker — pick whichever is more recent.
+    latest_ext = next(
+        (a for a in (external_activities or []) if a.get("date")), None
+    )
+    last_done_line = fmt_event(last_done) if last_done else None
+    if latest_ext and (not last_done or latest_ext["date"] >= last_done.get("date", "")):
+        last_done_line = fmt_external(latest_ext)
+
+    block = "TODAY'S CALENDAR:"
+    block += "".join(fmt_event(e) for e in todays) or " nothing scheduled today"
+    block += "\nLAST COMPLETED SESSION:"
+    block += last_done_line or " none recently"
+    block += "\nNEXT UPCOMING EVENT:"
+    block += fmt_event(next_up) if next_up else " nothing scheduled in the next 14 days"
+    return block
+
+
 class CalendarService:
     """Service for calendar operations"""
 

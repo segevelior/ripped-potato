@@ -30,6 +30,8 @@ from app.core.agents.services import (
     SearchService,
     MemoryService,
 )
+from app.core.agents.services.calendar_service import format_calendar_anchors
+from app.services.coach_question_service import CoachQuestionService
 from app.services.recommendation_service import RecommendationService
 from app.services.short_term_context_service import ShortTermContextService
 # Importing the skills package registers every skill via the @skill decorator.
@@ -325,14 +327,47 @@ class AgentOrchestrator:
         return legacy_tools + skill_definitions
 
 
-    async def _build_extra_context(self, user_id: str, local_now: datetime, today_date: str) -> str:
+    async def _build_extra_context(
+        self,
+        user_id: str,
+        local_now: datetime,
+        today_date: str,
+        data_context: Dict[str, Any] = None,
+    ) -> str:
         """Short-term awareness blocks appended after memories:
-        1. Recent train-now recommendations (today + yesterday) with reasoning,
+        1. Calendar anchors — today's scheduled session(s), last completed
+           session, next upcoming event — the source of truth for what is
+           actually planned, so the sensei never claims "nothing is scheduled"
+           from a stale Today's Pick.
+        2. Recent train-now recommendations (today + yesterday) with reasoning,
            so the sensei knows what it already suggested and stays consistent.
-        2. Short-term context entries (dashboard check-ins, conversation
+        3. The pending dashboard check-in question, if one is live, so chat
+           stays consistent with what the coach just asked on the Today screen.
+        4. Short-term context entries (dashboard check-ins, conversation
            summaries, 14-day TTL) — working memory across conversations.
         Best-effort: returns '' on any failure."""
         blocks = []
+        try:
+            window_start = (local_now - timedelta(days=14)).strftime('%Y-%m-%d')
+            window_end = (local_now + timedelta(days=14)).strftime('%Y-%m-%d')
+            cal = await self.calendar_service.get_calendar_events(
+                user_id, {"startDate": window_start, "endDate": window_end}
+            )
+            if cal.get("success"):
+                anchors = format_calendar_anchors(
+                    cal.get("events", []), today_date,
+                    external_activities=(data_context or {}).get("external_activities"),
+                )
+                blocks.append(
+                    anchors
+                    + "\n(This block is the source of truth for what is scheduled "
+                    "today — never claim nothing is scheduled if it lists an event. "
+                    "It is a snapshot from the start of this turn; after scheduling "
+                    "or deleting events mid-conversation, re-check with "
+                    "get_calendar_events.)"
+                )
+        except Exception as e:
+            logger.error(f"Failed building calendar anchors for {user_id}: {e}")
         try:
             yesterday_date = (local_now - timedelta(days=1)).strftime('%Y-%m-%d')
             recs = await self.recommendation_service.get_recent(user_id, [today_date, yesterday_date])
@@ -347,6 +382,21 @@ class AgentOrchestrator:
                     # dashboard) — tell the model it exists as a concept and how
                     # to fetch it.
                     blocks.append(RecommendationService.placeholder_for_prompt(today_date))
+
+            # Pending dashboard check-in: a question the coach already asked on
+            # the Today screen that the athlete hasn't answered yet (answered
+            # ones are deleted and show up as "checkin" short-term entries).
+            pending_q = await CoachQuestionService(self.db).get_pending_today(
+                user_id, today_date
+            )
+            if pending_q and pending_q.get("question"):
+                blocks.append(
+                    "PENDING DASHBOARD CHECK-IN (you already asked this on the "
+                    "athlete's Today screen; they have NOT answered yet): "
+                    f"\"{pending_q['question']}\" — don't re-ask it here, and don't "
+                    "contradict it. If their message reads like an answer to it, "
+                    "treat it as one."
+                )
 
             stc_entries = await self.short_term_context.get_recent(
                 user_id, limit=8,
@@ -434,7 +484,7 @@ USER DATA:
             context_str += f"\n\n{memory_block}"
 
         # Add recent recommendations + short-term context (working memory)
-        context_str += await self._build_extra_context(user_id, local_now, today_date)
+        context_str += await self._build_extra_context(user_id, local_now, today_date, data_context)
 
         # Inject context into system prompt for consistent date awareness
         system_prompt_with_context = f"{SYSTEM_PROMPT}\n\n{context_str}"
@@ -710,7 +760,7 @@ USER DATA:
             context_str += f"\n\n{memory_block}"
 
         # Add recent recommendations + short-term context (working memory)
-        context_str += await self._build_extra_context(user_id, local_now, today_date)
+        context_str += await self._build_extra_context(user_id, local_now, today_date, data_context)
 
         # Build messages array with conversation history
         # IMPORTANT: Inject context into system prompt so it's always at the top
