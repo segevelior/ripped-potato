@@ -39,7 +39,17 @@ const memoryItemSchema = new mongoose.Schema({
   },
   deletedAt: {
     type: Date
-  }
+  },
+  // Written by the Python ai-coach-service: provenance (meta.origin,
+  // meta.retired from the rescore script) and the supersession audit trail.
+  // Declared here so strict mode can't strip them when a Settings save
+  // rewrites the array — meta.retired gates auto-revival of retired memories.
+  meta: {
+    type: mongoose.Schema.Types.Mixed
+  },
+  history: [{
+    type: mongoose.Schema.Types.Mixed
+  }]
 }, {
   timestamps: true
 });

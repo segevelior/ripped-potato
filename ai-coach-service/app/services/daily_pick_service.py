@@ -480,19 +480,16 @@ CALENDAR CONTEXT:
                     f'focus, structure, or exercises. Do NOT return the same or a near-identical session.'
                 )
 
-        # Add memories
-        if user_memories:
-            memory_str = "\n\nUSER MEMORIES (important things about this user):"
-            for mem in user_memories[:15]:
-                category = mem.get("category", "general")
-                content = mem.get("content", "")
-                importance = mem.get("importance", "medium")
-                prefix = "HIGH PRIORITY: " if importance == "high" else "- "
-                memory_str += f"\n{prefix}[{category}] {content}"
-            context_str += memory_str
+        # Add memories (shared dated formatter)
+        memory_block = memory_service.format_for_prompt(user_memories, limit=15)
+        if memory_block:
+            context_str += f"\n\n{memory_block}"
 
         # Add short-term context (recent check-ins + conversation summaries)
-        stc_entries = await stc_service.get_recent(user_id, limit=8)
+        stc_entries = await stc_service.get_recent(
+            user_id, limit=8,
+            checkin_max_age_days=settings.checkin_context_max_age_days,
+        )
         stc_block = ShortTermContextService.format_for_prompt(stc_entries)
         if stc_block:
             context_str += f"\n\n{stc_block}"

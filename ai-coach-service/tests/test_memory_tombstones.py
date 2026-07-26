@@ -144,7 +144,8 @@ class TestPromotionDedupsAgainstTombstones:
         service = ShortTermContextService(db)
 
         extractor_output = json.dumps(
-            {"facts": [{"content": injury, "category": "health", "importance": "high"}]}
+            {"decisions": [{"action": "ADD", "content": injury,
+                            "category": "health", "importance": "high"}]}
         )
         saved = await service.promote_durable_facts(
             USER_ID,

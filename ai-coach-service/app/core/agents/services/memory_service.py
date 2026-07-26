@@ -2,11 +2,13 @@
 Memory service - handles user memory operations (Sensei memory)
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, Set
 from datetime import datetime
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import structlog
+
+from app.config import get_settings
 
 logger = structlog.get_logger()
 
@@ -18,6 +20,40 @@ VALID_IMPORTANCE = {"high", "medium", "low"}
 # Sentinel/placeholder ids that must never own real memories (see the
 # 000...001 orphan that rendered nowhere). Rejected before any write.
 SENTINEL_USER_IDS = {"000000000000000000000000", "000000000000000000000001"}
+
+# Read-time ranking weights (Generative Agents-style importance x recency).
+# Deliberately constants, not config: the floor/half-life knobs are tunable,
+# the relative ordering of the three tiers is not.
+IMPORTANCE_WEIGHTS = {"high": 1.0, "medium": 0.6, "low": 0.3}
+
+
+def score_memory(
+    memory: Dict[str, Any],
+    now: datetime,
+    half_life_days: float,
+    goal_half_life_days: float,
+    exempt_categories: Set[str],
+) -> float:
+    """Retrieval score: importance weight x exponential recency decay.
+
+    Exempt categories (health) never decay — an injury note must not fade on
+    time alone. Goals use the slower half-life. updatedAt is the decay anchor,
+    so a superseded/re-confirmed fact restarts its clock. Memories without a
+    usable timestamp score as fresh: legacy junk is retired by the rescore
+    script, never silently floor-dropped here.
+    """
+    weight = IMPORTANCE_WEIGHTS.get(memory.get("importance", "medium"), 0.6)
+    category = memory.get("category", "general")
+    if category in exempt_categories:
+        return weight
+    ts = memory.get("updatedAt") or memory.get("createdAt")
+    if not isinstance(ts, datetime):
+        return weight
+    age_days = max(0.0, (now - ts).total_seconds() / 86400)
+    half_life = goal_half_life_days if category == "goal" else half_life_days
+    if half_life <= 0:
+        return weight
+    return weight * 0.5 ** (age_days / half_life)
 
 
 class MemoryService:
@@ -121,27 +157,60 @@ class MemoryService:
             return {"success": False, "message": f"Error saving memory: {str(e)}"}
 
     async def get_user_memories(self, user_id: str) -> List[Dict[str, Any]]:
-        """Get active memories for a user (for prompt injection)"""
+        """Get active memories for a user, ranked for prompt injection.
+
+        With memory_decay_enabled: score = importance weight x recency decay
+        (see score_memory), memories below memory_score_floor are dropped.
+        NOTE: the floor makes this a prompt-oriented view, not "all active
+        memories" — every current caller is a prompt path, and health is
+        decay-exempt (min score 0.3 > floor) so the safety skill's health
+        filter always sees the full picture.
+        """
         try:
             user_memory = await self.db.usermemories.find_one({"user": ObjectId(user_id)})
             if not user_memory:
                 return []
 
-            # Filter to only active, non-tombstoned memories and sort by importance
+            # Filter to only active, non-tombstoned memories
             active_memories = [
                 m for m in user_memory.get("memories", [])
                 if m.get("isActive", True) and not m.get("deleted")
             ]
 
-            # Sort by importance (high first), breaking ties by recency (newest
+            # Guarded: settings need env vars (mongodb_url etc.) that unit-test
+            # environments may not have — fall back to the legacy sort then.
+            try:
+                settings = get_settings()
+            except Exception:
+                settings = None
+
+            def _recency(m, field="createdAt"):
+                ts = m.get(field) or m.get("createdAt")
+                return ts.timestamp() if isinstance(ts, datetime) else 0.0
+
+            if settings is not None and settings.memory_decay_enabled:
+                now = datetime.utcnow()
+                exempt = settings.memory_decay_exempt_set
+                scored = [
+                    (
+                        score_memory(
+                            m, now,
+                            settings.memory_decay_half_life_days,
+                            settings.memory_decay_half_life_goal_days,
+                            exempt,
+                        ),
+                        m,
+                    )
+                    for m in active_memories
+                ]
+                scored = [(s, m) for s, m in scored if s >= settings.memory_score_floor]
+                scored.sort(key=lambda sm: (-sm[0], -_recency(sm[1], "updatedAt")))
+                return [m for _, m in scored]
+
+            # Legacy sort: importance (high first), ties by recency (newest
             # first). Only the top ~15 are injected into the prompt, so an
             # oldest-first tiebreak would starve newly-promoted facts.
             importance_order = {"high": 0, "medium": 1, "low": 2}
-
-            def _recency(m):
-                ts = m.get("createdAt")
-                return ts.timestamp() if isinstance(ts, datetime) else 0.0
-
             active_memories.sort(
                 key=lambda m: (importance_order.get(m.get("importance", "medium"), 1), -_recency(m))
             )
@@ -150,6 +219,135 @@ class MemoryService:
         except Exception as e:
             logger.error(f"Error getting user memories: {e}")
             return []
+
+    @staticmethod
+    def format_for_prompt(
+        memories: List[Dict[str, Any]],
+        limit: int = 15,
+        header: Optional[str] = None,
+    ) -> str:
+        """Render memories as a dated context block for the LLM. "" if none.
+
+        Single source of truth for memory injection (orchestrator, coach
+        question/reply, suggestions, daily pick). Dates give the model the age
+        signal it needs to prefer newer facts when notes conflict.
+        """
+        if not memories:
+            return ""
+        if header is None:
+            header = (
+                "USER MEMORIES (durable facts about this user; each dated when "
+                "last noted/confirmed — prefer newer information when notes "
+                "conflict):"
+            )
+        current_year = datetime.utcnow().year
+        lines = [header]
+        for mem in memories[:limit]:
+            category = mem.get("category", "general")
+            content = mem.get("content", "")
+            importance = mem.get("importance", "medium")
+            ts = mem.get("updatedAt") or mem.get("createdAt")
+            if isinstance(ts, datetime):
+                fmt = "%b %d" if ts.year == current_year else "%b %d %Y"
+                tag = f"[{category}, noted {ts.strftime(fmt)}]"
+            else:
+                tag = f"[{category}]"
+            prefix = "HIGH PRIORITY: " if importance == "high" else "- "
+            lines.append(f"{prefix}{tag} {content}")
+        return "\n".join(lines)
+
+    async def update_memory_by_id(
+        self,
+        user_id: str,
+        memory_id: ObjectId,
+        new_content: str,
+        category: Optional[str] = None,
+        importance: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        revive: bool = False,
+        meta_update: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Supersession path: atomically update ONE memory item by _id.
+
+        Positional-operator update — never rewrites the whole array, so it
+        can't clobber a concurrent $push/$pull from a parallel promotion.
+        Pushes the previous state onto history (same shape as update_memory:
+        content/category/importance/changedAt). Setting updatedAt is
+        load-bearing: it restarts the read-time decay clock, so a re-confirmed
+        fact revives. revive=True re-activates a script-retired memory and
+        clears meta.retired (never used for user-deactivated items — see
+        promote_durable_facts).
+        """
+        try:
+            oid = ObjectId(user_id)
+            new_content = (new_content or "").strip()[:500]
+            if not new_content:
+                return {"success": False, "message": "Empty content"}
+
+            doc = await self.db.usermemories.find_one(
+                {"user": oid, "memories._id": memory_id},
+                {"memories.$": 1},
+            )
+            items = (doc or {}).get("memories") or []
+            if not items or items[0].get("deleted"):
+                return {"success": False, "message": "Memory not found"}
+            old = items[0]
+
+            now = datetime.utcnow()
+            history_entry = {
+                "content": old.get("content", ""),
+                "category": old.get("category"),
+                "importance": old.get("importance"),
+                "changedAt": now,
+            }
+
+            set_fields = {
+                "memories.$.content": new_content,
+                "memories.$.updatedAt": now,
+                "updatedAt": now,
+            }
+            # Health facts must never be silently recategorized away by the LLM
+            if (
+                category in VALID_CATEGORIES
+                and not (old.get("category") == "health" and category != "health")
+            ):
+                set_fields["memories.$.category"] = category
+            if importance in VALID_IMPORTANCE:
+                set_fields["memories.$.importance"] = importance
+            if tags:
+                set_fields["memories.$.tags"] = [str(t).lower().strip() for t in tags if t]
+            if revive:
+                set_fields["memories.$.isActive"] = True
+            if isinstance(meta_update, dict):
+                for key, value in meta_update.items():
+                    set_fields[f"memories.$.meta.{key}"] = value
+
+            update: Dict[str, Any] = {
+                "$set": set_fields,
+                "$push": {"memories.$.history": history_entry},
+            }
+            if revive:
+                update["$unset"] = {"memories.$.meta.retired": ""}
+
+            result = await self.db.usermemories.update_one(
+                {
+                    "user": oid,
+                    "memories": {
+                        "$elemMatch": {"_id": memory_id, "deleted": {"$ne": True}}
+                    },
+                },
+                update,
+            )
+            if result.modified_count > 0:
+                logger.info(
+                    f"Superseded memory {memory_id} for user {user_id}"
+                    f"{' (revived)' if revive else ''}"
+                )
+                return {"success": True, "memory_id": str(memory_id)}
+            return {"success": False, "message": "Memory not found"}
+        except Exception as e:
+            logger.error(f"Error updating memory {memory_id} for {user_id}: {e}")
+            return {"success": False, "message": str(e)}
 
     async def enforce_cap(self, user_id: str, max_per_user: int) -> None:
         """Evict oldest low-value memories when a user exceeds the cap.

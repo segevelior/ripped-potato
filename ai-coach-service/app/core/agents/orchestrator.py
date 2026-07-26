@@ -348,7 +348,10 @@ class AgentOrchestrator:
                     # to fetch it.
                     blocks.append(RecommendationService.placeholder_for_prompt(today_date))
 
-            stc_entries = await self.short_term_context.get_recent(user_id, limit=8)
+            stc_entries = await self.short_term_context.get_recent(
+                user_id, limit=8,
+                checkin_max_age_days=self.settings.checkin_context_max_age_days,
+            )
             stc_block = ShortTermContextService.format_for_prompt(stc_entries)
             if stc_block:
                 blocks.append(stc_block)
@@ -425,16 +428,10 @@ USER DATA:
 - {len(data_context.get('goals', []))} active tracked goals (Goals feature)
 - {len(data_context.get('plans', []))} training plans"""
 
-        # Add user memories to context
-        if user_memories:
-            memory_str = "\n\nUSER MEMORIES (important things to remember about this user):"
-            for mem in user_memories[:15]:  # Limit to 15 most important memories
-                category = mem.get("category", "general")
-                content = mem.get("content", "")
-                importance = mem.get("importance", "medium")
-                prefix = "⚠️ " if importance == "high" else "• "
-                memory_str += f"\n{prefix}[{category}] {content}"
-            context_str += memory_str
+        # Add user memories to context (shared dated formatter)
+        memory_block = self.memory_service.format_for_prompt(user_memories, limit=15)
+        if memory_block:
+            context_str += f"\n\n{memory_block}"
 
         # Add recent recommendations + short-term context (working memory)
         context_str += await self._build_extra_context(user_id, local_now, today_date)
@@ -707,16 +704,10 @@ USER DATA:
 - {len(data_context.get('workouts', []))} workouts
 - {len(data_context.get('goals', []))} active tracked goals (Goals feature)"""
 
-        # Add user memories to context
-        if user_memories:
-            memory_str = "\n\nUSER MEMORIES (important things to remember about this user):"
-            for mem in user_memories[:15]:  # Limit to 15 most important memories
-                category = mem.get("category", "general")
-                content = mem.get("content", "")
-                importance = mem.get("importance", "medium")
-                prefix = "⚠️ " if importance == "high" else "• "
-                memory_str += f"\n{prefix}[{category}] {content}"
-            context_str += memory_str
+        # Add user memories to context (shared dated formatter)
+        memory_block = self.memory_service.format_for_prompt(user_memories, limit=15)
+        if memory_block:
+            context_str += f"\n\n{memory_block}"
 
         # Add recent recommendations + short-term context (working memory)
         context_str += await self._build_extra_context(user_id, local_now, today_date)

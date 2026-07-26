@@ -122,16 +122,10 @@ USER DATA:
 - {len(data_context.get('goals', []))} active goals
 - {len(data_context.get('plans', []))} training plans"""
 
-        # Add memories
-        if user_memories:
-            memory_str = "\n\nUSER MEMORIES (important things about this user):"
-            for mem in user_memories[:15]:
-                category = mem.get("category", "general")
-                content = mem.get("content", "")
-                importance = mem.get("importance", "medium")
-                prefix = "HIGH PRIORITY: " if importance == "high" else "- "
-                memory_str += f"\n{prefix}[{category}] {content}"
-            context_str += memory_str
+        # Add memories (shared dated formatter)
+        memory_block = memory_service.format_for_prompt(user_memories, limit=15)
+        if memory_block:
+            context_str += f"\n\n{memory_block}"
 
         # Call OpenAI to generate suggestions
         messages = [
