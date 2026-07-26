@@ -24,7 +24,7 @@ export default function InlineCreateExercise({ initialName, onCreated, onCancel 
   const [error, setError] = useState(null);
   // Fields we apply silently on save; strain arrives snake_case from the
   // stream but the Exercise model stores camelCase — mapped in save().
-  const autoRef = useRef({ description: "", discipline: null, strain: null });
+  const autoRef = useRef({ description: "", discipline: null, strain: null, difficulty: null });
   const touchedRef = useRef({ muscles: false, equipment: false });
   const abortRef = useRef(null);
 
@@ -44,6 +44,8 @@ export default function InlineCreateExercise({ initialName, onCreated, onCancel 
           autoRef.current.description = value;
         } else if (field === "discipline") {
           autoRef.current.discipline = value;
+        } else if (field === "difficulty") {
+          autoRef.current.difficulty = value;
         } else if (field === "strain") {
           autoRef.current.strain = value;
         }
@@ -81,7 +83,7 @@ export default function InlineCreateExercise({ initialName, onCreated, onCancel 
         secondaryMuscles: [],
         discipline: autoRef.current.discipline?.length ? autoRef.current.discipline : ["strength"],
         equipment: equipment.split(",").map((x) => x.trim()).filter(Boolean),
-        difficulty: "beginner",
+        difficulty: autoRef.current.difficulty || "beginner",
         description: autoRef.current.description || undefined,
         strain: s
           ? { intensity: s.intensity, load: s.load, durationType: s.duration_type, typicalVolume: s.typical_volume }
