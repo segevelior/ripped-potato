@@ -158,8 +158,9 @@ Respond with a JSON object. Output the fields IN THIS EXACT ORDER so they can be
 3. "discipline": Training disciplines (array). Valid: {disciplines}
 4. "muscles": Primary muscle groups (array). Valid: {muscles}
 5. "equipment": Equipment needed (array of strings)
-6. "similar_exercises": 2-4 similar exercise names (array)
-7. "strain": Object with intensity ({intensities}), load ({loads}), duration_type ({duration_types}), typical_volume (string like "3x8")
+6. "difficulty": Skill level required. Valid: {difficulties}
+7. "similar_exercises": 2-4 similar exercise names (array)
+8. "strain": Object with intensity ({intensities}), load ({loads}), duration_type ({duration_types}), typical_volume (string like "3x8")
 
 Be accurate. Only use valid options. Output ONLY the JSON object."""
 
@@ -173,6 +174,7 @@ async def stream_exercise_suggestions(exercise_name: str):
         exercise_name=exercise_name,
         muscles=", ".join(VALID_MUSCLES),
         disciplines=", ".join(VALID_DISCIPLINES),
+        difficulties=", ".join(VALID_DIFFICULTIES),
         intensities=", ".join(VALID_INTENSITIES),
         loads=", ".join(VALID_LOADS),
         duration_types=", ".join(VALID_DURATION_TYPES)
@@ -194,7 +196,7 @@ async def stream_exercise_suggestions(exercise_name: str):
         sent_fields = set()
 
         # Field detection patterns (in order of expected appearance)
-        field_order = ["suggested_name", "description", "discipline", "muscles", "equipment", "similar_exercises", "strain"]
+        field_order = ["suggested_name", "description", "discipline", "muscles", "equipment", "difficulty", "similar_exercises", "strain"]
 
         async for chunk in stream:
             if chunk.choices[0].delta.content:
@@ -235,6 +237,11 @@ def extract_field_if_complete(content: str, field: str):
         elif field == "description":
             # Match "description": "..." pattern
             match = re.search(r'"description"\s*:\s*"([^"]*)"', content)
+            if match:
+                return match.group(1)
+
+        elif field == "difficulty":
+            match = re.search(r'"difficulty"\s*:\s*"([^"]*)"', content)
             if match:
                 return match.group(1)
 
@@ -283,6 +290,9 @@ def validate_field(field: str, value):
 
     elif field == "equipment":
         return value if value else None
+
+    elif field == "difficulty":
+        return value if value in VALID_DIFFICULTIES else None
 
     elif field == "similar_exercises":
         return value[:5] if value else None
