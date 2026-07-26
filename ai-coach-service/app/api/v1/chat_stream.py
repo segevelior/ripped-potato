@@ -74,13 +74,20 @@ async def generate_sse_stream(
                 # Calculate response time
                 response_time_ms = int((time.time() - start_time) * 1000)
 
-                # Save AI response to conversation (includes tool markers)
-                if full_response.strip():
+                # Structured tool exchange from the orchestrator — persisted so
+                # later turns can replay it (never sent over SSE).
+                tool_rounds = event.get("tool_rounds") or []
+
+                # Save AI response to conversation (includes tool markers).
+                # A tool-only turn with empty final text must still save, or
+                # the human message is orphaned and the tool context lost.
+                if full_response.strip() or tool_rounds:
                     await conversation_service.add_message(
                         conversation_id=conversation_id,
                         role="ai",
                         content=full_response,
-                        response_time_ms=response_time_ms
+                        response_time_ms=response_time_ms,
+                        tool_rounds=tool_rounds
                     )
                     logger.info(f"Saved AI response to conversation {conversation_id}")
 

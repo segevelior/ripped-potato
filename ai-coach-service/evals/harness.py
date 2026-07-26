@@ -42,13 +42,16 @@ def instrument(orchestrator, trace: Trace):
     return orchestrator
 
 
-async def run_turn(orchestrator, message: str, history: list, user_id: str) -> str:
-    """Run one user turn through the streaming path; return the final text.
+async def run_turn(orchestrator, message: str, history: list, user_id: str) -> tuple:
+    """Run one user turn through the streaming path; return
+    (final_text, tool_rounds) — tool_rounds mirrors what chat_stream persists
+    on the assistant message so multi-turn evals replay real history.
     OpenAI rate limits (429) are infrastructure noise, not agent behavior —
     retry the whole turn with backoff instead of failing the scenario."""
     last_error = None
     for attempt in range(4):
         final = None
+        tool_rounds: List[Dict[str, Any]] = []
         tokens: List[str] = []
         error = None
         async for event in orchestrator.process_request_streaming(
@@ -59,10 +62,12 @@ async def run_turn(orchestrator, message: str, history: list, user_id: str) -> s
                 tokens.append(event.get("content", ""))
             elif etype == "complete":
                 final = event.get("full_response")
+                tool_rounds = event.get("tool_rounds") or []
             elif etype == "error":
                 error = event
         if error is None:
-            return final if final is not None else "".join(tokens)
+            text = final if final is not None else "".join(tokens)
+            return text, tool_rounds
         message_text = str(error.get("message", ""))
         if "429" not in message_text and "rate_limit" not in message_text:
             raise AssertionError(f"agent returned error event: {error}")
@@ -195,3 +200,28 @@ def assert_no_writes(trace: Trace) -> List[str]:
         f"call #{i} {c.name} is a write but this scenario allows none"
         for i, c in enumerate(trace.calls) if is_write(c)
     ]
+
+
+def assert_no_repeated_reads(trace: Trace) -> List[str]:
+    """Tool-call memory check: a read already made in an EARLIER turn must not
+    be re-executed with identical args in a later turn — unless a write
+    happened in between (post-write re-reads are correct, not waste; the
+    freshness scenario asserts they DO happen)."""
+    violations = []
+    seen: Dict[Any, int] = {}  # (name, canonical args) -> first turn
+    for i, call in enumerate(trace.calls):
+        if is_write(call) and _succeeded(call):
+            seen.clear()
+            continue
+        if call.name not in READ_TOOLS or not _succeeded(call):
+            continue
+        key = (call.name, json.dumps(call.args or {}, sort_keys=True, default=str))
+        first_turn = seen.get(key)
+        if first_turn is not None and first_turn != call.turn:
+            violations.append(
+                f"call #{i} {call.name} (turn {call.turn}) repeats an identical "
+                f"read from turn {first_turn} with no write in between"
+            )
+        elif first_turn is None:
+            seen[key] = call.turn
+    return violations

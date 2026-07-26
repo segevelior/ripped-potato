@@ -1,5 +1,6 @@
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+import json
 import uuid
 import math
 import re
@@ -12,6 +13,41 @@ from app.config import get_settings
 logger = structlog.get_logger()
 
 COLLECTION_NAME = "chatConversations"
+
+# Per-result cap for persisted tool results. Large enough for multi-item
+# calendar/search payloads; bounds Mongo doc growth and replay token cost.
+TOOL_RESULT_PERSIST_MAX_CHARS = 8000
+
+
+def _truncate_tool_result(content: str) -> tuple:
+    """Shrink an oversized tool-result string while keeping it valid JSON.
+
+    Sliced JSON is worse than useless on replay (malformed, and the dropped
+    tail may hold the exact item a follow-up refers to), so for JSON objects
+    we drop trailing elements from the largest array field and annotate the
+    omission instead. Returns (content, truncated).
+    """
+    if len(content) <= TOOL_RESULT_PERSIST_MAX_CHARS:
+        return content, False
+
+    try:
+        parsed = json.loads(content)
+    except (ValueError, TypeError):
+        parsed = None
+
+    if isinstance(parsed, dict):
+        array_keys = [k for k, v in parsed.items() if isinstance(v, list) and v]
+        if array_keys:
+            largest = max(array_keys, key=lambda k: len(json.dumps(parsed[k])))
+            original_len = len(parsed[largest])
+            while parsed[largest] and len(json.dumps(parsed)) > TOOL_RESULT_PERSIST_MAX_CHARS:
+                parsed[largest].pop()
+            parsed["truncated"] = True
+            parsed["omitted_items"] = original_len - len(parsed[largest])
+            return json.dumps(parsed), True
+
+    # Not JSON (or not shrinkable by dropping array items): plain slice.
+    return content[:TOOL_RESULT_PERSIST_MAX_CHARS] + "...[truncated]", True
 
 
 class ConversationService:
@@ -221,13 +257,26 @@ class ConversationService:
                 "total": 0
             }
 
+    @staticmethod
+    def _bound_tool_rounds(tool_rounds: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Copy tool rounds with each result's content capped for storage."""
+        bounded = []
+        for round_ in tool_rounds:
+            results = []
+            for result in round_.get("results", []):
+                content, truncated = _truncate_tool_result(str(result.get("content", "")))
+                results.append({**result, "content": content, "truncated": truncated})
+            bounded.append({"tool_calls": round_.get("tool_calls", []), "results": results})
+        return bounded
+
     async def add_message(
         self,
         conversation_id: str,
         role: str,
         content: str,
         response_time_ms: Optional[int] = None,
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
+        tool_rounds: Optional[List[Dict[str, Any]]] = None
     ) -> bool:
         """Add a message to a conversation"""
         try:
@@ -240,6 +289,9 @@ class ConversationService:
 
             if response_time_ms is not None:
                 message["response_time_ms"] = response_time_ms
+
+            if tool_rounds:
+                message["tool_rounds"] = self._bound_tool_rounds(tool_rounds)
 
             query = {"conversation_id": conversation_id}
             if user_id:
