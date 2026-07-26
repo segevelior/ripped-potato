@@ -2,7 +2,10 @@
 import { useState, useEffect, createContext, useContext } from "react";
 
 const TOAST_LIMIT = 20;
-const TOAST_REMOVE_DELAY = 1000000;
+// Time a dismissed (open:false) toast stays mounted so the exit animation can play.
+const TOAST_REMOVE_DELAY = 300;
+// Toasts auto-dismiss; pass { duration } to toast() to override.
+const TOAST_AUTO_DISMISS_MS = 5000;
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
@@ -110,7 +113,7 @@ function dispatch(action) {
   });
 }
 
-function toast({ ...props }) {
+function toast({ duration = TOAST_AUTO_DISMISS_MS, ...props }) {
   const id = genId();
 
   const update = (props) =>
@@ -133,6 +136,10 @@ function toast({ ...props }) {
       },
     },
   });
+
+  if (duration !== Infinity) {
+    setTimeout(dismiss, duration);
+  }
 
   return {
     id,
