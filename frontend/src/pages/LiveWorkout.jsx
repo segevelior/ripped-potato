@@ -639,16 +639,53 @@ export default function LiveWorkout() {
     setConfirmDelete({ index: exIndex, exercise: workout.exercises[exIndex] });
   };
 
-  const performDeleteExercise = (exIndex) => {
+  const performDeleteExercise = (exIndex, opts = {}) => {
     const removed = workout.exercises[exIndex];
     const nextExercises = withOrder(workout.exercises.filter((_, i) => i !== exIndex));
     setWorkout({ ...workout, exercises: nextExercises });
     setConfirmDelete(null);
+    if (navigator.vibrate) navigator.vibrate(40);
+
+    if (opts.permanent && workout.sourceWorkoutId && removed.exercise_id) {
+      // Template changed too — an undo would silently diverge from it, so the
+      // permanent path reports via toast instead of offering undo.
+      persistRemoveFromTemplate(workout.sourceWorkoutId, removed);
+      return;
+    }
+
     // Offer an undo for a few seconds (restores the exercise with its logged sets).
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     setUndoState({ exercise: removed, index: exIndex });
     undoTimerRef.current = setTimeout(() => setUndoState(null), 6000);
-    if (navigator.vibrate) navigator.vibrate(40);
+  };
+
+  // Persist a deletion to the source template ("from now on"). Mirrors
+  // persistReplaceToTemplate: the session change already happened and is never
+  // rolled back; only the template write is reported.
+  const persistRemoveFromTemplate = async (sourceWorkoutId, removed) => {
+    try {
+      const result = await apiService.predefinedWorkouts.removeExercise(sourceWorkoutId, {
+        exerciseId: removed.exercise_id,
+      });
+      if (result?.cloned) {
+        setWorkout(w => ({ ...w, sourceWorkoutId: result.workout._id, sourceWorkoutIsCommon: false }));
+        toast({
+          title: "Saved to your workouts",
+          description: `Created your own copy of “${result.workout.name}” without “${removed.exercise_name}”.`,
+        });
+      } else {
+        toast({
+          title: "Workout updated",
+          description: `“${removed.exercise_name}” is no longer part of this workout.`,
+        });
+      }
+    } catch (error) {
+      console.error('[LiveWorkout] Failed to persist removal to template:', error);
+      const description = /empty/i.test(error?.message || '')
+        ? "It was removed from this session, but a workout can't be left empty — it wasn't changed."
+        : "It was removed from this session, but saving that to the workout failed. Try again from the Workouts page.";
+      toast({ title: "Session updated, workout not", description, variant: "destructive" });
+    }
   };
 
   const handleUndoDelete = () => {
@@ -718,7 +755,8 @@ export default function LiveWorkout() {
     };
     const nextExercises = workout.exercises.map((e, i) => (i === exIndex ? nextExercise : e));
     setWorkout({ ...workout, exercises: withOrder(nextExercises) });
-    setReplaceIndex(null);
+    // Card applies keep the modal (and the coach conversation) open.
+    if (!opts.keepOpen) setReplaceIndex(null);
     if (navigator.vibrate) navigator.vibrate(30);
 
     if (opts.permanent && workout.sourceWorkoutId && old.exercise_id) {
@@ -759,7 +797,7 @@ export default function LiveWorkout() {
         equipment: payload.new?.equipment || [],
       });
     }
-    handleReplaceExercise(idx, picked, { permanent: Boolean(permanent) });
+    handleReplaceExercise(idx, picked, { permanent: Boolean(permanent), keepOpen: true });
   };
 
   const handleAddExercise = (exIndex, position, picked) => {
@@ -956,29 +994,63 @@ export default function LiveWorkout() {
         </DrawerContent>
       </Drawer>
 
-      {/* Delete confirmation */}
+      {/* Delete confirmation — offers the same scope choice as replace when
+          the session is template-linked. */}
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 className="text-lg font-bold text-gray-900 mb-2">Delete exercise?</h3>
-            <p className="text-sm text-gray-600 mb-5">
-              Remove <span className="font-semibold">{confirmDelete.exercise?.exercise_name}</span> from
-              this workout? You can undo right after.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmDelete(null)}
-                className="flex-1 py-3 rounded-xl font-semibold bg-gray-100 text-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => performDeleteExercise(confirmDelete.index)}
-                className="flex-1 py-3 rounded-xl font-semibold bg-red-600 text-white"
-              >
-                Delete
-              </button>
-            </div>
+            {Boolean(workout.sourceWorkoutId && confirmDelete.exercise?.exercise_id) ? (
+              <>
+                <p className="text-sm text-gray-600 mb-5">
+                  Remove <span className="font-semibold">{confirmDelete.exercise?.exercise_name}</span> — for how long?
+                </p>
+                <div className="space-y-2.5">
+                  <button
+                    onClick={() => performDeleteExercise(confirmDelete.index)}
+                    className="w-full py-3 rounded-xl font-semibold bg-red-600 text-white"
+                  >
+                    Just this session
+                  </button>
+                  <button
+                    onClick={() => performDeleteExercise(confirmDelete.index, { permanent: true })}
+                    className="w-full py-3 rounded-xl font-semibold bg-white border border-red-300 text-red-700"
+                  >
+                    From now on
+                    <span className="block text-xs font-normal text-red-400 mt-0.5">
+                      {workout.sourceWorkoutIsCommon ? "Creates your own copy of this workout" : "Updates this workout"}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(null)}
+                    className="w-full text-sm text-gray-500 py-1.5 hover:text-gray-700"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600 mb-5">
+                  Remove <span className="font-semibold">{confirmDelete.exercise?.exercise_name}</span> from
+                  this workout? You can undo right after.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setConfirmDelete(null)}
+                    className="flex-1 py-3 rounded-xl font-semibold bg-gray-100 text-gray-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => performDeleteExercise(confirmDelete.index)}
+                    className="flex-1 py-3 rounded-xl font-semibold bg-red-600 text-white"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
