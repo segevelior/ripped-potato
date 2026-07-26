@@ -325,7 +325,12 @@ class ShortTermContextService:
 
                 # UPDATE: supersede the targeted memory from this call's snapshot
                 if decision.get("action") == "UPDATE":
-                    target = id_map.get(str(decision.get("target") or ""))
+                    # Models sometimes echo the bracketed label they saw
+                    # ("[m1]") — normalize before lookup, or a miss silently
+                    # degrades UPDATE to ADD and re-creates the very
+                    # duplicate-contradiction problem supersession exists for.
+                    target_key = str(decision.get("target") or "").strip().strip("[]").strip()
+                    target = id_map.get(target_key)
                     if target is not None and target.get("_id") is not None:
                         result = await memory_service.update_memory_by_id(
                             user_id,
@@ -340,8 +345,12 @@ class ShortTermContextService:
                             updated += 1
                             written += 1
                             suppress_norm.append(self._normalize(content))
-                        continue
-                    invalid_target += 1  # bogus/missing target: fall through to ADD
+                            continue
+                        # Write failed (e.g. target concurrently tombstoned):
+                        # fall through to revive/ADD so the fact isn't silently
+                        # dropped — the dedup backstop still guards re-adds.
+                    else:
+                        invalid_target += 1  # bogus/missing target: fall through to ADD
 
                 # Restatement of a script-retired fact revives it (self-healing)
                 revive_target = next(
