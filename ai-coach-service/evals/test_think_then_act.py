@@ -10,6 +10,7 @@ import os
 import pytest
 
 from app.core.agents.orchestrator import AgentOrchestrator
+from app.services.conversation_service import ConversationService
 from evals.harness import Trace, instrument, run_turn
 from evals.scenarios import SCENARIOS, seed_user
 
@@ -29,10 +30,15 @@ async def test_scenario(scenario, scratch_db):
         history = []
         for turn_index, message in enumerate(scenario.turns):
             trace.current_turn = turn_index
-            text = await run_turn(orchestrator, message, history, user_id)
+            text, tool_rounds = await run_turn(orchestrator, message, history, user_id)
             trace.turn_texts.append(text)
             history.append({"role": "human", "content": message})
-            history.append({"role": "ai", "content": text})
+            # Mirror chat_stream persistence: the assistant message carries its
+            # (storage-capped) tool_rounds so later turns replay real history.
+            ai_msg = {"role": "ai", "content": text}
+            if tool_rounds:
+                ai_msg["tool_rounds"] = ConversationService._bound_tool_rounds(tool_rounds)
+            history.append(ai_msg)
 
         problems = []
         for check in scenario.trajectory_checks:

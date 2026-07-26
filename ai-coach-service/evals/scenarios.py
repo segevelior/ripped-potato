@@ -17,8 +17,11 @@ from evals.harness import (
     Trace,
     assert_id_provenance,
     assert_no_false_success,
+    assert_no_repeated_reads,
     assert_no_writes,
     assert_read_before_write,
+    is_write,
+    _succeeded,
 )
 
 
@@ -383,6 +386,80 @@ SCHEDULE_TWICE_ONE_TEMPLATE = Scenario(
 )
 
 
+# --- tool-call memory scenarios (TOR: coach repeats tool calls every turn) ---
+# These two are deliberately in tension: TOOL_MEMORY asserts reads are NOT
+# repeated while nothing was written; FRESHNESS_AFTER_WRITE asserts a read IS
+# repeated after a write. Passing both means memory without staleness.
+
+
+async def _check_memory_endurance2(db, user_id, refs, trace):
+    """Prod repro: exactly 1 event today, linked to Endurance 2, no new template."""
+    problems = []
+    events = await _workout_events_today(db, user_id)
+    endurance2 = refs["template_ids"][1]
+    if len(events) != 1:
+        problems.append(f"expected exactly 1 workout event today, found {len(events)}")
+    elif events[0].get("workoutTemplateId") != endurance2:
+        problems.append(
+            f"event not linked to the existing Endurance 2 template "
+            f"(workoutTemplateId={events[0].get('workoutTemplateId')})"
+        )
+    if await _template_count(db, user_id) != refs["template_count"]:
+        problems.append("a new template was created instead of reusing Endurance 2")
+    return problems
+
+
+TOOL_MEMORY = Scenario(
+    id="tool-memory-no-repeated-reads",
+    turns=["Add a workout for today",
+           "Add Endurance 2",
+           "Yes, add it"],
+    seed=_seed_ambiguous,
+    final_state_check=_check_memory_endurance2,
+    trajectory_checks=[assert_read_before_write, assert_id_provenance,
+                       assert_no_false_success, assert_no_repeated_reads],
+)
+
+
+async def _check_freshness_after_write(db, user_id, refs, trace):
+    """After the confirmed write, the calendar question must trigger a FRESH
+    get_calendar_events (replayed pre-write results are stale) and the reply
+    must reflect the newly added workout."""
+    problems = []
+    writes = [i for i, c in enumerate(trace.calls) if is_write(c) and _succeeded(c)]
+    if not writes:
+        problems.append("no successful write happened — scenario did not exercise staleness")
+        return problems
+    last_write = max(writes)
+    post_write_calendar_reads = [
+        c for c in trace.calls[last_write + 1:]
+        if c.name == "get_calendar_events" and _succeeded(c)
+    ]
+    if not post_write_calendar_reads:
+        problems.append(
+            "no fresh get_calendar_events after the write — the agent answered "
+            "the calendar question from stale replayed results"
+        )
+    final_text = (trace.turn_texts[-1] or "").lower()
+    if "endurance" not in final_text:
+        problems.append(
+            "final answer doesn't mention the just-added Endurance 1 workout — "
+            "stale view of the calendar"
+        )
+    return problems
+
+
+FRESHNESS_AFTER_WRITE = Scenario(
+    id="freshness-reads-repeat-after-write",
+    turns=["What's on my calendar today?",
+           "Add my Endurance 1 workout to my calendar for today",
+           "Yes, go ahead",
+           "What's on my calendar today now?"],
+    seed=_seed_endurance,
+    final_state_check=_check_freshness_after_write,
+)
+
+
 SCENARIOS = [
     SCHEDULE_EXISTING,
     SCHEDULE_NONEXISTENT,
@@ -391,4 +468,6 @@ SCENARIOS = [
     CORRECTION_TURN,
     AMBIGUOUS_NAME,
     SCHEDULE_TWICE_ONE_TEMPLATE,
+    TOOL_MEMORY,
+    FRESHNESS_AFTER_WRITE,
 ]

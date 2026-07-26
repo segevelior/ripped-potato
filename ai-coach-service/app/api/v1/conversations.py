@@ -118,6 +118,11 @@ async def get_conversation(
         if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
+        # tool_rounds is model-replay context only — the chat UI never renders
+        # it, so don't ship potentially large tool payloads to the browser.
+        for msg in conversation.get("messages", []):
+            msg.pop("tool_rounds", None)
+
         return conversation
 
     except HTTPException:

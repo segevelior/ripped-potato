@@ -49,6 +49,9 @@ class ConversationMessage(BaseModel):
     content: str
     timestamp: Optional[str] = None
     response_time_ms: Optional[int] = None  # Only for AI responses
+    # Structured tool exchange for this AI turn (see conversation_service);
+    # replayed into model context on later turns, never rendered by the UI.
+    tool_rounds: Optional[List[Dict[str, Any]]] = None
 
 
 class ModelInfo(BaseModel):

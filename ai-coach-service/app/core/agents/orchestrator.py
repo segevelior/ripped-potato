@@ -99,6 +99,158 @@ def _model_facing_result(result: Any) -> Any:
     return result
 
 
+# --- Tool-call memory across turns ---------------------------------------
+# Assistant messages persist their turn's tool exchange as `tool_rounds`
+# (see conversation_service.add_message). On later turns the recent rounds
+# are replayed into the OpenAI history so the model remembers what it
+# already looked up instead of re-calling the same tools.
+
+# Replay caps: at most the last K tool-bearing assistant messages, and at
+# most this many total chars of tool-result content (~6k tokens). Anything
+# beyond either cap replays as text only.
+REPLAY_TOOL_ROUNDS_LAST_K = 2
+REPLAY_TOOL_CHARS_BUDGET = 24_000
+
+# Write classification, used to decide when forced grounding may relax:
+# after a write, replayed read results may be stale, so re-reads are correct.
+# A dry-run/confirm preview mutates nothing and counts as a read.
+_WRITE_PREVIEW_DEFAULT_TRUE = {  # dry_run defaults true → write only on explicit dry_run=false
+    "schedule_to_calendar", "schedule_plan_to_calendar", "reschedule_session",
+    "update_calendar_workout", "adjust_plan",
+}
+_WRITE_CONFIRM_TOOLS = {"delete_calendar_event", "delete_workout_template"}  # write only on confirm=true
+_WRITE_PREVIEW_DEFAULT_FALSE = {"resolve_week"}  # writes unless dry_run=true
+_WRITE_ALWAYS = {
+    "add_exercise", "add_plan_workout", "create_goal", "create_plan",
+    "create_workout_template", "delete_memory", "generate_plan", "log_workout",
+    "remove_plan_workout", "save_exercise_video", "save_memory",
+    "substitute_exercise", "update_goal", "update_memory", "update_plan",
+}
+
+
+def _call_is_write(name: str, arguments_json: str | None) -> bool:
+    """True when a persisted tool call actually mutated user data."""
+    try:
+        args = json.loads(arguments_json) if arguments_json else {}
+    except (ValueError, TypeError):
+        args = {}
+    if not isinstance(args, dict):
+        args = {}
+    if name in _WRITE_ALWAYS:
+        return True
+    if name in _WRITE_CONFIRM_TOOLS:
+        return args.get("confirm") is True
+    if name in _WRITE_PREVIEW_DEFAULT_TRUE:
+        return args.get("dry_run") is False
+    if name in _WRITE_PREVIEW_DEFAULT_FALSE:
+        return args.get("dry_run") is not True
+    return False
+
+
+# The calendar-preview card tag carries a base64 payload in saved content;
+# replaying the blob to the model is pure token waste (and parrot bait).
+_CALENDAR_PREVIEW_TAG_RE = re.compile(
+    r'<calendar-preview\s+payload="[^"]*">\s*</calendar-preview>'
+)
+
+
+def _sanitize_replayed_content(content: str) -> str:
+    return _CALENDAR_PREVIEW_TAG_RE.sub("<calendar-preview/>", content or "")
+
+
+def _replayable_indexes(conversation_history: List[Dict[str, Any]]) -> set:
+    """Indexes of assistant history messages whose tool_rounds get replayed,
+    chosen newest→oldest under the K and char-budget caps."""
+    chosen = set()
+    budget = REPLAY_TOOL_CHARS_BUDGET
+    remaining = REPLAY_TOOL_ROUNDS_LAST_K
+    for idx in range(len(conversation_history) - 1, -1, -1):
+        msg = conversation_history[idx]
+        if msg.get("role") == "human" or not msg.get("tool_rounds"):
+            continue
+        if remaining <= 0:
+            break
+        cost = sum(
+            len(str(r.get("content") or ""))
+            for rd in msg["tool_rounds"]
+            for r in (rd.get("results") or [])
+        )
+        if cost > budget:
+            break
+        budget -= cost
+        remaining -= 1
+        chosen.add(idx)
+    return chosen
+
+
+def _expand_tool_rounds(tool_rounds: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Expand persisted rounds into OpenAI messages. A round missing any
+    matching result is skipped whole — an assistant tool_calls message
+    without its full set of adjacent tool replies 400s the API."""
+    expanded = []
+    for round_ in tool_rounds:
+        calls = round_.get("tool_calls") or []
+        results = round_.get("results") or []
+        result_by_id = {r.get("tool_call_id"): r for r in results}
+        if not calls or any(c.get("id") not in result_by_id for c in calls):
+            continue
+        expanded.append({
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": c["id"],
+                    "type": "function",
+                    "function": {
+                        "name": c.get("name") or "",
+                        "arguments": c.get("arguments") or "{}",
+                    },
+                }
+                for c in calls
+            ],
+        })
+        for c in calls:
+            expanded.append({
+                "role": "tool",
+                "tool_call_id": c["id"],
+                "content": str(result_by_id[c["id"]].get("content") or ""),
+            })
+    return expanded
+
+
+def _history_to_openai_messages(conversation_history: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Rebuild OpenAI messages from stored history. Recent assistant turns
+    replay their structured tool exchange (within caps); older or legacy
+    turns replay as text only. Note this is a collapse, not a byte-faithful
+    reproduction: prose streamed between tool rounds lives only in the final
+    saved content, so it folds into the trailing assistant message."""
+    replay_at = _replayable_indexes(conversation_history)
+    messages = []
+    for idx, hist_msg in enumerate(conversation_history):
+        if hist_msg.get("role") == "human":
+            messages.append({"role": "user", "content": hist_msg.get("content", "")})
+            continue
+        content = _sanitize_replayed_content(hist_msg.get("content", ""))
+        if idx in replay_at:
+            messages.extend(_expand_tool_rounds(hist_msg["tool_rounds"]))
+            if content.strip():
+                messages.append({"role": "assistant", "content": content})
+        else:
+            messages.append({"role": "assistant", "content": content})
+    return messages
+
+
+def _history_write_in_replay_window(conversation_history: List[Dict[str, Any]]) -> bool:
+    """True if any replayed round contains a real write — replayed reads may
+    then be stale, so forced grounding must stay on."""
+    for idx in _replayable_indexes(conversation_history):
+        for round_ in conversation_history[idx].get("tool_rounds") or []:
+            for call in round_.get("tool_calls") or []:
+                if _call_is_write(call.get("name") or "", call.get("arguments")):
+                    return True
+    return False
+
+
 class AgentOrchestrator:
     """Enhanced orchestrator with comprehensive fitness management tools"""
 
@@ -590,12 +742,7 @@ USER DATA:
         # Add conversation history if available
         if conversation_history:
             logger.info(f"[SENSEI DEBUG STREAMING] Has conversation history ({len(conversation_history)} messages)")
-            for hist_msg in conversation_history:
-                role = "user" if hist_msg.get("role") == "human" else "assistant"
-                messages.append({
-                    "role": role,
-                    "content": hist_msg.get("content", "")
-                })
+            messages.extend(_history_to_openai_messages(conversation_history))
             # Add current message (context is already in system prompt)
             messages.append({"role": "user", "content": current_user_message})
         else:
@@ -606,6 +753,9 @@ USER DATA:
         # Track the full response and tools used for reflection
         full_response = []
         tools_used = []
+        # Structured tool exchange for this turn (one entry per LLM round),
+        # persisted with the assistant message so later turns can replay it.
+        turn_tool_rounds: List[Dict[str, Any]] = []
         # Video-embed tags returned by tools this turn. The model sometimes
         # paraphrases a video result instead of emitting the <video-embed> tag,
         # which breaks the player. We ensure the tag(s) end up in the response.
@@ -615,7 +765,19 @@ USER DATA:
             # Create streaming completion with tools. If the user referenced their
             # own plan/calendar/workouts, force at least one tool call so the answer
             # is grounded in their real data instead of generic advice.
-            first_tool_choice = "required" if _needs_grounding(message) else "auto"
+            # Exception: when the replayed history already carries tool results
+            # AND none of those rounds wrote anything (a write makes replayed
+            # reads potentially stale), let the model answer from what it has.
+            history_replays_tools = bool(_replayable_indexes(conversation_history or []))
+            grounding_satisfied_by_history = (
+                history_replays_tools
+                and not _history_write_in_replay_window(conversation_history or [])
+            )
+            first_tool_choice = (
+                "required"
+                if _needs_grounding(message) and not grounding_satisfied_by_history
+                else "auto"
+            )
             logger.info(
                 f"Calling OpenAI API with model: {self.settings.openai_model} and "
                 f"{len(self.get_tools())} tools (tool_choice={first_tool_choice})"
@@ -737,6 +899,31 @@ USER DATA:
                             "tool_call_id": tool_result["tool_call_id"],
                             "content": tool_result["content"]
                         })
+
+                    # Record the round for persistence (content mirrors what the
+                    # model saw; capped later in conversation_service).
+                    _round_names = {
+                        tool_calls_data[i]["id"]: tool_calls_data[i]["function"]["name"]
+                        for i in sorted(tool_calls_data.keys())
+                    }
+                    turn_tool_rounds.append({
+                        "tool_calls": [
+                            {
+                                "id": tool_calls_data[i]["id"],
+                                "name": tool_calls_data[i]["function"]["name"],
+                                "arguments": tool_calls_data[i]["function"]["arguments"],
+                            }
+                            for i in sorted(tool_calls_data.keys())
+                        ],
+                        "results": [
+                            {
+                                "tool_call_id": tr["tool_call_id"],
+                                "name": _round_names.get(tr["tool_call_id"], ""),
+                                "content": tr["content"],
+                            }
+                            for tr in tool_results
+                        ],
+                    })
 
                     # Stream the final response after tool execution - with tools enabled for chaining
                     logger.info("Getting final response after tool execution...")
@@ -864,6 +1051,30 @@ USER DATA:
                                         "content": result["content"]
                                     })
 
+                                # Record the follow-up round for persistence.
+                                _round_names = {
+                                    follow_up_tool_calls[i]["id"]: follow_up_tool_calls[i]["function"]["name"]
+                                    for i in sorted(follow_up_tool_calls.keys())
+                                }
+                                turn_tool_rounds.append({
+                                    "tool_calls": [
+                                        {
+                                            "id": follow_up_tool_calls[i]["id"],
+                                            "name": follow_up_tool_calls[i]["function"]["name"],
+                                            "arguments": follow_up_tool_calls[i]["function"]["arguments"],
+                                        }
+                                        for i in sorted(follow_up_tool_calls.keys())
+                                    ],
+                                    "results": [
+                                        {
+                                            "tool_call_id": fr["tool_call_id"],
+                                            "name": _round_names.get(fr["tool_call_id"], ""),
+                                            "content": fr["content"],
+                                        }
+                                        for fr in follow_up_results
+                                    ],
+                                })
+
                                 # Continue the loop to process more tool calls
                                 break
 
@@ -935,7 +1146,8 @@ USER DATA:
             # Yield completion event with final content
             yield {
                 "type": "complete",
-                "full_response": accumulated_content
+                "full_response": accumulated_content,
+                "tool_rounds": turn_tool_rounds
             }
 
         except Exception as e:
