@@ -656,8 +656,7 @@ Remember to:
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      temperature: 0.5, // Lower temperature for more consistent, analytical output
-      max_tokens: 8000  // Increased for longer, more detailed reports
+      max_completion_tokens: 8000  // Increased for longer, more detailed reports
     });
 
     const analysis = completion.choices[0].message.content;

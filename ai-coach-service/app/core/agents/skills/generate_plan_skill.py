@@ -234,7 +234,7 @@ async def generate_plan(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -
     # A full skeleton (up to 26 weeks, per-phase detailed blueprints) can exceed
     # 6000 output tokens and truncate into invalid JSON (observed with the mini
     # model on a 16-week plan) — which fails the whole generation. Give it room.
-    max_tokens = 16000 if "reasoning_effort" in tuning else 12000
+    max_tokens = 16000 if tuning.get("reasoning_effort", "none") != "none" else 12000
     logger.info("generate_plan LLM call", model=model, weeks=weeks,
                 days_per_week=days_per_week, tuning=tuning)
     try:

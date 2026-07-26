@@ -173,8 +173,7 @@ router.post('/chat', authMiddleware, aiRateLimit, async (req, res) => {
         { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt }
       ],
-      temperature: 0.7,
-      max_tokens: 2000,
+      max_completion_tokens: 2000,
       ...(response_json_schema && { response_format: { type: "json_object" } })
     });
 
@@ -272,8 +271,7 @@ router.post('/generate-workout', authMiddleware, aiRateLimit, async (req, res) =
         },
         { role: 'user', content: prompt }
       ],
-      temperature: 0.7,
-      max_tokens: 2000,
+      max_completion_tokens: 2000,
       response_format: { type: "json_object" }
     });
 
@@ -320,8 +318,7 @@ router.post('/analyze-progress', authMiddleware, aiRateLimit, async (req, res) =
         },
         { role: 'user', content: prompt }
       ],
-      temperature: 0.7,
-      max_tokens: 1500
+      max_completion_tokens: 1500
     });
 
     res.json({
@@ -360,8 +357,7 @@ router.post('/check-form', authMiddleware, aiRateLimit, async (req, res) => {
         },
         { role: 'user', content: prompt }
       ],
-      temperature: 0.6,
-      max_tokens: 1000
+      max_completion_tokens: 1000
     });
 
     res.json({
