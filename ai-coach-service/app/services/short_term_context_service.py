@@ -42,19 +42,29 @@ SUMMARIZE_PROMPT = (
     "Otherwise return ONLY the summary text."
 )
 
-EXTRACT_DURABLE_FACTS_PROMPT = (
-    "You extract DURABLE facts about an athlete from a coaching exchange, to store "
-    "in long-term memory. Durable = still useful weeks or months from now: "
-    "injuries / health conditions, lasting preferences (training style, equipment, "
-    "schedule), goals, and lifestyle constraints. EXCLUDE transient state (today's "
-    "fatigue/soreness/mood), one-off logistics, and anything the coach merely "
-    "explained (how-to answers are not facts about the athlete).\n"
-    "You are given the athlete's EXISTING memories. DO NOT emit anything already "
-    "covered by them — only genuinely NEW facts.\n"
-    'Return ONLY a JSON object: {"facts": [{"content": one concise sentence, '
-    '"category": one of health|preference|goal|lifestyle|general, "importance": '
-    'one of high|medium|low, "tags": [short strings]}]}. Return {"facts": []} if '
-    "nothing durable and new."
+EXTRACT_AND_RECONCILE_PROMPT = (
+    "You maintain an athlete's LONG-TERM memory from a coaching exchange. A fact "
+    "belongs in long-term memory ONLY if it will still matter in 4+ weeks: "
+    "injuries and health conditions, lasting training preferences (style, "
+    "equipment, schedule constraints), goals, and lifestyle facts.\n"
+    "NEVER store: today's fatigue/soreness/sleep/mood; one-off requests or tasks "
+    "(\"wanted to add X to a workout\", \"asked to move Friday's session\"); "
+    "anything the coach did in the app (created/edited a workout, plan, or "
+    "calendar event); questions the coach merely answered; plans for a specific "
+    "date. When in doubt, store nothing.\n"
+    "You are given the athlete's EXISTING memories, each with an id like [m3]. "
+    "For each durable fact in the exchange decide:\n"
+    "- UPDATE: it contradicts, corrects, or refreshes an existing memory (an "
+    "injury got better or worse, a preference or goal changed) -> return that "
+    "id and one concise sentence that REPLACES the old content.\n"
+    "- ADD: genuinely new, covered by no existing memory.\n"
+    "- Otherwise emit nothing for it (already known, transient, or one-off).\n"
+    "Never re-add anything in the DELETED-BY-USER list.\n"
+    'Return ONLY a JSON object: {"decisions": [{"action": "ADD" or "UPDATE", '
+    '"target": "m3" (UPDATE only), "content": one concise sentence, "category": '
+    'one of health|preference|goal|lifestyle|general, "importance": one of '
+    'high|medium|low, "tags": [short strings]}]}. Return {"decisions": []} if '
+    "nothing qualifies."
 )
 
 # Keep strong references to fire-and-forget tasks: the event loop only holds
@@ -123,12 +133,28 @@ class ShortTermContextService:
             logger.error(f"Error adding short-term context entry for {user_id}: {e}")
             return False
 
-    async def get_recent(self, user_id: str, limit: int = 8) -> List[Dict[str, Any]]:
-        """Most recent short-term entries, newest first."""
+    async def get_recent(
+        self,
+        user_id: str,
+        limit: int = 8,
+        checkin_max_age_days: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Most recent short-term entries, newest first.
+
+        checkin_max_age_days is a read-time gate: "checkin" entries older than
+        that (transient state — sleep/fatigue/mood) are excluded from prompt
+        context so the coach can't fixate on them. Conversation summaries keep
+        the full window; the 14-day physical TTL is untouched.
+        """
         try:
-            cursor = self.collection.find(
-                {"userId": ObjectId(user_id)}
-            ).sort("createdAt", -1).limit(limit)
+            query: Dict[str, Any] = {"userId": ObjectId(user_id)}
+            if checkin_max_age_days is not None:
+                cutoff = datetime.utcnow() - timedelta(days=checkin_max_age_days)
+                query["$or"] = [
+                    {"kind": {"$ne": "checkin"}},
+                    {"createdAt": {"$gte": cutoff}},
+                ]
+            cursor = self.collection.find(query).sort("createdAt", -1).limit(limit)
             return await cursor.to_list(limit)
         except Exception as e:
             logger.error(f"Error fetching short-term context for {user_id}: {e}")
@@ -141,9 +167,9 @@ class ShortTermContextService:
             return ""
         kind_labels = {"checkin": "check-in", "conversation_summary": "conversation"}
         lines = [
-            "RECENT CONTEXT (short-term notes from the last 14 days, newest first "
-            "— if a note conflicts with the profile or memories above, the "
-            "profile/memories are current):"
+            "RECENT CONTEXT (short-term notes, newest first; stale check-ins are "
+            "already omitted — if a note conflicts with the profile or memories "
+            "above, the newer information wins):"
         ]
         for entry in entries:
             created = entry.get("createdAt")
@@ -184,11 +210,12 @@ class ShortTermContextService:
         settings,
         conversation_id: Optional[str] = None,
     ) -> int:
-        """Extract durable facts from a coaching exchange and persist NEW ones to
-        long-term usermemories. Best-effort; NEVER raises (callers rely on this so
-        a failure can't release a summarizer claim). Returns count saved.
+        """Extract durable facts from a coaching exchange and reconcile them with
+        long-term usermemories: ADD genuinely new facts, UPDATE (supersede)
+        contradicted/refreshed ones. Best-effort; NEVER raises (callers rely on
+        this so a failure can't release a summarizer claim). Returns write count.
         """
-        saved = 0
+        written = 0
         try:
             if not getattr(settings, "memory_auto_promote_enabled", True):
                 return 0
@@ -200,23 +227,69 @@ class ShortTermContextService:
             from app.core.agents.services.memory_service import MemoryService
             memory_service = MemoryService(self.db)
 
-            # Load current memories fresh — both as dedup context for the extractor
-            # and for the substring backstop. Callers may promote several sources
-            # in a row, so this must be re-read per call, not cached.
-            # Dedup must consider ALL memories, including DEACTIVATED and
-            # TOMBSTONED (deleted:true) ones: a memory the user toggled off or
-            # deleted would otherwise be re-promoted every time the fact is
-            # mentioned again. (get_user_memories filters those out — it's for
-            # prompt injection — so read the raw doc here instead.)
+            # Load current memories fresh — callers may promote several sources
+            # in a row, so this must be re-read per call, not cached. The raw doc
+            # (not get_user_memories) because deactivated/tombstoned items are
+            # needed as dedup context. Four buckets, per deactivation state:
+            # - active: shown to the LLM with [mN] ids (UPDATE targets)
+            # - user-deleted tombstones (deleted:true): DELETED-BY-USER list,
+            #   never re-added
+            # - script-retired (isActive:false + meta.retired): NOT in the dedup
+            #   corpus — a restated fact REVIVES them (a wrong LLM retirement
+            #   must be self-healing)
+            # - user-deactivated via Settings (isActive:false, no meta.retired):
+            #   dedup-suppressed like before — the user chose to hide it, only
+            #   their Settings toggle brings it back
             mem_doc = await self.db.usermemories.find_one({"user": ObjectId(user_id)})
             all_memories = (mem_doc or {}).get("memories", [])
-            existing_contents = [m.get("content", "") for m in all_memories if m.get("content")]
-            existing_block = "\n".join(f"- {c}" for c in existing_contents) or "(none)"
 
-            prompt = (
-                f"EXISTING MEMORIES:\n{existing_block}\n\n"
+            active_items = []       # (label, item) — UPDATE targets
+            deleted_contents = []   # tombstoned, never re-add
+            retired_items = []      # script-retired, revive on restatement
+            suppress_contents = []  # dedup corpus (active + deleted + deactivated)
+            for m in all_memories:
+                content = m.get("content", "")
+                if not content:
+                    continue
+                if m.get("deleted"):
+                    deleted_contents.append(content)
+                    suppress_contents.append(content)
+                elif not m.get("isActive", True):
+                    if isinstance(m.get("meta"), dict) and m["meta"].get("retired"):
+                        retired_items.append(m)
+                    else:
+                        suppress_contents.append(content)
+                else:
+                    active_items.append(m)
+                    suppress_contents.append(content)
+
+            # Per-call synthetic ids, mapped to ObjectIds from THIS snapshot —
+            # a concurrent promotion builds its own map, so labels never cross.
+            id_map = {}
+            existing_lines = []
+            current_year = datetime.utcnow().year
+            for i, m in enumerate(active_items, start=1):
+                label = f"m{i}"
+                id_map[label] = m
+                ts = m.get("updatedAt") or m.get("createdAt")
+                if isinstance(ts, datetime):
+                    fmt = "%b %d" if ts.year == current_year else "%b %d %Y"
+                    noted = f", noted {ts.strftime(fmt)}"
+                else:
+                    noted = ""
+                existing_lines.append(
+                    f"[{label}] ({m.get('category', 'general')}/"
+                    f"{m.get('importance', 'medium')}{noted}) {m.get('content', '')}"
+                )
+            existing_block = "\n".join(existing_lines) or "(none)"
+            deleted_block = "\n".join(f"- {c}" for c in deleted_contents)
+
+            prompt = f"EXISTING MEMORIES:\n{existing_block}\n\n"
+            if deleted_block:
+                prompt += f"DELETED-BY-USER (never re-add):\n{deleted_block}\n\n"
+            prompt += (
                 f"COACHING EXCHANGE:\n{source_text}\n\n"
-                f"{EXTRACT_DURABLE_FACTS_PROMPT}"
+                f"{EXTRACT_AND_RECONCILE_PROMPT}"
             )
             response = await openai_client.chat.completions.create(
                 model=settings.openai_model_fast,
@@ -229,51 +302,102 @@ class ShortTermContextService:
             if not raw:
                 return 0
             try:
-                facts = json.loads(raw).get("facts", [])
+                decisions = json.loads(raw).get("decisions", [])
             except Exception:
                 logger.warning(f"promote_durable_facts: non-JSON extractor output for {user_id}")
                 return 0
-            if not isinstance(facts, list) or not facts:
-                logger.info(f"Auto-promotion: 0 facts extracted for user {user_id}")
+            if not isinstance(decisions, list) or not decisions:
+                logger.info(f"Auto-promotion: 0 decisions extracted for user {user_id}")
                 return 0
 
-            existing_norm = [self._normalize(c) for c in existing_contents]
-            deduped = 0
-            for fact in facts:
-                if not isinstance(fact, dict):
+            promo_meta = {
+                "origin": "auto_promotion",
+                **({"conversation_id": conversation_id} if conversation_id else {}),
+            }
+            suppress_norm = [self._normalize(c) for c in suppress_contents]
+            added = updated = revived = deduped = invalid_target = 0
+            for decision in decisions:
+                if not isinstance(decision, dict):
                     continue
-                content = (fact.get("content") or "").strip()
+                content = (decision.get("content") or "").strip()
                 if not content:
                     continue
-                if self._is_duplicate(content, existing_norm):
+
+                # UPDATE: supersede the targeted memory from this call's snapshot
+                if decision.get("action") == "UPDATE":
+                    target = id_map.get(str(decision.get("target") or ""))
+                    if target is not None and target.get("_id") is not None:
+                        result = await memory_service.update_memory_by_id(
+                            user_id,
+                            target["_id"],
+                            content,
+                            category=decision.get("category"),
+                            importance=decision.get("importance"),
+                            tags=decision.get("tags"),
+                            meta_update={"last_supersession": promo_meta},
+                        )
+                        if result.get("success"):
+                            updated += 1
+                            written += 1
+                            suppress_norm.append(self._normalize(content))
+                        continue
+                    invalid_target += 1  # bogus/missing target: fall through to ADD
+
+                # Restatement of a script-retired fact revives it (self-healing)
+                revive_target = next(
+                    (
+                        r for r in retired_items
+                        if r.get("_id") is not None
+                        and self._is_duplicate(content, [self._normalize(r.get("content", ""))])
+                    ),
+                    None,
+                )
+                if revive_target is not None:
+                    result = await memory_service.update_memory_by_id(
+                        user_id,
+                        revive_target["_id"],
+                        content,
+                        category=decision.get("category"),
+                        importance=decision.get("importance"),
+                        tags=decision.get("tags"),
+                        revive=True,
+                        meta_update={"last_supersession": promo_meta},
+                    )
+                    if result.get("success"):
+                        revived += 1
+                        written += 1
+                        retired_items.remove(revive_target)
+                        suppress_norm.append(self._normalize(content))
+                    continue
+
+                # ADD path: cheap dedup backstop, then persist
+                if self._is_duplicate(content, suppress_norm):
                     deduped += 1
                     continue
-                save_args = {
+                result = await memory_service.save_memory(user_id, {
                     "content": content,
-                    "category": fact.get("category", "general"),
-                    "importance": fact.get("importance") or "medium",
-                    "tags": fact.get("tags", []),
-                    "meta": {
-                        "origin": "auto_promotion",
-                        **({"conversation_id": conversation_id} if conversation_id else {}),
-                    },
-                }
-                result = await memory_service.save_memory(user_id, save_args)
+                    "category": decision.get("category", "general"),
+                    "importance": decision.get("importance") or "medium",
+                    "tags": decision.get("tags", []),
+                    "meta": promo_meta,
+                })
                 if result.get("success"):
-                    saved += 1
-                    existing_norm.append(self._normalize(content))  # guard intra-batch dupes
+                    added += 1
+                    written += 1
+                    suppress_norm.append(self._normalize(content))  # intra-batch dupes
 
-            if saved:
+            if added:
                 await memory_service.enforce_cap(
                     user_id, getattr(settings, "memory_max_per_user", 60)
                 )
             logger.info(
-                f"Auto-promotion for user {user_id}: extracted={len(facts)} saved={saved} "
-                f"deduped={deduped}"
+                f"Auto-promotion for user {user_id}: extracted={len(decisions)} "
+                f"added={added} updated={updated} revived={revived} "
+                f"deduped={deduped} invalid_target={invalid_target}"
             )
         except Exception as e:
             logger.error(f"promote_durable_facts failed for {user_id}: {e}")
-        return saved
+        return written
 
     async def summarize_stale_conversations(
         self,

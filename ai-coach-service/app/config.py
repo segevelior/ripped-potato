@@ -55,6 +55,27 @@ class Settings(BaseSettings):
     # Max durable memories kept per user before low-importance eviction kicks in.
     memory_max_per_user: int = 60
 
+    # Read-time memory ranking: importance weight x exponential recency decay
+    # on updatedAt. False = legacy importance-then-recency sort.
+    memory_decay_enabled: bool = True
+    memory_decay_half_life_days: float = 60.0
+    # Goals decay slower than preferences/lifestyle/general.
+    memory_decay_half_life_goal_days: float = 120.0
+    # Categories that never decay (salience floor — injuries must not fade).
+    memory_decay_exempt_categories: str = "health"
+    # Memories scoring below this are not injected into prompts at all.
+    memory_score_floor: float = 0.05
+
+    # Check-in entries (transient state: sleep/fatigue/mood) older than this are
+    # excluded from prompt context. Read-time gate only — the 14-day physical
+    # TTL on shortTermContext is unchanged. Matches the coach-question prompt's
+    # "older than 3 days = expired" rule.
+    checkin_context_max_age_days: int = 3
+
+    @property
+    def memory_decay_exempt_set(self) -> set:
+        return {c.strip() for c in self.memory_decay_exempt_categories.split(",") if c.strip()}
+
     def llm_tuning_params(self, temperature: Optional[float] = None) -> dict:
         """Sampling/reasoning kwargs for chat.completions.create.
 

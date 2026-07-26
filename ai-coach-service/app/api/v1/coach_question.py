@@ -37,15 +37,23 @@ check-in question you genuinely want to ask them right now, before today's sessi
 
 Rules:
 1. Ground the question in something specific you actually know - a recent workout,
-   a logged note, an injury/fatigue memory, a schedule constraint, or today's plan.
-   Do NOT invent facts that aren't in the context.
+   a recent dated check-in or note, a standing injury memory, a schedule
+   constraint, or today's plan. Do NOT invent facts that aren't in the context.
 2. Keep it to one or two sentences, warm and concise. Offer to adapt if relevant
    (e.g. "I can ease the intervals if you need it").
 3. Provide 2-4 short quick-reply chips (each <= 14 chars) the athlete can tap to
    answer. Order them best-state to worst-state where that makes sense
    (e.g. "Fresh", "A bit heavy", "Cooked"). Do NOT pre-select one.
 4. Provide a short provenance label (<= 32 chars) naming what the question is based
-   on, e.g. "run log - Jul 10", "knee injury note", "your Tuesday plan".
+   on, e.g. "run log - Jul 10", "knee note - Jul 12", "your Tuesday plan".
+5. Recency: memories and notes above are dated. Prefer signals from the last few
+   days. NEVER ask about transient state (sleep, fatigue, soreness, mood,
+   illness, stress) based on a note older than 3 days - treat it as expired.
+   Standing facts (injuries, goals, schedule, preferences) may be referenced at
+   any age, but if a newer check-in or note contradicts an older one, the newer
+   one wins - ignore the older note entirely.
+6. When the question is based on a dated note or check-in, include its date in
+   the provenance label, e.g. "check-in - Jul 24".
 
 Return ONLY a JSON object, nothing else, in exactly this shape:
 {"question": "...", "chips": ["...", "..."], "source": "..."}"""
@@ -148,21 +156,18 @@ USER DATA:
 - {len(data_context.get('goals', []))} active goals
 - {len(data_context.get('plans', []))} training plans"""
 
-        if user_memories:
-            memory_str = "\n\nUSER MEMORIES (important things about this user):"
-            for mem in user_memories[:15]:
-                category = mem.get("category", "general")
-                content = mem.get("content", "")
-                importance = mem.get("importance", "medium")
-                prefix = "HIGH PRIORITY: " if importance == "high" else "- "
-                memory_str += f"\n{prefix}[{category}] {content}"
-            context_str += memory_str
+        memory_block = MemoryService.format_for_prompt(user_memories, limit=15)
+        if memory_block:
+            context_str += f"\n\n{memory_block}"
 
         # Short-term context + today's recommendation, so the question can
         # reference recent check-ins/conversations and stay consistent with
         # what Train Now already suggested today.
         stc_service = ShortTermContextService(db)
-        stc_entries = await stc_service.get_recent(user_id, limit=8)
+        stc_entries = await stc_service.get_recent(
+            user_id, limit=8,
+            checkin_max_age_days=settings.checkin_context_max_age_days,
+        )
         stc_block = ShortTermContextService.format_for_prompt(stc_entries)
         if stc_block:
             context_str += f"\n\n{stc_block}"
@@ -272,12 +277,9 @@ async def post_coach_reply(
         # Light context: memories only (kept small — this must be fast + short)
         user_memories = await memory_service.get_user_memories(user_id)
         memory_str = ""
-        if user_memories:
-            memory_str = "\n\nRELEVANT MEMORIES:"
-            for mem in user_memories[:8]:
-                category = mem.get("category", "general")
-                content = mem.get("content", "")
-                memory_str += f"\n- [{category}] {content}"
+        memory_block = MemoryService.format_for_prompt(user_memories, limit=8)
+        if memory_block:
+            memory_str = f"\n\n{memory_block}"
 
         context = (
             f'Your check-in question was: "{question}"\n'
