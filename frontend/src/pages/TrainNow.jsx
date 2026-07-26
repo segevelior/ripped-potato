@@ -421,9 +421,8 @@ export default function TrainNow() {
               blocks: templateBlocks,
               exercises: templateBlocks.length > 0 ? [] : convertedExercises,
               calendarEventId: scheduledEvent._id,
-              // getToday's populate projection doesn't include isCommon, so we
-              // only carry the template id; the swap endpoint reports cloning.
-              sourceWorkoutId: scheduledEvent.workoutTemplateId?._id
+              sourceWorkoutId: scheduledEvent.workoutTemplateId?._id,
+              isCommon: scheduledEvent.workoutTemplateId?.isCommon
             });
             setIsFromCalendar(true);
             setSuggestionLoading(false);

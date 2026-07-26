@@ -232,7 +232,12 @@ export function parseWorkoutToSessionData(workout, { sourceWorkoutId, sourceWork
       return;
     }
 
-    const rawExerciseId = ex.exercise_id || ex.exerciseId;
+    // exercise_id may arrive populated as an object ({_id, name, ...}) — the
+    // Workouts-page list populates it — or as a plain id string.
+    const rawIdSource = ex.exercise_id ?? ex.exerciseId;
+    const rawExerciseId = rawIdSource && typeof rawIdSource === 'object'
+      ? String(rawIdSource._id || rawIdSource.id || '')
+      : rawIdSource;
     const newExercise = {
       exercise_id: isValidObjectId(rawExerciseId) ? rawExerciseId : null,
       exercise_name: ex.exercise_name || ex.exerciseName || ex.name,
