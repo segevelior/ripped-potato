@@ -73,8 +73,10 @@ export default function SenseiChatTab({ exerciseId, exerciseName, onPickOption, 
   };
 
   return (
-    <div className="flex flex-col min-h-[40vh]">
-      <div className="flex-1 space-y-4">
+    // Content-sized: the panel hugs the conversation so the sheet opens small
+    // (like the app's other cards) and only grows as messages accumulate.
+    <div className="flex flex-col">
+      <div className="space-y-4">
         {messages.length === 0 && !sending && (
           <div className="text-center py-6">
             <Sparkles className="w-10 h-10 text-primary-500 mx-auto mb-3" />
