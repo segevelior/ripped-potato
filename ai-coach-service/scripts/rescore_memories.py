@@ -45,12 +45,18 @@ from openai import AsyncOpenAI
 
 load_dotenv()
 
+from app.config import get_settings  # noqa: E402 — needs load_dotenv first
+
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-DATABASE_NAME = os.getenv("MONGODB_DATABASE", "ripped-potato")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL_FAST") or os.getenv("OPENAI_MODEL")
+# No prod fallback on purpose: this script's safety story is "scratch DB
+# first" — the DB name must always be an explicit choice (env or .env).
+DATABASE_NAME = os.getenv("MONGODB_DATABASE")
 
 RUN_TAG = f"rescore-{datetime.utcnow().strftime('%Y-%m')}"
+
+# One batched LLM call per chunk: a user at the 60-memory cap in a single call
+# would risk truncated (non-JSON) verdict output and silently skip the user.
+CHUNK_SIZE = 25
 
 RESCORE_PROMPT = (
     "You audit an athlete's LONG-TERM coaching memories. A memory deserves to "
@@ -78,7 +84,7 @@ def _fmt(mem) -> str:
     )
 
 
-async def rescore_user(db, client, doc, apply: bool, include_user_source: bool):
+async def rescore_user(db, client, settings, doc, apply: bool, include_user_source: bool):
     """Returns (candidates, retired_count, health_flagged)."""
     user_id = doc["user"]
     memories = doc.get("memories", [])
@@ -94,33 +100,41 @@ async def rescore_user(db, client, doc, apply: bool, include_user_source: bool):
         return 0, 0, []
 
     id_map = {}
-    lines = []
-    for i, m in enumerate(scoped, start=1):
-        label = f"m{i}"
-        id_map[label] = m
-        lines.append(f"[{label}] {_fmt(m)}")
+    verdicts = []
+    for chunk_start in range(0, len(scoped), CHUNK_SIZE):
+        chunk = scoped[chunk_start:chunk_start + CHUNK_SIZE]
+        lines = []
+        for offset, m in enumerate(chunk):
+            label = f"m{chunk_start + offset + 1}"
+            id_map[label] = m
+            lines.append(f"[{label}] {_fmt(m)}")
 
-    prompt = f"MEMORIES:\n" + "\n".join(lines) + f"\n\n{RESCORE_PROMPT}"
-    response = await client.chat.completions.create(
-        model=OPENAI_MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        max_completion_tokens=1500,
-        response_format={"type": "json_object"},
-        temperature=0.1,
-    )
-    raw = (response.choices[0].message.content or "").strip()
-    try:
-        verdicts = json.loads(raw).get("verdicts", [])
-    except Exception:
-        print(f"  !! non-JSON verdict output for user {user_id}, skipping")
-        return len(scoped), 0, []
+        prompt = "MEMORIES:\n" + "\n".join(lines) + f"\n\n{RESCORE_PROMPT}"
+        response = await client.chat.completions.create(
+            model=settings.openai_model_fast,
+            messages=[{"role": "user", "content": prompt}],
+            max_completion_tokens=1500,
+            response_format={"type": "json_object"},
+            # Routed through the shared guard: reasoning models reject an
+            # explicit temperature, plain models get 0.1.
+            **settings.llm_tuning_params(temperature=0.1),
+        )
+        raw = (response.choices[0].message.content or "").strip()
+        try:
+            verdicts.extend(json.loads(raw).get("verdicts", []))
+        except Exception:
+            print(
+                f"  !! non-JSON verdict output for user {user_id} "
+                f"(chunk at {chunk_start}) — those memories were NOT scored"
+            )
 
     retired = 0
     health_flagged = []
     for v in verdicts:
         if not isinstance(v, dict) or v.get("verdict") != "RETIRE":
             continue
-        mem = id_map.get(str(v.get("id") or ""))
+        # Models sometimes echo the bracketed label ("[m3]") — normalize.
+        mem = id_map.get(str(v.get("id") or "").strip().strip("[]").strip())
         if mem is None or mem.get("_id") is None:
             continue
         reason = (v.get("reason") or "").strip()[:200]
@@ -173,8 +187,12 @@ async def main():
                         help="Also re-score memories the user typed themselves")
     args = parser.parse_args()
 
-    if not OPENAI_API_KEY or not OPENAI_MODEL:
-        sys.exit("OPENAI_API_KEY / OPENAI_MODEL(_FAST) must be set")
+    if not DATABASE_NAME:
+        sys.exit(
+            "MONGODB_DATABASE must be set explicitly (no prod fallback — "
+            "point at a scratch DB first)"
+        )
+    settings = get_settings()
 
     print(f"DB: {DATABASE_NAME}  mode: {'APPLY' if args.apply else 'DRY RUN'}  run: {RUN_TAG}")
     if not args.apply:
@@ -182,7 +200,7 @@ async def main():
 
     mongo = AsyncIOMotorClient(MONGODB_URL)
     db = mongo[DATABASE_NAME]
-    client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
 
     query = {}
     if args.user:
@@ -196,7 +214,7 @@ async def main():
     async for doc in cursor:
         print(f"user {doc['user']}:")
         scoped, retired, health = await rescore_user(
-            db, client, doc, args.apply, args.include_user_source
+            db, client, settings, doc, args.apply, args.include_user_source
         )
         if scoped == 0:
             print("  (no in-scope memories)")
