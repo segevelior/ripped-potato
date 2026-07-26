@@ -30,6 +30,8 @@ const ACTIVE_WORKOUT_TTL = 24 * 60 * 60 * 1000; // 24 hours
  * @property {string} title
  * @property {string} type
  * @property {number} duration_minutes
+ * @property {string|null} sourceWorkoutId - PredefinedWorkout template this session started from (null for ad-hoc sessions)
+ * @property {boolean} sourceWorkoutIsCommon - whether that template is shared/common (permanent edits clone it)
  * @property {WorkoutExercise[]} exercises
  */
 
@@ -179,11 +181,19 @@ function parseRest(rest) {
 
 /**
  * Parse workout blocks into exercise format for LiveWorkout
+ *
+ * sourceWorkoutId must be passed explicitly — never derived from workout._id,
+ * because callers hand in shapes where the id is something else entirely
+ * (e.g. TrainNow's calendar path, where .id is the calendar event id).
+ *
  * @param {Object} workout - workout with blocks
+ * @param {Object} [options]
+ * @param {string} [options.sourceWorkoutId] - PredefinedWorkout template id this session was started from
+ * @param {boolean} [options.sourceWorkoutIsCommon] - whether that template is a shared/common one
  * @returns {WorkoutData}
  * @throws {Error} if workout data is invalid
  */
-export function parseWorkoutToSessionData(workout) {
+export function parseWorkoutToSessionData(workout, { sourceWorkoutId, sourceWorkoutIsCommon } = {}) {
   if (!workout) {
     throw new Error('Workout data is required');
   }
@@ -196,6 +206,8 @@ export function parseWorkoutToSessionData(workout) {
     title: workout.name || workout.title,
     type: workout.primary_disciplines?.[0] || workout.type || null,
     duration_minutes: workout.estimated_duration || workout.duration_minutes || null,
+    sourceWorkoutId: isValidObjectId(String(sourceWorkoutId || '')) ? String(sourceWorkoutId) : null,
+    sourceWorkoutIsCommon: sourceWorkoutIsCommon === true,
     exercises: []
   };
 

@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/drawer";
 import ReplaceExerciseModal from "@/components/exercise/ReplaceExerciseModal";
 import ExerciseSearchInput from "@/components/exercise/ExerciseSearchInput";
+import { apiService } from "@/services/api";
+import { toast } from "@/components/ui/use-toast";
 
 // Format seconds to MM:SS
 const formatTime = (seconds) => {
@@ -661,10 +663,43 @@ export default function LiveWorkout() {
     setUndoState(null);
   };
 
+  // Persist a replacement to the source template ("from now on"). Fired after
+  // the session swap and never rolls it back on failure — the session change
+  // already happened; only the template write is reported.
+  const persistReplaceToTemplate = async (sourceWorkoutId, fromExerciseId, picked) => {
+    try {
+      const result = await apiService.predefinedWorkouts.swapExercise(sourceWorkoutId, {
+        fromExerciseId,
+        toExerciseId: picked._id || picked.id,
+      });
+      if (result?.cloned) {
+        // The common template was forked into a private copy — relink the
+        // session so a second "from now on" edits the copy in place.
+        setWorkout(w => ({ ...w, sourceWorkoutId: result.workout._id, sourceWorkoutIsCommon: false }));
+        toast({
+          title: "Saved to your workouts",
+          description: `Created your own copy of “${result.workout.name}” with the swap.`,
+        });
+      } else {
+        toast({
+          title: "Workout updated",
+          description: `“${picked.name}” is now part of this workout.`,
+        });
+      }
+    } catch (error) {
+      console.error('[LiveWorkout] Failed to persist replacement to template:', error);
+      toast({
+        title: "Session updated, workout not",
+        description: "The swap applies to this session, but saving it to the workout failed. Try again from the Workouts page.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Replace preserves already-logged work: it swaps identity and keeps the existing
   // sets array (counts + completion). Only when the old exercise had no sets do we
   // regenerate defaults from the new exercise's strain.
-  const handleReplaceExercise = (exIndex, picked) => {
+  const handleReplaceExercise = (exIndex, picked, opts = {}) => {
     const built = buildSessionExercise(picked, exIndex);
     const old = workout.exercises[exIndex];
     // Session exercises ALWAYS have a sets array, so "has sets" is always true.
@@ -683,6 +718,10 @@ export default function LiveWorkout() {
     setWorkout({ ...workout, exercises: withOrder(nextExercises) });
     setReplaceIndex(null);
     if (navigator.vibrate) navigator.vibrate(30);
+
+    if (opts.permanent && workout.sourceWorkoutId && old.exercise_id) {
+      persistReplaceToTemplate(workout.sourceWorkoutId, old.exercise_id, picked);
+    }
   };
 
   const handleAddExercise = (exIndex, position, picked) => {
@@ -926,7 +965,9 @@ export default function LiveWorkout() {
         <ReplaceExerciseModal
           exercise={workout.exercises[replaceIndex]}
           onClose={() => setReplaceIndex(null)}
-          onReplace={(picked) => handleReplaceExercise(replaceIndex, picked)}
+          onReplace={(picked, opts) => handleReplaceExercise(replaceIndex, picked, opts)}
+          canPersist={Boolean(workout.sourceWorkoutId && workout.exercises[replaceIndex]?.exercise_id)}
+          isCommonTemplate={Boolean(workout.sourceWorkoutIsCommon)}
         />
       )}
 
