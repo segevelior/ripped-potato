@@ -43,7 +43,10 @@ export default function ExerciseSwapCard({ payload }) {
     }
   };
 
-  const offerPermanent = Boolean(card.offerPermanent && old.id && swap?.canPersist);
+  // Both scopes are always offered when the session is template-linked; the
+  // skill's offerPermanent flag is advisory only (the user asked for the
+  // permanent option to be available regardless).
+  const offerPermanent = Boolean(old.id && swap?.canPersist);
 
   return (
     <span className="not-prose block my-2 max-w-sm">

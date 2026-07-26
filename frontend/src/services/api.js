@@ -266,6 +266,11 @@ class APIService {
       method: 'POST',
       body: JSON.stringify(data)
     }),
+    // Returns { workout, cloned, removedCount } — same bare-object convention.
+    removeExercise: (id, data) => this.request(`/predefined-workouts/${id}/remove-exercise`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
     favorite: (id) => this.request(`/predefined-workouts/${id}/favorite`, {
       method: 'PUT'
     })
