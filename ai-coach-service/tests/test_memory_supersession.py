@@ -110,6 +110,53 @@ class TestReconcileDecisions:
         ms.enforce_cap.assert_not_awaited()  # UPDATEs don't grow the array
 
     @pytest.mark.asyncio
+    async def test_bracketed_target_label_still_resolves(self, monkeypatch):
+        # Fast models sometimes echo the label as they saw it rendered:
+        # "[m1]" instead of "m1". That must still hit the UPDATE path — a
+        # miss would silently ADD a contradicting duplicate.
+        knee = _mem("Knee pain when running", category="health", importance="high")
+        db = _db_with_memories([knee])
+        ms = _mock_memory_service(monkeypatch)
+
+        written = await ShortTermContextService(db).promote_durable_facts(
+            USER_ID, "Athlete: my knee has fully recovered",
+            openai_client=_openai_returning(_decisions({
+                "action": "UPDATE", "target": "[m1]",
+                "content": "Knee fully recovered, running pain-free",
+                "category": "health", "importance": "medium",
+            })),
+            settings=_settings(),
+        )
+
+        assert written == 1
+        ms.update_memory_by_id.assert_awaited_once()
+        assert ms.update_memory_by_id.await_args[0][1] == knee["_id"]
+        ms.save_memory.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_failed_update_write_falls_through_to_add(self, monkeypatch):
+        # Valid target but the write fails (e.g. concurrently tombstoned):
+        # the fact must not be silently dropped — it falls through to ADD,
+        # where the dedup backstop still applies.
+        knee = _mem("Knee pain when running", category="health", importance="high")
+        db = _db_with_memories([knee])
+        ms = _mock_memory_service(monkeypatch)
+        ms.update_memory_by_id = AsyncMock(return_value={"success": False})
+
+        written = await ShortTermContextService(db).promote_durable_facts(
+            USER_ID, "Athlete: my knee has fully recovered",
+            openai_client=_openai_returning(_decisions({
+                "action": "UPDATE", "target": "m1",
+                "content": "Knee fully recovered, running pain-free",
+                "category": "health", "importance": "medium",
+            })),
+            settings=_settings(),
+        )
+
+        assert written == 1
+        ms.save_memory.assert_awaited_once()
+
+    @pytest.mark.asyncio
     async def test_bogus_target_degrades_to_add(self, monkeypatch):
         db = _db_with_memories([_mem("Prefers mornings", category="preference")])
         ms = _mock_memory_service(monkeypatch)
