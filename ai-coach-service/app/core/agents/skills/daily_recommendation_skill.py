@@ -25,7 +25,10 @@ _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # thing already on the user's dashboard, not as a brand-new idea.
 _PRESENTATION_NOTE = (
     "This is the Today's Pick already shown on the user's Dashboard / Train Now "
-    "page — present it as such, not as a new suggestion of yours."
+    "page — present it as such, not as a new suggestion of yours. Its reasoning "
+    "reflects the calendar as it was when the pick was generated and may be stale "
+    "— the calendar (TODAY'S CALENDAR block or get_calendar_events) is the source "
+    "of truth for what is scheduled today."
 )
 _REFRESHED_NOTE = (
     "This is a fresh Today's Pick that REPLACES the previous one — the Dashboard / "

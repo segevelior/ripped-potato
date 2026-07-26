@@ -22,6 +22,7 @@ from app.middleware.auth import get_current_user
 from app.core.agents.data_reader import DataReaderAgent
 from app.core.agents.prompts import SYSTEM_PROMPT
 from app.core.agents.services import CalendarService, MemoryService
+from app.core.agents.services.calendar_service import format_calendar_anchors
 from app.services.coach_question_service import CoachQuestionService
 from app.services.conversation_service import ConversationService
 from app.services.recommendation_service import RecommendationService
@@ -59,6 +60,11 @@ Rules:
    one wins - ignore the older note entirely.
 7. When the question is based on a dated note or check-in, include its date in
    the provenance label, e.g. "check-in - Jul 24".
+8. Check-in entries in the recent context are questions YOU already asked and
+   the athlete's answers. NEVER re-ask a question the athlete already answered
+   today (or a near-duplicate of it) - build on their answer or ask about
+   something else. If they already told you how they feel today, don't ask
+   again.
 
 Return ONLY a JSON object, nothing else, in exactly this shape:
 {"question": "...", "chips": ["...", "..."], "source": "..."}"""
@@ -181,55 +187,10 @@ USER DATA:
                 exc_info=True,
             )
 
-        def fmt_event(ev):
-            line = (
-                f"\n- {ev.get('date')} ({ev.get('dayOfWeek')}) "
-                f"{ev.get('type', 'workout')} \"{ev.get('title')}\" "
-                f"[{ev.get('status', 'scheduled')}]"
-            )
-            if ev.get("duration"):
-                line += f", ~{ev['duration']} min"
-            if ev.get("notes"):
-                line += f" (note: {ev['notes']})"
-            return line
-
-        def fmt_external(act):
-            line = (
-                f"\n- {act.get('date')} {act.get('sport_type') or 'activity'} "
-                f"\"{act.get('name') or 'external activity'}\" "
-                f"[completed, via {act.get('source') or 'external'}]"
-            )
-            if act.get("duration_mins"):
-                line += f", {act['duration_mins']} min"
-            if act.get("distance_km"):
-                line += f", {act['distance_km']} km"
-            return line
-
-        todays = [e for e in events if e.get("date") == today_date]
-        last_done = next(
-            (e for e in reversed(events)
-             if e.get("date") < today_date and e.get("status") == "completed"),
-            None,
+        calendar_str = format_calendar_anchors(
+            events, today_date,
+            external_activities=data_context.get("external_activities"),
         )
-        next_up = next((e for e in events if e.get("date") > today_date), None)
-
-        # The last completed session may live on the calendar or come from a
-        # synced tracker (e.g. Strava) — pick whichever is more recent.
-        ext_activities = data_context.get("external_activities") or []
-        latest_ext = next((a for a in ext_activities if a.get("date")), None)
-        last_done_line = fmt_event(last_done) if last_done else None
-        if latest_ext and (not last_done or latest_ext["date"] >= last_done.get("date", "")):
-            last_done_line = fmt_external(latest_ext)
-
-        calendar_str = "TODAY'S CALENDAR:"
-        calendar_str += (
-            "".join(fmt_event(e) for e in todays) or " nothing scheduled today"
-        )
-        calendar_str += "\nLAST COMPLETED SESSION:"
-        calendar_str += last_done_line or " none recently"
-        calendar_str += "\nNEXT UPCOMING EVENT:"
-        calendar_str += fmt_event(next_up) if next_up else " nothing scheduled in the next 14 days"
-
         context_str += f"\n\n{calendar_str}"
 
         memory_block = MemoryService.format_for_prompt(user_memories, limit=15)

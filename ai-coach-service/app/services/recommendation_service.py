@@ -140,7 +140,10 @@ class RecommendationService:
             return ""
         lines = [
             'TODAY\'S PICK & RECENT DAILY SUGGESTIONS (the "Today\'s Pick" workout shown on the '
-            "user's Dashboard / Train Now page — this is NOT a scheduled calendar event):"
+            "user's Dashboard / Train Now page — this is NOT a scheduled calendar event. "
+            "A pick's \"Why\" reasoning reflects the calendar as it was when the pick was "
+            "generated and may be STALE — the TODAY'S CALENDAR block is the source of truth "
+            "for what is scheduled):"
         ]
         today_pick_name = None
         for rec in recs:
@@ -185,9 +188,11 @@ class RecommendationService:
                     lines.append(f"  {block.get('name', 'Block')}: {', '.join(shown)}{suffix}")
         if today_pick_name:
             lines.append(
-                "If nothing is on the calendar today, do NOT tell the user they have no workout — "
-                f'say nothing is scheduled but their Today\'s Pick is "{today_pick_name}", and offer it. '
-                "Use get_daily_recommendation for full sets/reps or to refresh it."
+                "Check TODAY'S CALENDAR before answering \"what should I do/train today\": if "
+                "workouts ARE scheduled today, lead with those — never say nothing is scheduled. "
+                "Only if the calendar shows nothing today, do NOT tell the user they have no "
+                f'workout — say nothing is scheduled but their Today\'s Pick is "{today_pick_name}", '
+                "and offer it. Use get_daily_recommendation for full sets/reps or to refresh it."
             )
         return "\n".join(lines)
 

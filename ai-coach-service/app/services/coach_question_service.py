@@ -79,6 +79,20 @@ class CoachQuestionService:
             logger.error(f"Error fetching cached coach question for {user_id}: {e}")
             return None
 
+    async def get_pending_today(self, user_id: str, today_date: str) -> Optional[Dict[str, Any]]:
+        """Return the user's live question if it belongs to today's local date,
+        regardless of the serve-cache TTL — an unanswered question may still be
+        visible on the dashboard past CACHE_TTL_MINUTES. Answered questions are
+        deleted (see invalidate), so any surviving doc is pending."""
+        try:
+            doc = await self.collection.find_one({"userId": ObjectId(user_id)})
+            if doc and doc.get("localDate") == today_date:
+                return doc
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching pending coach question for {user_id}: {e}")
+            return None
+
     async def save(
         self,
         user_id: str,
