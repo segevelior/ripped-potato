@@ -4,7 +4,7 @@ const SportResolution = require('../models/SportResolution');
 const User = require('../models/User');
 const SportResolverService = require('../services/SportResolverService');
 const { ResolutionError } = require('../services/SportResolverService');
-const { legacySlugFeeds, DEFAULT_SUGGESTIONS } = require('../config/sportsNews');
+const { legacySlugFeeds, DEFAULT_SUGGESTIONS, GLOBAL_TOP_FEEDS } = require('../config/sportsNews');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
 
@@ -29,6 +29,28 @@ const followedFeeds = (sportsNews) => {
   return [...new Set([...fromFollows, ...fromLegacy])];
 };
 
+const TOP_EVENT_CAP = 2;
+const TOP_EVENT_POOL = 12;
+
+const globalTopSlugs = new Set(GLOBAL_TOP_FEEDS.map((f) => f.slug));
+
+// One article per global top feed, newest first, capped. Articles keep their
+// isTopEvent flag for NEWS_TTL_DAYS after a feed leaves GLOBAL_TOP_FEEDS, so
+// fall back to the article's first feed slug as the group key.
+const pickTopEvents = (articles, cap) => {
+  const seenGroups = new Set();
+  const picked = [];
+  for (const article of articles) {
+    if (picked.length >= cap) break;
+    const feeds = article.feeds || [];
+    const group = feeds.find((slug) => globalTopSlugs.has(slug)) || feeds[0] || 'unknown';
+    if (seenGroups.has(group)) continue;
+    seenGroups.add(group);
+    picked.push(article);
+  }
+  return picked;
+};
+
 // GET /api/v1/news - Sports news feed for the authenticated user:
 // seasonal top-event stories (shown to everyone) interleaved with articles
 // from the league feeds the user follows.
@@ -45,12 +67,14 @@ router.get('/', auth, async (req, res) => {
 
     // Two queries instead of one isTopEvent-first sort: the swipe stack is
     // strictly sequential, so uncapped top events (up to a whole feed's
-    // worth) would bury the user's own sports behind them.
-    const TOP_EVENT_CAP = 4;
-    const topEvents = await NewsArticle.find({ isTopEvent: true })
+    // worth) would bury the user's own sports behind them. Top events are
+    // further deduped to one article per global feed (see pickTopEvents),
+    // so a single event like the World Cup can't flood the stack.
+    const topEventPool = await NewsArticle.find({ isTopEvent: true })
       .sort({ publishedAt: -1 })
-      .limit(TOP_EVENT_CAP)
+      .limit(TOP_EVENT_POOL)
       .lean();
+    const topEvents = pickTopEvents(topEventPool, TOP_EVENT_CAP);
 
     let personal = [];
     if (userFeeds.length > 0) {
@@ -201,3 +225,4 @@ router.get('/suggestions', auth, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.pickTopEvents = pickTopEvents;
