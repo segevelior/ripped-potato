@@ -178,6 +178,61 @@ class TestSubstituteChat:
         assert res.options == []
         assert res.fallback is True
 
+    async def test_non_json_reply_is_used_as_plain_text(self, monkeypatch):
+        _mock_db(monkeypatch)
+        captured = {}
+
+        async def create(**kwargs):
+            captured.update(kwargs)
+            response = MagicMock()
+            response.choices[0].message.content = "Try chin-ups instead, they keep the same pull pattern."
+            return response
+
+        client = MagicMock()
+        client.chat.completions.create = AsyncMock(side_effect=create)
+        monkeypatch.setattr(ex, "AsyncOpenAI", MagicMock(return_value=client))
+
+        req = ex.SubstituteChatRequest(message="I want variety", exercise_id=str(ORIGINAL_ID))
+        res = await ex.substitute_chat(req, CURRENT_USER)
+        assert res.reply.startswith("Try chin-ups")
+        assert res.options == []
+        assert res.fallback is False
+
+    async def test_assistant_history_replayed_as_json(self, monkeypatch):
+        _mock_db(monkeypatch)
+        captured, _ = _mock_openai(monkeypatch, payload={"reply": "ok", "options": []})
+        req = ex.SubstituteChatRequest(
+            message="so what instead?",
+            history=[{"role": "user", "content": "I want variety"},
+                     {"role": "assistant", "content": "What equipment do you have?"}],
+            exercise_id=str(ORIGINAL_ID),
+        )
+        await ex.substitute_chat(req, CURRENT_USER)
+        assistant_turn = captured["messages"][2]
+        assert assistant_turn["role"] == "assistant"
+        assert json.loads(assistant_turn["content"]) == {"reply": "What equipment do you have?", "options": []}
+        # User turns stay verbatim.
+        assert captured["messages"][1]["content"] == "I want variety"
+
+    async def test_empty_llm_content_falls_back(self, monkeypatch):
+        _mock_db(monkeypatch)
+        captured = {}
+
+        async def create(**kwargs):
+            captured.update(kwargs)
+            response = MagicMock()
+            response.choices[0].message.content = ""
+            return response
+
+        client = MagicMock()
+        client.chat.completions.create = AsyncMock(side_effect=create)
+        monkeypatch.setattr(ex, "AsyncOpenAI", MagicMock(return_value=client))
+
+        req = ex.SubstituteChatRequest(message="I want variety", exercise_id=str(ORIGINAL_ID))
+        res = await ex.substitute_chat(req, CURRENT_USER)
+        assert res.fallback is True
+        assert [o.name for o in res.options] == ["Chin-up"]
+
     async def test_unresolvable_exercise_still_chats_without_pool(self, monkeypatch):
         _mock_db(monkeypatch, original=None)
         captured, _ = _mock_openai(monkeypatch, payload={"reply": "Try weighted dips.", "options": []})
