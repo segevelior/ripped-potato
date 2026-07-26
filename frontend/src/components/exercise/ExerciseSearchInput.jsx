@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Search, Loader2, X } from "lucide-react";
-import { apiService } from "@/services/api";
+import useExerciseSearch from "@/hooks/useExerciseSearch";
 
 /**
  * Debounced type-to-search combobox over the exercise catalog.
@@ -16,48 +16,12 @@ import { apiService } from "@/services/api";
  */
 export default function ExerciseSearchInput({ onSelect, placeholder = "Search exercises...", excludeId, autoFocus }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const reqIdRef = useRef(0);
-
-  useEffect(() => {
-    const term = query.trim();
-    if (term.length < 2) {
-      setResults([]);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    const reqId = ++reqIdRef.current;
-
-    const timeoutId = setTimeout(async () => {
-      try {
-        const list = await apiService.exercises.list({ search: term, limit: 20 });
-        // Ignore out-of-order responses (a newer keystroke already fired).
-        if (reqId !== reqIdRef.current) return;
-        const filtered = (Array.isArray(list) ? list : []).filter(
-          (ex) => (ex._id || ex.id) !== excludeId
-        );
-        setResults(filtered);
-      } catch (err) {
-        if (reqId !== reqIdRef.current) return;
-        console.error("Exercise search failed:", err);
-        setError("Search failed. Try again.");
-        setResults([]);
-      } finally {
-        if (reqId === reqIdRef.current) setIsLoading(false);
-      }
-    }, 250);
-
-    return () => clearTimeout(timeoutId);
-  }, [query, excludeId]);
+  const { results: searchResults, isLoading, error } = useExerciseSearch(query, { excludeId });
+  // Hide stale results the instant the query is cleared (the hook clears async).
+  const results = query.trim().length >= 2 ? searchResults : [];
 
   const handleSelect = (exercise) => {
     setQuery("");
-    setResults([]);
     onSelect(exercise);
   };
 
