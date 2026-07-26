@@ -444,6 +444,21 @@ class AIService {
   }
 
   /**
+   * One conversational turn of "Ask the Sensei" exercise substitution.
+   * Stateless: the caller holds the message history ({role, content} only)
+   * and sends it each turn; the server re-grounds on the catalog every time.
+   * @param {{ exercise_id?: string, exercise_name?: string, history?: Array<{role: string, content: string}>, message: string }} params
+   * @returns {Promise<{ reply: string, options?: Array, routed?: string, fallback?: boolean }>}
+   */
+  async substituteChat({ exercise_id, exercise_name, history = [], message }, signal) {
+    return this.request('/api/v1/ai/exercises/substitute/chat', {
+      method: 'POST',
+      body: JSON.stringify({ exercise_id, exercise_name, history: history.slice(-8), message }),
+      ...(signal ? { signal } : {})
+    });
+  }
+
+  /**
    * Clear all cached data (call on logout)
    */
   clearAllCache() {

@@ -784,6 +784,82 @@ router.post('/exercises/substitute/rank', authMiddleware, aiRateLimit, async (re
   }
 });
 
+// Exercise substitute chat - conversational "Ask the Sensei" replace (proxies to AI Coach)
+// Stateless: the client holds the message history and sends it each turn.
+// Forwards the Authorization header because the AI endpoint is user-scoped.
+router.post('/exercises/substitute/chat', authMiddleware, aiRateLimit, async (req, res) => {
+  try {
+    const { exercise_id, exercise_name, message } = req.body;
+
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'message is required'
+      });
+    }
+
+    // Bound the forwarded body: the AI service re-grounds every turn, so only
+    // the most recent turns matter.
+    const history = Array.isArray(req.body.history) ? req.body.history.slice(-8) : [];
+
+    const urlParts = new URL(`${AI_SERVICE_URL}/api/v1/exercises/substitute/chat`);
+    const isHttps = urlParts.protocol === 'https:';
+    const http = require(isHttps ? 'https' : 'http');
+
+    const body = JSON.stringify({ exercise_id, exercise_name, history, message });
+
+    const response = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: urlParts.hostname,
+        port: urlParts.port || (isHttps ? 443 : 80),
+        path: urlParts.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+          ...(req.headers.authorization && { Authorization: req.headers.authorization })
+        }
+      };
+
+      const request = http.request(options, (response) => {
+        let data = '';
+        response.on('data', (chunk) => { data += chunk; });
+        response.on('end', () => {
+          if (response.statusCode === 200) {
+            try {
+              resolve(JSON.parse(data));
+            } catch (e) {
+              reject(new Error('Invalid JSON response from AI service'));
+            }
+          } else {
+            reject(new Error(`AI service returned status ${response.statusCode}: ${data}`));
+          }
+        });
+      });
+
+      // The downstream call waits on an LLM completion — cap it so a hung
+      // upstream can't hold the client connection open indefinitely.
+      request.setTimeout(30000, () => {
+        request.destroy(new Error('AI service timed out'));
+      });
+
+      request.on('error', reject);
+      request.write(body);
+      request.end();
+    });
+
+    res.json(response);
+
+  } catch (error) {
+    console.error('Substitute chat error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get a Sensei reply',
+      error: error.message
+    });
+  }
+});
+
 // Progression suggestion streaming endpoint - proxies to Python AI Coach service
 router.post('/progressions/suggest/stream', authMiddleware, aiRateLimit, async (req, res) => {
   try {

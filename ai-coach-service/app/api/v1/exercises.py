@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from openai import AsyncOpenAI
-from pydantic import BaseModel
-from typing import Any, Dict, List, Optional
+from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Literal, Optional
 from bson import ObjectId
 import json
 import re
@@ -401,7 +401,88 @@ def _candidate_to_option(doc: Dict[str, Any], note: Optional[str] = None) -> Dic
     }
 
 
-async def _load_original(db, user_oid: ObjectId, req: SubstituteRankRequest) -> Optional[Dict[str, Any]]:
+def _strip_json_fences(content: str) -> str:
+    content = content.strip()
+    if content.startswith("```"):
+        content = content.split("```")[1]
+        if content.startswith("json"):
+            content = content[4:]
+        content = content.strip()
+    return content
+
+
+async def _build_candidate_pool(db, user_oid: ObjectId, original: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Equipment-aware candidate pool sharing >=1 primary muscle, deterministically ranked, top 8."""
+    user = await db.users.find_one({"_id": user_oid}, {"profile.preferences.equipment": 1})
+    equipment_list = (((user or {}).get("profile") or {}).get("preferences") or {}).get("equipment") or []
+    available = {(e or "").lower() for e in equipment_list} | _ALWAYS_AVAILABLE
+
+    ownership = {"$or": [{"isCommon": True}, {"createdBy": user_oid}]}
+    query = {"muscles": {"$in": original.get("muscles", [])}, "_id": {"$ne": original["_id"]}, **ownership}
+    candidates = await db.exercises.find(query).to_list(100)
+    scored = [
+        (score_substitute(original, c), c)
+        for c in candidates
+        if equipment_ok(c.get("equipment", []), available)
+    ]
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [c for s, c in scored[:8] if s > 0]
+
+
+def _format_candidates(pool: List[Dict[str, Any]]) -> str:
+    return "\n".join(
+        f'- id={str(c["_id"])} | {c.get("name")} | muscles={c.get("muscles", [])} | equipment={c.get("equipment", [])}'
+        for c in pool
+    )
+
+
+def _parse_llm_options(
+    data: Dict[str, Any],
+    pool_by_id: Dict[str, Dict[str, Any]],
+    original: Dict[str, Any],
+    count: int,
+) -> List[Dict[str, Any]]:
+    """Validate LLM-returned options: catalog ids must exist in the pool, "new" fields
+    must pass the VALID_* vocabularies (muscles inherit from the original when invalid)."""
+    options: List[Dict[str, Any]] = []
+    for raw in data.get("options", [])[:count]:
+        source = raw.get("source")
+        note = raw.get("note")
+        if source == "catalog":
+            doc = pool_by_id.get(raw.get("id"))
+            if doc is not None:  # drop hallucinated ids
+                options.append(_candidate_to_option(doc, note))
+        elif source == "new" and raw.get("name"):
+            strain = raw.get("strain") or {}
+            new_muscles = [m for m in raw.get("muscles", []) if m in VALID_MUSCLES]
+            if not new_muscles:
+                # LLM returned no valid muscles — inherit the original's so the
+                # option is materializable (muscles is required by the Exercise
+                # model) and embeds/searches sensibly. Skip if still empty.
+                new_muscles = [m for m in (original.get("muscles") or []) if m in VALID_MUSCLES]
+            if not new_muscles:
+                continue
+            options.append({
+                "source": "new",
+                "id": None,
+                "name": raw["name"],
+                "muscles": new_muscles,
+                "secondaryMuscles": [],
+                "discipline": [d for d in raw.get("discipline", []) if d in VALID_DISCIPLINES] or ["strength"],
+                "equipment": raw.get("equipment", []) or [],
+                "difficulty": raw.get("difficulty") if raw.get("difficulty") in VALID_DIFFICULTIES else "beginner",
+                "strain": {
+                    "intensity": strain.get("intensity") if strain.get("intensity") in VALID_INTENSITIES else "moderate",
+                    "load": strain.get("load") if strain.get("load") in VALID_LOADS else "moderate",
+                    "durationType": strain.get("duration_type") if strain.get("duration_type") in VALID_DURATION_TYPES else "reps",
+                    "typicalVolume": strain.get("typical_volume", "3x10"),
+                },
+                "note": note,
+            })
+    return options
+
+
+async def _load_original(db, user_oid: ObjectId, req) -> Optional[Dict[str, Any]]:
     ownership = {"$or": [{"isCommon": True}, {"createdBy": user_oid}]}
     if req.exercise_id:
         try:
@@ -438,24 +519,7 @@ async def substitute_rank(
         return SubstituteRankResponse(options=[], fallback=True,
                                       message="Couldn't find that exercise to build alternatives from.")
 
-    # Available equipment: user profile.
-    user = await db.users.find_one({"_id": user_oid}, {"profile.preferences.equipment": 1})
-    equipment_list = (((user or {}).get("profile") or {}).get("preferences") or {}).get("equipment") or []
-    available = {(e or "").lower() for e in equipment_list} | _ALWAYS_AVAILABLE
-
-    # Candidate pool: shares >=1 primary muscle, equipment-ok, ranked deterministically.
-    ownership = {"$or": [{"isCommon": True}, {"createdBy": user_oid}]}
-    query = {"muscles": {"$in": original.get("muscles", [])}, "_id": {"$ne": original["_id"]}, **ownership}
-    candidates = await db.exercises.find(query).to_list(100)
-    scored = [
-        (score_substitute(original, c), c)
-        for c in candidates
-        if equipment_ok(c.get("equipment", []), available)
-    ]
-    scored.sort(key=lambda x: x[0], reverse=True)
-    scored = [s for s in scored if s[0] > 0]
-
-    pool = [c for _, c in scored[:8]]
+    pool = await _build_candidate_pool(db, user_oid, original)
     pool_by_id = {str(c["_id"]): c for c in pool}
 
     # Deterministic fallback options (used if the LLM call fails or returns nothing usable).
@@ -466,15 +530,11 @@ async def substitute_rank(
 
     settings = get_settings()
     client = AsyncOpenAI(api_key=settings.openai_api_key)
-    candidates_text = "\n".join(
-        f'- id={str(c["_id"])} | {c.get("name")} | muscles={c.get("muscles", [])} | equipment={c.get("equipment", [])}'
-        for c in pool
-    )
     prompt = SUBSTITUTE_RANK_PROMPT.format(
         original_name=original.get("name", ""),
         original_muscles=", ".join(original.get("muscles", []) or []) or "n/a",
         reason=request.reason or "wants a change",
-        candidates=candidates_text,
+        candidates=_format_candidates(pool),
         count=request.count,
     )
 
@@ -488,49 +548,10 @@ async def substitute_rank(
             max_completion_tokens=900,
             **settings.llm_tuning_params(temperature=0.4),
         )
-        content = response.choices[0].message.content.strip()
-        if content.startswith("```"):
-            content = content.split("```")[1]
-            if content.startswith("json"):
-                content = content[4:]
-            content = content.strip()
+        content = _strip_json_fences(response.choices[0].message.content)
         data = json.loads(content)
 
-        options: List[Dict[str, Any]] = []
-        for raw in data.get("options", [])[: request.count]:
-            source = raw.get("source")
-            note = raw.get("note")
-            if source == "catalog":
-                doc = pool_by_id.get(raw.get("id"))
-                if doc is not None:  # drop hallucinated ids
-                    options.append(_candidate_to_option(doc, note))
-            elif source == "new" and raw.get("name"):
-                strain = raw.get("strain") or {}
-                new_muscles = [m for m in raw.get("muscles", []) if m in VALID_MUSCLES]
-                if not new_muscles:
-                    # LLM returned no valid muscles — inherit the original's so the
-                    # option is materializable (muscles is required by the Exercise
-                    # model) and embeds/searches sensibly. Skip if still empty.
-                    new_muscles = [m for m in (original.get("muscles") or []) if m in VALID_MUSCLES]
-                if not new_muscles:
-                    continue
-                options.append({
-                    "source": "new",
-                    "id": None,
-                    "name": raw["name"],
-                    "muscles": new_muscles,
-                    "secondaryMuscles": [],
-                    "discipline": [d for d in raw.get("discipline", []) if d in VALID_DISCIPLINES] or ["strength"],
-                    "equipment": raw.get("equipment", []) or [],
-                    "difficulty": raw.get("difficulty") if raw.get("difficulty") in VALID_DIFFICULTIES else "beginner",
-                    "strain": {
-                        "intensity": strain.get("intensity") if strain.get("intensity") in VALID_INTENSITIES else "moderate",
-                        "load": strain.get("load") if strain.get("load") in VALID_LOADS else "moderate",
-                        "durationType": strain.get("duration_type") if strain.get("duration_type") in VALID_DURATION_TYPES else "reps",
-                        "typicalVolume": strain.get("typical_volume", "3x10"),
-                    },
-                    "note": note,
-                })
+        options = _parse_llm_options(data, pool_by_id, original, request.count)
 
         if not options:
             return SubstituteRankResponse(options=deterministic, fallback=True)
@@ -539,3 +560,147 @@ async def substitute_rank(
     except Exception as e:
         logger.error(f"substitute_rank LLM failure, returning deterministic pool: {e}")
         return SubstituteRankResponse(options=deterministic, fallback=True)
+
+
+# ---------------------------------------------------------------------------
+# Substitute chat ("Ask the Sensei" conversation)
+# ---------------------------------------------------------------------------
+# Stateless multi-turn variant of substitute_rank: the client holds the message
+# history and sends it each turn; every turn is re-grounded on the same
+# catalog candidate pool, and any options the LLM proposes pass through the
+# same validation as the one-shot ranker.
+
+
+class SubstituteChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=1000)
+
+
+class SubstituteChatRequest(BaseModel):
+    exercise_id: Optional[str] = None
+    exercise_name: Optional[str] = None
+    history: List[SubstituteChatMessage] = []  # client-held, prior turns only
+    message: str = Field(min_length=1, max_length=1000)
+
+
+class SubstituteChatResponse(BaseModel):
+    reply: str
+    options: List[SubstituteOption] = []
+    routed: Optional[str] = None  # "safety" on hard pain-gate turns
+    fallback: bool = False
+
+
+CHAT_SAFETY_MESSAGE = (
+    "Since this is about pain or an injury, I won't just swap in another loaded "
+    "movement. If a clinician has cleared you to train around it, tell me which "
+    "area to avoid and I'll suggest options that work around it. Otherwise please "
+    "rest it or check with a professional — I can't prescribe rehab."
+)
+
+SUBSTITUTE_CHAT_PROMPT = """You are the Sensei, a pragmatic strength coach chatting with an athlete who wants to swap the exercise "{original_name}" mid-workout.
+Primary muscles: {original_muscles}
+
+{candidates_block}
+
+Safety rules:
+- Never prescribe rehab or diagnose. If the athlete mentions pain or injury anywhere in the conversation, include a one-line caution, never load the painful area, and keep suggestions conservative.
+- Ask a short clarifying question when the request is ambiguous instead of guessing.
+
+Respond ONLY with a JSON object:
+{{"reply": "<2-3 conversational sentences answering the athlete>",
+  "options": [
+    {{"source": "catalog", "id": "<exact id from the list>", "note": "<=12 words on why it fits"}},
+    {{"source": "new", "name": "<exercise name>", "muscles": [...], "discipline": [...],
+      "equipment": [...], "difficulty": "beginner|intermediate|advanced",
+      "strain": {{"intensity": "...", "load": "...", "duration_type": "reps", "typical_volume": "3x10"}},
+      "note": "<=12 words on why it fits"}}
+  ]}}
+- "options" is optional: use [] when you are asking a question rather than suggesting.
+- Suggest 0-4 options, at most 2 with source "new". Prefer catalog options (they map to real logged exercises).
+- For "catalog" options include ONLY source, id, note. Use ids EXACTLY as given; never invent an id."""
+
+CHAT_CANDIDATES_BLOCK = """Here are REAL exercises from their catalog that share muscles and fit their equipment,
+already ranked by stimulus match (best first):
+{candidates}"""
+
+CHAT_NO_CANDIDATES_BLOCK = (
+    'Their catalog has no matching exercises to ground on. Suggest well-known '
+    'exercises as source "new" only.'
+)
+
+_CHAT_HISTORY_LIMIT = 8
+
+
+@router.post("/substitute/chat", response_model=SubstituteChatResponse)
+async def substitute_chat(
+    request: SubstituteChatRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> SubstituteChatResponse:
+    """One conversational turn of exercise-substitution coaching."""
+    from app.main import db
+
+    try:
+        user_oid = ObjectId(current_user["user_id"])
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid user.")
+
+    history = request.history[-_CHAT_HISTORY_LIMIT:]
+    pain_anywhere = _is_pain_reason(request.message) or any(
+        _is_pain_reason(m.content) for m in history if m.role == "user"
+    )
+
+    # First pain mention with no prior context gets the deterministic caution —
+    # but unlike the one-shot ranker the conversation continues from here.
+    if not history and _is_pain_reason(request.message):
+        return SubstituteChatResponse(reply=CHAT_SAFETY_MESSAGE, routed="safety")
+
+    original = await _load_original(db, user_oid, request)
+    pool = await _build_candidate_pool(db, user_oid, original) if original else []
+    pool_by_id = {str(c["_id"]): c for c in pool}
+
+    candidates_block = (
+        CHAT_CANDIDATES_BLOCK.format(candidates=_format_candidates(pool))
+        if pool else CHAT_NO_CANDIDATES_BLOCK
+    )
+    system_prompt = SUBSTITUTE_CHAT_PROMPT.format(
+        original_name=(original or {}).get("name") or request.exercise_name or "their exercise",
+        original_muscles=", ".join((original or {}).get("muscles", []) or []) or "n/a",
+        candidates_block=candidates_block,
+    )
+    messages = (
+        [{"role": "system", "content": system_prompt}]
+        + [{"role": m.role, "content": m.content} for m in history]
+        + [{"role": "user", "content": request.message}]
+    )
+
+    settings = get_settings()
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    try:
+        response = await client.chat.completions.create(
+            model=settings.openai_model_fast,
+            messages=messages,
+            max_completion_tokens=700,
+            **settings.llm_tuning_params(temperature=0.4),
+        )
+        content = _strip_json_fences(response.choices[0].message.content)
+        data = json.loads(content)
+        reply = (data.get("reply") or "").strip()
+        if not reply:
+            raise ValueError("LLM returned no reply text")
+        options = _parse_llm_options(data, pool_by_id, original or {}, 4)
+        return SubstituteChatResponse(reply=reply, options=options)
+    except Exception as e:
+        logger.error(f"substitute_chat LLM failure, degrading: {e}")
+        # Never 500 for LLM issues mid-workout.
+        if pain_anywhere:
+            return SubstituteChatResponse(reply=CHAT_SAFETY_MESSAGE, routed="safety", fallback=True)
+        if pool:
+            return SubstituteChatResponse(
+                reply="I couldn't think that through just now — here are the closest matches from your catalog:",
+                options=[_candidate_to_option(c) for c in pool[:4]],
+                fallback=True,
+            )
+        return SubstituteChatResponse(
+            reply="I couldn't come up with suggestions right now — try the Browse tab.",
+            fallback=True,
+        )

@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef } from "react";
-import { X, Sparkles, Search, AlertTriangle, Plus, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { X, Sparkles, Search, AlertTriangle } from "lucide-react";
 import { apiService } from "@/services/api";
-import { aiService } from "@/services/aiService";
-import ExerciseResultRow from "./replace/ExerciseResultRow";
 import BrowseTab from "./replace/BrowseTab";
+import SenseiChatTab from "./replace/SenseiChatTab";
 
 const TABS = [
   { key: "browse", label: "Browse", icon: Search },
@@ -25,40 +24,6 @@ export default function ReplaceExerciseModal({ exercise, onClose, onReplace, can
     if (canPersist) setPendingPick(ex);
     else onReplace(ex, { permanent: false });
   };
-
-  // --- Sensei tab (one-shot) ---
-  const [sensei, setSensei] = useState(null);       // { options?, routed?, message? }
-  const [senseiLoading, setSenseiLoading] = useState(false);
-  const senseiAbortRef = useRef(null);
-
-  const runSensei = () => {
-    if (senseiAbortRef.current) senseiAbortRef.current.abort();
-    const controller = new AbortController();
-    senseiAbortRef.current = controller;
-    setSenseiLoading(true);
-    setSensei(null);
-    setError(null);
-    aiService
-      .rankSubstitutes({ exercise_id: exerciseId, exercise_name: exerciseName }, controller.signal)
-      .then((res) => setSensei(res || { options: [] }))
-      .catch((err) => {
-        if (err?.name === "AbortError") return;
-        setError("The Sensei couldn't fetch options. Try again.");
-        setSensei({ options: [] });
-      })
-      .finally(() => {
-        if (senseiAbortRef.current === controller) senseiAbortRef.current = null;
-        setSenseiLoading(false);
-      });
-  };
-
-  const cancelSensei = () => {
-    if (senseiAbortRef.current) senseiAbortRef.current.abort();
-    senseiAbortRef.current = null;
-    setSenseiLoading(false);
-  };
-
-  useEffect(() => () => { if (senseiAbortRef.current) senseiAbortRef.current.abort(); }, []);
 
   // Materialize a generated (source:"new") exercise into the catalog before swapping,
   // so it carries a real id. Dedup by name first to avoid polluting the catalog.
@@ -132,7 +97,8 @@ export default function ReplaceExerciseModal({ exercise, onClose, onReplace, can
           })}
         </div>
 
-        {/* Body — panels stay mounted so state survives tab switches */}
+        {/* Body — panels stay mounted so search text / picks / chat history
+            survive tab switches; `hidden` avoids re-firing mount effects. */}
         <div className="flex-1 overflow-y-auto p-5">
           {error && (
             <div className="mb-4 flex items-start gap-2 text-sm text-red-700 bg-red-50 rounded-xl p-3">
@@ -152,63 +118,12 @@ export default function ReplaceExerciseModal({ exercise, onClose, onReplace, can
           </div>
 
           <div className={tab === "sensei" ? "" : "hidden"}>
-            {!sensei && !senseiLoading && (
-              <div className="text-center py-8">
-                <Sparkles className="w-10 h-10 text-primary-500 mx-auto mb-3" />
-                <p className="text-gray-600 mb-4 text-sm">Get AI-picked alternatives.</p>
-                <button
-                  onClick={runSensei}
-                  className="px-5 py-2.5 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700"
-                >
-                  Get options
-                </button>
-              </div>
-            )}
-
-            {senseiLoading && (
-              <div className="text-center py-8">
-                <Loader2 className="w-8 h-8 text-primary-500 mx-auto mb-3 animate-spin" />
-                <p className="text-gray-500 text-sm mb-4">The Sensei is thinking…</p>
-                <button onClick={cancelSensei} className="text-sm text-gray-500 underline">Cancel</button>
-              </div>
-            )}
-
-            {sensei?.routed === "safety" && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
-                <AlertTriangle className="w-5 h-5 mb-2" />
-                {sensei.message}
-              </div>
-            )}
-
-            {sensei && !sensei.routed && (sensei.options?.length > 0) && (
-              <div className="space-y-3">
-                {sensei.options.map((opt, i) => (
-                  <ExerciseResultRow
-                    key={opt.id || `${opt.name}-${i}`}
-                    name={opt.name}
-                    subtitle={opt.note || (opt.muscles || []).join(", ")}
-                    disabled={materializingId === opt.name}
-                    badge={
-                      opt.source === "new" ? (
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[11px] font-medium">
-                          <Plus className="w-3 h-3" /> New
-                        </span>
-                      ) : null
-                    }
-                    onPick={() => pickOption(opt)}
-                  />
-                ))}
-                <button onClick={runSensei} className="w-full text-sm text-gray-500 py-2 hover:text-gray-700">
-                  Regenerate options
-                </button>
-              </div>
-            )}
-
-            {sensei && !sensei.routed && sensei.options?.length === 0 && !senseiLoading && (
-              <p className="text-center text-gray-500 py-8 text-sm">
-                No options came back. Try the Browse tab instead.
-              </p>
-            )}
+            <SenseiChatTab
+              exerciseId={exerciseId}
+              exerciseName={exerciseName}
+              onPickOption={pickOption}
+              materializingId={materializingId}
+            />
           </div>
         </div>
 
