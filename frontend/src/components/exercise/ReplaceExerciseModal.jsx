@@ -62,7 +62,7 @@ export default function ReplaceExerciseModal({ exercise, onClose, onReplace, can
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[55] flex items-end sm:items-center justify-center sm:p-4">
-      <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[92vh] flex flex-col">
+      <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="p-5 border-b border-gray-100">
           <div className="flex items-start justify-between gap-3">
