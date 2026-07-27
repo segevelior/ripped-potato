@@ -73,6 +73,14 @@ class Settings(BaseSettings):
     # "older than 3 days = expired" rule.
     checkin_context_max_age_days: int = 3
 
+    # Staleness ceiling on the fingerprint-cached Today coach question, and the
+    # env-only escape hatch: 0 disables the cache entirely (every request
+    # regenerates). NOT the primary freshness mechanism — the input fingerprint
+    # is (app/core/llm_cache.py); this only caps the tail, bounding the
+    # "generated at 07:00, served at 11:55, reads as 'this morning'" window
+    # without touching the prompt. Env: COACH_QUESTION_CACHE_MAX_AGE_MINUTES.
+    coach_question_cache_max_age_minutes: int = 240
+
     @property
     def memory_decay_exempt_set(self) -> set:
         return {c.strip() for c in self.memory_decay_exempt_categories.split(",") if c.strip()}

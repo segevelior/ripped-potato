@@ -309,7 +309,9 @@ class DataReaderAgent(BaseAgent):
                     "userId": user_oid,
                     "startDate": {"$gte": cutoff_date}
                 }
-            ).sort("startDate", -1).limit(20).to_list(20)
+            # _id tiebreaks equal startDates so the rendered order is stable —
+            # the coach question fingerprints this block (app/core/llm_cache.py).
+            ).sort([("startDate", -1), ("_id", -1)]).limit(20).to_list(20)
 
             # Format activities for context
             formatted = []

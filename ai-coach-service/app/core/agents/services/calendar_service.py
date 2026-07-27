@@ -638,8 +638,17 @@ class CalendarService:
             if event_type:
                 query["type"] = event_type
 
-            # Fetch events (Mongoose uses lowercase, no underscore for collection name)
-            events = await self.db.calendarevents.find(query).sort("date", 1).to_list(100)
+            # Fetch events (Mongoose uses lowercase, no underscore for collection name).
+            # _id is a tiebreaker, not cosmetic: dates are day-granular, so two
+            # sessions on the same day tie, and Mongo gives no stable order for
+            # equal sort keys. The coach question fingerprints the rendered
+            # calendar block (see app/core/llm_cache.py), so an unstable order
+            # would thrash its cache for an athlete who changed nothing.
+            events = (
+                await self.db.calendarevents.find(query)
+                .sort([("date", 1), ("_id", 1)])
+                .to_list(100)
+            )
 
             today_str = today.strftime("%Y-%m-%d")
             queried_range = {

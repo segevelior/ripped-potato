@@ -9,6 +9,7 @@ import pytest
 from bson import ObjectId
 
 import app.api.v1.coach_question as cq
+from app.services.coach_question_service import CacheLookup
 
 USER_ID = str(ObjectId())
 
@@ -35,7 +36,10 @@ def _mock_openai(monkeypatch):
 
 def _patch_flow(monkeypatch, data_context, calendar_result, today="2026-07-26"):
     monkeypatch.setattr("app.main.db", MagicMock())
-    monkeypatch.setattr(cq.CoachQuestionService, "get_fresh", AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        cq.CoachQuestionService, "get_matching",
+        AsyncMock(return_value=CacheLookup(None, "no_doc")),
+    )
     monkeypatch.setattr(cq.CoachQuestionService, "save", AsyncMock(return_value=True))
     monkeypatch.setattr(cq.DataReaderAgent, "process", AsyncMock(return_value=data_context))
     monkeypatch.setattr(cq.MemoryService, "get_user_memories", AsyncMock(return_value=[]))

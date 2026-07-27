@@ -19,6 +19,7 @@ from openai import AsyncOpenAI
 
 from app.config import get_settings
 from app.middleware.auth import get_current_user
+from app.core.llm_cache import fingerprint, part_of_day
 from app.core.agents.data_reader import DataReaderAgent
 from app.core.agents.prompts import SYSTEM_PROMPT
 from app.core.agents.services import CalendarService, MemoryService
@@ -91,25 +92,12 @@ async def get_coach_question(
 
     user_id = current_user["user_id"]
 
-    # Serve the cached question while it's fresh (same local day, generated
-    # within the short TTL) so dashboard opens don't each pay an LLM call.
-    # Answering a question invalidates the cache (see post_coach_reply).
+    # The cache is keyed on a fingerprint of the assembled prompt, so the
+    # context has to be built before we can tell a hit from a miss. That costs
+    # ~8 Mongo reads on the hit path (vs 1 under the old time-TTL cache) but
+    # zero LLM tokens, and it means a cached answer always corresponds exactly
+    # to the context that produced it.
     cache = CoachQuestionService(db)
-    cached = await cache.get_fresh(user_id)
-    if cached:
-        # This endpoint is one of only two triggers for the opportunistic
-        # stale-conversation summarizer — keep nudging it on cache hits too.
-        spawn_background(
-            ShortTermContextService(db).summarize_stale_conversations(user_id, client, settings)
-        )
-        return {
-            "success": True,
-            "question": cached.get("question"),
-            "chips": cached.get("chips") or [],
-            "source": cached.get("source") or "your training",
-            "cached": True,
-        }
-
     data_reader = DataReaderAgent(db)
     memory_service = MemoryService(db)
 
@@ -216,8 +204,69 @@ USER DATA:
         if rec_block:
             context_str += f"\n\n{rec_block}"
 
-        # Opportunistic lazy summarization of recently-ended conversations
+        # Opportunistic lazy summarization of recently-ended conversations.
+        # Single spawn point for the endpoint: fires exactly once per request on
+        # BOTH the hit and miss paths (it used to be duplicated at the cache-hit
+        # return). It must stay AFTER stc_service.get_recent above — the
+        # summarizer writes short-term entries, so spawning it earlier would
+        # race the very context we are about to fingerprint. Whatever it writes
+        # lands in the NEXT request's fingerprint, which is exactly when the
+        # question should change.
         spawn_background(stc_service.summarize_stale_conversations(user_id, client, settings))
+
+        bucket = part_of_day(local_now)
+        try:
+            inputs_hash = fingerprint(
+                context=context_str,
+                # The prompt TEXT is hashed, not just the data: the classic bug
+                # in this pattern is keying only on context, so editing a prompt
+                # silently keeps serving answers written by the old one.
+                prompts=[SYSTEM_PROMPT, COACH_QUESTION_PROMPT],
+                model=settings.openai_model_fast,
+                # today_date is deliberately here AND inside context_str: it's
+                # free, and it keeps the key correct if the CURRENT TIME block
+                # is ever reworded away.
+                parts=[user_id, today_date, bucket, settings.openai_reasoning_effort],
+                # The only volatile field in context_str. Left as-is it would
+                # change every minute and the cache would never hit.
+                volatile={"local_time": local_time_str},
+            )
+        except Exception:
+            # Never let a keying bug break the endpoint: no hash means every
+            # request regenerates (the old behaviour), never a stale answer.
+            logger.warning("Coach question fingerprint failed", exc_info=True)
+            inputs_hash = None
+
+        lookup = await cache.get_matching(
+            user_id, inputs_hash, settings.coach_question_cache_max_age_minutes
+        )
+        if lookup.doc:
+            logger.info(
+                "coach_question_cache_hit",
+                user_id=user_id,
+                hash=inputs_hash[:8],
+                part_of_day=bucket,
+            )
+            return {
+                "success": True,
+                "question": lookup.doc.get("question"),
+                "chips": lookup.doc.get("chips") or [],
+                "source": lookup.doc.get("source") or "your training",
+                "cached": True,
+            }
+
+        # Miss reasons are the only way to spot a subtly-volatile input in prod.
+        # If one appears, the cache degrades to the old LLM cost PLUS the extra
+        # Mongo reads, and the sole symptom is a hit line that never shows up —
+        # a steady stream of hash_changed for an unchanged athlete is the tell.
+        logger.info(
+            "coach_question_cache_miss",
+            user_id=user_id,
+            reason=lookup.reason,
+            want=inputs_hash[:8] if inputs_hash else None,
+            had=lookup.stored_hash[:8] if lookup.stored_hash else None,
+            part_of_day=bucket,
+        )
 
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -255,9 +304,12 @@ USER DATA:
         logger.info(f"Generated coach question for user {user_id}: {question}")
 
         # Cache only real generations — a transient failure must not pin the
-        # generic fallback question for the whole TTL window.
+        # generic fallback question. Note this is the ONLY save: a cache hit
+        # returns above without touching the doc, so generatedAt can't creep
+        # forward on every dashboard open and quietly defeat the max-age ceiling.
         await cache.save(
-            user_id, today_date, timezone, question, chips, source or "your training"
+            user_id, today_date, timezone, question, chips, source or "your training",
+            inputs_hash=inputs_hash, part_of_day=bucket,
         )
 
         return {
