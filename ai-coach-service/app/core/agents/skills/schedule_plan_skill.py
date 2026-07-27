@@ -287,7 +287,9 @@ def _slot_key(event: Dict[str, Any]) -> tuple:
     etype = event.get("type")
     # Missing type (legacy events) defaults to the workout class; workout and
     # deload share it (a re-planned deload week moves the session, no duplicate).
-    type_class = "session" if etype in ("session", "deload", None) else etype
+    # "workout" kept: any event doc that escaped the rename migration must
+    # still dedup against proposed sessions, not be treated as a foreign type.
+    type_class = "session" if etype in ("session", "deload", "workout", None) else etype
     return (event.get("planWeek"), event.get("planDay"), type_class)
 
 
