@@ -37,7 +37,7 @@ const sampleExercises = [
     name: "Plank",
     description: "Core stabilization exercise that engages the entire core",
     isCommon: true,
-    discipline: ["strength", "stability"],
+    discipline: ["strength", "mobility"],
     muscles: ["core", "shoulders"],
     equipment: ["none"],
     strain: {
@@ -65,7 +65,7 @@ const sampleExercises = [
     name: "Deadlift",
     description: "Compound exercise working the entire posterior chain",
     isCommon: true,
-    discipline: ["strength", "powerlifting"],
+    discipline: ["strength"],
     muscles: ["hamstrings", "glutes", "lower_back", "traps"],
     equipment: ["barbell"],
     strain: {

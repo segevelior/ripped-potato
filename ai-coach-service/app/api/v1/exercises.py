@@ -9,6 +9,7 @@ import re
 import structlog
 
 from app.config import get_settings
+from app.core.disciplines import DISCIPLINES
 from app.middleware.auth import get_current_user
 from app.models.schemas import (
     ExerciseSuggestionRequest,
@@ -31,7 +32,9 @@ VALID_MUSCLES = [
     "chest", "back", "shoulders", "biceps", "triceps", "forearms",
     "abs", "hip_flexors", "glutes", "quads", "hamstrings", "calves", "full_body"
 ]
-VALID_DISCIPLINES = ["strength", "climbing", "running", "cycling", "calisthenics", "mobility"]
+# The canonical vocabulary (app/core/disciplines.py) — this raw-motor writer
+# is the one write path Mongoose enums can't reach, so it must filter too.
+VALID_DISCIPLINES = list(DISCIPLINES)
 VALID_DIFFICULTIES = ["beginner", "intermediate", "advanced"]
 VALID_INTENSITIES = ["low", "moderate", "high", "max"]
 VALID_LOADS = ["bodyweight", "light", "moderate", "heavy"]

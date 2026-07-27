@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { DISCIPLINES, normalizeDisciplines } = require('../config/disciplines');
 
 // Exercise within a block (simple volume/rest format like frontend)
 const blockExerciseSchema = new mongoose.Schema({
@@ -33,8 +34,11 @@ const sessionTemplateSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  // Canonical vocabulary only — same normalization + enum story as
+  // Exercise.discipline (see config/disciplines.js).
   primary_disciplines: {
-    type: [String],
+    type: [{ type: String, enum: DISCIPLINES }],
+    set: normalizeDisciplines,
     default: []
   },
   estimated_duration: {

@@ -4,6 +4,7 @@ import { Plus, Save, Trash2, ArrowLeft, GripVertical, Search, X, Clock, Activity
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { DISCIPLINES } from "@/constants/disciplines";
 
 // Inline Search Component for "Spotlight" feel
 const BlockSearch = ({ allExercises, onSelect }) => {
@@ -215,7 +216,7 @@ export default function CreateSessionTemplate() {
     setExpandedExercise(expandedExercise === id ? null : id);
   };
 
-  const disciplines = ["strength", "climbing", "running", "cycling", "calisthenics", "mobility"];
+  const disciplines = DISCIPLINES;
 
   return (
     <div className="max-w-5xl mx-auto pb-20">

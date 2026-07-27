@@ -4,8 +4,9 @@ import { ArrowLeft, Save, Plus, X, Sparkles, Check, Loader2, AlertCircle, Extern
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { aiService } from "@/services/aiService";
+import { DISCIPLINES } from "@/constants/disciplines";
 
-const disciplines = ["strength", "climbing", "running", "cycling", "calisthenics", "mobility"];
+const disciplines = DISCIPLINES;
 const muscles = ["chest", "back", "shoulders", "biceps", "triceps", "forearms", "abs", "hip_flexors", "glutes", "quads", "hamstrings", "calves", "full_body"];
 const intensityLevels = ["low", "moderate", "high", "max"];
 const loadTypes = ["bodyweight", "light", "moderate", "heavy"];

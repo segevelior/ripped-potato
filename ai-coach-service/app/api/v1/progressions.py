@@ -7,6 +7,7 @@ import json
 import structlog
 
 from app.config import get_settings
+from app.core.disciplines import DISCIPLINES
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -16,7 +17,8 @@ VALID_MUSCLES = [
     "chest", "back", "shoulders", "biceps", "triceps", "forearms",
     "abs", "hip_flexors", "glutes", "quads", "hamstrings", "calves", "full_body"
 ]
-VALID_DISCIPLINES = ["strength", "climbing", "running", "cycling", "calisthenics", "mobility"]
+# The canonical vocabulary (app/core/disciplines.py); see exercises.py.
+VALID_DISCIPLINES = list(DISCIPLINES)
 VALID_DIFFICULTIES = ["beginner", "intermediate", "advanced"]
 
 
