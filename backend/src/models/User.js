@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { DISCIPLINES } = require('../config/disciplines');
 
 const userSchema = new mongoose.Schema({
   email: {
@@ -75,10 +74,15 @@ const userSchema = new mongoose.Schema({
       default: 'beginner'
     },
     goals: [String],
-    // Sports the user wants in their training (canonical discipline
-    // vocabulary, e.g. ['running', 'climbing', 'yoga']) — feeds AI-coach
-    // context. Distinct from settings.sportsNews.follows (leagues they watch).
-    sportPreferences: { type: [String], enum: DISCIPLINES },
+    // Sports the user wants in their training — feeds AI-coach context.
+    // Deliberately free text (no enum): canonical disciplines are quick-pick
+    // chips in Settings, but any sport is allowed ('triathlon', 'ninja') —
+    // a triathlon is its own sport, not just swimming+cycling+running. The
+    // coach reads labels verbatim; the interest-mix nudge resolves custom
+    // labels to canonical disciplines via a cached LLM mapping
+    // (ai-coach sportinterestresolutions). Distinct from
+    // settings.sportsNews.follows (leagues they watch).
+    sportPreferences: [{ type: String, trim: true, maxlength: 60 }],
     injuries: [String], // any injuries to be aware of
     preferences: {
       sessionDuration: Number, // preferred minutes

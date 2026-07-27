@@ -746,6 +746,26 @@ DROP_INTEREST = Scenario(
 )
 
 
+async def _check_custom_interest_added(db, user_id, refs, trace):
+    interests = await _get_interests(db, user_id)
+    if "triathlon" not in interests:
+        return [f"triathlon not recorded verbatim in profile.sportPreferences ({interests!r})"]
+    for part in ("swimming", "cycling", "running"):
+        if part in interests:
+            return [f"triathlon was split into component disciplines ({interests!r}) — "
+                    "it must stay one sport"]
+    return []
+
+
+CUSTOM_INTEREST = Scenario(
+    id="volunteered-custom-sport-kept-verbatim",
+    turns=["I'm training for a triathlon these days — make sure it's in my training interests"],
+    seed=_seed_nothing,
+    final_state_check=_check_custom_interest_added,
+    trajectory_checks=[assert_no_false_success],
+)
+
+
 async def _check_no_interest_write(db, user_id, refs, trace):
     problems = []
     if await _get_interests(db, user_id):
@@ -779,5 +799,6 @@ SCENARIOS = [
     MIXED_DISCIPLINE_PLAN,
     VOLUNTEER_INTEREST,
     DROP_INTEREST,
+    CUSTOM_INTEREST,
     NO_UNPROMPTED_INTEREST_WRITE,
 ]

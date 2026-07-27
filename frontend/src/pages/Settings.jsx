@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { useTheme } from '@/contexts/ThemeContext';
 import { StravaIntegration } from '@/api/entities';
 import apiService from '@/services/api';
-import { DISCIPLINE_GROUPS } from '@/constants/disciplines';
+import { DISCIPLINES, DISCIPLINE_GROUPS } from '@/constants/disciplines';
 import { getDisciplineColor } from '@/styles/designTokens';
 import {
   AlertDialog,
@@ -29,6 +29,7 @@ export default function Settings() {
   const [editingField, setEditingField] = useState(null);
   const [newGoal, setNewGoal] = useState('');
   const [newInjury, setNewInjury] = useState('');
+  const [newSport, setNewSport] = useState('');
 
   // Sports-news follows state (free-text add flow)
   const [newsQuery, setNewsQuery] = useState('');
@@ -429,11 +430,22 @@ export default function Settings() {
     commitProfile({ ...formData.profile, sportPreferences: next });
   };
 
+  const addCustomSport = () => {
+    const v = newSport.trim().toLowerCase();
+    setNewSport('');
+    if (!v || v.length > 60) return;
+    const current = formData.profile.sportPreferences || [];
+    if (current.some((s) => s.toLowerCase() === v)) return;
+    commitProfile({ ...formData.profile, sportPreferences: [...current, v] });
+  };
+
   // Plain render function for the same focus-preservation reason as
-  // renderChipEditor. Fixed-choice toggle chips — the canonical discipline
-  // vocabulary, never free text.
+  // renderChipEditor. Canonical disciplines are quick-pick toggle chips;
+  // any other sport can be typed ('triathlon', 'ninja') — a sport like
+  // triathlon is its own identity, not just its component disciplines.
   const renderDisciplinePicker = () => {
     const selected = formData.profile.sportPreferences || [];
+    const customSports = selected.filter((s) => !DISCIPLINES.includes(s));
     return (
       <div className="py-4 border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center gap-2 mb-3">
@@ -470,6 +482,49 @@ export default function Settings() {
               </div>
             </div>
           ))}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1.5">
+              Your sports
+            </p>
+            {customSports.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {customSports.map((sport) => (
+                  <span
+                    key={sport}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm capitalize font-semibold text-gray-900 dark:text-white border-primary-400 bg-primary-400/10"
+                  >
+                    {sport}
+                    <button onClick={() => toggleSportPreference(sport)} className="hover:text-red-500" title="Remove">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newSport}
+                onChange={(e) => setNewSport(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addCustomSport();
+                  }
+                }}
+                maxLength={60}
+                placeholder="Add your own — e.g. triathlon, ninja, surfing"
+                className="flex-1 px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400/50"
+              />
+              <button
+                onClick={addCustomSport}
+                disabled={!newSport.trim() || isSaving}
+                className="px-4 py-2 bg-primary-400 text-gray-900 font-semibold rounded-xl hover:bg-primary-500 transition-colors disabled:opacity-50"
+              >
+                Add
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );

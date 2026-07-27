@@ -31,7 +31,11 @@ from app.core.agents.services import (
     MemoryService,
 )
 from app.core.agents.services.calendar_service import format_calendar_anchors
-from app.core.agents.interest_mix import build_interest_mix_block, load_recent_discipline_counts
+from app.core.agents.interest_mix import (
+    build_interest_mix_block,
+    load_recent_discipline_counts,
+    resolve_interest_disciplines,
+)
 from app.services.coach_question_service import CoachQuestionService
 from app.services.recommendation_service import RecommendationService
 from app.services.short_term_context_service import ShortTermContextService
@@ -464,7 +468,10 @@ class AgentOrchestrator:
             interests = (data_context or {}).get("user_profile", {}).get("sportPreferences", [])
             if interests:
                 counts = await load_recent_discipline_counts(self.db, user_id, local_now)
-                mix_block = build_interest_mix_block(interests, counts)
+                resolutions = await resolve_interest_disciplines(
+                    self.db, self.client, self.settings, interests
+                )
+                mix_block = build_interest_mix_block(interests, counts, resolutions=resolutions)
                 if mix_block:
                     blocks.append(mix_block)
         except Exception as e:
