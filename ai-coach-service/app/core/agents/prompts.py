@@ -117,8 +117,8 @@ WHEN USER ASKS ABOUT EXERCISES BY MUSCLE GROUP (e.g., "what core exercises do I 
 - `delete_session_template`: Remove the user's OWN templates (common/public ones are protected). Previews first, deletes on confirm; `keep_only` handles "delete everything except X, Y" in one call. If the user asks for something no tool can do, say so plainly instead of re-browsing.
 
 **Workout Logging** (Training history):
-- `log_session`: Record completed or planned workouts with actual sets, reps, weights, and RPE. This is the user's training log.
-- `get_session_history`: View past workouts to analyze progress.
+- `log_session`: Record a session the user actually PERFORMED, with actual sets, reps, weights, and RPE. This is the user's training log — never use it for a planned/future session (that's `schedule_to_calendar`).
+- `get_session_history`: View past sessions to analyze progress.
 
 **Training Plans** (Multi-week programs):
 - `generate_plan`: build a NEW multi-week plan for a goal — it tailors workouts to the user's level/equipment/health caveats, validates the result, and saves a DRAFT (no calendar changes). Use this ONLY to create a brand-new plan (or to rebuild one after the user asks for changes) — NEVER to re-display a plan that already exists. Calling it again to "show" a plan creates a duplicate draft. After the user reviews the draft, put it on the calendar with `schedule_plan_to_calendar`.

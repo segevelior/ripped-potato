@@ -212,8 +212,14 @@ export default function Dashboard() {
       id: e.id,
       title: e.title,
       date: e.date,
-      duration_minutes: e.sessionDetails?.durationMinutes || e.sessionDetails?.estimatedDuration || 0,
-      exercises: e.sessionDetails?.exercises || [],
+      duration_minutes: e.sessionDetails?.durationMinutes ||
+        e.sessionDetails?.estimatedDuration ||
+        e.sessionTemplateId?.estimated_duration || 60,
+      // Scheduled events don't embed exercises — the linked template is the
+      // source of truth (same pattern as TodayView).
+      exerciseCount: e.sessionTemplateId?.blocks?.reduce(
+        (n, b) => n + (b.exercises?.length || 0), 0
+      ) || e.sessionDetails?.exercises?.length || 0,
     }));
 
   const completedWorkoutsThisWeek = recentLogs.filter(l => {
@@ -371,7 +377,7 @@ export default function Dashboard() {
                           </div>
                           <div className="flex items-center gap-4 text-sm text-gray-600">
                             <span><Clock className="w-4 h-4 inline mr-1" />{workout.duration_minutes} min</span>
-                            <span><Target className="w-4 h-4 inline mr-1" />{workout.exercises?.length || 0} exercises</span>
+                            <span><Target className="w-4 h-4 inline mr-1" />{workout.exerciseCount} exercises</span>
                             <ChevronRight className="w-5 h-5 text-gray-400" />
                           </div>
                         </div>

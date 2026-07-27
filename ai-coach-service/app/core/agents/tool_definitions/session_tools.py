@@ -171,7 +171,7 @@ def get_session_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "log_session",
-                "description": "Log a completed or planned workout to the user's workout history. Use this to record actual training sessions with sets, reps, weights, and RPE.",
+                "description": "Log a session the user actually performed to their training history (it also appears on their calendar). Use this to record real training sessions with sets, reps, weights, and RPE. Logs are performed sessions only — to put a future/planned session on the calendar use schedule_to_calendar instead.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -187,11 +187,6 @@ def get_session_tools() -> List[Dict[str, Any]]:
                             "type": "string",
                             "enum": ["strength", "cardio", "hybrid", "recovery", "hiit"],
                             "description": "Type of workout"
-                        },
-                        "status": {
-                            "type": "string",
-                            "enum": ["planned", "in_progress", "completed", "skipped"],
-                            "description": "Workout status (default: completed)"
                         },
                         "durationMinutes": {
                             "type": "integer",
@@ -257,11 +252,6 @@ def get_session_tools() -> List[Dict[str, Any]]:
                             "type": "string",
                             "enum": ["strength", "cardio", "hybrid", "recovery", "hiit"],
                             "description": "Filter by workout type"
-                        },
-                        "status": {
-                            "type": "string",
-                            "enum": ["planned", "in_progress", "completed", "skipped"],
-                            "description": "Filter by status"
                         },
                         "limit": {
                             "type": "integer",
