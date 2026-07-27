@@ -1,0 +1,87 @@
+collection,_id,name,isCommon,current,proposed,source,confidence,reason,approved
+exercises,710000000000000000000014,Prisoner/Bodyweight Jumping Squat,True,power; calisthenics,strength; calisthenics,synonym,high,case-fold / pinned synonym map,True
+exercises,710000000000000000000015,Explosive Bodyweight Rows,True,power; calisthenics,strength; calisthenics,synonym,high,case-fold / pinned synonym map,True
+exercises,6a514248d14834fc3bb847b3,Shoulder External Rotation 90/90,False,Mobility; Strength Training,mobility; strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a514336d14834fc3bb847b4,Dumbbell Row,False,Strength Training,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a532fb72d70d50d1f9cd123,Barbell Bench Press,True,strength; powerlifting,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a532fc52d70d50d1f9cd14e,Barbell Deadlift,True,strength; powerlifting,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a532fc62d70d50d1f9cd151,Sumo Deadlift,True,strength; powerlifting,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a532fc72d70d50d1f9cd154,Trap Bar Deadlift,True,strength; powerlifting,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a532fc82d70d50d1f9cd157,Rack Pull,True,strength; powerlifting,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a532fca2d70d50d1f9cd15d,Pendlay Row,True,strength; powerlifting,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a532fd52d70d50d1f9cd184,Push Press,True,strength; power,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a532ff42d70d50d1f9cd1e1,Barbell Back Squat,True,strength; powerlifting,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a532ff62d70d50d1f9cd1e7,Box Squat,True,strength; powerlifting,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a5330032d70d50d1f9cd20e,Good Morning,True,strength; powerlifting,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a5330062d70d50d1f9cd217,Glute-Ham Raise,True,strength; powerlifting,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a5330072d70d50d1f9cd21a,Barbell Hip Thrust,True,strength; powerlifting,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a5330082d70d50d1f9cd21d,Barbell Glute Bridge,True,strength; powerlifting,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a53301a2d70d50d1f9cd256,Power Clean,True,strength; power,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a53301b2d70d50d1f9cd259,Kettlebell Swing,True,strength; power,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a53301c2d70d50d1f9cd25c,Kettlebell Clean and Press,True,strength; power,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a53301e2d70d50d1f9cd265,Farmer's Walk,True,strength; power,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a53301f2d70d50d1f9cd268,Sled Push,True,strength; power; cardio,strength; cardio,synonym,high,case-fold / pinned synonym map,True
+exercises,6a5330202d70d50d1f9cd26b,Box Jump,True,power,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a5330212d70d50d1f9cd26e,Medicine Ball Slam,True,power; cardio,strength; cardio,synonym,high,case-fold / pinned synonym map,True
+exercises,6a5330222d70d50d1f9cd271,Battle Rope Waves,True,cardio; power,cardio; strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a55306fa63a5c9bd5d9323e,180° Band Pull Apart (With External Rotation),False,Mobility,mobility,synonym,high,case-fold / pinned synonym map,True
+exercises,6a553072a63a5c9bd5d93247,Dip Scapula Shrugs (Depression-Elevation) + Hold at the Top,False,Calisthenics,calisthenics,synonym,high,case-fold / pinned synonym map,True
+exercises,6a553072a63a5c9bd5d9324a,Active to Passive Hang (Elevation-Depression) + Hold at the Top,False,Calisthenics,calisthenics,synonym,high,case-fold / pinned synonym map,True
+exercises,6a553073a63a5c9bd5d9324d,Single Arm Scapula Push Ups (Protraction-Depression),False,Calisthenics,calisthenics,synonym,high,case-fold / pinned synonym map,True
+exercises,6a553074a63a5c9bd5d93251,Bird Dog,False,Calisthenics,calisthenics,synonym,high,case-fold / pinned synonym map,True
+exercises,6a553075a63a5c9bd5d93254,Reverse Crunch,False,Calisthenics,calisthenics,synonym,high,case-fold / pinned synonym map,True
+exercises,6a553076a63a5c9bd5d93257,Child's Pose,False,Mobility,mobility,synonym,high,case-fold / pinned synonym map,True
+exercises,6a553076a63a5c9bd5d9325a,Cobra Stretch,False,Mobility,mobility,synonym,high,case-fold / pinned synonym map,True
+exercises,6a553c7ded7c1ccc091047eb,Easy Run,False,Cardio,cardio,synonym,high,case-fold / pinned synonym map,True
+exercises,6a5864c3262224ba29966405,Easy Walk,False,Cardio,cardio,synonym,high,case-fold / pinned synonym map,True
+exercises,6a624688f47be556a93e0558,Standing Banded Hip Abduction,False,Strength Training; Mobility,strength; mobility,synonym,high,case-fold / pinned synonym map,True
+exercises,6a65843b78ab8e738927fe9e,World's Greatest Stretch,False,Mobility,mobility,synonym,high,case-fold / pinned synonym map,True
+exercises,6a65843b78ab8e738927fe9f,Deep Squat Hold,False,Mobility,mobility,synonym,high,case-fold / pinned synonym map,True
+exercises,6a65843c78ab8e738927fea0,Shoulder Dislocates,False,Mobility,mobility,synonym,high,case-fold / pinned synonym map,True
+exercises,6a65843c78ab8e738927fea1,90/90 Hip Switches,False,Mobility,mobility,synonym,high,case-fold / pinned synonym map,True
+exercises,6a65843c78ab8e738927fea2,Child's Pose,False,Mobility; Yoga,mobility; yoga,synonym,high,case-fold / pinned synonym map,True
+exercises,6a65844078ab8e738927fea3,Thread the Needle,False,Mobility,mobility,synonym,high,case-fold / pinned synonym map,True
+exercises,6a663413a6e6b963554cecbb,Push Ups,False,Calisthenics; Strength Training,calisthenics; strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a663413a6e6b963554cecbc,Pull Ups,False,Calisthenics; Strength Training,calisthenics; strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a663414a6e6b963554cecbd,Standing Side Leg Raises,False,Strength Training; Mobility,strength; mobility,synonym,high,case-fold / pinned synonym map,True
+exercises,6a663415a6e6b963554cecbe,Crab Walks,False,Strength Training; Mobility,strength; mobility,synonym,high,case-fold / pinned synonym map,True
+exercises,6a663415a6e6b963554cecbf,Wall Sits with Toe Raises,False,Strength Training; Mobility,strength; mobility,synonym,high,case-fold / pinned synonym map,True
+exercises,6a663416a6e6b963554cecc0,Step Downs,False,Strength Training; Mobility,strength; mobility,synonym,high,case-fold / pinned synonym map,True
+exercises,6a663416a6e6b963554cecc1,Toe Ups,False,Calisthenics; Strength Training,calisthenics; strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a663619a6e6b963554cecc3,Band Rows,False,Strength Training,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,6a66361aa6e6b963554cecc4,Banded Romanian Deadlifts,False,Strength Training,strength,synonym,high,case-fold / pinned synonym map,True
+exercises,700000000000000000000001,Body Heat Warm Up,True,warm_up,mobility,llm,low,General warm-up primarily prepares the body for movement.,False
+exercises,700000000000000000000002,Band Straight Arm Lat Pull Down,True,warm_up; strength,strength,llm,high,Resistance-band lat activation is a strength exercise.,True
+exercises,700000000000000000000005,Hanging L-Sit Hold,True,calisthenics; core,calisthenics,llm,high,Hanging isometric core hold uses bodyweight and a pull-up bar.,True
+exercises,700000000000000000000009,Toes To Bar,True,calisthenics; core,calisthenics,llm,high,Toes-to-bar is a bodyweight bar exercise.,True
+exercises,70000000000000000000000e,Alternating Pistol Squats,True,strength; mobility; balance,strength; mobility,llm,high,"Single-leg squats develop leg strength, balance, and mobility.",True
+exercises,700000000000000000000010,Glute Bridges,True,strength; corrective,strength,llm,high,Glute bridges train hip extension and posterior-chain strength.,True
+exercises,700000000000000000000011,Russian Twists,True,strength; core,strength,llm,high,Russian twists are a core-strength exercise.,True
+exercises,710000000000000000000001,Body Heat Warm Up 1,True,warm_up; mobility,mobility,llm,low,A structured full-body warm-up most closely supports movement preparation.,False
+exercises,710000000000000000000002,Scapula Warm Up 1,True,warm_up; mobility,mobility,llm,high,Scapular mobility and activation directly indicate mobility training.,True
+exercises,710000000000000000000003,Scapula Warm Up 2,True,mobility; warm_up,mobility,llm,high,The exercise focuses on scapular mobility and activation.,True
+exercises,710000000000000000000004,Band Shoulder Warm Up 1,True,warm_up; mobility,mobility,llm,high,Resistance-band shoulder warm-up primarily supports mobility and preparation.,True
+exercises,71000000000000000000000d,Wall Slides,True,mobility; corrective,mobility,llm,high,Wall slides are explicitly a shoulder mobility exercise.,True
+exercises,710000000000000000000010,L-Sit Hold on Parallettes,True,calisthenics; core,calisthenics,llm,high,L-sit on parallettes is a bodyweight calisthenics skill.,True
+exercises,710000000000000000000017,Side Plank On Arms,True,strength; stability,strength,llm,high,Side plank is primarily a core-strength and stabilization exercise.,True
+exercises,710000000000000000000018,Face Pulls,True,strength; corrective,strength,llm,high,Face pulls are a strengthening exercise for the rear shoulders and upper back.,True
+exercises,710000000000000000000019,Cuban Rotations,True,strength; corrective,strength,llm,high,Cuban rotations build rotator-cuff and rear-delt strength.,True
+exercises,710000000000000000000024,Body Heat Warm Up 2,True,warm_up,recovery,llm,low,"It is a general warm-up, but no sport-specific discipline is identified.",False
+exercises,6a510abba98ad661bca4e244,Exercise 1,False,General Fitness,strength,llm,low,The generic exercise label provides no clear sport context; strength is the best fit.,False
+exercises,6a510abba98ad661bca4e245,Exercise 2,False,General Fitness,strength,llm,low,The generic exercise label provides no clear sport context; strength is the best fit.,False
+exercises,6a510b4ba98ad661bca4e273,Workout 1,False,General Fitness,strength,llm,low,The description references a strength and conditioning workout template.,False
+exercises,6a510b4ca98ad661bca4e274,Workout 2,False,General Fitness,strength,llm,low,"A strength and conditioning template is referenced, but the workout contents are unspecified.",False
+exercises,6a532ffa7622880fe213e98a,Scapula Warm Up 2,False,mobility; warm_up; calisthenics,mobility; calisthenics,llm,high,Scapular mobility and active-hang control directly support mobility and calisthenics.,True
+exercises,6a54db72ee8a105df573c6ce,Squats,False,General Fitness,strength,llm,high,Controlled-tempo squats are primarily a strength exercise.,True
+exercises,6a54db73ee8a105df573c6cf,Push-ups,False,General Fitness,strength; calisthenics,llm,high,Push-ups primarily develop upper-body strength using body weight.,True
+exercises,6a55384bed7c1ccc091047df,Cat-Cow,False,General Fitness,mobility,llm,low,"Cat-Cow is primarily a spinal mobility exercise, though the generated-workout context is nonspecific.",False
+sessiontemplates,720000000000000000000002,Endurance 1,True,endurance; calisthenics,cardio; calisthenics,synonym,high,case-fold / pinned synonym map,True
+sessiontemplates,720000000000000000000003,Endurance 2,True,endurance; calisthenics,cardio; calisthenics,synonym,high,case-fold / pinned synonym map,True
+sessiontemplates,6a53b1ee3e7427385bae2fe4,Scapula Warm Up 1,False,Calisthenics; Mobility; Conditioning,calisthenics; mobility; cardio,synonym,high,case-fold / pinned synonym map,True
+sessiontemplates,6a54dbefee8a105df573c6d3,Quick Core Blast,False,Calisthenics; Strength Training,calisthenics; strength,synonym,high,case-fold / pinned synonym map,True
+sessiontemplates,6a5864c6262224ba29966406,20-Minute Stretch + Walk,False,Mobility; Cardio,mobility; cardio,synonym,high,case-fold / pinned synonym map,True
+sessiontemplates,6a65844178ab8e738927fea4,Full-Body Mobility,False,Mobility,mobility,synonym,high,case-fold / pinned synonym map,True
+sessiontemplates,6a65e05a70338dd42aecbada,Endurance 2,False,endurance; calisthenics,cardio; calisthenics,synonym,high,case-fold / pinned synonym map,True
+sessiontemplates,6a663419a6e6b963554cecc2,"Regular Arms, Knee Recovery & Abs",False,Calisthenics; Strength Training; Mobility,calisthenics; strength; mobility,synonym,high,case-fold / pinned synonym map,True
+sessiontemplates,6a54db74ee8a105df573c6d0,Beginner Full Body Bodyweight (Jul 14),False,General Fitness,calisthenics,llm,high,Beginner full-body workout explicitly uses bodyweight exercises.,True
+sessiontemplates,6a66362da6e6b963554cecc5,"Regular Arms, Knee Recovery & Abs — Today’s Variation",False,General Fitness,strength; recovery,llm,low,"Arms and abs suggest strength training, while knee recovery adds a recovery focus.",False
