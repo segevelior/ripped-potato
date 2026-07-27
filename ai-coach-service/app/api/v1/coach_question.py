@@ -151,6 +151,9 @@ async def get_coach_question(
                 line += f" (note: {note})"
             workouts_str += line
 
+        # Deliberately NO sportPreferences here: training interests are set in
+        # the profile card or volunteered in chat — the dashboard check-in
+        # question must never start asking about them.
         context_str = f"""CURRENT TIME:
 - User's local time: {local_time_str}
 - Today's date: {today_date}
@@ -159,7 +162,6 @@ USER PROFILE:
 - Name: {user_name or 'not set'}
 - Fitness Level: {user_profile.get('fitnessLevel', 'not set')}
 - Goals: {', '.join(user_profile.get('goals', [])) or 'not specified'}
-- Sport Preferences: {', '.join(user_profile.get('sportPreferences', [])) or 'not specified'}
 
 RECENT WORKOUTS:{workouts_str or ' none logged recently'}
 

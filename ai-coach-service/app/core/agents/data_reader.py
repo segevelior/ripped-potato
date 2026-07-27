@@ -171,7 +171,8 @@ class DataReaderAgent(BaseAgent):
                 "sessionDuration": profile.get("preferences", {}).get("sessionDuration"),
                 "sessionDays": profile.get("preferences", {}).get("sessionDays", []),
                 "injuries": profile.get("injuries", []),
-                "goals": profile.get("goals", [])
+                "goals": profile.get("goals", []),
+                "sportPreferences": profile.get("sportPreferences", [])
             }
         except Exception as e:
             logger.error(f"Error loading user profile: {e}")

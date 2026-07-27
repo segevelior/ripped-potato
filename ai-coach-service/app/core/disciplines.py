@@ -14,8 +14,10 @@ filtered:
 - `log_session` / `get_session_history` tool enums
   (app/core/agents/tool_definitions/session_tools.py)
 - the Today's Pick prompt (app/services/daily_pick_service.py)
-- Strava's imported activities, which write `discipline` straight into
-  sessionlogs (backend/src/services/StravaIntegrationService.js)
+- Strava's imported activities, which are mapped to a canonical discipline at
+  sync time and land on externalactivities + completed calendarevents
+  (sessionDetails.discipline) — NOT sessionlogs
+  (backend/src/services/StravaIntegrationService.js mapStravaTypeToDiscipline)
 - the frontend's discipline colours / imagery
   (frontend/src/styles/designTokens.js, frontend/src/pages/TrainNow.jsx)
 
@@ -23,7 +25,9 @@ Rules:
 - ADDITIVE ONLY. Values are persisted on calendarevents.sessionDetails.discipline
   and sessionlogs.discipline (neither is enum-constrained in Mongo), so removing
   or renaming a value orphans real user data.
-- Anything added here must also get a colour in the frontend's designTokens.
+- Anything added here must also get a colour in the frontend's designTokens
+  and be added to the mirrors: backend/src/config/disciplines.js and
+  frontend/src/constants/disciplines.js.
 """
 
 from typing import Tuple

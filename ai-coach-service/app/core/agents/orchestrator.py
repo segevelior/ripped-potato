@@ -31,6 +31,7 @@ from app.core.agents.services import (
     MemoryService,
 )
 from app.core.agents.services.calendar_service import format_calendar_anchors
+from app.core.agents.interest_mix import build_interest_mix_block, load_recent_discipline_counts
 from app.services.coach_question_service import CoachQuestionService
 from app.services.recommendation_service import RecommendationService
 from app.services.short_term_context_service import ShortTermContextService
@@ -143,6 +144,7 @@ _WRITE_ALWAYS = {
     "create_session_template", "delete_memory", "generate_plan", "log_session",
     "remove_plan_session", "save_exercise_video", "save_memory",
     "substitute_exercise", "update_goal", "update_memory", "update_plan",
+    "update_sport_preferences",
 }
 
 
@@ -394,6 +396,8 @@ class AgentOrchestrator:
            stays consistent with what the coach just asked on the Today screen.
         4. Short-term context entries (dashboard check-ins, conversation
            summaries, 14-day TTL) — working memory across conversations.
+        5. Training-interest vs recent-activity mix (chat-only nudge signal;
+           see interest_mix.py).
         Best-effort: returns '' on any failure."""
         blocks = []
         try:
@@ -456,6 +460,15 @@ class AgentOrchestrator:
                 blocks.append(stc_block)
         except Exception as e:
             logger.error(f"Failed building extra context for {user_id}: {e}")
+        try:
+            interests = (data_context or {}).get("user_profile", {}).get("sportPreferences", [])
+            if interests:
+                counts = await load_recent_discipline_counts(self.db, user_id, local_now)
+                mix_block = build_interest_mix_block(interests, counts)
+                if mix_block:
+                    blocks.append(mix_block)
+        except Exception as e:
+            logger.error(f"Failed building interest mix for {user_id}: {e}")
         return ("\n\n" + "\n\n".join(blocks)) if blocks else ""
 
     async def process_request(
@@ -520,6 +533,7 @@ USER PROFILE:
 - Training Days per Week: {len(user_profile.get('sessionDays', []))}
 - Stated Goals (from profile): {', '.join(user_profile.get('goals', [])) or 'none listed'}
 - Profile-listed Injuries (standing baseline): {', '.join(user_profile.get('injuries', [])) or 'none listed'}
+- Training Interests (sports the athlete wants in their life): {', '.join(user_profile.get('sportPreferences', [])) or 'not specified — they are set in the profile card or recorded with update_sport_preferences when the athlete volunteers them; do NOT ask about them unprompted'}
 
 USER DATA:
 - {len(data_context.get('exercises', []))} exercises in library
@@ -797,6 +811,7 @@ USER PROFILE:
 - Units: {units}
 - Stated Goals (from profile): {', '.join(user_profile.get('goals', [])) or 'none listed'}
 - Profile-listed Injuries (standing baseline): {', '.join(user_profile.get('injuries', [])) or 'none listed'}
+- Training Interests (sports the athlete wants in their life): {', '.join(user_profile.get('sportPreferences', [])) or 'not specified — they are set in the profile card or recorded with update_sport_preferences when the athlete volunteers them; do NOT ask about them unprompted'}
 
 USER DATA:
 - {len(data_context.get('exercises', []))} exercises
