@@ -53,23 +53,6 @@ export const Exercise = {
   removeCustomization: async (id) => apiService.exercises.removeCustomization(id)
 };
 
-// Workout entity
-export const Workout = {
-  list: async () => normalizeArray(await apiService.workouts.list()),
-  create: async (data) => normalizeId(await apiService.workouts.create(data)),
-  update: async (id, data) => normalizeId(await apiService.workouts.update(id, data)),
-  delete: async (id) => apiService.workouts.delete(id),
-  get: async (id) => {
-    try {
-      return normalizeId(await apiService.workouts.get(id));
-    } catch {
-      const list = await Workout.list();
-      return list.find(w => w.id === id || w._id === id);
-    }
-  },
-  findById: async (id) => Workout.get(id)
-};
-
 // Goal entity
 export const Goal = {
   list: async () => normalizeArray(await apiService.goals.list()),

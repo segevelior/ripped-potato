@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Plan, Goal, Workout, PredefinedWorkout, UserGoalProgress } from "@/api/entities";
+import { Plan, Goal, PredefinedWorkout, UserGoalProgress } from "@/api/entities";
 import { Calendar, Target, Plus, Play, Pause, CheckCircle2, Clock, ArrowRight, MoreVertical, Edit3, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const PlanCard = ({ plan, onEdit, onDelete, onToggleStatus, goals, workouts }) => {
+const PlanCard = ({ plan, onEdit, onDelete, onToggleStatus, goals }) => {
   const getStatusInfo = () => {
     switch (plan.status) {
       case 'active':
@@ -173,7 +173,6 @@ const PlanCard = ({ plan, onEdit, onDelete, onToggleStatus, goals, workouts }) =
 export default function Plans() {
   const [plans, setPlans] = useState([]);
   const [goals, setGoals] = useState([]);
-  const [workouts, setWorkouts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState('all'); // 'all', 'active', 'draft', 'completed'
 
@@ -184,14 +183,12 @@ export default function Plans() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [planData, goalData, workoutData] = await Promise.all([
+      const [planData, goalData] = await Promise.all([
         Plan.list().catch(() => []),
-        Goal.list().catch(() => []),
-        Workout.list().catch(() => [])
+        Goal.list().catch(() => [])
       ]);
       setPlans(Array.isArray(planData) ? planData : []);
       setGoals(Array.isArray(goalData) ? goalData : []);
-      setWorkouts(Array.isArray(workoutData) ? workoutData : []);
     } catch (error) {
       console.error("Error loading plans data:", error);
     }
@@ -213,22 +210,6 @@ export default function Plans() {
     if (!confirm(`Are you sure you want to delete "${plan.name}"? This action cannot be undone.`)) return;
     
     try {
-      // First, delete any linked workouts that were created by this plan
-      if (plan.linked_workouts && plan.linked_workouts.length > 0) {
-        for (const linkedWorkout of plan.linked_workouts) {
-          // Only delete workouts that were specifically created for this plan
-          if (linkedWorkout.workout_type === 'scheduled') {
-            try {
-              await Workout.delete(linkedWorkout.workout_id);
-            } catch (error) {
-              console.warn(`Could not delete linked workout ${linkedWorkout.workout_id}:`, error);
-              // Continue with other deletions even if one linked workout fails
-            }
-          }
-        }
-      }
-      
-      // Then delete the plan itself
       await Plan.delete(plan.id);
       
       // Refresh the data
@@ -336,7 +317,6 @@ export default function Plans() {
               key={plan.id}
               plan={plan}
               goals={goals}
-              workouts={workouts}
               onEdit={(plan) => window.location.href = createPageUrl(`CreatePlan?edit=${plan.id}`)}
               onDelete={handleDeletePlan}
               onToggleStatus={handleToggleStatus}

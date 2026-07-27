@@ -139,28 +139,6 @@ class APIService {
     })
   };
 
-  // Workout endpoints
-  workouts = {
-    list: async () => {
-      const response = await this.request('/workouts');
-      // Backend returns { workouts: [...], pagination: {...} }
-      return response.workouts || response;
-    },
-    get: (id) => this.request(`/workouts/${id}`),
-    create: (data) => this.request('/workouts', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
-    update: (id, data) => this.request(`/workouts/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    }),
-    delete: (id) => this.request(`/workouts/${id}`, {
-      method: 'DELETE'
-    }),
-    stats: () => this.request('/workouts/stats')
-  };
-
   // Goal endpoints
   goals = {
     list: async () => {
