@@ -214,16 +214,28 @@ const updateProfile = async (req, res) => {
       const cleanProfile = Object.fromEntries(
         Object.entries(profile).filter(([, value]) => value !== '')
       );
-      // Deep merge profile preferences
-      const existingProfile = req.user.profile ? (req.user.profile.toObject ? req.user.profile.toObject() : req.user.profile) : {};
-      updateData.profile = {
-        ...existingProfile,
-        ...cleanProfile,
-        preferences: {
-          ...(existingProfile.preferences || {}),
-          ...(cleanProfile.preferences || {})
+      // Dot-path $sets rather than a merged whole-object write (same rationale
+      // as the settings branch below): a partial update touches only the keys
+      // it names, so a stale client snapshot can't clobber fields written
+      // concurrently by other writers (e.g. the AI coach's $addToSet on
+      // profile.sportPreferences).
+      for (const [key, value] of Object.entries(cleanProfile)) {
+        // Client keys become Mongo update paths here — block '.'/'$' so a
+        // crafted key can't write arbitrary nested paths or operators.
+        if (key.includes('.') || key.includes('$')) continue;
+        if (key === 'preferences') {
+          // One merge level: each preference key is set individually so a
+          // partial { preferences: { equipment } } doesn't wipe its siblings.
+          if (value && typeof value === 'object') {
+            for (const [prefKey, prefValue] of Object.entries(value)) {
+              if (prefKey.includes('.') || prefKey.includes('$')) continue;
+              updateData[`profile.preferences.${prefKey}`] = prefValue;
+            }
+          }
+        } else {
+          updateData[`profile.${key}`] = value;
         }
-      };
+      }
     }
     if (settings) {
       // Dot-path $sets rather than a merged whole-object write: a partial

@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Camera, Moon, Sun, Loader2, Brain, Link, Unlink, RefreshCw, CheckCircle, AlertCircle, Trash2, Copy, Sparkles, KeyRound, X, Target, HeartPulse, Newspaper } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Camera, Moon, Sun, Loader2, Brain, Link, Unlink, RefreshCw, CheckCircle, AlertCircle, Trash2, Copy, Sparkles, KeyRound, X, Target, HeartPulse, Newspaper, Check, Dumbbell } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useTheme } from '@/contexts/ThemeContext';
 import { StravaIntegration } from '@/api/entities';
 import apiService from '@/services/api';
+import { DISCIPLINE_GROUPS } from '@/constants/disciplines';
+import { getDisciplineColor } from '@/styles/designTokens';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -46,6 +48,11 @@ export default function Settings() {
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMessage, setPwMessage] = useState(null);
+
+  // Last profile the server returned — profile PUTs diff against this and send
+  // only changed keys, so a stale snapshot of an untouched field (e.g. a coach
+  // $addToSet on sportPreferences mid-session) is never clobbered.
+  const lastServerProfileRef = useRef(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -130,6 +137,7 @@ export default function Settings() {
         const data = await response.json();
         const userData = data.data.user;
         setUser(userData);
+        lastServerProfileRef.current = userData.profile || {};
         setFormData({
           name: userData.name || '',
           email: userData.email || '',
@@ -168,13 +176,27 @@ export default function Settings() {
 
   // Unset weight/height/gender live in form state as '' — the schema wants
   // Number/enum there, so empty values must be omitted, not sent as ''.
-  const buildProfilePayload = () => {
-    const { weight, height, gender, ...rest } = formData.profile;
+  const buildProfilePayload = (profileState = formData.profile) => {
+    const { weight, height, gender, ...rest } = profileState;
     const profile = { ...rest };
     if (weight !== '') profile.weight = Number(weight);
     if (height !== '') profile.height = Number(height);
     if (gender !== '') profile.gender = gender;
     return profile;
+  };
+
+  // Only the keys that differ from the last server-returned profile. The
+  // server applies per-key dot-path sets, so keys we omit are left untouched —
+  // this is what keeps concurrent writers (the AI coach) from being clobbered
+  // by a stale local copy of a field the user didn't edit.
+  const diffProfilePayload = (payload) => {
+    const server = lastServerProfileRef.current;
+    if (!server) return payload;
+    const changed = {};
+    for (const [key, value] of Object.entries(payload)) {
+      if (JSON.stringify(value) !== JSON.stringify(server[key])) changed[key] = value;
+    }
+    return changed;
   };
 
   const handleSave = async () => {
@@ -194,7 +216,7 @@ export default function Settings() {
           dateOfBirth: formData.dateOfBirth || null,
           address: formData.address,
           profilePicture: formData.profilePicture,
-          profile: buildProfilePayload(),
+          profile: diffProfilePayload(buildProfilePayload()),
           settings: formData.settings
         })
       });
@@ -205,6 +227,7 @@ export default function Settings() {
         const authUser = JSON.parse(localStorage.getItem('authUser') || '{}');
         localStorage.setItem('authUser', JSON.stringify({ ...authUser, ...data.data.user }));
         setUser(data.data.user);
+        lastServerProfileRef.current = data.data.user.profile || {};
         setEditingField(null);
       } else {
         const data = await response.json().catch(() => null);
@@ -218,24 +241,26 @@ export default function Settings() {
     }
   };
 
-  // Persist a full profile object (goals/injuries edits save immediately). The
-  // backend deep-merges profile, and we send the whole current profile so no
-  // other field is dropped.
+  // Persist a profile change immediately (goals/injuries/interests edits).
+  // Only the keys that actually changed are sent — see diffProfilePayload.
   const commitProfile = async (nextProfile) => {
     setFormData((prev) => ({ ...prev, profile: nextProfile }));
+    const changed = diffProfilePayload(buildProfilePayload(nextProfile));
+    if (Object.keys(changed).length === 0) return;
     setIsSaving(true);
     try {
       const token = localStorage.getItem('authToken');
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/v1/auth/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ profile: nextProfile })
+        body: JSON.stringify({ profile: changed })
       });
       if (response.ok) {
         const data = await response.json();
         const authUser = JSON.parse(localStorage.getItem('authUser') || '{}');
         localStorage.setItem('authUser', JSON.stringify({ ...authUser, ...data.data.user }));
         setUser(data.data.user);
+        lastServerProfileRef.current = data.data.user.profile || {};
       }
     } catch (error) {
       console.error('Error saving profile arrays:', error);
@@ -395,6 +420,60 @@ export default function Settings() {
       </div>
     </div>
   );
+
+  const toggleSportPreference = (discipline) => {
+    const current = formData.profile.sportPreferences || [];
+    const next = current.includes(discipline)
+      ? current.filter((d) => d !== discipline)
+      : [...current, discipline];
+    commitProfile({ ...formData.profile, sportPreferences: next });
+  };
+
+  // Plain render function for the same focus-preservation reason as
+  // renderChipEditor. Fixed-choice toggle chips — the canonical discipline
+  // vocabulary, never free text.
+  const renderDisciplinePicker = () => {
+    const selected = formData.profile.sportPreferences || [];
+    return (
+      <div className="py-4 border-b border-gray-100 dark:border-gray-800">
+        <div className="flex items-center gap-2 mb-3">
+          <Dumbbell className="w-4 h-4 text-primary-400" />
+          <p className="text-sm font-bold text-gray-500 dark:text-gray-400 tracking-wide">Interests</p>
+        </div>
+        <div className="space-y-3">
+          {DISCIPLINE_GROUPS.map((group) => (
+            <div key={group.label}>
+              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1.5">
+                {group.label}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {group.disciplines.map((discipline) => {
+                  const isSelected = selected.includes(discipline);
+                  const color = getDisciplineColor(discipline);
+                  return (
+                    <button
+                      key={discipline}
+                      onClick={() => toggleSportPreference(discipline)}
+                      disabled={isSaving}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm capitalize border transition-colors ${
+                        isSelected
+                          ? 'font-semibold text-gray-900 dark:text-white'
+                          : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                      style={isSelected ? { borderColor: color, backgroundColor: `${color}22` } : undefined}
+                    >
+                      {isSelected && <Check className="w-3.5 h-3.5" style={{ color }} />}
+                      {discipline}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   // Strava functions
   const fetchStravaStatus = async () => {
@@ -723,6 +802,17 @@ export default function Settings() {
                 )}
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Training Interests — sports the coach plans around */}
+        <div className="mt-8">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Training Interests</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Sports and disciplines you want in your training — your coach plans around these.
+          </p>
+          <div className="space-y-1">
+            {renderDisciplinePicker()}
           </div>
         </div>
 

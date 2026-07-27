@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { DISCIPLINES } = require('../config/disciplines');
 
 const userSchema = new mongoose.Schema({
   email: {
@@ -74,7 +75,10 @@ const userSchema = new mongoose.Schema({
       default: 'beginner'
     },
     goals: [String],
-    sportPreferences: [String], // e.g., ['running', 'weightlifting', 'yoga', 'cycling']
+    // Sports the user wants in their training (canonical discipline
+    // vocabulary, e.g. ['running', 'climbing', 'yoga']) — feeds AI-coach
+    // context. Distinct from settings.sportsNews.follows (leagues they watch).
+    sportPreferences: { type: [String], enum: DISCIPLINES },
     injuries: [String], // any injuries to be aware of
     preferences: {
       sessionDuration: Number, // preferred minutes
