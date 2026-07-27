@@ -23,6 +23,14 @@ from app.core.agents.orchestrator import _needs_grounding
     "can we swap tomorrow's session?",
     "what is today's workout?",
     "workout for tomorrow",
+    # Multi-sport twins (a session is any training activity) — ADDITIVE
+    "what's my ride today?",
+    "how was my climb?",
+    "move my run to Friday",
+    "what is today's ride?",
+    "climb on saturday",
+    "do I have a run today?",
+    "should I ride today?",
 ])
 def test_grounding_matches(message):
     assert _needs_grounding(message) is True

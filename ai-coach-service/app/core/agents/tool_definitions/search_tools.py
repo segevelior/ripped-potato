@@ -44,7 +44,7 @@ def get_search_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "read_url",
-                "description": "Read and extract full content from a specific URL. Use this when you need detailed information from an article, guide, or program page. Do NOT use for YouTube URLs (just embed videos instead). Best for: workout programs, detailed form guides, scientific articles, training methodologies.",
+                "description": "Read and extract full content from a specific URL. Use this when you need detailed information from an article, guide, or program page. Do NOT use for YouTube URLs (just embed videos instead). Best for: training programs, detailed form guides, scientific articles, training methodologies.",
                 "parameters": {
                     "type": "object",
                     "properties": {

@@ -45,37 +45,39 @@ generation_locks: Dict[str, asyncio.Lock] = {}
 
 TRAIN_NOW_PROMPT = """Based on the user's profile, fitness data, calendar, and memories provided above, decide what the user should do TODAY.
 
+A SESSION is any training activity — a gym workout, a climbing session, a bike ride, a run, a mobility block. Today's Pick is NOT limited to gym workouts: if the user's disciplines, plan, or recent history (including external activities such as Strava rides/runs) show they train other sports, suggesting a ride, a run or a climbing session is a first-class answer. Match the discipline to what their training actually looks like — do not default everything to strength work, and do not suggest a sport their data gives no evidence for (no equipment, never done it).
+
 You have TWO options:
-1. SUGGEST A WORKOUT - if the user should train today (THIS IS THE DEFAULT)
+1. SUGGEST A SESSION - if the user should train today (THIS IS THE DEFAULT)
 2. SUGGEST A REST DAY - ONLY if there's a clear reason to rest
 
-CRITICAL: DEFAULT TO SUGGESTING A WORKOUT. The user is on a "Train Now" page because they WANT to train.
-- If there's NO recent workout history or it's empty/minimal, SUGGEST A WORKOUT
-- If you see "NO WORKOUT SCHEDULED FOR TODAY", this means the user SHOULD train - suggest a workout!
+CRITICAL: DEFAULT TO SUGGESTING A SESSION. The user is on a "Train Now" page because they WANT to train.
+- If there's NO recent training history or it's empty/minimal, SUGGEST A SESSION
+- If you see "NO WORKOUT SCHEDULED FOR TODAY", this means the user SHOULD train - suggest a session!
 - Only suggest rest if you have CONCRETE evidence from the data that they need it
 
 IMPORTANT RULES:
-1. If there's already a workout scheduled for today in the calendar, DO NOT suggest it again - the system will handle that.
-2. Consider what muscles were trained recently to avoid overlap (e.g., if they did chest yesterday, don't suggest chest today)
+1. If there's already a session scheduled for today in the calendar, DO NOT suggest it again - the system will handle that.
+2. Consider what muscles / systems were trained recently to avoid overlap (e.g., if they did chest yesterday, don't suggest chest today; if they rode hard yesterday, don't suggest another long ride)
 3. ONLY RECOMMEND REST if ALL of these conditions are met:
-   - You can see 3+ CONSECUTIVE days of completed workouts ENDING YESTERDAY in the recent history (an old streak followed by days off is NOT a reason to rest), OR
+   - You can see 3+ CONSECUTIVE days of completed sessions ENDING YESTERDAY in the recent history (an old streak followed by days off is NOT a reason to rest), OR
    - The user EXPLICITLY mentioned current fatigue, soreness, or injury in their memories (not just historical injuries)
-4. Match any workout to their fitness level and available equipment
-5. Respect their preferred workout duration
-6. Consider any injuries or limitations from their memories when designing the workout (but still suggest a workout)
+4. Match any session to their fitness level, available equipment, and the sports they actually train
+5. Respect their preferred session duration
+6. Consider any injuries or limitations from their memories when designing the session (but still suggest a session)
 7. NEVER include exercises that load an injured area listed under "Injuries / Limitations" or in health memories — substitute a safe alternative and mention the accommodation in "reasoning"
-8. Do NOT repeat a recent daily suggestion (see RECENT DAILY SUGGESTIONS if present) — vary focus/muscles from the last couple of days
-9. Weigh YESTERDAY specifically: if yesterday's workout was completed — or a hard external activity (e.g. a Strava run/ride) was logged — balance today's load and muscles against it; if yesterday's workout was MISSED, consider whether today should pick up that focus instead of something new
+8. Do NOT repeat a recent daily suggestion (see RECENT DAILY SUGGESTIONS if present) — vary focus/muscles/discipline from the last couple of days
+9. Weigh YESTERDAY specifically: if yesterday's session was completed — or a hard external activity (e.g. a Strava run/ride) was logged — balance today's load and muscles against it; if yesterday's session was MISSED, consider whether today should pick up that focus instead of something new
 
-IF SUGGESTING A WORKOUT, return:
+IF SUGGESTING A SESSION, return (gym example):
 {
   "type": "session",
-  "name": "Workout name (e.g., 'Upper Body Strength')",
+  "name": "Session name (e.g., 'Upper Body Strength')",
   "goal": "Brief goal description (e.g., 'Build upper body strength and muscle')",
   "primary_disciplines": ["strength"],
   "estimated_duration": 45,
   "difficulty_level": "intermediate",
-  "reasoning": "Brief explanation of why this workout is suggested today",
+  "reasoning": "Brief explanation of why this session is suggested today",
   "blocks": [
     {
       "name": "Warm-up",
@@ -94,6 +96,26 @@ IF SUGGESTING A WORKOUT, return:
   ]
 }
 
+The SAME contract covers non-gym sessions — only the discipline and the exercise entries change. Endurance/outdoor example (a ride; a climbing session works the same way with "Bouldering"/"Sport Climbing" entries and "8 routes" style volume):
+{
+  "type": "session",
+  "name": "Zone 2 Endurance Ride",
+  "goal": "Aerobic base without adding leg fatigue before Saturday's long ride",
+  "primary_disciplines": ["cycling"],
+  "estimated_duration": 75,
+  "difficulty_level": "intermediate",
+  "reasoning": "You lifted upper body yesterday and your last two Strava activities were rides — an easy aerobic ride keeps volume up while your pushing muscles recover.",
+  "blocks": [
+    {
+      "name": "Main Work",
+      "exercises": [
+        {"exercise_name": "Outdoor Cycling", "volume": "60min", "rest": "none", "notes": "Steady zone 2, flat-to-rolling route", "muscles": ["Legs"], "discipline": ["cycling"]}
+      ]
+    }
+  ]
+}
+Note the shape: an outdoor session is ONE block with ONE exercise entry named after the activity itself; `volume` carries the dose (time, distance, routes) and `notes` carries the detail. "blocks" and per-exercise "exercise_name" are ALWAYS required — never return an empty blocks list.
+
 IF SUGGESTING A REST DAY, return:
 {
   "type": "rest",
@@ -104,7 +126,7 @@ IF SUGGESTING A REST DAY, return:
 
 Per exercise, "muscles" (primary muscle groups) and "discipline" are REQUIRED — they classify the exercise correctly if it's new to the catalog.
 
-Valid disciplines: strength, cardio, hiit, mobility, calisthenics, running, cycling, climbing, meditation
+Valid disciplines (pick the one that matches the session — a ride is "cycling", not "cardio"): strength, cardio, hiit, mobility, calisthenics, running, cycling, climbing, meditation
 Valid difficulty levels: beginner, intermediate, advanced
 
 Return ONLY the JSON object, no markdown or explanation."""

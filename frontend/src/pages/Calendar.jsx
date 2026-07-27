@@ -410,7 +410,7 @@ const CalendarView = ({ events, activePlans, currentDate, onDateChange, onAddEve
                 const colors = getEventColor(event);
                 const status = event.status || 'scheduled';
                 const statusStyle = STATUS_STYLES[status] || STATUS_STYLES.scheduled;
-                const workoutType = event.sessionDetails?.discipline || event.eventType || 'Workout';
+                const workoutType = event.sessionDetails?.discipline || event.eventType || 'Session';
                 const isCompleted = status === 'completed';
                 const isSkipped = status === 'skipped';
                 const isPastAndNotDone = !isCompleted && !isSkipped && new Date(event.date) < new Date().setHours(0,0,0,0);
@@ -596,7 +596,7 @@ export default function CalendarPage() {
       loadData();
     } catch (error) {
       console.error("Error adding calendar event:", error);
-      alert(`Failed to add workout: ${error.message}`);
+      alert(`Failed to add session: ${error.message}`);
     }
   };
 
@@ -620,14 +620,14 @@ export default function CalendarPage() {
   };
 
   const handleDeleteEvent = async (eventId) => {
-    if (!confirm("Are you sure you want to delete this workout?")) return;
+    if (!confirm("Are you sure you want to delete this session?")) return;
 
     try {
       await CalendarEvent.delete(eventId);
       loadData();
     } catch (error) {
       console.error("Error deleting calendar event:", error);
-      alert("Failed to delete workout. Please try again.");
+      alert("Failed to delete session. Please try again.");
     }
   };
 

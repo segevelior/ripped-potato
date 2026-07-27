@@ -27,7 +27,7 @@ function formatDate(isoDate) {
 
 // Keys are calendarevents `type` enum values. `workout` is kept alongside
 // `session` because chat history persisted before the rename still carries it.
-const TYPE_LABELS = { session: 'Workout', workout: 'Workout', deload: 'Deload', rest: 'Rest day' };
+const TYPE_LABELS = { session: 'Session', workout: 'Session', deload: 'Deload', rest: 'Rest day' };
 
 export default function CalendarPreviewCard({ payload }) {
   const card = decodePayload(payload);
@@ -96,7 +96,7 @@ export default function CalendarPreviewCard({ payload }) {
         <div className="px-4 py-2 border-t border-gray-100 flex items-center gap-1.5 text-xs text-gray-500">
           <Link2 className="w-3 h-3 shrink-0" />
           <span>
-            Links your existing workout <span className="font-medium text-gray-700">{link.name}</span> — nothing new is created
+            Links your existing session <span className="font-medium text-gray-700">{link.name}</span> — nothing new is created
           </span>
         </div>
       )}
@@ -104,7 +104,7 @@ export default function CalendarPreviewCard({ payload }) {
         <div className="px-4 py-2 border-t border-gray-100 flex items-center gap-1.5 text-xs text-gray-500">
           <Plus className="w-3 h-3 shrink-0" />
           <span>
-            Creates a new library workout <span className="font-medium text-gray-700">{link.name}</span>
+            Creates a new library session <span className="font-medium text-gray-700">{link.name}</span>
           </span>
         </div>
       )}

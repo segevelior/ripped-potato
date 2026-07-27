@@ -63,7 +63,7 @@ const navigationItems = [
   },
 ];
 
-// Mobile bottom-nav item (Today / Plan / Workouts / Profile)
+// Mobile bottom-nav item (Today / Plan / Sessions / Profile)
 const BottomNavItem = ({ to, icon: Icon, label, active }) => (
   <Link
     to={to}

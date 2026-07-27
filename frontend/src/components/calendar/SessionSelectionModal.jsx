@@ -62,13 +62,13 @@ export default function SessionSelectionModal({ date, onClose, onApplyWorkout })
     if (coachPrompt.trim()) {
       prompt = `[SESSION REQUEST for ${dateStr} (${isoDate})${isToday ? ' - TODAY' : ''}]
 
-I want to add a workout to my calendar for ${dateStr}. Here's what I'm looking for: ${coachPrompt}
+I want to add a session to my calendar for ${dateStr}. Here's what I'm looking for: ${coachPrompt}
 
-Please suggest exercises that fit this request, estimate the duration, and create a workout for me. After I approve, add it to my calendar for this date.${isToday ? ' Since this is for today, ask me if I want to start training now after adding it.' : ''}`;
+Please suggest exercises that fit this request, estimate the duration, and create a session for me. After I approve, add it to my calendar for this date.${isToday ? ' Since this is for today, ask me if I want to start training now after adding it.' : ''}`;
     } else {
       prompt = `[SESSION REQUEST for ${dateStr} (${isoDate})${isToday ? ' - TODAY' : ''}]
 
-I want to add a workout to my calendar for ${dateStr}. Please help me decide what to train. Ask me a quick question about what I'm in the mood for, or suggest a few options based on my training history and goals.${isToday ? ' Since this is for today, if I confirm a workout, ask me if I want to start training now.' : ''}`;
+I want to add a session to my calendar for ${dateStr}. Please help me decide what to train. Ask me a quick question about what I'm in the mood for, or suggest a few options based on my training history and goals.${isToday ? ' Since this is for today, if I confirm a session, ask me if I want to start training now.' : ''}`;
     }
 
     // Store prompt in localStorage for the Chat page to pick up
@@ -133,7 +133,7 @@ I want to add a workout to my calendar for ${dateStr}. Please help me decide wha
     const workoutType = disciplineToType[rawType] || 'strength';
 
     const workoutData = {
-      title: selectedWorkout.name || "Unnamed Workout",
+      title: selectedWorkout.name || "Unnamed Session",
       type: workoutType,
       durationMinutes: selectedWorkout.estimated_duration || selectedWorkout.duration_minutes || 60,
       // The library workout's id: the calendar event links to it instead of
@@ -164,7 +164,7 @@ I want to add a workout to my calendar for ${dateStr}. Please help me decide wha
         <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-gray-900">Add Workout</h2>
+              <h2 className="text-base font-bold text-gray-900">Add Session</h2>
               <p className="text-xs text-gray-500">
                 {format(date, 'EEE, MMM d')}
               </p>
@@ -223,7 +223,7 @@ I want to add a workout to my calendar for ${dateStr}. Please help me decide wha
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search workouts..."
+                  placeholder="Search sessions..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#FE5334] focus:border-transparent focus:bg-white"
@@ -270,7 +270,7 @@ I want to add a workout to my calendar for ${dateStr}. Please help me decide wha
                   ))
                 ) : (
                   <div className="text-center py-6 text-gray-500">
-                    <p className="text-sm">No workouts found</p>
+                    <p className="text-sm">No sessions found</p>
                     <p className="text-xs mt-1">Try a different search or ask Sensei</p>
                   </div>
                 )}

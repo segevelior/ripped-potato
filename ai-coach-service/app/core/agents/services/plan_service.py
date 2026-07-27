@@ -208,7 +208,7 @@ class PlanService:
                     "description": p.get("description", ""),
                     "status": p.get("status"),
                     "weeks_total": p.get("schedule", {}).get("weeksTotal"),
-                    "workouts_per_week": p.get("schedule", {}).get("sessionsPerWeek"),
+                    "sessions_per_week": p.get("schedule", {}).get("sessionsPerWeek"),
                     "current_week": p.get("progress", {}).get("currentWeek"),
                     "adherence": p.get("progress", {}).get("adherencePercentage"),
                     "start_date": p["startDate"].isoformat() if p.get("startDate") else None

@@ -232,7 +232,7 @@ export default function CreateSessionModal({ exercises, onClose, onSave, editWor
 
   const handleSaveClick = () => {
     if (!workout.name || workout.blocks.every(b => b.exercises.length === 0)) {
-      alert("Please provide a workout name and add at least one exercise");
+      alert("Please provide a session name and add at least one exercise");
       return;
     }
     onSave(workout);
@@ -252,7 +252,7 @@ export default function CreateSessionModal({ exercises, onClose, onSave, editWor
             <X className="w-6 h-6 text-gray-400 hover:text-gray-600" />
           </button>
 
-          <h2 className="text-lg font-bold text-gray-900">{isEditing ? "Edit Workout" : "Create Workout"}</h2>
+          <h2 className="text-lg font-bold text-gray-900">{isEditing ? "Edit Session" : "Create Session"}</h2>
 
           <button
             onClick={handleSaveClick}
@@ -268,7 +268,7 @@ export default function CreateSessionModal({ exercises, onClose, onSave, editWor
           {/* Workout Info */}
           <div className="space-y-6">
             <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Workout Name</label>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Session Name</label>
               <input
                 type="text"
                 value={workout.name}
@@ -289,8 +289,8 @@ export default function CreateSessionModal({ exercises, onClose, onSave, editWor
                     className="w-5 h-5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
                   />
                   <div>
-                    <span className="text-sm font-medium text-amber-900">Make this a Common Workout</span>
-                    <p className="text-xs text-amber-700 mt-0.5">Common workouts are visible to all users</p>
+                    <span className="text-sm font-medium text-amber-900">Make this a Common Session</span>
+                    <p className="text-xs text-amber-700 mt-0.5">Common sessions are visible to all users</p>
                   </div>
                 </label>
               </div>
@@ -365,7 +365,7 @@ export default function CreateSessionModal({ exercises, onClose, onSave, editWor
           {/* Blocks Section */}
           <div className="space-y-6">
             <div className="flex items-center justify-between px-2">
-              <h2 className="text-xl font-bold text-gray-900">Workout Blocks</h2>
+              <h2 className="text-xl font-bold text-gray-900">Session Blocks</h2>
               <span className="text-sm text-gray-500 font-medium">{workout.blocks.length} Blocks</span>
             </div>
 

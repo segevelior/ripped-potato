@@ -13,7 +13,7 @@ def get_exercise_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "add_exercise",
-                "description": "Add a new SINGLE exercise (one movement) to the user's personal exercise library. Use this when a user mentions they can do an exercise or wants to track a specific movement. NOT for a multi-exercise workout — a whole session with several drills is a WORKOUT, use create_session_template instead. Always search by the exercise's own name first to avoid duplicates.",
+                "description": "Add a new SINGLE exercise (one movement) to the user's personal exercise library. Use this when a user mentions they can do an exercise or wants to track a specific movement. NOT for a whole training activity — a gym workout with several drills, a ride, a run or a climbing session is a SESSION, use create_session_template instead. Always search by the exercise's own name first to avoid duplicates.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -156,7 +156,7 @@ def get_exercise_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "grep_session_templates",
-                "description": "Fast pattern-matching search across ALL workout templates available to the user (both common/public and user's custom workouts). Use this to find workouts by name or goal patterns. Supports regex patterns and bulk searching. Each match includes the workout's full exercise list (block, name, volume, rest).",
+                "description": "Fast pattern-matching search across ALL session templates available to the user, in every discipline (both common/public and the user's own). Use this to find sessions by name or goal patterns. Supports regex patterns and bulk searching. Each match includes the session's full exercise list (block, name, volume, rest).",
                 "parameters": {
                     "type": "object",
                     "properties": {

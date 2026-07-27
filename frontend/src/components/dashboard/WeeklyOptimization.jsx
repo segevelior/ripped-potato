@@ -105,8 +105,8 @@ export default function WeeklyOptimization() {
       if (stats.completionRate < 70) {
         opts.push({
           title: "Low Completion Rate",
-          insight: `You've completed ${stats.completionRate.toFixed(0)}% of your planned workouts this week.`,
-          recommendation: "Consider shorter sessions or fewer weekly workouts to build consistency.",
+          insight: `You've completed ${stats.completionRate.toFixed(0)}% of your planned sessions this week.`,
+          recommendation: "Consider shorter sessions or fewer weekly sessions to build consistency.",
           status: "warning",
           action: "reduce_volume"
         });
@@ -115,8 +115,8 @@ export default function WeeklyOptimization() {
       // Duration optimization
       if (stats.averageDuration > 75) {
         opts.push({
-          title: "Long Workout Sessions",
-          insight: `Your average workout is ${stats.averageDuration.toFixed(0)} minutes.`,
+          title: "Long Sessions",
+          insight: `Your average session is ${stats.averageDuration.toFixed(0)} minutes.`,
           recommendation: "Break longer sessions into focused blocks to improve adherence.",
           status: "info",
           action: "optimize_duration"
@@ -230,7 +230,7 @@ export default function WeeklyOptimization() {
         </div>
         {weeklyStats && (
           <div className="text-sm text-gray-600">
-            {weeklyStats.thisWeekCount} workouts • {weeklyStats.completionRate.toFixed(0)}% target
+            {weeklyStats.thisWeekCount} sessions • {weeklyStats.completionRate.toFixed(0)}% target
           </div>
         )}
       </div>

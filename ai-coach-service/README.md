@@ -2,11 +2,18 @@
 
 Python-based AI coaching service for SynergyFit/Ripped Potato fitness application.
 
+> **Terminology:** a **session** is any training activity — a gym workout, a climbing
+> session, a bike ride, a run, a mobility block — and the `discipline` field says which
+> sport it is. Tools, collections and fields use session vocabulary
+> (`create_session_template`, `log_session`, `sessiontemplates`, `sessionlogs`).
+> Any recorded transcript or captured output in this repo (e.g. `AB_TEST.md`) predates
+> the workout→session rename and is kept verbatim — it is not rewritten.
+
 ## Features
 
 - 🤖 Intelligent fitness coaching using GPT-3.5/GPT-4
 - 💪 Exercise alternatives and form guidance
-- 📋 Workout plan generation
+- 📋 Training plan generation (sessions across any discipline)
 - 🎯 Context-aware responses based on user data
 - 🔐 JWT authentication compatible with Node.js backend
 - 📊 MongoDB integration for user data

@@ -47,7 +47,7 @@ function FeedbackModal({ onSubmit, onDiscard, onCancel, workoutStats, isSaving }
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold">How was your workout?</h3>
+          <h3 className="text-xl font-bold">How was your session?</h3>
           <button onClick={onCancel} className="p-1 hover:bg-gray-100 rounded-full">
             <X className="w-5 h-5 text-gray-400" />
           </button>
@@ -96,7 +96,7 @@ function FeedbackModal({ onSubmit, onDiscard, onCancel, workoutStats, isSaving }
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Any thoughts about this workout..."
+            placeholder="Any thoughts about this session..."
             className="w-full p-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             rows={3}
           />
@@ -113,7 +113,7 @@ function FeedbackModal({ onSubmit, onDiscard, onCancel, workoutStats, isSaving }
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
               <>
-                <Save className="w-5 h-5" /> Save Workout
+                <Save className="w-5 h-5" /> Save Session
               </>
             )}
           </button>
@@ -670,21 +670,21 @@ export default function LiveSession() {
       if (result?.cloned) {
         setWorkout(w => ({ ...w, sourceTemplateId: result.workout._id, sourceTemplateIsCommon: false }));
         toast({
-          title: "Saved to your workouts",
+          title: "Saved to your sessions",
           description: `Created your own copy of “${result.workout.name}” without “${removed.exercise_name}”.`,
         });
       } else {
         toast({
-          title: "Workout updated",
-          description: `“${removed.exercise_name}” is no longer part of this workout.`,
+          title: "Saved session updated",
+          description: `“${removed.exercise_name}” is no longer part of this session.`,
         });
       }
     } catch (error) {
       console.error('[LiveSession] Failed to persist removal to template:', error);
       const description = /empty/i.test(error?.message || '')
-        ? "It was removed from this session, but a workout can't be left empty — it wasn't changed."
-        : "It was removed from this session, but saving that to the workout failed. Try again from the Workouts page.";
-      toast({ title: "Session updated, workout not", description, variant: "destructive" });
+        ? "It was removed from this session, but a saved session can't be left empty — it wasn't changed."
+        : "It was removed from this session, but saving that to the saved session failed. Try again from the Sessions page.";
+      toast({ title: "Session updated, saved copy not", description, variant: "destructive" });
     }
   };
 
@@ -716,20 +716,20 @@ export default function LiveSession() {
         // session so a second "from now on" edits the copy in place.
         setWorkout(w => ({ ...w, sourceTemplateId: result.workout._id, sourceTemplateIsCommon: false }));
         toast({
-          title: "Saved to your workouts",
+          title: "Saved to your sessions",
           description: `Created your own copy of “${result.workout.name}” with the swap.`,
         });
       } else {
         toast({
-          title: "Workout updated",
-          description: `“${picked.name}” is now part of this workout.`,
+          title: "Saved session updated",
+          description: `“${picked.name}” is now part of this session.`,
         });
       }
     } catch (error) {
       console.error('[LiveSession] Failed to persist replacement to template:', error);
       toast({
-        title: "Session updated, workout not",
-        description: "The swap applies to this session, but saving it to the workout failed. Try again from the Workouts page.",
+        title: "Session updated, saved copy not",
+        description: "The swap applies to this session, but saving it to the saved session failed. Try again from the Sessions page.",
         variant: "destructive",
       });
     }
@@ -828,7 +828,7 @@ export default function LiveSession() {
 
     try {
       const sessionLogData = {
-        title: workout.title || 'Workout',
+        title: workout.title || 'Session',
         discipline: getDiscipline(workout.type),
         startedAt: workoutStartTime.toISOString(),
         completedAt: new Date().toISOString(),
@@ -860,7 +860,7 @@ export default function LiveSession() {
       navigate(-1);
     } catch (error) {
       console.error("Failed to save workout:", error);
-      alert(`Failed to save workout: ${error.message}`);
+      alert(`Failed to save session: ${error.message}`);
       setIsSaving(false);
     }
   };
@@ -949,7 +949,7 @@ export default function LiveSession() {
           }`}
         >
           <Check className="w-6 h-6" />
-          Done Workout
+          Finish Session
         </button>
       </div>
 
@@ -1018,7 +1018,7 @@ export default function LiveSession() {
                   >
                     From now on
                     <span className="block text-xs font-normal text-red-400 mt-0.5">
-                      {workout.sourceTemplateIsCommon ? "Creates your own copy of this workout" : "Updates this workout"}
+                      {workout.sourceTemplateIsCommon ? "Creates your own copy of this session" : "Updates this session"}
                     </span>
                   </button>
                   <button
@@ -1033,7 +1033,7 @@ export default function LiveSession() {
               <>
                 <p className="text-sm text-gray-600 mb-5">
                   Remove <span className="font-semibold">{confirmDelete.exercise?.exercise_name}</span> from
-                  this workout? You can undo right after.
+                  this session? You can undo right after.
                 </p>
                 <div className="flex gap-3">
                   <button

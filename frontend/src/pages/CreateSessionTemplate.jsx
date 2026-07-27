@@ -110,7 +110,7 @@ export default function CreateSessionTemplate() {
       setWorkout(workoutToEdit);
     } catch (error) {
       console.error("Error loading workout for editing:", error);
-      alert("Error loading workout. Redirecting to create new workout.");
+      alert("Error loading session. Redirecting to create new session.");
       navigate(createPageUrl("CreateSessionTemplate"));
     }
   };
@@ -183,12 +183,12 @@ export default function CreateSessionTemplate() {
 
   const handleSave = async () => {
     if (!workout.name.trim()) {
-      alert("Workout name is required.");
+      alert("Session name is required.");
       return;
     }
 
     if (workout.blocks.length === 0 || workout.blocks.every(block => block.exercises.length === 0)) {
-      alert("Please add at least one exercise to your workout.");
+      alert("Please add at least one exercise to your session.");
       return;
     }
 
@@ -196,15 +196,15 @@ export default function CreateSessionTemplate() {
     try {
       if (isEditing && editingId) {
         await SessionTemplate.update(editingId, workout);
-        alert("Workout updated successfully!");
+        alert("Session updated successfully!");
       } else {
         await SessionTemplate.create(workout);
-        alert("Workout created successfully!");
+        alert("Session created successfully!");
       }
       navigate(createPageUrl("Sessions"));
     } catch (error) {
       console.error("Failed to save workout:", error);
-      alert("Failed to save workout. Please try again.");
+      alert("Failed to save session. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -232,7 +232,7 @@ export default function CreateSessionTemplate() {
             className="bg-[#FE755D] hover:bg-[#E56A54] text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-[#FE755D]/20 flex items-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
           >
             <Save className="w-5 h-5" />
-            {isSaving ? "Saving..." : (isEditing ? "Update Workout" : "Save Workout")}
+            {isSaving ? "Saving..." : (isEditing ? "Update Session" : "Save Session")}
           </button>
         </div>
       </div>
@@ -256,7 +256,7 @@ export default function CreateSessionTemplate() {
             <div className="p-8 space-y-6">
               {/* Title Input */}
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Workout Name</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Session Name</label>
                 <input
                   type="text"
                   placeholder="e.g., Full Body Power"
@@ -321,7 +321,7 @@ export default function CreateSessionTemplate() {
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Description / Goal</label>
                 <textarea
-                  placeholder="What's the goal of this workout?"
+                  placeholder="What's the goal of this session?"
                   value={workout.goal}
                   onChange={e => handleWorkoutChange('goal', e.target.value)}
                   className="w-full bg-gray-50 border-none rounded-xl p-4 text-gray-700 focus:ring-2 focus:ring-[#FE755D]/20 resize-none h-32"
@@ -333,7 +333,7 @@ export default function CreateSessionTemplate() {
           {/* Blocks Section */}
           <div className="space-y-6">
             <div className="flex items-center justify-between px-2">
-              <h2 className="text-xl font-bold text-gray-900">Workout Blocks</h2>
+              <h2 className="text-xl font-bold text-gray-900">Session Blocks</h2>
               <span className="text-sm text-gray-500 font-medium">{workout.blocks.length} Blocks</span>
             </div>
 

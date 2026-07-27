@@ -97,7 +97,11 @@ class DataReaderAgent(BaseAgent):
             needs["exercises"] = True
         
         # Check for workout-related queries
-        workout_keywords = ["workout", "routine", "program", "plan", "session", "training"]
+        # Matches USER UTTERANCES, not our vocabulary — ADDITIVE ONLY. Users say
+        # "workout" forever, and multi-sport users say "ride"/"climb"/"run";
+        # every term below is permanent, none replaces another.
+        workout_keywords = ["workout", "routine", "program", "plan", "session", "training",
+                            "ride", "climb", "climbing", "run", "running"]
         if any(keyword in message_lower for keyword in workout_keywords):
             needs["workouts"] = True
             needs["exercises"] = True

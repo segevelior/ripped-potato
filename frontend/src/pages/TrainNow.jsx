@@ -80,7 +80,7 @@ function QuickStartCard({ workout, onStart, isFromCalendar, isLoading, reasoning
               className="w-full bg-white text-emerald-700 font-semibold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-emerald-50 transition-colors"
             >
               <Sparkles className="w-5 h-5" />
-              Get another workout
+              Get another session
             </button>
           )}
         </div>
@@ -99,9 +99,9 @@ function QuickStartCard({ workout, onStart, isFromCalendar, isLoading, reasoning
             <Calendar className="w-5 h-5 text-gray-200" />
             <span className="text-sm font-medium text-gray-200">Nothing Scheduled</span>
           </div>
-          <h3 className="text-xl font-bold mb-2">No Workout For Today</h3>
+          <h3 className="text-xl font-bold mb-2">No Session For Today</h3>
           <p className="text-sm text-gray-200 mb-4">
-            If you feel like working out, talk to Sensei below or add a workout in the Calendar.
+            If you feel like training, talk to Sensei below or add a session in the Calendar.
           </p>
           <Link
             to="/Calendar"
@@ -173,7 +173,7 @@ function QuickStartCard({ workout, onStart, isFromCalendar, isLoading, reasoning
   }
 
   // Handle Workout suggestion
-  const discipline = workout.primary_disciplines?.[0] || 'Workout';
+  const discipline = workout.primary_disciplines?.[0] || 'Session';
   const label = isFromCalendar ? "Scheduled Today" : "Today's Pick";
   const LabelIcon = isFromCalendar ? Calendar : Flame;
 
@@ -226,7 +226,7 @@ function QuickStartCard({ workout, onStart, isFromCalendar, isLoading, reasoning
 
 // Compact workout card for lists
 function CompactSessionCard({ workout, onStart, onView }) {
-  const discipline = workout.primary_disciplines?.[0] || 'workout';
+  const discipline = workout.primary_disciplines?.[0] || 'session';
 
   return (
     <div
@@ -506,7 +506,7 @@ export default function TrainNow() {
       navigate(createPageUrl('LiveSession')); // No ID param needed
     } catch (error) {
       console.error('[TrainNow] Failed to start workout:', error);
-      alert(`Failed to start workout: ${error.message}`);
+      alert(`Failed to start session: ${error.message}`);
     }
   };
 
@@ -534,7 +534,7 @@ export default function TrainNow() {
 
   const applyToCalendar = async (workout, selectedDate) => {
     console.log("Apply workout to calendar:", workout, selectedDate);
-    alert(`Workout "${workout.name}" added to ${selectedDate}!`);
+    alert(`Session "${workout.name}" added to ${selectedDate}!`);
     setWorkoutToView(null);
   };
 
@@ -550,11 +550,11 @@ export default function TrainNow() {
 
 I want to start training RIGHT NOW. Here's what I'm looking for: ${coachPrompt}
 
-Please suggest a workout that matches this request. After I approve, start the live workout session immediately so I can begin training.`;
+Please suggest a session that matches this request. After I approve, start the live session immediately so I can begin training.`;
     } else {
       prompt = `[SESSION REQUEST for ${dateStr} (${isoDate}) - TODAY - TRAIN NOW]
 
-I want to start training RIGHT NOW but I'm not sure what to do. Help me decide what to train based on my goals and recent activity. Ask me a quick question about what I'm in the mood for, or suggest a few workout options. Once I pick one, start the live workout session immediately.`;
+I want to start training RIGHT NOW but I'm not sure what to do. Help me decide what to train based on my goals and recent activity. Ask me a quick question about what I'm in the mood for, or suggest a few session options. Once I pick one, start the live session immediately.`;
     }
 
     // Store prompt in localStorage for the Chat page to pick up
@@ -602,7 +602,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search workouts..."
+            placeholder="Search sessions..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             autoFocus
@@ -631,7 +631,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
           ) : (
             <div className="text-center py-8 bg-gray-50 rounded-2xl">
               <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">No workouts found</p>
+              <p className="text-gray-500">No sessions found</p>
               <Link
                 to={createPageUrl("Chat")}
                 className="text-primary-500 font-medium mt-2 inline-flex items-center gap-1"
@@ -647,22 +647,22 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
       {showConflictModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Unfinished Workout</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Unfinished Session</h3>
             <p className="text-gray-600 mb-1">
-              You have an unfinished workout:
+              You have an unfinished session:
             </p>
             <p className="font-semibold text-gray-900 mb-4">
               {activeSession?.data?.title}
             </p>
             <p className="text-gray-600 mb-6">
-              Would you like to resume it or start a new workout?
+              Would you like to resume it or start a new session?
             </p>
             <div className="space-y-3">
               <button
                 onClick={resumeWorkout}
                 className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors"
               >
-                Resume Workout
+                Resume Session
               </button>
               <button
                 onClick={discardAndStartNew}
@@ -692,7 +692,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
                   <Play className="w-6 h-6 text-green-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-green-900">Workout in Progress</p>
+                  <p className="font-semibold text-green-900">Session in Progress</p>
                   <p className="text-sm text-green-700 truncate">{activeSession.data?.title}</p>
                   <p className="text-xs text-green-600">
                     {Math.floor(activeSession.totalSessionTime / 60)} min elapsed
@@ -750,7 +750,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
 
           {/* Quick Workouts */}
           <SessionRow
-            title="Quick Workouts"
+            title="Quick Sessions"
             icon={Clock}
             workouts={quickWorkouts}
             onStart={startSession}
@@ -782,7 +782,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
             className="block bg-gray-100 rounded-2xl p-4 text-center hover:bg-gray-200 transition-colors"
           >
             <Dumbbell className="w-6 h-6 text-gray-400 mx-auto mb-1" />
-            <p className="font-semibold text-gray-900 text-sm">Browse All Workouts</p>
+            <p className="font-semibold text-gray-900 text-sm">Browse All Sessions</p>
             <p className="text-xs text-gray-500">{workouts.length} available</p>
           </Link>
         </>

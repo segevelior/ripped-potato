@@ -196,7 +196,7 @@ const WorkoutAutoGenerator = ({ selectedGoals, goals, progressionPaths, predefin
       
     } catch (error) {
       console.error("Error generating workouts:", error);
-      alert("Failed to generate workouts. Please try again.");
+      alert("Failed to generate sessions. Please try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -219,7 +219,7 @@ const WorkoutAutoGenerator = ({ selectedGoals, goals, progressionPaths, predefin
     return (
       <div className="text-center py-8 text-gray-500">
         <Target className="w-12 h-12 mx-auto mb-3 opacity-50" />
-        <p>Select goals in Step 2 to auto-generate workouts</p>
+        <p>Select goals in Step 2 to auto-generate sessions</p>
       </div>
     );
   }
@@ -251,9 +251,9 @@ const WorkoutAutoGenerator = ({ selectedGoals, goals, progressionPaths, predefin
       {generationType === 'smart' ? (
         <div className="space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-medium text-blue-900 mb-2">Smart Workout Generation</h4>
+            <h4 className="font-medium text-blue-900 mb-2">Smart Session Generation</h4>
             <p className="text-sm text-blue-700 mb-3">
-              I'll create a progression-based workout schedule for your selected goals, using existing progression paths and relevant workout templates.
+              I'll create a progression-based session schedule for your selected goals, using existing progression paths and relevant session templates.
             </p>
             <ul className="text-xs text-blue-600 space-y-1 mb-4">
               <li>• {selectedGoals.length} goals selected</li>
@@ -266,14 +266,14 @@ const WorkoutAutoGenerator = ({ selectedGoals, goals, progressionPaths, predefin
               className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors disabled:opacity-50"
             >
               <Zap className="w-4 h-4" />
-              {isGenerating ? 'Generating...' : 'Generate Workouts'}
+              {isGenerating ? 'Generating...' : 'Generate Sessions'}
             </button>
           </div>
           
           {/* Generated Workouts Preview */}
           {generatedWorkouts.length > 0 && (
             <div className="space-y-2">
-              <h4 className="font-medium text-gray-900">Generated Workouts ({generatedWorkouts.length})</h4>
+              <h4 className="font-medium text-gray-900">Generated Sessions ({generatedWorkouts.length})</h4>
               <div className="max-h-60 overflow-y-auto space-y-2">
                 {generatedWorkouts.map((workout, index) => (
                   <div key={index} className="bg-white border border-gray-200 rounded-lg p-3">
@@ -288,7 +288,7 @@ const WorkoutAutoGenerator = ({ selectedGoals, goals, progressionPaths, predefin
                               </span>
                             </>
                           ) : (
-                            predefinedWorkouts.find(w => w.id === workout.workout_id)?.name || 'Workout'
+                            predefinedWorkouts.find(w => w.id === workout.workout_id)?.name || 'Session'
                           )}
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
@@ -319,7 +319,7 @@ const WorkoutAutoGenerator = ({ selectedGoals, goals, progressionPaths, predefin
         </div>
       ) : (
         <div className="space-y-4">
-          <h4 className="font-medium text-gray-900">Add Workouts Manually</h4>
+          <h4 className="font-medium text-gray-900">Add Sessions Manually</h4>
           <div className="max-h-60 overflow-y-auto space-y-2">
             {predefinedWorkouts.slice(0, 10).map(workout => (
               <div
@@ -504,7 +504,7 @@ export default function CreatePlan() {
           <h1 className="text-3xl font-bold text-gray-900">
             {isEditMode ? 'Edit Plan' : 'Create New Plan'}
           </h1>
-          <p className="text-lg text-gray-600">Build a structured training plan with smart workout generation.</p>
+          <p className="text-lg text-gray-600">Build a structured training plan with smart session generation.</p>
         </div>
       </div>
 
@@ -529,7 +529,7 @@ export default function CreatePlan() {
         <div className="flex justify-between mt-2 text-sm text-gray-600">
           <span>Basic Details</span>
           <span>Select Goals</span>
-          <span>Generate Workouts</span>
+          <span>Generate Sessions</span>
         </div>
       </div>
 
@@ -611,7 +611,7 @@ export default function CreatePlan() {
 
         <WizardStep currentStep={currentStep} stepNumber={2} title={`Linked Goals (${planData.linked_goals.length})`} isCompleted={isStep2Complete}>
           <p className="text-sm text-gray-600 mb-4">
-            Select the goals this plan will help you achieve. The workout generator will use these to create a progression-based schedule.
+            Select the goals this plan will help you achieve. The session generator will use these to create a progression-based schedule.
           </p>
           
           <GoalSelector
@@ -633,14 +633,14 @@ export default function CreatePlan() {
                 onClick={handleNextStep}
                 className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors"
               >
-                Next: Generate Workouts
+                Next: Generate Sessions
                 <ChevronRight className="w-4 h-4" />
               </button>
             )}
           </div>
         </WizardStep>
 
-        <WizardStep currentStep={currentStep} stepNumber={3} title={`Workouts (${planData.linked_workouts.length})`} isCompleted={isStep3Complete}>
+        <WizardStep currentStep={currentStep} stepNumber={3} title={`Sessions (${planData.linked_workouts.length})`} isCompleted={isStep3Complete}>
           <WorkoutAutoGenerator
             selectedGoals={planData.linked_goals}
             goals={goals}

@@ -40,7 +40,7 @@ function getToolIcon(description, isComplete) {
   }
 
   // Other tools
-  if (desc.includes('exercise') || desc.includes('workout') || desc.includes('training')) {
+  if (desc.includes('exercise') || desc.includes('session') || desc.includes('workout') || desc.includes('training')) {
     return <Dumbbell className={`h-3.5 w-3.5 ${isComplete ? 'text-orange-500' : 'text-orange-400'}`} />;
   }
   if (desc.includes('calendar') || desc.includes('schedul')) {

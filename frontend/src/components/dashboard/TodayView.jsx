@@ -142,7 +142,7 @@ export default function TodayView() {
             type:
               scheduledEvent.sessionDetails?.discipline ||
               scheduledEvent.eventType ||
-              "Workout",
+              "Session",
             time: fmtTime(scheduledEvent.date),
             duration:
               scheduledEvent.sessionDetails?.durationMinutes ||
@@ -182,7 +182,7 @@ export default function TodayView() {
           } else {
             setSession({
               title: s.name || s.title,
-              type: s.primary_disciplines?.[0] || "Workout",
+              type: s.primary_disciplines?.[0] || "Session",
               time: null,
               duration: s.estimated_duration || s.duration_minutes || null,
               exercises: s.exercises?.length || s.blocks?.length || null,

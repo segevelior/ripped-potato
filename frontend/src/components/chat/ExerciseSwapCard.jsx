@@ -96,14 +96,14 @@ export default function ExerciseSwapCard({ payload }) {
                   className="flex-1 py-2 bg-white border border-gray-300 text-gray-800 rounded-xl text-sm font-semibold hover:border-gray-400 disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
                   {applying === "permanent" && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  Apply + update workout
+                  Apply + update session
                 </button>
               )}
             </span>
           )
         ) : (
           <span className="block px-4 py-2 bg-gray-50 text-xs text-gray-400 text-center">
-            Open your active workout to apply this swap.
+            Open your active session to apply this swap.
           </span>
         )}
       </span>

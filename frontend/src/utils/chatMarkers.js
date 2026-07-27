@@ -32,7 +32,7 @@ export function stripContextMarkers(content) {
   }
   if (isSessionRequestMarker(content)) {
     const looking = content.match(/Here's what I'm looking for:\s*(.+?)(?:\n|Please|$)/s);
-    return looking ? looking[1].trim() : 'Help me plan a workout for today';
+    return looking ? looking[1].trim() : 'Help me plan a session for today';
   }
   if (content.startsWith('[TRAIN NOW')) {
     return 'I want to train now - help me decide what to do';

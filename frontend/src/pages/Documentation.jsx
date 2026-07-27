@@ -72,13 +72,13 @@ export default function Documentation() {
             <div className="bg-white p-6 rounded-xl shadow">
               <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <Zap className="w-6 h-6 text-green-600" />
-                Workout Management
+                Session Management
               </h3>
               <ul className="space-y-2 text-gray-600">
-                <li>• Live workout sessions with real-time tracking</li>
-                <li>• Predefined workout library and templates</li>
+                <li>• Live sessions with real-time tracking</li>
+                <li>• Predefined session library and templates</li>
                 <li>• Comprehensive exercise database</li>
-                <li>• Smart workout suggestions based on goals</li>
+                <li>• Smart session suggestions based on goals</li>
               </ul>
             </div>
 
@@ -124,7 +124,7 @@ export default function Documentation() {
                   <li><strong>Base44 Platform:</strong> Authentication & infrastructure</li>
                   <li><strong>Entity-based Architecture:</strong> JSON schema validation</li>
                   <li><strong>RESTful API:</strong> Standardized data operations</li>
-                  <li><strong>Real-time Updates:</strong> Live workout sessions</li>
+                  <li><strong>Real-time Updates:</strong> Live training sessions</li>
                   <li><strong>OpenAI Integration:</strong> Via InvokeLLM service</li>
                   <li><strong>Structured Responses:</strong> Schema-validated AI output</li>
                 </ul>
@@ -139,7 +139,7 @@ export default function Documentation() {
 ├── calendar/           # Calendar and scheduling UI
 ├── exercise/           # Exercise-related components
 ├── goals/              # Goal tracking interface
-├── predefined/         # Workout template components
+├── predefined/         # Session template components
 └── FloatingAIAssistant.jsx
 
 pages/
@@ -148,9 +148,9 @@ pages/
 ├── Goals.js            # Goal management
 ├── Plans.js            # Training plan management
 ├── Chat.js             # AI coach conversation
-├── LiveWorkout.js      # Real-time workout tracking
+├── LiveSession.jsx     # Real-time session tracking
 ├── Exercises.js        # Exercise database
-└── PredefinedWorkouts.js
+└── Sessions.jsx        # Session template library
 
 entities/               # Data models (JSON schemas)
 Layout.js               # App navigation and layout`}
@@ -171,7 +171,7 @@ Layout.js               # App navigation and layout`}
               <h3 className="text-xl font-semibold mb-4">Core Entities</h3>
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <h4 className="font-semibold text-primary-500 mb-2">Workout</h4>
+                  <h4 className="font-semibold text-primary-500 mb-2">Session</h4>
                   <ul className="text-sm text-gray-600 space-y-1">
                     <li>• Title, date, type, duration</li>
                     <li>• Exercise list with sets/reps/weight</li>
@@ -194,7 +194,7 @@ Layout.js               # App navigation and layout`}
                   <h4 className="font-semibold text-green-600 mb-2">Plan</h4>
                   <ul className="text-sm text-gray-600 space-y-1">
                     <li>• Name, dates, status</li>
-                    <li>• Linked goals and workouts</li>
+                    <li>• Linked goals and sessions</li>
                     <li>• Progress metrics and completion rates</li>
                     <li>• AI optimization insights</li>
                   </ul>
@@ -232,7 +232,7 @@ Layout.js               # App navigation and layout`}
                   <h4 className="font-semibold mb-2">Real-time Context</h4>
                   <ul className="text-sm text-gray-600 space-y-1">
                     <li>• Current page and user actions</li>
-                    <li>• Active workouts, goals, and plans</li>
+                    <li>• Active sessions, goals, and plans</li>
                     <li>• Recent training history</li>
                     <li>• Schedule and availability</li>
                   </ul>
@@ -318,7 +318,7 @@ Layout.js               # App navigation and layout`}
                 </li>
                 <li className="flex gap-3">
                   <span className="w-6 h-6 bg-orange-100 text-primary-500 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">5</span>
-                  <span>Follow scheduled workouts and track daily progress</span>
+                  <span>Follow scheduled sessions and track daily progress</span>
                 </li>
               </ol>
             </div>
@@ -357,7 +357,7 @@ Layout.js               # App navigation and layout`}
               <div className="grid md:grid-cols-3 gap-6">
                 <div>
                   <h4 className="font-semibold text-primary-500 mb-2">Training Preferences</h4>
-                  <p className="text-sm text-gray-600">Learns optimal workout times, durations, and intensity preferences</p>
+                  <p className="text-sm text-gray-600">Learns optimal session times, durations, and intensity preferences</p>
                 </div>
                 <div>
                   <h4 className="font-semibold text-blue-600 mb-2">Skip Patterns</h4>
@@ -371,12 +371,12 @@ Layout.js               # App navigation and layout`}
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow">
-              <h3 className="text-xl font-semibold mb-4">Smart Workout Generation</h3>
+              <h3 className="text-xl font-semibold mb-4">Smart Session Generation</h3>
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
                   <h4 className="font-semibold mb-2">Dynamic Creation</h4>
                   <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• Generates workouts on-demand based on current needs</li>
+                    <li>• Generates sessions on-demand based on current needs</li>
                     <li>• Equipment adaptation for available resources</li>
                     <li>• Time constraints automatically considered</li>
                   </ul>
