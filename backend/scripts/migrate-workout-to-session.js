@@ -421,8 +421,12 @@ async function verify(db, current) {
     assert(current[n] !== null, `${n} present`);
   }
   if (pre) {
-    assert(current.sessiontemplates === pre.predefinedworkouts, `sessiontemplates count == pre predefinedworkouts (${current.sessiontemplates} vs ${pre.predefinedworkouts})`);
-    assert(current.sessionlogs === (pre.workoutlogs || 0) + (pre.workouts || 0), `sessionlogs count == pre workoutlogs+workouts (${current.sessionlogs} vs ${(pre.workoutlogs || 0) + (pre.workouts || 0)})`);
+    // A baseline captured on an already-partially-renamed DB records the
+    // count under the NEW name — accept either, they are the same docs.
+    const preTemplates = pre.predefinedworkouts ?? pre.sessiontemplates ?? 0;
+    const preLogs = (pre.workoutlogs ?? pre.sessionlogs ?? 0) + (pre.workouts ?? 0);
+    assert(current.sessiontemplates === preTemplates, `sessiontemplates count == baseline templates (${current.sessiontemplates} vs ${preTemplates})`);
+    assert(current.sessionlogs === preLogs, `sessionlogs count == baseline logs+legacy workouts (${current.sessionlogs} vs ${preLogs})`);
   }
   const zeroChecks = [
     ['calendarevents', { $or: [{ workoutTemplateId: { $exists: true } }, { workoutDetails: { $exists: true } }, { workoutLogId: { $exists: true } }, { type: 'workout' }, { 'sessionDetails.type': { $exists: true } }] }],
