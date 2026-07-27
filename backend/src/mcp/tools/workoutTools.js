@@ -1,11 +1,7 @@
 const { z } = require('zod');
-const workoutController = require('../../controllers/workoutController');
-const { validateWorkout } = require('../../middleware/validation');
+const workoutLogController = require('../../controllers/workoutLogController');
 const { runTool } = require('../invoke');
 const { withScope } = require('./util');
-
-const WORKOUT_TYPES = ['strength', 'cardio', 'hybrid', 'recovery', 'hiit', 'flexibility', 'calisthenics', 'mobility'];
-const STATUSES = ['planned', 'in_progress', 'completed', 'skipped'];
 
 const setSchema = z.object({
   targetReps: z.number().optional(),
@@ -22,13 +18,13 @@ const setSchema = z.object({
 const exerciseSchema = z.object({
   exerciseId: z.string().length(24).optional().describe('MongoDB ObjectId of an exercise (from search_exercises)'),
   exerciseName: z.string().describe('Exercise name (required)'),
-  order: z.number().int().optional(),
   sets: z.array(setSchema).optional(),
   notes: z.string().optional()
 });
 
 /**
- * Register workout tools. `ctx` = { user, scopes }.
+ * Register workout tools over the user's workout log (performed sessions).
+ * `ctx` = { user, scopes }.
  */
 function register(server, ctx) {
   const { user, scopes } = ctx;
@@ -37,79 +33,82 @@ function register(server, ctx) {
 
   server.registerTool('list_workouts', {
     title: 'List workouts',
-    description: "List the user's workouts, most recent first. Optionally filter by date range, status, or type.",
+    description: "List the user's logged workouts (performed sessions), most recent first. Optionally filter by look-back window or type.",
     inputSchema: {
-      startDate: z.string().optional().describe('ISO date, inclusive lower bound (e.g. 2026-07-01)'),
-      endDate: z.string().optional().describe('ISO date, inclusive upper bound'),
-      status: z.enum(STATUSES).optional(),
-      type: z.enum(WORKOUT_TYPES).optional(),
-      page: z.number().int().min(1).optional(),
-      limit: z.number().int().min(1).max(50).optional()
+      days: z.number().int().min(1).max(365).optional().describe('Look-back window in days, default 30'),
+      type: z.string().optional().describe('Workout type, e.g. strength, cardio, hiit'),
+      limit: z.number().int().min(1).max(50).optional().describe('Max results, default 20')
     }
   }, withScope(scopes, READ, (args) =>
-    runTool(workoutController.getWorkouts, { user, query: args })
+    runTool(workoutLogController.getWorkoutLogs, { user, query: args })
   ));
 
   server.registerTool('get_workout', {
     title: 'Get workout',
-    description: 'Get a single workout by its id, including exercises and sets.',
-    inputSchema: { id: z.string().length(24).describe('Workout id') }
+    description: 'Get a single logged workout by its id, including exercises and sets.',
+    inputSchema: { id: z.string().length(24).describe('Workout log id') }
   }, withScope(scopes, READ, (args) =>
-    runTool(workoutController.getWorkout, { user, params: { id: args.id } })
+    runTool(workoutLogController.getWorkoutLog, { user, params: { id: args.id } })
   ));
 
   server.registerTool('get_workout_stats', {
     title: 'Get workout stats',
-    description: 'Aggregate workout statistics (totals, completion, average duration) over the last N days.',
+    description: 'Aggregate statistics over logged workouts (totals, duration, strain) for the last N days.',
     inputSchema: { days: z.number().int().min(1).max(365).optional().describe('Look-back window, default 30') }
   }, withScope(scopes, READ, (args) =>
-    runTool(workoutController.getWorkoutStats, { user, query: args })
+    runTool(workoutLogController.getWorkoutLogStats, { user, query: args })
   ));
 
   server.registerTool('create_workout', {
-    title: 'Create workout',
-    description: 'Create a new workout for the user. Use search_exercises to find exerciseIds; exerciseName is required per exercise.',
+    title: 'Log workout',
+    description: 'Log a performed workout for the user (it appears in their history and on their calendar). Use search_exercises to find exerciseIds; exerciseName is required per exercise.',
     inputSchema: {
-      title: z.string().min(2).max(100),
-      date: z.string().describe('ISO date/datetime for the workout'),
-      type: z.enum(WORKOUT_TYPES),
-      status: z.enum(STATUSES).optional(),
-      durationMinutes: z.number().optional(),
+      title: z.string().min(1).max(100),
+      type: z.string().describe('Workout type, e.g. strength, cardio, hiit, climbing'),
+      startedAt: z.string().describe('ISO datetime the workout started'),
+      completedAt: z.string().optional().describe('ISO datetime the workout ended (defaults to now)'),
+      durationMinutes: z.number().optional().describe('Actual duration in minutes (derived from start/end when omitted)'),
       notes: z.string().optional(),
       exercises: z.array(exerciseSchema).optional()
     }
-  }, withScope(scopes, WRITE, (args) =>
-    runTool(workoutController.createWorkout, { user, body: args }, { validators: validateWorkout })
-  ));
+  }, withScope(scopes, WRITE, (args) => {
+    const { durationMinutes, exercises, ...rest } = args;
+    const body = {
+      ...rest,
+      actualDuration: durationMinutes,
+      exercises: exercises || []
+    };
+    return runTool(workoutLogController.createWorkoutLog, { user, body }, { validators: workoutLogController.validateWorkoutLog });
+  }));
 
   server.registerTool('update_workout', {
     title: 'Update workout',
-    description: 'Update an existing workout by id. Provide only the fields to change (title/date/type/status are validated).',
+    description: 'Update a logged workout by id. Provide only the fields to change.',
     inputSchema: {
       id: z.string().length(24),
-      title: z.string().min(2).max(100).optional(),
-      date: z.string().optional(),
-      type: z.enum(WORKOUT_TYPES).optional(),
-      status: z.enum(STATUSES).optional(),
+      title: z.string().min(1).max(100).optional(),
+      type: z.string().optional(),
+      startedAt: z.string().optional().describe('ISO datetime'),
+      completedAt: z.string().optional().describe('ISO datetime'),
       durationMinutes: z.number().optional(),
       notes: z.string().optional(),
       exercises: z.array(exerciseSchema).optional()
     }
   }, withScope(scopes, WRITE, (args) => {
-    // No express-validator chain here: the controller applies a partial
-    // findByIdAndUpdate with mongoose runValidators, and validateWorkout would
-    // wrongly require title/date/type on a partial update. Enum/range
-    // constraints are enforced by the zod schema above and the Mongoose schema.
-    const { id, ...body } = args;
-    return runTool(workoutController.updateWorkout, { user, params: { id }, body });
+    // Partial findOneAndUpdate with mongoose runValidators; the create-time
+    // validator chain would wrongly require title/type/startedAt here.
+    const { id, durationMinutes, ...rest } = args;
+    const body = { ...rest };
+    if (durationMinutes !== undefined) body.actualDuration = durationMinutes;
+    return runTool(workoutLogController.updateWorkoutLog, { user, params: { id }, body });
   }));
 
   server.registerTool('delete_workout', {
     title: 'Delete workout',
-    description: 'Delete a workout by id.',
+    description: 'Delete a logged workout by id (also removes its calendar entry).',
     inputSchema: { id: z.string().length(24) }
   }, withScope(scopes, WRITE, (args) =>
-    runTool(workoutController.deleteWorkout, { user, params: { id: args.id } })
+    runTool(workoutLogController.deleteWorkoutLog, { user, params: { id: args.id } })
   ));
 }
 
