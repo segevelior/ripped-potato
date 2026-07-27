@@ -473,43 +473,56 @@ def _next_weekday(weekday: int) -> datetime:
     return today + timedelta(days=delta)
 
 
-def _discipline_text(*values) -> str:
-    """Flatten anything discipline-ish (str / list / dict) to one lowercase blob."""
-    out = []
+# These scenarios assert on STRUCTURAL discipline fields only — never on
+# titles, template names or exercise names. A session called "Friday Climbing"
+# whose discipline is "strength" is precisely the bug they exist to catch, so a
+# title match must never be able to make one of them pass.
+
+def _discipline_values(*values) -> set:
+    """Normalize discipline FIELDS (str / list / dict of them) to a lowercase set.
+    Only ever fed real discipline fields, never free-text names."""
+    out = set()
     stack = list(values)
     while stack:
         v = stack.pop()
         if isinstance(v, str):
-            out.append(v)
+            if v.strip():
+                out.add(v.strip().lower())
         elif isinstance(v, dict):
             stack.extend(v.values())
         elif isinstance(v, (list, tuple)):
             stack.extend(v)
-    return " ".join(out).lower()
+    return out
 
 
-async def _event_discipline_text(db, event) -> str:
-    """Every discipline signal an event carries: its own sessionDetails and,
-    under the reference architecture, the linked template's disciplines."""
+def _has_discipline(values, *prefixes) -> bool:
+    """True if any discipline value starts with one of `prefixes` (so 'climbing'
+    and 'bouldering' both satisfy climb/boulder, without matching prose)."""
+    return any(v.startswith(prefixes) for v in values)
+
+
+_CLIMBING = ("climb", "boulder")
+_STRENGTH = ("strength", "weight", "lifting", "resistance")
+
+
+async def _event_disciplines(db, event) -> set:
+    """The event's structural discipline fields: sessionDetails.discipline and,
+    under the reference architecture, the linked template's primary_disciplines."""
     details = event.get("sessionDetails") or {}
-    parts = [event.get("title") or "", _discipline_text(details.get("discipline"))]
+    values = _discipline_values(details.get("discipline"))
     tid = event.get("sessionTemplateId")
     if tid:
         t = await db.sessiontemplates.find_one({"_id": tid})
         if t:
-            parts.append(_discipline_text(t.get("primary_disciplines"), t.get("name"),
-                                          t.get("goal"), t.get("tags")))
-            parts += [
-                _discipline_text(ex.get("exercise_name"))
-                for b in (t.get("blocks") or []) for ex in (b.get("exercises") or [])
-            ]
-    return " ".join(parts).lower()
+            values |= _discipline_values(t.get("primary_disciplines"))
+    return values
 
 
 async def _check_climbing_session_friday(db, user_id, refs, trace):
     """A climbing session must land on Friday as a real session (linked
-    template or embedded exercises) carrying a CLIMBING discipline —
-    'strength' or a bare title is a failure of the domain model."""
+    template or embedded exercises) whose sessionDetails.discipline — or whose
+    linked template's primary_disciplines — says CLIMBING. A climbing-sounding
+    TITLE over discipline 'strength' is a failure of the domain model, not a pass."""
     problems = []
     friday = refs["friday"]
     events = await _workout_events_on(db, user_id, friday)
@@ -517,11 +530,13 @@ async def _check_climbing_session_friday(db, user_id, refs, trace):
         problems.append(f"expected exactly 1 session event on Friday, found {len(events)}")
         return problems
     event = events[0]
-    text = await _event_discipline_text(db, event)
-    if "climb" not in text and "boulder" not in text:
+    disciplines = await _event_disciplines(db, event)
+    if not _has_discipline(disciplines, *_CLIMBING):
         problems.append(
-            f"Friday's event carries no climbing discipline (signals seen: {text!r}) — "
-            "the coach treated a climbing session as a generic/strength workout"
+            f"Friday's event carries no climbing discipline (sessionDetails.discipline "
+            f"+ template primary_disciplines = {sorted(disciplines)!r}, title "
+            f"{event.get('title')!r}) — the coach treated a climbing session as a "
+            "generic/strength workout"
         )
     if await _event_exercise_count(db, event) < 1:
         problems.append("Friday's climbing session has no exercises — empty placeholder")
@@ -600,29 +615,40 @@ LOG_BIKE_RIDE = Scenario(
 _PLAN_TOOLS = {"generate_plan", "create_plan", "resolve_week", "add_plan_session"}
 
 
-def _plan_discipline_text(plan) -> str:
-    """Every place a plan records what a session IS: skeleton phases and
-    blueprints, plus the materialized weeks' sessions."""
-    parts = []
+async def _plan_disciplines(db, plan) -> set:
+    """The plan's structural discipline fields ONLY — no titles, no plan name:
+
+    - skeleton.phases[].disciplines[].discipline and phases[].sessionBlueprints[].discipline
+      (the typed discipline fields the planner writes)
+    - weeks[].sessions[].customSession.type
+    - weeks[].sessions[].sessionTemplateId -> sessiontemplates.primary_disciplines
+      (the only structural route for a sport customSession.type has no enum
+      value for, e.g. climbing)
+    """
+    values = set()
     skeleton = plan.get("skeleton") or {}
     for phase in (skeleton.get("phases") or []):
-        parts.append(_discipline_text(phase.get("name"), phase.get("focus"),
-                                      phase.get("disciplines")))
+        for d in (phase.get("disciplines") or []):
+            values |= _discipline_values(d.get("discipline") if isinstance(d, dict) else d)
         for bp in (phase.get("sessionBlueprints") or []):
-            parts.append(_discipline_text(bp.get("title"), bp.get("type")))
+            values |= _discipline_values(bp.get("discipline"))
     for week in (plan.get("weeks") or []):
         for session in (week.get("sessions") or []):
-            custom = session.get("customSession") or {}
-            parts.append(_discipline_text(session.get("sessionType"),
-                                          custom.get("title"), custom.get("type")))
-    parts.append(_discipline_text(plan.get("name"), plan.get("description")))
-    return " ".join(parts).lower()
+            values |= _discipline_values((session.get("customSession") or {}).get("type"))
+            tid = session.get("sessionTemplateId")
+            if tid:
+                t = await db.sessiontemplates.find_one({"_id": tid})
+                if t:
+                    values |= _discipline_values(t.get("primary_disciplines"))
+    return values
 
 
 async def _check_mixed_discipline_plan(db, user_id, refs, trace):
-    """A week 'mixing strength and climbing' must produce a plan whose sessions
-    name BOTH disciplines — one all-strength plan means the coach collapsed a
-    multi-sport request back into gym workouts."""
+    """A week 'mixing strength and climbing' must produce a plan whose SESSIONS
+    carry both disciplines structurally (customSession.type / linked template
+    primary_disciplines / the skeleton's discipline fields). A plan that only
+    says "climbing" in a session TITLE is the collapse back to gym workouts
+    this scenario exists to catch."""
     problems = []
     names = [c.name for c in trace.calls]
     if not (_PLAN_TOOLS & set(names)):
@@ -633,11 +659,19 @@ async def _check_mixed_discipline_plan(db, user_id, refs, trace):
         return problems
     if len(plans) > 1:
         problems.append(f"expected 1 plan, found {len(plans)} (duplicate drafts)")
-    text = " ".join(_plan_discipline_text(p) for p in plans)
-    if "strength" not in text:
-        problems.append(f"plan names no strength work (signals: {text[:400]!r})")
-    if "climb" not in text and "boulder" not in text:
-        problems.append(f"plan names no climbing work (signals: {text[:400]!r})")
+    disciplines = set()
+    for plan in plans:
+        disciplines |= await _plan_disciplines(db, plan)
+    if not _has_discipline(disciplines, *_STRENGTH):
+        problems.append(
+            f"no session carries a strength discipline (structural disciplines: "
+            f"{sorted(disciplines)!r})"
+        )
+    if not _has_discipline(disciplines, *_CLIMBING):
+        problems.append(
+            f"no session carries a climbing discipline (structural disciplines: "
+            f"{sorted(disciplines)!r}) — climbing named only in titles does not count"
+        )
     return problems
 
 

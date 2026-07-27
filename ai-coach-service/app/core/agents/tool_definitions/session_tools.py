@@ -4,6 +4,8 @@ Session tool definitions for the AI fitness coach
 
 from typing import Dict, Any, List
 
+from app.core.disciplines import DISCIPLINES
+
 
 def get_session_tools() -> List[Dict[str, Any]]:
     """Return session-related tool definitions"""
@@ -16,7 +18,7 @@ def get_session_tools() -> List[Dict[str, Any]]:
                 "description": (
                     "Create a reusable SESSION template. A session is ANY training activity — a gym workout, a "
                     "climbing session, a bike ride, a run, a mobility block — and this is what appears under the "
-                    "user's 'Workouts' tab (their session library). Use it whenever the user wants to add or save a "
+                    "user's 'Sessions' tab (their session library). Use it whenever the user wants to add or save a "
                     "whole session, including one they upload as an image/screenshot or paste as a list. Do NOT use "
                     "add_exercise for a whole session. "
                     "Sessions are organized into blocks (Warm-up, Main Work, Finisher, etc.). Refer to exercises by "
@@ -221,8 +223,7 @@ def get_session_tools() -> List[Dict[str, Any]]:
                         },
                         "discipline": {
                             "type": "string",
-                            "enum": ["strength", "cardio", "hiit", "hybrid", "recovery",
-                                     "mobility", "calisthenics", "running", "cycling", "climbing"],
+                            "enum": list(DISCIPLINES),
                             "description": "Which sport this session is. Use 'cycling' for rides, 'running' for runs, 'climbing' for climbs/bouldering."
                         },
                         "status": {
@@ -292,8 +293,7 @@ def get_session_tools() -> List[Dict[str, Any]]:
                         },
                         "discipline": {
                             "type": "string",
-                            "enum": ["strength", "cardio", "hiit", "hybrid", "recovery",
-                                     "mobility", "calisthenics", "running", "cycling", "climbing"],
+                            "enum": list(DISCIPLINES),
                             "description": "Filter by discipline / sport"
                         },
                         "status": {

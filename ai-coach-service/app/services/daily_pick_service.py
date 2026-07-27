@@ -29,6 +29,7 @@ from bson import ObjectId
 
 from app.core.agents.data_reader import DataReaderAgent
 from app.core.agents.date_utils import get_user_today
+from app.core.disciplines import DISCIPLINES_LIST
 from app.core.agents.prompts import SYSTEM_PROMPT
 from app.core.agents.services import MemoryService
 from app.core.agents.services.exercise_resolver import ExerciseResolver
@@ -126,10 +127,14 @@ IF SUGGESTING A REST DAY, return:
 
 Per exercise, "muscles" (primary muscle groups) and "discipline" are REQUIRED — they classify the exercise correctly if it's new to the catalog.
 
-Valid disciplines (pick the one that matches the session — a ride is "cycling", not "cardio"): strength, cardio, hiit, mobility, calisthenics, running, cycling, climbing, meditation
+Valid disciplines (pick the one that matches the session — a ride is "cycling", not "cardio"): __DISCIPLINES__
 Valid difficulty levels: beginner, intermediate, advanced
 
 Return ONLY the JSON object, no markdown or explanation."""
+
+# The prompt is full of JSON braces, so it can't be an f-string — the shared
+# discipline vocabulary is substituted in instead of being re-typed here.
+TRAIN_NOW_PROMPT = TRAIN_NOW_PROMPT.replace("__DISCIPLINES__", DISCIPLINES_LIST)
 
 
 async def load_calendar_context(db, user_id: str, timezone: str = 'UTC') -> Dict[str, Any]:
