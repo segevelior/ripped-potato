@@ -691,6 +691,79 @@ MIXED_DISCIPLINE_PLAN = Scenario(
 )
 
 
+# ----- training interests (update_sport_preferences) -----
+
+
+async def _get_interests(db, user_id):
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    return ((user or {}).get("profile") or {}).get("sportPreferences", [])
+
+
+async def _seed_nothing(db, user_id):
+    return {}
+
+
+async def _check_interest_added(db, user_id, refs, trace):
+    interests = await _get_interests(db, user_id)
+    if "climbing" not in interests:
+        return [f"climbing not recorded in profile.sportPreferences ({interests!r})"]
+    return []
+
+
+VOLUNTEER_INTEREST = Scenario(
+    id="volunteered-interest-recorded",
+    turns=["By the way, I really want to get climbing into my training — add it to my interests"],
+    seed=_seed_nothing,
+    final_state_check=_check_interest_added,
+    trajectory_checks=[assert_no_false_success],
+)
+
+
+async def _seed_climbing_yoga_interests(db, user_id):
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"profile.sportPreferences": ["climbing", "yoga"]}},
+    )
+    return {}
+
+
+async def _check_yoga_removed(db, user_id, refs, trace):
+    problems = []
+    interests = await _get_interests(db, user_id)
+    if "yoga" in interests:
+        problems.append(f"yoga still in interests ({interests!r})")
+    if "climbing" not in interests:
+        problems.append("climbing was wrongly dropped — only remove what was said")
+    return problems
+
+
+DROP_INTEREST = Scenario(
+    id="volunteered-interest-removed",
+    turns=["I'm done with yoga for now — take it off my training interests"],
+    seed=_seed_climbing_yoga_interests,
+    final_state_check=_check_yoga_removed,
+    trajectory_checks=[assert_no_false_success],
+)
+
+
+async def _check_no_interest_write(db, user_id, refs, trace):
+    problems = []
+    if await _get_interests(db, user_id):
+        problems.append("interests were written although the athlete volunteered none")
+    if any(c.name == "update_sport_preferences" for c in trace.calls):
+        problems.append("update_sport_preferences called on an unrelated turn")
+    return problems
+
+
+NO_UNPROMPTED_INTEREST_WRITE = Scenario(
+    id="no-unprompted-interest-write",
+    turns=["What should I train today?"],
+    seed=_seed_exercises_only,
+    final_state_check=_check_no_interest_write,
+    trajectory_checks=[assert_no_false_success],
+)
+
+
 SCENARIOS = [
     SCHEDULE_EXISTING,
     SCHEDULE_NONEXISTENT,
@@ -704,4 +777,7 @@ SCENARIOS = [
     CLIMBING_SESSION,
     LOG_BIKE_RIDE,
     MIXED_DISCIPLINE_PLAN,
+    VOLUNTEER_INTEREST,
+    DROP_INTEREST,
+    NO_UNPROMPTED_INTEREST_WRITE,
 ]

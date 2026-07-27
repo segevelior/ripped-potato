@@ -114,7 +114,7 @@ def is_write(call: ToolCall) -> bool:
     if name in ("create_session_template", "add_exercise", "log_session",
                 "create_plan", "create_goal", "update_plan", "update_goal",
                 "add_plan_session", "remove_plan_session",
-                "update_calendar_session"):
+                "update_calendar_session", "update_sport_preferences"):
         return True
     return False
 
