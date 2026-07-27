@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const { inferMovementPattern } = require('../utils/movementPattern');
 const EmbeddingService = require('../services/EmbeddingService');
+const { DISCIPLINES, normalizeDisciplines } = require('../config/disciplines');
 
 const exerciseSchema = new mongoose.Schema({
   name: {
@@ -19,8 +20,13 @@ const exerciseSchema = new mongoose.Schema({
     index: true
   },
   secondaryMuscles: [String],
+  // Canonical vocabulary only (backfilled by the canonical-disciplines
+  // migration). The setter maps known legacy synonyms (powerlifting→strength,
+  // endurance→cardio, case-folds) so old clients keep working; anything still
+  // off-vocab after normalization is a 400.
   discipline: {
-    type: [String],
+    type: [{ type: String, enum: DISCIPLINES }],
+    set: normalizeDisciplines,
     required: [true, 'At least one discipline is required'],
     index: true
   },

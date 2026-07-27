@@ -254,6 +254,9 @@ const createExercise = async (req, res) => {
       data: exercise
     });
   } catch (error) {
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     console.error('Create exercise error:', error);
     res.status(500).json({
       success: false,
@@ -310,6 +313,9 @@ const updateExercise = async (req, res) => {
       });
     }
   } catch (error) {
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     console.error('Update exercise error:', error);
     res.status(500).json({
       success: false,
