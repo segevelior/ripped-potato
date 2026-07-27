@@ -1,0 +1,1487 @@
+{
+  "generatedAt": "2026-07-27T16-03-39",
+  "database": "production",
+  "vocabulary": [
+    "strength",
+    "cardio",
+    "hiit",
+    "hybrid",
+    "recovery",
+    "mobility",
+    "flexibility",
+    "calisthenics",
+    "running",
+    "cycling",
+    "climbing",
+    "swimming",
+    "walking",
+    "yoga",
+    "meditation"
+  ],
+  "rows": [
+    {
+      "collection": "exercises",
+      "_id": "710000000000000000000014",
+      "name": "Prisoner/Bodyweight Jumping Squat",
+      "isCommon": true,
+      "current": [
+        "power",
+        "calisthenics"
+      ],
+      "proposed": [
+        "strength",
+        "calisthenics"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "710000000000000000000015",
+      "name": "Explosive Bodyweight Rows",
+      "isCommon": true,
+      "current": [
+        "power",
+        "calisthenics"
+      ],
+      "proposed": [
+        "strength",
+        "calisthenics"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a514248d14834fc3bb847b3",
+      "name": "Shoulder External Rotation 90/90",
+      "isCommon": false,
+      "current": [
+        "Mobility",
+        "Strength Training"
+      ],
+      "proposed": [
+        "mobility",
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a514336d14834fc3bb847b4",
+      "name": "Dumbbell Row",
+      "isCommon": false,
+      "current": [
+        "Strength Training"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a532fb72d70d50d1f9cd123",
+      "name": "Barbell Bench Press",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "powerlifting"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a532fc52d70d50d1f9cd14e",
+      "name": "Barbell Deadlift",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "powerlifting"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a532fc62d70d50d1f9cd151",
+      "name": "Sumo Deadlift",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "powerlifting"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a532fc72d70d50d1f9cd154",
+      "name": "Trap Bar Deadlift",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "powerlifting"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a532fc82d70d50d1f9cd157",
+      "name": "Rack Pull",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "powerlifting"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a532fca2d70d50d1f9cd15d",
+      "name": "Pendlay Row",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "powerlifting"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a532fd52d70d50d1f9cd184",
+      "name": "Push Press",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "power"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a532ff42d70d50d1f9cd1e1",
+      "name": "Barbell Back Squat",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "powerlifting"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a532ff62d70d50d1f9cd1e7",
+      "name": "Box Squat",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "powerlifting"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a5330032d70d50d1f9cd20e",
+      "name": "Good Morning",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "powerlifting"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a5330062d70d50d1f9cd217",
+      "name": "Glute-Ham Raise",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "powerlifting"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a5330072d70d50d1f9cd21a",
+      "name": "Barbell Hip Thrust",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "powerlifting"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a5330082d70d50d1f9cd21d",
+      "name": "Barbell Glute Bridge",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "powerlifting"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a53301a2d70d50d1f9cd256",
+      "name": "Power Clean",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "power"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a53301b2d70d50d1f9cd259",
+      "name": "Kettlebell Swing",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "power"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a53301c2d70d50d1f9cd25c",
+      "name": "Kettlebell Clean and Press",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "power"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a53301e2d70d50d1f9cd265",
+      "name": "Farmer's Walk",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "power"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a53301f2d70d50d1f9cd268",
+      "name": "Sled Push",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "power",
+        "cardio"
+      ],
+      "proposed": [
+        "strength",
+        "cardio"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a5330202d70d50d1f9cd26b",
+      "name": "Box Jump",
+      "isCommon": true,
+      "current": [
+        "power"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a5330212d70d50d1f9cd26e",
+      "name": "Medicine Ball Slam",
+      "isCommon": true,
+      "current": [
+        "power",
+        "cardio"
+      ],
+      "proposed": [
+        "strength",
+        "cardio"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a5330222d70d50d1f9cd271",
+      "name": "Battle Rope Waves",
+      "isCommon": true,
+      "current": [
+        "cardio",
+        "power"
+      ],
+      "proposed": [
+        "cardio",
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a55306fa63a5c9bd5d9323e",
+      "name": "180\u00b0 Band Pull Apart (With External Rotation)",
+      "isCommon": false,
+      "current": [
+        "Mobility"
+      ],
+      "proposed": [
+        "mobility"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a553072a63a5c9bd5d93247",
+      "name": "Dip Scapula Shrugs (Depression-Elevation) + Hold at the Top",
+      "isCommon": false,
+      "current": [
+        "Calisthenics"
+      ],
+      "proposed": [
+        "calisthenics"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a553072a63a5c9bd5d9324a",
+      "name": "Active to Passive Hang (Elevation-Depression) + Hold at the Top",
+      "isCommon": false,
+      "current": [
+        "Calisthenics"
+      ],
+      "proposed": [
+        "calisthenics"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a553073a63a5c9bd5d9324d",
+      "name": "Single Arm Scapula Push Ups (Protraction-Depression)",
+      "isCommon": false,
+      "current": [
+        "Calisthenics"
+      ],
+      "proposed": [
+        "calisthenics"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a553074a63a5c9bd5d93251",
+      "name": "Bird Dog",
+      "isCommon": false,
+      "current": [
+        "Calisthenics"
+      ],
+      "proposed": [
+        "calisthenics"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a553075a63a5c9bd5d93254",
+      "name": "Reverse Crunch",
+      "isCommon": false,
+      "current": [
+        "Calisthenics"
+      ],
+      "proposed": [
+        "calisthenics"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a553076a63a5c9bd5d93257",
+      "name": "Child's Pose",
+      "isCommon": false,
+      "current": [
+        "Mobility"
+      ],
+      "proposed": [
+        "mobility"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a553076a63a5c9bd5d9325a",
+      "name": "Cobra Stretch",
+      "isCommon": false,
+      "current": [
+        "Mobility"
+      ],
+      "proposed": [
+        "mobility"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a553c7ded7c1ccc091047eb",
+      "name": "Easy Run",
+      "isCommon": false,
+      "current": [
+        "Cardio"
+      ],
+      "proposed": [
+        "cardio"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a5864c3262224ba29966405",
+      "name": "Easy Walk",
+      "isCommon": false,
+      "current": [
+        "Cardio"
+      ],
+      "proposed": [
+        "cardio"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a624688f47be556a93e0558",
+      "name": "Standing Banded Hip Abduction",
+      "isCommon": false,
+      "current": [
+        "Strength Training",
+        "Mobility"
+      ],
+      "proposed": [
+        "strength",
+        "mobility"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a65843b78ab8e738927fe9e",
+      "name": "World's Greatest Stretch",
+      "isCommon": false,
+      "current": [
+        "Mobility"
+      ],
+      "proposed": [
+        "mobility"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a65843b78ab8e738927fe9f",
+      "name": "Deep Squat Hold",
+      "isCommon": false,
+      "current": [
+        "Mobility"
+      ],
+      "proposed": [
+        "mobility"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a65843c78ab8e738927fea0",
+      "name": "Shoulder Dislocates",
+      "isCommon": false,
+      "current": [
+        "Mobility"
+      ],
+      "proposed": [
+        "mobility"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a65843c78ab8e738927fea1",
+      "name": "90/90 Hip Switches",
+      "isCommon": false,
+      "current": [
+        "Mobility"
+      ],
+      "proposed": [
+        "mobility"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a65843c78ab8e738927fea2",
+      "name": "Child's Pose",
+      "isCommon": false,
+      "current": [
+        "Mobility",
+        "Yoga"
+      ],
+      "proposed": [
+        "mobility",
+        "yoga"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a65844078ab8e738927fea3",
+      "name": "Thread the Needle",
+      "isCommon": false,
+      "current": [
+        "Mobility"
+      ],
+      "proposed": [
+        "mobility"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a663413a6e6b963554cecbb",
+      "name": "Push Ups",
+      "isCommon": false,
+      "current": [
+        "Calisthenics",
+        "Strength Training"
+      ],
+      "proposed": [
+        "calisthenics",
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a663413a6e6b963554cecbc",
+      "name": "Pull Ups",
+      "isCommon": false,
+      "current": [
+        "Calisthenics",
+        "Strength Training"
+      ],
+      "proposed": [
+        "calisthenics",
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a663414a6e6b963554cecbd",
+      "name": "Standing Side Leg Raises",
+      "isCommon": false,
+      "current": [
+        "Strength Training",
+        "Mobility"
+      ],
+      "proposed": [
+        "strength",
+        "mobility"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a663415a6e6b963554cecbe",
+      "name": "Crab Walks",
+      "isCommon": false,
+      "current": [
+        "Strength Training",
+        "Mobility"
+      ],
+      "proposed": [
+        "strength",
+        "mobility"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a663415a6e6b963554cecbf",
+      "name": "Wall Sits with Toe Raises",
+      "isCommon": false,
+      "current": [
+        "Strength Training",
+        "Mobility"
+      ],
+      "proposed": [
+        "strength",
+        "mobility"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a663416a6e6b963554cecc0",
+      "name": "Step Downs",
+      "isCommon": false,
+      "current": [
+        "Strength Training",
+        "Mobility"
+      ],
+      "proposed": [
+        "strength",
+        "mobility"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a663416a6e6b963554cecc1",
+      "name": "Toe Ups",
+      "isCommon": false,
+      "current": [
+        "Calisthenics",
+        "Strength Training"
+      ],
+      "proposed": [
+        "calisthenics",
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a663619a6e6b963554cecc3",
+      "name": "Band Rows",
+      "isCommon": false,
+      "current": [
+        "Strength Training"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a66361aa6e6b963554cecc4",
+      "name": "Banded Romanian Deadlifts",
+      "isCommon": false,
+      "current": [
+        "Strength Training"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "700000000000000000000001",
+      "name": "Body Heat Warm Up",
+      "isCommon": true,
+      "current": [
+        "warm_up"
+      ],
+      "proposed": [
+        "mobility"
+      ],
+      "source": "llm",
+      "confidence": "low",
+      "reason": "General warm-up primarily prepares the body for movement.",
+      "approved": false
+    },
+    {
+      "collection": "exercises",
+      "_id": "700000000000000000000002",
+      "name": "Band Straight Arm Lat Pull Down",
+      "isCommon": true,
+      "current": [
+        "warm_up",
+        "strength"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "Resistance-band lat activation is a strength exercise.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "700000000000000000000005",
+      "name": "Hanging L-Sit Hold",
+      "isCommon": true,
+      "current": [
+        "calisthenics",
+        "core"
+      ],
+      "proposed": [
+        "calisthenics"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "Hanging isometric core hold uses bodyweight and a pull-up bar.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "700000000000000000000009",
+      "name": "Toes To Bar",
+      "isCommon": true,
+      "current": [
+        "calisthenics",
+        "core"
+      ],
+      "proposed": [
+        "calisthenics"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "Toes-to-bar is a bodyweight bar exercise.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "70000000000000000000000e",
+      "name": "Alternating Pistol Squats",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "mobility",
+        "balance"
+      ],
+      "proposed": [
+        "strength",
+        "mobility"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "Single-leg squats develop leg strength, balance, and mobility.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "700000000000000000000010",
+      "name": "Glute Bridges",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "corrective"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "Glute bridges train hip extension and posterior-chain strength.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "700000000000000000000011",
+      "name": "Russian Twists",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "core"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "Russian twists are a core-strength exercise.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "710000000000000000000001",
+      "name": "Body Heat Warm Up 1",
+      "isCommon": true,
+      "current": [
+        "warm_up",
+        "mobility"
+      ],
+      "proposed": [
+        "mobility"
+      ],
+      "source": "llm",
+      "confidence": "low",
+      "reason": "A structured full-body warm-up most closely supports movement preparation.",
+      "approved": false
+    },
+    {
+      "collection": "exercises",
+      "_id": "710000000000000000000002",
+      "name": "Scapula Warm Up 1",
+      "isCommon": true,
+      "current": [
+        "warm_up",
+        "mobility"
+      ],
+      "proposed": [
+        "mobility"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "Scapular mobility and activation directly indicate mobility training.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "710000000000000000000003",
+      "name": "Scapula Warm Up 2",
+      "isCommon": true,
+      "current": [
+        "mobility",
+        "warm_up"
+      ],
+      "proposed": [
+        "mobility"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "The exercise focuses on scapular mobility and activation.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "710000000000000000000004",
+      "name": "Band Shoulder Warm Up 1",
+      "isCommon": true,
+      "current": [
+        "warm_up",
+        "mobility"
+      ],
+      "proposed": [
+        "mobility"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "Resistance-band shoulder warm-up primarily supports mobility and preparation.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "71000000000000000000000d",
+      "name": "Wall Slides",
+      "isCommon": true,
+      "current": [
+        "mobility",
+        "corrective"
+      ],
+      "proposed": [
+        "mobility"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "Wall slides are explicitly a shoulder mobility exercise.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "710000000000000000000010",
+      "name": "L-Sit Hold on Parallettes",
+      "isCommon": true,
+      "current": [
+        "calisthenics",
+        "core"
+      ],
+      "proposed": [
+        "calisthenics"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "L-sit on parallettes is a bodyweight calisthenics skill.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "710000000000000000000017",
+      "name": "Side Plank On Arms",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "stability"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "Side plank is primarily a core-strength and stabilization exercise.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "710000000000000000000018",
+      "name": "Face Pulls",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "corrective"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "Face pulls are a strengthening exercise for the rear shoulders and upper back.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "710000000000000000000019",
+      "name": "Cuban Rotations",
+      "isCommon": true,
+      "current": [
+        "strength",
+        "corrective"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "Cuban rotations build rotator-cuff and rear-delt strength.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "710000000000000000000024",
+      "name": "Body Heat Warm Up 2",
+      "isCommon": true,
+      "current": [
+        "warm_up"
+      ],
+      "proposed": [
+        "recovery"
+      ],
+      "source": "llm",
+      "confidence": "low",
+      "reason": "It is a general warm-up, but no sport-specific discipline is identified.",
+      "approved": false
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a510abba98ad661bca4e244",
+      "name": "Exercise 1",
+      "isCommon": false,
+      "current": [
+        "General Fitness"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "llm",
+      "confidence": "low",
+      "reason": "The generic exercise label provides no clear sport context; strength is the best fit.",
+      "approved": false
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a510abba98ad661bca4e245",
+      "name": "Exercise 2",
+      "isCommon": false,
+      "current": [
+        "General Fitness"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "llm",
+      "confidence": "low",
+      "reason": "The generic exercise label provides no clear sport context; strength is the best fit.",
+      "approved": false
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a510b4ba98ad661bca4e273",
+      "name": "Workout 1",
+      "isCommon": false,
+      "current": [
+        "General Fitness"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "llm",
+      "confidence": "low",
+      "reason": "The description references a strength and conditioning workout template.",
+      "approved": false
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a510b4ca98ad661bca4e274",
+      "name": "Workout 2",
+      "isCommon": false,
+      "current": [
+        "General Fitness"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "llm",
+      "confidence": "low",
+      "reason": "A strength and conditioning template is referenced, but the workout contents are unspecified.",
+      "approved": false
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a532ffa7622880fe213e98a",
+      "name": "Scapula Warm Up 2",
+      "isCommon": false,
+      "current": [
+        "mobility",
+        "warm_up",
+        "calisthenics"
+      ],
+      "proposed": [
+        "mobility",
+        "calisthenics"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "Scapular mobility and active-hang control directly support mobility and calisthenics.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a54db72ee8a105df573c6ce",
+      "name": "Squats",
+      "isCommon": false,
+      "current": [
+        "General Fitness"
+      ],
+      "proposed": [
+        "strength"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "Controlled-tempo squats are primarily a strength exercise.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a54db73ee8a105df573c6cf",
+      "name": "Push-ups",
+      "isCommon": false,
+      "current": [
+        "General Fitness"
+      ],
+      "proposed": [
+        "strength",
+        "calisthenics"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "Push-ups primarily develop upper-body strength using body weight.",
+      "approved": true
+    },
+    {
+      "collection": "exercises",
+      "_id": "6a55384bed7c1ccc091047df",
+      "name": "Cat-Cow",
+      "isCommon": false,
+      "current": [
+        "General Fitness"
+      ],
+      "proposed": [
+        "mobility"
+      ],
+      "source": "llm",
+      "confidence": "low",
+      "reason": "Cat-Cow is primarily a spinal mobility exercise, though the generated-workout context is nonspecific.",
+      "approved": false
+    },
+    {
+      "collection": "sessiontemplates",
+      "_id": "720000000000000000000002",
+      "name": "Endurance 1",
+      "isCommon": true,
+      "current": [
+        "endurance",
+        "calisthenics"
+      ],
+      "proposed": [
+        "cardio",
+        "calisthenics"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "sessiontemplates",
+      "_id": "720000000000000000000003",
+      "name": "Endurance 2",
+      "isCommon": true,
+      "current": [
+        "endurance",
+        "calisthenics"
+      ],
+      "proposed": [
+        "cardio",
+        "calisthenics"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "sessiontemplates",
+      "_id": "6a53b1ee3e7427385bae2fe4",
+      "name": "Scapula Warm Up 1",
+      "isCommon": false,
+      "current": [
+        "Calisthenics",
+        "Mobility",
+        "Conditioning"
+      ],
+      "proposed": [
+        "calisthenics",
+        "mobility",
+        "cardio"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "sessiontemplates",
+      "_id": "6a54dbefee8a105df573c6d3",
+      "name": "Quick Core Blast",
+      "isCommon": false,
+      "current": [
+        "Calisthenics",
+        "Strength Training"
+      ],
+      "proposed": [
+        "calisthenics",
+        "strength"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "sessiontemplates",
+      "_id": "6a5864c6262224ba29966406",
+      "name": "20-Minute Stretch + Walk",
+      "isCommon": false,
+      "current": [
+        "Mobility",
+        "Cardio"
+      ],
+      "proposed": [
+        "mobility",
+        "cardio"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "sessiontemplates",
+      "_id": "6a65844178ab8e738927fea4",
+      "name": "Full-Body Mobility",
+      "isCommon": false,
+      "current": [
+        "Mobility"
+      ],
+      "proposed": [
+        "mobility"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "sessiontemplates",
+      "_id": "6a65e05a70338dd42aecbada",
+      "name": "Endurance 2",
+      "isCommon": false,
+      "current": [
+        "endurance",
+        "calisthenics"
+      ],
+      "proposed": [
+        "cardio",
+        "calisthenics"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "sessiontemplates",
+      "_id": "6a663419a6e6b963554cecc2",
+      "name": "Regular Arms, Knee Recovery & Abs",
+      "isCommon": false,
+      "current": [
+        "Calisthenics",
+        "Strength Training",
+        "Mobility"
+      ],
+      "proposed": [
+        "calisthenics",
+        "strength",
+        "mobility"
+      ],
+      "source": "synonym",
+      "confidence": "high",
+      "reason": "case-fold / pinned synonym map",
+      "approved": true
+    },
+    {
+      "collection": "sessiontemplates",
+      "_id": "6a54db74ee8a105df573c6d0",
+      "name": "Beginner Full Body Bodyweight (Jul 14)",
+      "isCommon": false,
+      "current": [
+        "General Fitness"
+      ],
+      "proposed": [
+        "calisthenics"
+      ],
+      "source": "llm",
+      "confidence": "high",
+      "reason": "Beginner full-body workout explicitly uses bodyweight exercises.",
+      "approved": true
+    },
+    {
+      "collection": "sessiontemplates",
+      "_id": "6a66362da6e6b963554cecc5",
+      "name": "Regular Arms, Knee Recovery & Abs \u2014 Today\u2019s Variation",
+      "isCommon": false,
+      "current": [
+        "General Fitness"
+      ],
+      "proposed": [
+        "strength",
+        "recovery"
+      ],
+      "source": "llm",
+      "confidence": "low",
+      "reason": "Arms and abs suggest strength training, while knee recovery adds a recovery focus.",
+      "approved": false
+    }
+  ]
+}
