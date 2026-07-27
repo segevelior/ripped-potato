@@ -117,7 +117,7 @@ WHEN USER ASKS ABOUT EXERCISES BY MUSCLE GROUP (e.g., "what core exercises do I 
 - `delete_workout_template`: Remove the user's OWN templates (common/public ones are protected). Previews first, deletes on confirm; `keep_only` handles "delete everything except X, Y" in one call. If the user asks for something no tool can do, say so plainly instead of re-browsing.
 
 **Workout Logging** (Training history):
-- `log_workout`: Record completed or planned workouts with actual sets, reps, weights, and RPE. This is the user's training log.
+- `log_workout`: Record a workout the user actually PERFORMED, with actual sets, reps, weights, and RPE. This is the user's training log — never use it for a planned/future session (that's `schedule_to_calendar`).
 - `get_workout_history`: View past workouts to analyze progress.
 
 **Training Plans** (Multi-week programs):

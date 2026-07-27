@@ -75,42 +75,9 @@ const validateExercise = [
     .withMessage('Duration type must be reps, time, or distance')
 ];
 
-// Workout validation
-const validateWorkout = [
-  body('title')
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage('Workout title must be between 2 and 100 characters'),
-  body('date')
-    .isISO8601()
-    .withMessage('Please provide a valid date'),
-  body('type')
-    .notEmpty()
-    .withMessage('Workout type is required'),
-  body('status')
-    .optional()
-    .isIn(['planned', 'in_progress', 'completed', 'skipped'])
-    .withMessage('Status must be planned, in_progress, completed, or skipped'),
-  body('exercises')
-    .optional()
-    .isArray()
-    .withMessage('Exercises must be an array'),
-  body('exercises.*.exerciseId')
-    .optional(), // Made optional - exercises may not have MongoDB IDs when created from templates
-  body('exercises.*.sets')
-    .optional()
-    .isArray()
-    .withMessage('Sets must be an array'),
-  body('exercises.*.sets.*.rpe')
-    .optional()
-    .isInt({ min: 1, max: 10 })
-    .withMessage('RPE must be between 1 and 10')
-];
-
 module.exports = {
   validateRegister,
   validateLogin,
   validateSetPassword,
-  validateExercise,
-  validateWorkout
+  validateExercise
 };

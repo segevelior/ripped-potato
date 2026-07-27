@@ -352,27 +352,34 @@ class WorkoutService:
                     "notes": ex.get("notes", "")
                 })
 
-            # Parse date or use today
-            workout_date = datetime.utcnow()
+            # Parse start time or use now
+            started_at = datetime.utcnow()
             if args.get("date"):
                 try:
-                    workout_date = datetime.fromisoformat(args["date"].replace("Z", "+00:00"))
+                    started_at = datetime.fromisoformat(args["date"].replace("Z", "+00:00"))
                 except Exception:
                     pass
 
-            workout_data = {
+            duration_minutes = args.get("durationMinutes")
+            completed_at = started_at
+            if duration_minutes:
+                completed_at = started_at + timedelta(minutes=duration_minutes)
+
+            # A workout log is a performed session — it has no status. Older
+            # callers/prompts may still send one; drop it rather than persist a
+            # field the WorkoutLog model does not have.
+            args.pop("status", None)
+
+            # Shape matches the backend WorkoutLog model (the app's real
+            # logging path) — see backend/src/models/WorkoutLog.js.
+            log_data = {
                 "userId": ObjectId(user_id),
                 "title": args["title"],
-                "date": workout_date,
-                "type": args.get("type", "strength"),
-                "status": args.get("status", "completed"),
-                "durationMinutes": args.get("durationMinutes"),
+                "type": str(args.get("type", "strength")).lower(),
+                "startedAt": started_at,
+                "completedAt": completed_at,
+                "actualDuration": duration_minutes,
                 "exercises": formatted_exercises,
-                "totalStrain": 0,
-                "muscleStrain": {
-                    "chest": 0, "back": 0, "shoulders": 0,
-                    "arms": 0, "legs": 0, "core": 0
-                },
                 "notes": args.get("notes", ""),
                 "createdAt": datetime.utcnow(),
                 "updatedAt": datetime.utcnow()
@@ -381,13 +388,44 @@ class WorkoutService:
             # Link to plan if provided
             if args.get("planId"):
                 try:
-                    workout_data["planId"] = ObjectId(args["planId"])
+                    log_data["planId"] = ObjectId(args["planId"])
                 except Exception:
                     pass
 
-            result = await self.db.workouts.insert_one(workout_data)
+            result = await self.db.workoutlogs.insert_one(log_data)
 
             if result.inserted_id:
+                # Mirror the backend logging path: a completed calendar event
+                # so the session shows up on the user's calendar.
+                calendar_event = {
+                    "userId": ObjectId(user_id),
+                    "date": started_at,
+                    "title": args["title"],
+                    "type": "workout",
+                    "status": "completed",
+                    "workoutLogId": result.inserted_id,
+                    "workoutDetails": {
+                        "type": log_data["type"],
+                        "durationMinutes": duration_minutes,
+                        "exercises": [
+                            {
+                                "exerciseId": ex["exerciseId"],
+                                "exerciseName": ex["exerciseName"],
+                                "sets": ex["sets"],
+                            }
+                            for ex in formatted_exercises
+                        ],
+                    },
+                    "completedAt": completed_at,
+                    "createdAt": datetime.utcnow(),
+                    "updatedAt": datetime.utcnow()
+                }
+                event_result = await self.db.calendarevents.insert_one(calendar_event)
+                await self.db.workoutlogs.update_one(
+                    {"_id": result.inserted_id},
+                    {"$set": {"calendarEventId": event_result.inserted_id}}
+                )
+
                 logger.info(f"Logged workout '{args['title']}' for user {user_id}")
                 return {
                     "success": True,
@@ -409,20 +447,19 @@ class WorkoutService:
 
             query: Dict[str, Any] = {
                 "userId": ObjectId(user_id),
-                "date": {"$gte": start_date}
+                "startedAt": {"$gte": start_date}
             }
 
             if args.get("type"):
                 query["type"] = args["type"]
-            if args.get("status"):
-                query["status"] = args["status"]
 
             limit = args.get("limit", 10)
 
-            workouts = await self.db.workouts.find(
+            # workoutlogs is the app's real logging path (performed sessions)
+            workouts = await self.db.workoutlogs.find(
                 query,
-                {"title": 1, "date": 1, "type": 1, "status": 1, "durationMinutes": 1, "exercises": 1}
-            ).sort("date", -1).limit(limit).to_list(None)
+                {"title": 1, "startedAt": 1, "type": 1, "actualDuration": 1, "exercises": 1}
+            ).sort("startedAt", -1).limit(limit).to_list(None)
 
             results = []
             for w in workouts:
@@ -449,10 +486,9 @@ class WorkoutService:
                 results.append({
                     "id": str(w["_id"]),
                     "title": w["title"],
-                    "date": w["date"].isoformat() if w.get("date") else None,
+                    "date": w["startedAt"].isoformat() if w.get("startedAt") else None,
                     "type": w.get("type"),
-                    "status": w.get("status"),
-                    "duration": w.get("durationMinutes"),
+                    "duration": w.get("actualDuration"),
                     "exercise_count": len(raw_exercises),
                     "exercises": exercises
                 })
