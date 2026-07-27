@@ -66,7 +66,7 @@ function register(server, ctx) {
       title: z.string().min(1).max(100),
       discipline: z.string().describe('Session discipline, e.g. strength, cardio, hiit, climbing'),
       startedAt: z.string().describe('ISO datetime the session started'),
-      completedAt: z.string().optional().describe('ISO datetime the session ended (defaults to now)'),
+      completedAt: z.string().optional().describe('ISO datetime the session ended (defaults to startedAt + durationMinutes, or startedAt — never "now", so historical logs stay honest)'),
       durationMinutes: z.number().optional().describe('Actual duration in minutes (derived from start/end when omitted)'),
       notes: z.string().optional(),
       exercises: z.array(exerciseSchema).optional()
