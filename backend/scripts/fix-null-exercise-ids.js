@@ -22,7 +22,7 @@ const mongoose = require('mongoose');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-const PredefinedWorkout = require('../src/models/PredefinedWorkout');
+const SessionTemplate = require('../src/models/SessionTemplate');
 const Exercise = require('../src/models/Exercise');
 
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -81,7 +81,7 @@ async function run() {
   await mongoose.connect(process.env.MONGODB_URI);
   console.log(`✅ Connected to MongoDB${DRY_RUN ? ' (DRY RUN — no writes)' : ''}`);
 
-  const workouts = await PredefinedWorkout.find({
+  const workouts = await SessionTemplate.find({
     'blocks.exercises': {
       $elemMatch: { $or: [{ exercise_id: null }, { exercise_id: { $exists: false } }] },
     },
@@ -132,7 +132,7 @@ async function run() {
     `${createdExercises} exercise(s) ${DRY_RUN ? 'would be ' : ''}created, ${failures} failure(s)`
   );
 
-  const remaining = DRY_RUN ? 0 : await PredefinedWorkout.countDocuments({
+  const remaining = DRY_RUN ? 0 : await SessionTemplate.countDocuments({
     'blocks.exercises': {
       $elemMatch: { $or: [{ exercise_id: null }, { exercise_id: { $exists: false } }] },
     },

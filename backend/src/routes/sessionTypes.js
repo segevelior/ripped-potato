@@ -1,5 +1,5 @@
 const express = require('express');
-const WorkoutType = require('../models/WorkoutType');
+const SessionType = require('../models/SessionType');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
 
@@ -11,13 +11,13 @@ router.get('/', async (req, res) => {
     let workoutTypes;
     
     if (fitnessLevel) {
-      workoutTypes = await WorkoutType.getByFitnessLevel(fitnessLevel);
+      workoutTypes = await SessionType.getByFitnessLevel(fitnessLevel);
     } else if (goal) {
-      workoutTypes = await WorkoutType.getByGoal(goal);
+      workoutTypes = await SessionType.getByGoal(goal);
     } else if (timeConstraint) {
-      workoutTypes = await WorkoutType.getByTimeConstraint(timeConstraint);
+      workoutTypes = await SessionType.getByTimeConstraint(timeConstraint);
     } else {
-      workoutTypes = await WorkoutType.find({ isActive: true })
+      workoutTypes = await SessionType.find({ isActive: true })
         .sort({ displayName: 1 });
     }
 
@@ -35,7 +35,7 @@ router.get('/recommendations/:userLevel', async (req, res) => {
 
     const goalsArray = goals ? goals.split(',') : [];
     
-    const recommendations = await WorkoutType.getRecommendations(
+    const recommendations = await SessionType.getRecommendations(
       userLevel,
       goalsArray,
       timeConstraint
@@ -51,7 +51,7 @@ router.get('/recommendations/:userLevel', async (req, res) => {
 router.get('/fitness-level/:level', async (req, res) => {
   try {
     const { level } = req.params;
-    const workoutTypes = await WorkoutType.getByFitnessLevel(level);
+    const workoutTypes = await SessionType.getByFitnessLevel(level);
     res.json(workoutTypes);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -62,7 +62,7 @@ router.get('/fitness-level/:level', async (req, res) => {
 router.get('/goal/:goal', async (req, res) => {
   try {
     const { goal } = req.params;
-    const workoutTypes = await WorkoutType.getByGoal(goal);
+    const workoutTypes = await SessionType.getByGoal(goal);
     res.json(workoutTypes);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -72,7 +72,7 @@ router.get('/goal/:goal', async (req, res) => {
 // GET /api/workout-types/stats/goals - Get workout type statistics by goals
 router.get('/stats/goals', async (req, res) => {
   try {
-    const stats = await WorkoutType.aggregate([
+    const stats = await SessionType.aggregate([
       {
         $match: { isActive: true }
       },
@@ -105,7 +105,7 @@ router.get('/stats/goals', async (req, res) => {
 // GET /api/workout-types/stats/fitness-levels - Get workout type statistics by fitness levels
 router.get('/stats/fitness-levels', async (req, res) => {
   try {
-    const stats = await WorkoutType.aggregate([
+    const stats = await SessionType.aggregate([
       {
         $match: { isActive: true }
       },
@@ -139,7 +139,7 @@ router.get('/stats/fitness-levels', async (req, res) => {
 // GET /api/workout-types/:id - Get specific workout type
 router.get('/:id', async (req, res) => {
   try {
-    const workoutType = await WorkoutType.findById(req.params.id);
+    const workoutType = await SessionType.findById(req.params.id);
 
     if (!workoutType) {
       return res.status(404).json({ error: 'Workout type not found' });
@@ -154,7 +154,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/workout-types - Create new workout type (authenticated, admin only)
 router.post('/', auth, async (req, res) => {
   try {
-    const workoutType = new WorkoutType(req.body);
+    const workoutType = new SessionType(req.body);
     await workoutType.save();
 
     res.status(201).json(workoutType);
@@ -172,7 +172,7 @@ router.post('/', auth, async (req, res) => {
 // PUT /api/workout-types/:id - Update workout type (authenticated, admin only)
 router.put('/:id', auth, async (req, res) => {
   try {
-    const workoutType = await WorkoutType.findByIdAndUpdate(
+    const workoutType = await SessionType.findByIdAndUpdate(
       req.params.id,
       req.body,
       { new: true, runValidators: true }
@@ -197,7 +197,7 @@ router.put('/:id', auth, async (req, res) => {
 // DELETE /api/workout-types/:id - Delete workout type (authenticated, admin only)
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const workoutType = await WorkoutType.findByIdAndDelete(req.params.id);
+    const workoutType = await SessionType.findByIdAndDelete(req.params.id);
 
     if (!workoutType) {
       return res.status(404).json({ error: 'Workout type not found' });
@@ -212,7 +212,7 @@ router.delete('/:id', auth, async (req, res) => {
 // PUT /api/workout-types/:id/toggle-active - Toggle workout type active status (authenticated, admin only)
 router.put('/:id/toggle-active', auth, async (req, res) => {
   try {
-    const workoutType = await WorkoutType.findById(req.params.id);
+    const workoutType = await SessionType.findById(req.params.id);
 
     if (!workoutType) {
       return res.status(404).json({ error: 'Workout type not found' });
@@ -232,7 +232,7 @@ router.post('/:id/check-suitability', async (req, res) => {
   try {
     const { userLevel, goals = [], timeConstraint } = req.body;
     
-    const workoutType = await WorkoutType.findById(req.params.id);
+    const workoutType = await SessionType.findById(req.params.id);
 
     if (!workoutType) {
       return res.status(404).json({ error: 'Workout type not found' });

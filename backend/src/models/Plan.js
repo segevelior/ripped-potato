@@ -14,7 +14,7 @@ const weeklyWorkoutSchema = new mongoose.Schema({
   },
   predefinedWorkoutId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'PredefinedWorkout'
+    ref: 'SessionTemplate'
   },
   customWorkout: {
     title: String,

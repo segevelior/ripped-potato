@@ -56,7 +56,7 @@ const goalSchema = new mongoose.Schema({
   }],
   progressionPaths: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'ProgressionPath'
+    ref: 'Progression'
   }],
   targetMetrics: {
     // For measurable goals

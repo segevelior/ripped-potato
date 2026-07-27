@@ -4,7 +4,7 @@ const { auth } = require('../middleware/auth');
 const { adminAuth } = require('../middleware/admin');
 const Exercise = require('../models/Exercise');
 const Goal = require('../models/Goal');
-const PredefinedWorkout = require('../models/PredefinedWorkout');
+const SessionTemplate = require('../models/SessionTemplate');
 const CalendarConsistencyJob = require('../jobs/calendarConsistencyJob');
 const SportsNewsJob = require('../jobs/sportsNewsJob');
 
@@ -189,7 +189,7 @@ router.delete('/goals/:id', async (req, res) => {
 // @access  Admin only
 router.post('/predefined-workouts', async (req, res) => {
   try {
-    const workout = await PredefinedWorkout.create({
+    const workout = await SessionTemplate.create({
       ...req.body,
       isCommon: true,
       createdBy: null
@@ -212,7 +212,7 @@ router.post('/predefined-workouts', async (req, res) => {
 // @access  Admin only
 router.put('/predefined-workouts/:id', async (req, res) => {
   try {
-    const workout = await PredefinedWorkout.findOne({
+    const workout = await SessionTemplate.findOne({
       _id: req.params.id,
       isCommon: true
     });
@@ -244,7 +244,7 @@ router.put('/predefined-workouts/:id', async (req, res) => {
 // @access  Admin only
 router.delete('/predefined-workouts/:id', async (req, res) => {
   try {
-    const workout = await PredefinedWorkout.findOne({
+    const workout = await SessionTemplate.findOne({
       _id: req.params.id,
       isCommon: true
     });
@@ -311,7 +311,7 @@ router.post('/users/:userId/role', async (req, res) => {
 });
 
 // @route   POST /api/v1/admin/jobs/calendar-consistency
-// @desc    Run calendar consistency job (sync CalendarEvent with WorkoutLog and ExternalActivity)
+// @desc    Run calendar consistency job (sync CalendarEvent with SessionLog and ExternalActivity)
 // @access  Admin only
 router.post('/jobs/calendar-consistency', async (req, res) => {
   try {

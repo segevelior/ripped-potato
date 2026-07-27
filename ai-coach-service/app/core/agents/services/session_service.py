@@ -17,7 +17,7 @@ from app.core.dedup import existing_template_duplicate_response
 logger = structlog.get_logger()
 
 
-class WorkoutService:
+class SessionService:
     """Service for workout-related operations"""
 
     def __init__(self, db: AsyncIOMotorDatabase):

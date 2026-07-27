@@ -4,8 +4,9 @@ import { X, Search, ChevronRight, Clock, Target, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { PredefinedWorkout } from "@/api/entities";
 import { createPageUrl } from "@/utils";
+import { disciplineToType } from "@/utils/disciplineToType";
 
-export default function WorkoutSelectionModal({ date, onClose, onApplyWorkout }) {
+export default function SessionSelectionModal({ date, onClose, onApplyWorkout }) {
   const navigate = useNavigate();
   const [predefinedWorkouts, setPredefinedWorkouts] = useState([]);
   const [selectedWorkout, setSelectedWorkout] = useState(null);
@@ -127,20 +128,6 @@ I want to add a workout to my calendar for ${dateStr}. Please help me decide wha
         }
       });
     }
-
-    // Map discipline to valid workout type
-    const disciplineToType = {
-      'calisthenics': 'calisthenics',
-      'strength': 'strength',
-      'cardio': 'cardio',
-      'hiit': 'hiit',
-      'yoga': 'flexibility',
-      'stretching': 'flexibility',
-      'flexibility': 'flexibility',
-      'mobility': 'mobility',
-      'recovery': 'recovery',
-      'hybrid': 'hybrid'
-    };
 
     const rawType = (selectedWorkout.primary_disciplines?.[0] || selectedWorkout.type || "strength").toLowerCase();
     const workoutType = disciplineToType[rawType] || 'strength';

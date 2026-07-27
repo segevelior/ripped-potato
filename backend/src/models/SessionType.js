@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const workoutTypeSchema = new mongoose.Schema({
+const sessionTypeSchema = new mongoose.Schema({
   name: {
     type: String,
     required: [true, 'Workout type name is required'],
@@ -107,7 +107,7 @@ const workoutTypeSchema = new mongoose.Schema({
 });
 
 // Text search index
-workoutTypeSchema.index({ 
+sessionTypeSchema.index({ 
   name: 'text', 
   displayName: 'text',
   description: 'text',
@@ -115,27 +115,11 @@ workoutTypeSchema.index({
 });
 
 // Compound indexes for common queries
-workoutTypeSchema.index({ 'suitableFor.goals': 1, isActive: 1 });
-workoutTypeSchema.index({ 'suitableFor.fitnessLevels': 1, isActive: 1 });
-
-// Virtual for workout count
-workoutTypeSchema.virtual('workoutCount', {
-  ref: 'Workout',
-  localField: 'name',
-  foreignField: 'type',
-  count: true
-});
-
-// Virtual for predefined workout count
-workoutTypeSchema.virtual('predefinedWorkoutCount', {
-  ref: 'PredefinedWorkout',
-  localField: 'name',
-  foreignField: 'type',
-  count: true
-});
+sessionTypeSchema.index({ 'suitableFor.goals': 1, isActive: 1 });
+sessionTypeSchema.index({ 'suitableFor.fitnessLevels': 1, isActive: 1 });
 
 // Static method to get by fitness level
-workoutTypeSchema.statics.getByFitnessLevel = function(level) {
+sessionTypeSchema.statics.getByFitnessLevel = function(level) {
   return this.find({
     isActive: true,
     'suitableFor.fitnessLevels': level
@@ -143,7 +127,7 @@ workoutTypeSchema.statics.getByFitnessLevel = function(level) {
 };
 
 // Static method to get by goal
-workoutTypeSchema.statics.getByGoal = function(goal) {
+sessionTypeSchema.statics.getByGoal = function(goal) {
   return this.find({
     isActive: true,
     'suitableFor.goals': goal
@@ -151,7 +135,7 @@ workoutTypeSchema.statics.getByGoal = function(goal) {
 };
 
 // Static method to get by time constraint
-workoutTypeSchema.statics.getByTimeConstraint = function(timeConstraint) {
+sessionTypeSchema.statics.getByTimeConstraint = function(timeConstraint) {
   return this.find({
     isActive: true,
     'suitableFor.timeConstraints': timeConstraint
@@ -159,7 +143,7 @@ workoutTypeSchema.statics.getByTimeConstraint = function(timeConstraint) {
 };
 
 // Static method to get recommendations
-workoutTypeSchema.statics.getRecommendations = function(userLevel, goals, timeAvailable) {
+sessionTypeSchema.statics.getRecommendations = function(userLevel, goals, timeAvailable) {
   const query = {
     isActive: true,
     'suitableFor.fitnessLevels': userLevel
@@ -179,7 +163,7 @@ workoutTypeSchema.statics.getRecommendations = function(userLevel, goals, timeAv
 };
 
 // Method to check if suitable for user
-workoutTypeSchema.methods.isSuitableFor = function(userLevel, goals = [], timeConstraint = null) {
+sessionTypeSchema.methods.isSuitableFor = function(userLevel, goals = [], timeConstraint = null) {
   // Check fitness level
   if (!this.suitableFor.fitnessLevels.includes(userLevel)) {
     return false;
@@ -201,4 +185,5 @@ workoutTypeSchema.methods.isSuitableFor = function(userLevel, goals = [], timeCo
   return true;
 };
 
-module.exports = mongoose.model('WorkoutType', workoutTypeSchema);
+// Third arg pins the legacy collection name — Stage 3 flips it to 'sessiontypes'.
+module.exports = mongoose.model('SessionType', sessionTypeSchema, 'workouttypes');

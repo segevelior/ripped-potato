@@ -1,7 +1,7 @@
 const express = require('express');
-const PredefinedWorkout = require('../models/PredefinedWorkout');
+const SessionTemplate = require('../models/SessionTemplate');
 const CalendarEvent = require('../models/CalendarEvent');
-const WorkoutService = require('../services/WorkoutService');
+const SessionService = require('../services/SessionService');
 const { auth, optionalAuth } = require('../middleware/auth');
 const router = express.Router();
 
@@ -20,10 +20,10 @@ router.get('/', optionalAuth, async (req, res) => {
 
     if (req.user) {
       // Get workouts with user modifications applied
-      workouts = await WorkoutService.getWorkoutsForUser(req.user.id);
+      workouts = await SessionService.getSessionsForUser(req.user.id);
     } else {
       // Non-authenticated users only see common workouts
-      workouts = await PredefinedWorkout.find({ isCommon: true })
+      workouts = await SessionTemplate.find({ isCommon: true })
         .populate('createdBy', 'name')
         .lean();
     }
@@ -82,7 +82,7 @@ router.get('/search/:term', async (req, res) => {
     const { term } = req.params;
     const { limit = 10 } = req.query;
 
-    const workouts = await PredefinedWorkout.search(term)
+    const workouts = await SessionTemplate.search(term)
       .populate('createdBy', 'name')
       .populate('blocks.exercises.exercise_id', 'name muscles')
       .limit(parseInt(limit));
@@ -100,10 +100,10 @@ router.get('/:id', optionalAuth, async (req, res) => {
 
     if (req.user) {
       // Get workout with modifications for authenticated user
-      workout = await WorkoutService.getWorkoutForUser(req.params.id, req.user.id);
+      workout = await SessionService.getSessionForUser(req.params.id, req.user.id);
     } else {
       // Non-authenticated users can only see common workouts
-      workout = await PredefinedWorkout.findOne({
+      workout = await SessionTemplate.findOne({
         _id: req.params.id,
         isCommon: true
       })
@@ -152,7 +152,7 @@ router.post('/', auth, async (req, res) => {
       workoutData.createdBy = null; // Common workouts don't have a specific creator
     }
 
-    const workout = new PredefinedWorkout(workoutData);
+    const workout = new SessionTemplate(workoutData);
     await workout.save();
 
     await workout.populate('createdBy', 'name');
@@ -173,7 +173,7 @@ router.post('/', auth, async (req, res) => {
 // PUT /api/predefined-workouts/:id - Update predefined workout (authenticated)
 router.put('/:id', auth, async (req, res) => {
   try {
-    const workout = await PredefinedWorkout.findById(req.params.id);
+    const workout = await SessionTemplate.findById(req.params.id);
 
     if (!workout) {
       return res.status(404).json({ error: 'Predefined workout not found' });
@@ -218,7 +218,7 @@ router.put('/:id', auth, async (req, res) => {
 // DELETE /api/predefined-workouts/:id - Delete predefined workout (authenticated)
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const workout = await PredefinedWorkout.findById(req.params.id);
+    const workout = await SessionTemplate.findById(req.params.id);
 
     if (!workout) {
       return res.status(404).json({ error: 'Predefined workout not found' });
@@ -281,7 +281,7 @@ router.post('/:id/rate', auth, async (req, res) => {
       return res.status(400).json({ error: 'Rating must be between 1 and 5' });
     }
 
-    const workout = await PredefinedWorkout.findById(req.params.id);
+    const workout = await SessionTemplate.findById(req.params.id);
 
     if (!workout) {
       return res.status(404).json({ error: 'Predefined workout not found' });
@@ -321,8 +321,8 @@ async function buildUserClone(workout, userId) {
   // The user's modification overlay (custom title/description/duration +
   // favorite/PR metadata) is applied on every read — bake the field
   // overrides into the clone and move the row so the metadata follows.
-  const UserWorkoutModification = require('../models/UserWorkoutModification');
-  const modification = await UserWorkoutModification.findOne({
+  const UserSessionModification = require('../models/UserSessionModification');
+  const modification = await UserSessionModification.findOne({
     userId,
     workoutId: workout._id
   });
@@ -379,7 +379,7 @@ router.post('/:id/swap-exercise', auth, async (req, res) => {
       return res.status(400).json({ error: 'fromExerciseId and toExerciseId are required' });
     }
 
-    const workout = await PredefinedWorkout.findById(req.params.id);
+    const workout = await SessionTemplate.findById(req.params.id);
     if (!workout) {
       return res.status(404).json({ error: 'Predefined workout not found' });
     }
@@ -426,7 +426,7 @@ router.post('/:id/swap-exercise', auth, async (req, res) => {
 
     // Common template: clone-on-modify.
     const { cloneData, modification } = await buildUserClone(workout, req.user.id);
-    const clone = new PredefinedWorkout(cloneData);
+    const clone = new SessionTemplate(cloneData);
     const replacedCount = applySwap(clone);
     if (replacedCount === 0) {
       return res.status(400).json({ error: 'Exercise not found in this workout' });
@@ -452,7 +452,7 @@ router.post('/:id/remove-exercise', auth, async (req, res) => {
       return res.status(400).json({ error: 'exerciseId is required' });
     }
 
-    const workout = await PredefinedWorkout.findById(req.params.id);
+    const workout = await SessionTemplate.findById(req.params.id);
     if (!workout) {
       return res.status(404).json({ error: 'Predefined workout not found' });
     }
@@ -493,7 +493,7 @@ router.post('/:id/remove-exercise', auth, async (req, res) => {
 
     // Common template: clone-on-modify.
     const { cloneData, modification } = await buildUserClone(workout, req.user.id);
-    const clone = new PredefinedWorkout(cloneData);
+    const clone = new SessionTemplate(cloneData);
     const removedCount = applyRemove(clone);
     if (removedCount === 0) {
       return res.status(400).json({ error: 'Exercise not found in this workout' });
@@ -519,7 +519,7 @@ router.put('/:id/modifications', auth, async (req, res) => {
   try {
     const { modifications, metadata } = req.body;
 
-    const modification = await WorkoutService.saveModification(
+    const modification = await SessionService.saveModification(
       req.user.id,
       req.params.id,
       modifications,
@@ -527,7 +527,7 @@ router.put('/:id/modifications', auth, async (req, res) => {
     );
 
     // Return the workout with modifications applied
-    const workout = await WorkoutService.getWorkoutForUser(req.params.id, req.user.id);
+    const workout = await SessionService.getSessionForUser(req.params.id, req.user.id);
 
     res.json(workout);
   } catch (error) {
@@ -538,10 +538,10 @@ router.put('/:id/modifications', auth, async (req, res) => {
 // DELETE /api/predefined-workouts/:id/modifications - Remove workout modification (revert to original)
 router.delete('/:id/modifications', auth, async (req, res) => {
   try {
-    await WorkoutService.removeModification(req.user.id, req.params.id);
+    await SessionService.removeModification(req.user.id, req.params.id);
 
     // Return the original workout
-    const workout = await WorkoutService.getWorkoutForUser(req.params.id, req.user.id);
+    const workout = await SessionService.getSessionForUser(req.params.id, req.user.id);
 
     res.json(workout);
   } catch (error) {
@@ -554,7 +554,7 @@ router.put('/:id/favorite', auth, async (req, res) => {
   try {
     const { isFavorite } = req.body;
 
-    await WorkoutService.toggleFavorite(req.user.id, req.params.id, isFavorite);
+    await SessionService.toggleFavorite(req.user.id, req.params.id, isFavorite);
 
     res.json({ success: true, isFavorite });
   } catch (error) {
@@ -567,7 +567,7 @@ router.post('/:id/complete', auth, async (req, res) => {
   try {
     const { totalWeight, completionTime } = req.body;
 
-    const modification = await WorkoutService.recordCompletion(
+    const modification = await SessionService.recordCompletion(
       req.user.id,
       req.params.id,
       { totalWeight, completionTime }

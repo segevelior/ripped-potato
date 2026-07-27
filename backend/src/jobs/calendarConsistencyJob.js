@@ -1,21 +1,21 @@
 const mongoose = require('mongoose');
 const CalendarEvent = require('../models/CalendarEvent');
-const WorkoutLog = require('../models/WorkoutLog');
+const SessionLog = require('../models/SessionLog');
 const ExternalActivity = require('../models/ExternalActivity');
 const Exercise = require('../models/Exercise');
-const PredefinedWorkout = require('../models/PredefinedWorkout');
+const SessionTemplate = require('../models/SessionTemplate');
 const StravaIntegrationService = require('../services/StravaIntegrationService');
 
 /**
  * Calendar Consistency Job
  *
  * Ensures data consistency between CalendarEvent and its linked collections:
- * - WorkoutLog (from TrainNow)
+ * - SessionLog (from TrainNow)
  * - ExternalActivity (from Strava)
- * - PredefinedWorkout (workout library / Workouts tab)
+ * - SessionTemplate (workout library / Workouts tab)
  *
  * Tasks:
- * 1. Find WorkoutLogs without CalendarEvent and create them
+ * 1. Find SessionLogs without CalendarEvent and create them
  * 2. Find ExternalActivities without CalendarEvent and create them
  * 3. Find CalendarEvents with broken links (workoutLogId or externalActivityId pointing to non-existent docs) and delete them
  * 4. Find upcoming AI-scheduled workout events with no workoutTemplateId and back-link them to a (deduped) library template
@@ -59,10 +59,10 @@ class CalendarConsistencyJob {
       };
 
       // Run all consistency checks
-      await this.syncWorkoutLogs();
+      await this.syncSessionLogs();
       await this.syncExternalActivities();
       await this.cleanupOrphanedCalendarEvents();
-      await this.linkOrphanWorkoutEvents();
+      await this.linkOrphanSessionEvents();
 
       const duration = Date.now() - startTime;
       this.logger.info('[CalendarConsistencyJob] Consistency check completed', {
@@ -87,20 +87,20 @@ class CalendarConsistencyJob {
   }
 
   /**
-   * Find WorkoutLogs without CalendarEvent and create them
+   * Find SessionLogs without CalendarEvent and create them
    */
-  async syncWorkoutLogs() {
-    this.logger.info('[CalendarConsistencyJob] Syncing WorkoutLogs...');
+  async syncSessionLogs() {
+    this.logger.info('[CalendarConsistencyJob] Syncing SessionLogs...');
 
     try {
-      // Find all WorkoutLogs that don't have a calendarEventId OR have one that doesn't exist
-      const workoutLogs = await WorkoutLog.find({}).lean();
+      // Find all SessionLogs that don't have a calendarEventId OR have one that doesn't exist
+      const workoutLogs = await SessionLog.find({}).lean();
 
       for (const workoutLog of workoutLogs) {
         this.stats.workoutLogsProcessed++;
 
         try {
-          // Check if this WorkoutLog has a valid CalendarEvent
+          // Check if this SessionLog has a valid CalendarEvent
           let needsCalendarEvent = false;
 
           if (!workoutLog.calendarEventId) {
@@ -115,11 +115,11 @@ class CalendarConsistencyJob {
             }
           }
 
-          // Also check if there's a CalendarEvent pointing to this WorkoutLog
+          // Also check if there's a CalendarEvent pointing to this SessionLog
           const linkedEvent = await CalendarEvent.findOne({ workoutLogId: workoutLog._id });
 
           if (!linkedEvent && needsCalendarEvent) {
-            // Create CalendarEvent for this WorkoutLog
+            // Create CalendarEvent for this SessionLog
             const calendarEvent = await CalendarEvent.create({
               userId: workoutLog.userId,
               date: workoutLog.startedAt,
@@ -139,23 +139,23 @@ class CalendarConsistencyJob {
               completedAt: workoutLog.completedAt
             });
 
-            // Update the WorkoutLog with the calendarEventId
-            await WorkoutLog.findByIdAndUpdate(workoutLog._id, {
+            // Update the SessionLog with the calendarEventId
+            await SessionLog.findByIdAndUpdate(workoutLog._id, {
               calendarEventId: calendarEvent._id
             });
 
             this.stats.workoutLogsFixed++;
-            this.logger.info(`[CalendarConsistencyJob] Created CalendarEvent for WorkoutLog ${workoutLog._id}`);
+            this.logger.info(`[CalendarConsistencyJob] Created CalendarEvent for SessionLog ${workoutLog._id}`);
           } else if (linkedEvent && !workoutLog.calendarEventId) {
-            // CalendarEvent exists but WorkoutLog doesn't reference it - fix the link
-            await WorkoutLog.findByIdAndUpdate(workoutLog._id, {
+            // CalendarEvent exists but SessionLog doesn't reference it - fix the link
+            await SessionLog.findByIdAndUpdate(workoutLog._id, {
               calendarEventId: linkedEvent._id
             });
             this.stats.workoutLogsFixed++;
-            this.logger.info(`[CalendarConsistencyJob] Fixed WorkoutLog ${workoutLog._id} link to CalendarEvent ${linkedEvent._id}`);
+            this.logger.info(`[CalendarConsistencyJob] Fixed SessionLog ${workoutLog._id} link to CalendarEvent ${linkedEvent._id}`);
           }
         } catch (error) {
-          this.logger.error(`[CalendarConsistencyJob] Error processing WorkoutLog ${workoutLog._id}`, {
+          this.logger.error(`[CalendarConsistencyJob] Error processing SessionLog ${workoutLog._id}`, {
             error: error.message
           });
           this.stats.errors.push({
@@ -166,9 +166,9 @@ class CalendarConsistencyJob {
         }
       }
 
-      this.logger.info(`[CalendarConsistencyJob] WorkoutLogs sync complete: ${this.stats.workoutLogsFixed}/${this.stats.workoutLogsProcessed} fixed`);
+      this.logger.info(`[CalendarConsistencyJob] SessionLogs sync complete: ${this.stats.workoutLogsFixed}/${this.stats.workoutLogsProcessed} fixed`);
     } catch (error) {
-      this.logger.error('[CalendarConsistencyJob] WorkoutLogs sync failed', { error: error.message });
+      this.logger.error('[CalendarConsistencyJob] SessionLogs sync failed', { error: error.message });
       this.stats.errors.push({ phase: 'workoutLogs', error: error.message });
     }
   }
@@ -224,17 +224,17 @@ class CalendarConsistencyJob {
     this.logger.info('[CalendarConsistencyJob] Cleaning up orphaned CalendarEvents...');
 
     try {
-      // Find CalendarEvents that have workoutLogId but the WorkoutLog doesn't exist
+      // Find CalendarEvents that have workoutLogId but the SessionLog doesn't exist
       const eventsWithWorkoutLogId = await CalendarEvent.find({
         workoutLogId: { $exists: true, $ne: null }
       }).lean();
 
       for (const event of eventsWithWorkoutLogId) {
-        const workoutLog = await WorkoutLog.findById(event.workoutLogId);
+        const workoutLog = await SessionLog.findById(event.workoutLogId);
         if (!workoutLog) {
           await CalendarEvent.findByIdAndDelete(event._id);
           this.stats.orphanedCalendarEventsDeleted++;
-          this.logger.info(`[CalendarConsistencyJob] Deleted orphaned CalendarEvent ${event._id} (WorkoutLog ${event.workoutLogId} not found)`);
+          this.logger.info(`[CalendarConsistencyJob] Deleted orphaned CalendarEvent ${event._id} (SessionLog ${event.workoutLogId} not found)`);
         }
       }
 
@@ -262,7 +262,7 @@ class CalendarConsistencyJob {
   /**
    * Find upcoming workout/deload CalendarEvents that have embedded exercises
    * but no workoutTemplateId (historically created by the AI coach), create a
-   * backing PredefinedWorkout, and link them.
+   * backing SessionTemplate, and link them.
    *
    * Deduped: orphans are grouped by (user, title-minus-date-suffix, exercise
    * prescription) and each group shares ONE template — a plan's repeated
@@ -271,7 +271,7 @@ class CalendarConsistencyJob {
    * orphans are left alone (they render from embedded details and add no
    * Workouts-tab value).
    */
-  async linkOrphanWorkoutEvents(userId = null) {
+  async linkOrphanSessionEvents(userId = null) {
     this.logger.info('[CalendarConsistencyJob] Linking orphan workout events...');
 
     try {
@@ -345,7 +345,7 @@ class CalendarConsistencyJob {
             continue;
           }
 
-          const template = await PredefinedWorkout.create({
+          const template = await SessionTemplate.create({
             name: title,
             goal: '',
             primary_disciplines: [sample.workoutDetails.type || 'strength'],
@@ -410,10 +410,10 @@ class CalendarConsistencyJob {
         errors: []
       };
 
-      await this.syncWorkoutLogsForUser(userId);
+      await this.syncSessionLogsForUser(userId);
       await this.syncExternalActivitiesForUser(userId);
       await this.cleanupOrphanedCalendarEventsForUser(userId);
-      await this.linkOrphanWorkoutEvents(userId);
+      await this.linkOrphanSessionEvents(userId);
 
       const duration = Date.now() - startTime;
       this.logger.info(`[CalendarConsistencyJob] User ${userId} consistency check completed`, {
@@ -436,8 +436,8 @@ class CalendarConsistencyJob {
     }
   }
 
-  async syncWorkoutLogsForUser(userId) {
-    const workoutLogs = await WorkoutLog.find({ userId }).lean();
+  async syncSessionLogsForUser(userId) {
+    const workoutLogs = await SessionLog.find({ userId }).lean();
 
     for (const workoutLog of workoutLogs) {
       this.stats.workoutLogsProcessed++;
@@ -476,13 +476,13 @@ class CalendarConsistencyJob {
             completedAt: workoutLog.completedAt
           });
 
-          await WorkoutLog.findByIdAndUpdate(workoutLog._id, {
+          await SessionLog.findByIdAndUpdate(workoutLog._id, {
             calendarEventId: calendarEvent._id
           });
 
           this.stats.workoutLogsFixed++;
         } else if (linkedEvent && !workoutLog.calendarEventId) {
-          await WorkoutLog.findByIdAndUpdate(workoutLog._id, {
+          await SessionLog.findByIdAndUpdate(workoutLog._id, {
             calendarEventId: linkedEvent._id
           });
           this.stats.workoutLogsFixed++;
@@ -529,7 +529,7 @@ class CalendarConsistencyJob {
     }).lean();
 
     for (const event of eventsWithWorkoutLogId) {
-      const workoutLog = await WorkoutLog.findById(event.workoutLogId);
+      const workoutLog = await SessionLog.findById(event.workoutLogId);
       if (!workoutLog) {
         await CalendarEvent.findByIdAndDelete(event._id);
         this.stats.orphanedCalendarEventsDeleted++;

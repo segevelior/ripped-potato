@@ -9,7 +9,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { getDisciplineClass } from "@/styles/designTokens";
 import { pickTodaySession } from "@/utils/todaySession";
-import WorkoutDetailModal from "../components/predefined/WorkoutDetailModal";
+import SessionDetailModal from "../components/predefined/SessionDetailModal";
 import { aiService } from "@/services/aiService";
 import {
   getActiveWorkout,
@@ -225,7 +225,7 @@ function QuickStartCard({ workout, onStart, isFromCalendar, isLoading, reasoning
 }
 
 // Compact workout card for lists
-function CompactWorkoutCard({ workout, onStart, onView }) {
+function CompactSessionCard({ workout, onStart, onView }) {
   const discipline = workout.primary_disciplines?.[0] || 'workout';
 
   return (
@@ -270,7 +270,7 @@ function CompactWorkoutCard({ workout, onStart, onView }) {
 }
 
 // Horizontal scroll workout row
-function WorkoutRow({ title, icon: Icon, workouts, onStart, onView, seeAllLink }) {
+function SessionRow({ title, icon: Icon, workouts, onStart, onView, seeAllLink }) {
   if (!workouts || workouts.length === 0) return null;
 
   return (
@@ -290,7 +290,7 @@ function WorkoutRow({ title, icon: Icon, workouts, onStart, onView, seeAllLink }
       <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 no-scrollbar">
         {workouts.map((workout) => (
           <div key={workout.id} className="flex-shrink-0 w-56">
-            <CompactWorkoutCard workout={workout} onStart={onStart} onView={onView} />
+            <CompactSessionCard workout={workout} onStart={onStart} onView={onView} />
           </div>
         ))}
       </div>
@@ -540,7 +540,7 @@ export default function TrainNow() {
 
   const handleAskSensei = () => {
     // Build context message for Sensei - emphasizing immediate training
-    // Use similar structure to WorkoutSelectionModal so Chat can extract display message
+    // Use similar structure to SessionSelectionModal so Chat can extract display message
     const dateStr = format(new Date(), 'EEEE, MMMM d, yyyy');
     const isoDate = format(new Date(), 'yyyy-MM-dd');
 
@@ -620,7 +620,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
           {searchResults.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {searchResults.slice(0, 6).map(workout => (
-                <CompactWorkoutCard
+                <CompactSessionCard
                   key={workout.id}
                   workout={workout}
                   onStart={startWorkout}
@@ -749,7 +749,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
           </div>
 
           {/* Quick Workouts */}
-          <WorkoutRow
+          <SessionRow
             title="Quick Workouts"
             icon={Clock}
             workouts={quickWorkouts}
@@ -758,7 +758,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
           />
 
           {/* Strength */}
-          <WorkoutRow
+          <SessionRow
             title="Strength"
             icon={Dumbbell}
             workouts={getWorkoutsByDiscipline('strength')}
@@ -768,7 +768,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
           />
 
           {/* HIIT */}
-          <WorkoutRow
+          <SessionRow
             title="HIIT & Cardio"
             icon={Flame}
             workouts={[...getWorkoutsByDiscipline('hiit'), ...getWorkoutsByDiscipline('cardio')].slice(0, 6)}
@@ -790,7 +790,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
 
       {/* Workout Detail Modal */}
       {workoutToView && (
-        <WorkoutDetailModal
+        <SessionDetailModal
           workout={workoutToView}
           exercises={exercises}
           onClose={() => setWorkoutToView(null)}

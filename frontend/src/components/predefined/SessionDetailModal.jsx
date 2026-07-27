@@ -17,7 +17,7 @@ const disciplineIcons = {
   calisthenics: Users
 };
 
-// Placeholder images based on workout type (same as WorkoutCard)
+// Placeholder images based on workout type (same as SessionCard)
 const getWorkoutImage = (workout) => {
   const discipline = workout.primary_disciplines?.[0]?.toLowerCase() || 'strength';
 
@@ -49,7 +49,7 @@ const throttle = (func, limit) => {
   }
 };
 
-export default function WorkoutDetailModal({ workout, exercises, onClose, onApply, onEdit, onDelete, onStart }) {
+export default function SessionDetailModal({ workout, exercises, onClose, onApply, onEdit, onDelete, onStart }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [expandedBlocks, setExpandedBlocks] = useState(new Set([0])); // First block expanded by default
   const [expandedExercises, setExpandedExercises] = useState(new Set());

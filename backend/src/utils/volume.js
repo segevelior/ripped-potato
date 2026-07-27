@@ -1,6 +1,6 @@
 // Volume strings ("3x10", "4 x 8-12") are the template-side rep scheme.
 // Calendar events no longer embed exercises, so every consumer that needs
-// sets/reps derives them from the linked PredefinedWorkout via these helpers.
+// sets/reps derives them from the linked SessionTemplate via these helpers.
 
 const VOLUME_RE = /^\s*(\d+)\s*[xX]\s*(\d+)/;
 
@@ -11,7 +11,7 @@ const parseVolume = (volume) => {
 };
 
 // Flatten template.blocks[].exercises[] into the shape calendar consumers
-// (WorkoutLog creation, API responses) expect. Entries without an
+// (SessionLog creation, API responses) expect. Entries without an
 // exercise_id keep their name — the id is optional downstream.
 const flattenTemplateExercises = (template) => {
   if (!template?.blocks?.length) return [];

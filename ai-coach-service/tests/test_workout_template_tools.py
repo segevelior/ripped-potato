@@ -4,7 +4,7 @@ import pytest
 from bson import ObjectId
 from unittest.mock import AsyncMock, MagicMock
 
-from app.core.agents.services.workout_service import WorkoutService
+from app.core.agents.services.session_service import SessionService
 
 USER = ObjectId()
 
@@ -30,7 +30,7 @@ def _service(own_templates=None, total_matching=None, deleted=0):
         return_value=MagicMock(deleted_count=deleted))
     # Deletion guard: no calendar events reference these templates by default.
     db.calendarevents.count_documents = AsyncMock(return_value=0)
-    svc = WorkoutService(db)
+    svc = SessionService(db)
     return svc, db
 
 

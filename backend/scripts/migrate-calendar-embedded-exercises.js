@@ -29,7 +29,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const CalendarEvent = require('../src/models/CalendarEvent');
-const PredefinedWorkout = require('../src/models/PredefinedWorkout');
+const SessionTemplate = require('../src/models/SessionTemplate');
 const { flattenTemplateExercises } = require('../src/utils/volume');
 
 const APPLY = process.argv.includes('--apply');
@@ -55,7 +55,7 @@ async function main() {
   const stats = { unset: 0, missingTemplate: 0, emptyTemplate: 0, countMismatch: 0 };
 
   for (const event of events) {
-    const template = await PredefinedWorkout.findById(event.workoutTemplateId).lean();
+    const template = await SessionTemplate.findById(event.workoutTemplateId).lean();
     const label = `${event._id} "${event.title}" (${new Date(event.date).toISOString().slice(0, 10)})`;
 
     if (!template) {

@@ -5,7 +5,7 @@ jest.mock('../../middleware/auth', () => ({
   },
   optionalAuth: (req, res, next) => next()
 }));
-jest.mock('../../services/WorkoutService', () => ({}));
+jest.mock('../../services/SessionService', () => ({}));
 jest.mock('../../models/CalendarEvent', () => ({
   updateMany: jest.fn().mockResolvedValue({}),
   countDocuments: jest.fn().mockResolvedValue(0)
@@ -16,10 +16,10 @@ jest.mock('../../models/Plan', () => ({
 jest.mock('../../models/Exercise', () => ({
   findOne: jest.fn()
 }));
-jest.mock('../../models/UserWorkoutModification', () => ({
+jest.mock('../../models/UserSessionModification', () => ({
   findOne: jest.fn()
 }));
-jest.mock('../../models/PredefinedWorkout', () => {
+jest.mock('../../models/SessionTemplate', () => {
   const ctor = jest.fn();
   ctor.findById = jest.fn();
   return ctor;
@@ -27,12 +27,12 @@ jest.mock('../../models/PredefinedWorkout', () => {
 
 const express = require('express');
 const request = require('supertest');
-const PredefinedWorkout = require('../../models/PredefinedWorkout');
+const SessionTemplate = require('../../models/SessionTemplate');
 const CalendarEvent = require('../../models/CalendarEvent');
 const Plan = require('../../models/Plan');
 const Exercise = require('../../models/Exercise');
-const UserWorkoutModification = require('../../models/UserWorkoutModification');
-const router = require('../predefinedWorkouts');
+const UserSessionModification = require('../../models/UserSessionModification');
+const router = require('../sessionTemplates');
 
 const app = express();
 app.use(express.json());
@@ -84,8 +84,8 @@ beforeEach(() => {
   Exercise.findOne.mockReturnValue({
     select: jest.fn().mockResolvedValue({ _id: TO_EX, name: 'Dumbbell Press' })
   });
-  UserWorkoutModification.findOne.mockResolvedValue(null);
-  PredefinedWorkout.mockImplementation(function (data) {
+  UserSessionModification.findOne.mockResolvedValue(null);
+  SessionTemplate.mockImplementation(function (data) {
     Object.assign(this, JSON.parse(JSON.stringify(data)));
     this._id = CLONE_ID;
     this.save = jest.fn().mockResolvedValue(undefined);
@@ -96,7 +96,7 @@ beforeEach(() => {
 describe('POST /:id/swap-exercise', () => {
   test('own template: swaps every occurrence in place, keeps volume/rest/notes', async () => {
     const workout = makeWorkout({ ownedByUser: true, isCommon: false });
-    PredefinedWorkout.findById.mockResolvedValue(workout);
+    SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
       .post(`/${WORKOUT_ID}/swap-exercise`)
@@ -121,7 +121,7 @@ describe('POST /:id/swap-exercise', () => {
 
   test('common template: clones privately, swaps, relinks calendar events and plans', async () => {
     const workout = makeWorkout({ ownedByUser: false, isCommon: true });
-    PredefinedWorkout.findById.mockResolvedValue(workout);
+    SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
       .post(`/${WORKOUT_ID}/swap-exercise`)
@@ -133,7 +133,7 @@ describe('POST /:id/swap-exercise', () => {
     expect(res.body.workout._id).toBe(CLONE_ID);
     expect(workout.save).not.toHaveBeenCalled();
 
-    const cloneData = PredefinedWorkout.mock.calls[0][0];
+    const cloneData = SessionTemplate.mock.calls[0][0];
     expect(cloneData._id).toBeUndefined();
     expect(cloneData.createdBy).toBe(USER_ID);
     expect(cloneData.isCommon).toBe(false);
@@ -157,21 +157,21 @@ describe('POST /:id/swap-exercise', () => {
 
   test('common template clone folds the modification overlay and moves the row', async () => {
     const workout = makeWorkout({ ownedByUser: false, isCommon: true });
-    PredefinedWorkout.findById.mockResolvedValue(workout);
+    SessionTemplate.findById.mockResolvedValue(workout);
     const modification = {
       modifications: { title: 'My Push Day', description: 'tweaked', durationMinutes: 60 },
       metadata: { isFavorite: true },
       markModified: jest.fn(),
       save: jest.fn().mockResolvedValue(undefined)
     };
-    UserWorkoutModification.findOne.mockResolvedValue(modification);
+    UserSessionModification.findOne.mockResolvedValue(modification);
 
     const res = await request(app)
       .post(`/${WORKOUT_ID}/swap-exercise`)
       .send({ fromExerciseId: FROM_EX, toExerciseId: TO_EX });
 
     expect(res.status).toBe(200);
-    const cloneData = PredefinedWorkout.mock.calls[0][0];
+    const cloneData = SessionTemplate.mock.calls[0][0];
     expect(cloneData.name).toBe('My Push Day');
     expect(cloneData.goal).toBe('tweaked');
     expect(cloneData.estimated_duration).toBe(60);
@@ -190,7 +190,7 @@ describe('POST /:id/swap-exercise', () => {
       isCommon: false,
       blocks: [{ name: 'Main', exercises: [{ exercise_id: 'ffffffffffffffffffffffff', exercise_name: 'Squat' }] }]
     });
-    PredefinedWorkout.findById.mockResolvedValue(workout);
+    SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
       .post(`/${WORKOUT_ID}/swap-exercise`)
@@ -202,7 +202,7 @@ describe('POST /:id/swap-exercise', () => {
 
   test('403 on someone else\'s private workout', async () => {
     const workout = makeWorkout({ ownedByUser: false, isCommon: false });
-    PredefinedWorkout.findById.mockResolvedValue(workout);
+    SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
       .post(`/${WORKOUT_ID}/swap-exercise`)
@@ -213,7 +213,7 @@ describe('POST /:id/swap-exercise', () => {
 
   test('400 when the replacement exercise is not visible to the user', async () => {
     const workout = makeWorkout({ ownedByUser: true, isCommon: false });
-    PredefinedWorkout.findById.mockResolvedValue(workout);
+    SessionTemplate.findById.mockResolvedValue(workout);
     Exercise.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(null) });
 
     const res = await request(app)

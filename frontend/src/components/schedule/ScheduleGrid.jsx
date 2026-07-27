@@ -17,7 +17,7 @@ const intensityTextColors = {
   max: "text-red-700"
 };
 
-const getWorkoutIcon = (workoutType, discipline) => {
+const getDisciplineIcon = (workoutType, discipline) => {
   if (discipline === 'climbing') return Mountain;
   if (discipline === 'strength') return Dumbbell;
   if (discipline === 'mobility') return Heart;
@@ -62,7 +62,7 @@ export default function ScheduleGrid({
       <div className="grid grid-cols-7 gap-3">
         {days.map(day => {
           const daySchedule = schedule.find(item => item.day_of_week === day);
-          const Icon = daySchedule ? getWorkoutIcon(daySchedule.workout_type, daySchedule.discipline) : Activity;
+          const Icon = daySchedule ? getDisciplineIcon(daySchedule.workout_type, daySchedule.discipline) : Activity;
           
           return (
             <div key={day} className="text-center">

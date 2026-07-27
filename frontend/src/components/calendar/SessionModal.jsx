@@ -3,7 +3,7 @@ import { X, Clock, Target, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Exercise } from "@/api/entities";
 
-export default function WorkoutModal({ date, workout, onClose, onSave, disciplines }) {
+export default function SessionModal({ date, workout, onClose, onSave, disciplines }) {
   const [workoutData, setWorkoutData] = useState({
     title: "",
     type: "strength",

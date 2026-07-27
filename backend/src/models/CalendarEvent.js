@@ -31,7 +31,7 @@ const calendarEventSchema = new mongoose.Schema({
   // For workout events - reference to template
   workoutTemplateId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'PredefinedWorkout'
+    ref: 'SessionTemplate'
   },
   // Display metadata for the event. Scheduled events must NOT embed
   // exercises — the linked workoutTemplateId is the source of truth
@@ -71,7 +71,7 @@ const calendarEventSchema = new mongoose.Schema({
   // Link to workout log after completion (from TrainNow)
   workoutLogId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'WorkoutLog'
+    ref: 'SessionLog'
   },
   // Link to external activity (from Strava, etc.)
   externalActivityId: {
@@ -81,7 +81,7 @@ const calendarEventSchema = new mongoose.Schema({
   // For plan-based events
   planId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'TrainingPlan'
+    ref: 'Plan'
   },
   planWeek: Number,
   planDay: Number,

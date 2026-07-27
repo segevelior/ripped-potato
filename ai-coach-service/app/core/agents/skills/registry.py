@@ -31,7 +31,7 @@ if TYPE_CHECKING:  # avoid import cycles at runtime
     from app.config import Settings
     from app.core.agents.services import (
         ExerciseService,
-        WorkoutService,
+        SessionService,
         PlanService,
         GoalService,
         CalendarService,
@@ -56,7 +56,7 @@ class SkillContext:
     db: "AsyncIOMotorDatabase"
     settings: "Settings"
     exercise_service: "ExerciseService"
-    workout_service: "WorkoutService"
+    session_service: "SessionService"
     plan_service: "PlanService"
     goal_service: "GoalService"
     calendar_service: "CalendarService"

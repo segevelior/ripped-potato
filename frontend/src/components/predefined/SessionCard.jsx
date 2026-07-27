@@ -21,7 +21,7 @@ const getWorkoutImage = (workout) => {
   return workout.image || imageMap[discipline] || imageMap.strength;
 };
 
-export default function WorkoutCard({ workout, onView, onBookmark, isBookmarked: initialBookmarked, onDelete, onEdit, onStart, onCalendar }) {
+export default function SessionCard({ workout, onView, onBookmark, isBookmarked: initialBookmarked, onDelete, onEdit, onStart, onCalendar }) {
   const [bookmarked, setBookmarked] = useState(initialBookmarked || false);
   const dateInputRef = useRef(null);
 

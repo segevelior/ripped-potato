@@ -5,7 +5,7 @@ jest.mock('../../middleware/auth', () => ({
   },
   optionalAuth: (req, res, next) => next()
 }));
-jest.mock('../../services/WorkoutService', () => ({}));
+jest.mock('../../services/SessionService', () => ({}));
 jest.mock('../../models/CalendarEvent', () => ({
   updateMany: jest.fn().mockResolvedValue({}),
   countDocuments: jest.fn().mockResolvedValue(0)
@@ -16,10 +16,10 @@ jest.mock('../../models/Plan', () => ({
 jest.mock('../../models/Exercise', () => ({
   findOne: jest.fn()
 }));
-jest.mock('../../models/UserWorkoutModification', () => ({
+jest.mock('../../models/UserSessionModification', () => ({
   findOne: jest.fn()
 }));
-jest.mock('../../models/PredefinedWorkout', () => {
+jest.mock('../../models/SessionTemplate', () => {
   const ctor = jest.fn();
   ctor.findById = jest.fn();
   return ctor;
@@ -27,11 +27,11 @@ jest.mock('../../models/PredefinedWorkout', () => {
 
 const express = require('express');
 const request = require('supertest');
-const PredefinedWorkout = require('../../models/PredefinedWorkout');
+const SessionTemplate = require('../../models/SessionTemplate');
 const CalendarEvent = require('../../models/CalendarEvent');
 const Plan = require('../../models/Plan');
-const UserWorkoutModification = require('../../models/UserWorkoutModification');
-const router = require('../predefinedWorkouts');
+const UserSessionModification = require('../../models/UserSessionModification');
+const router = require('../sessionTemplates');
 
 const app = express();
 app.use(express.json());
@@ -75,8 +75,8 @@ const makeWorkout = ({ ownedByUser, isCommon, blocks = makeBlocks() }) => {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  UserWorkoutModification.findOne.mockResolvedValue(null);
-  PredefinedWorkout.mockImplementation(function (data) {
+  UserSessionModification.findOne.mockResolvedValue(null);
+  SessionTemplate.mockImplementation(function (data) {
     Object.assign(this, JSON.parse(JSON.stringify(data)));
     this._id = CLONE_ID;
     this.save = jest.fn().mockResolvedValue(undefined);
@@ -92,7 +92,7 @@ describe('POST /:id/remove-exercise', () => {
 
   it('removes all occurrences in-place on an own template and drops emptied blocks', async () => {
     const workout = makeWorkout({ ownedByUser: true, isCommon: false });
-    PredefinedWorkout.findById.mockResolvedValue(workout);
+    SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
       .post(`/${WORKOUT_ID}/remove-exercise`)
@@ -109,7 +109,7 @@ describe('POST /:id/remove-exercise', () => {
 
   it('clones a common template and relinks calendar + plan references', async () => {
     const workout = makeWorkout({ ownedByUser: false, isCommon: true });
-    PredefinedWorkout.findById.mockResolvedValue(workout);
+    SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
       .post(`/${WORKOUT_ID}/remove-exercise`)
@@ -129,7 +129,7 @@ describe('POST /:id/remove-exercise', () => {
 
   it('400s when the exercise is not in the workout', async () => {
     const workout = makeWorkout({ ownedByUser: true, isCommon: false });
-    PredefinedWorkout.findById.mockResolvedValue(workout);
+    SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
       .post(`/${WORKOUT_ID}/remove-exercise`)
@@ -145,7 +145,7 @@ describe('POST /:id/remove-exercise', () => {
       isCommon: false,
       blocks: [{ name: 'Only', exercises: [{ exercise_id: TARGET_EX, exercise_name: 'Plank', volume: '3x60s', rest: '', notes: '' }] }]
     });
-    PredefinedWorkout.findById.mockResolvedValue(workout);
+    SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
       .post(`/${WORKOUT_ID}/remove-exercise`)
@@ -158,7 +158,7 @@ describe('POST /:id/remove-exercise', () => {
 
   it('403s on someone else\'s private workout', async () => {
     const workout = makeWorkout({ ownedByUser: false, isCommon: false });
-    PredefinedWorkout.findById.mockResolvedValue(workout);
+    SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
       .post(`/${WORKOUT_ID}/remove-exercise`)

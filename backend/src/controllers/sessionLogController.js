@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const { body, validationResult } = require('express-validator');
-const WorkoutLog = require('../models/WorkoutLog');
+const SessionLog = require('../models/SessionLog');
 const CalendarEvent = require('../models/CalendarEvent');
 const Exercise = require('../models/Exercise');
 
@@ -44,7 +44,7 @@ const resolveExerciseId = async (exerciseId, exerciseName) => {
 };
 
 // Validation for creating workout log
-const validateWorkoutLog = [
+const validateSessionLog = [
   body('title')
     .trim()
     .isLength({ min: 1, max: 100 })
@@ -61,11 +61,11 @@ const validateWorkoutLog = [
 ];
 
 // @desc    Get user's workout logs
-const getWorkoutLogs = async (req, res) => {
+const getSessionLogs = async (req, res) => {
   try {
     const { days = 30, type, limit = 20 } = req.query;
 
-    const logs = await WorkoutLog.getHistory(req.user._id, {
+    const logs = await SessionLog.getHistory(req.user._id, {
       days: parseInt(days),
       type,
       limit: parseInt(limit)
@@ -85,10 +85,10 @@ const getWorkoutLogs = async (req, res) => {
 };
 
 // @desc    Get user workout statistics
-const getWorkoutLogStats = async (req, res) => {
+const getSessionLogStats = async (req, res) => {
   try {
     const { days = 30 } = req.query;
-    const stats = await WorkoutLog.getUserStats(req.user._id, parseInt(days));
+    const stats = await SessionLog.getUserStats(req.user._id, parseInt(days));
 
     res.json({
       success: true,
@@ -104,9 +104,9 @@ const getWorkoutLogStats = async (req, res) => {
 };
 
 // @desc    Get single workout log
-const getWorkoutLog = async (req, res) => {
+const getSessionLog = async (req, res) => {
   try {
-    const log = await WorkoutLog.findOne({
+    const log = await SessionLog.findOne({
       _id: req.params.id,
       userId: req.user._id
     }).populate('calendarEventId');
@@ -132,7 +132,7 @@ const getWorkoutLog = async (req, res) => {
 };
 
 // @desc    Create workout log (TrainNow completion, MCP create tool)
-const createWorkoutLog = async (req, res) => {
+const createSessionLog = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -170,7 +170,7 @@ const createWorkoutLog = async (req, res) => {
       })
     );
 
-    const workoutLog = new WorkoutLog({
+    const workoutLog = new SessionLog({
       userId: req.user._id,
       title,
       type: type.toLowerCase(),
@@ -234,9 +234,9 @@ const createWorkoutLog = async (req, res) => {
 };
 
 // @desc    Update workout log (partial)
-const updateWorkoutLog = async (req, res) => {
+const updateSessionLog = async (req, res) => {
   try {
-    const log = await WorkoutLog.findOneAndUpdate(
+    const log = await SessionLog.findOneAndUpdate(
       { _id: req.params.id, userId: req.user._id },
       req.body,
       { new: true, runValidators: true }
@@ -264,9 +264,9 @@ const updateWorkoutLog = async (req, res) => {
 };
 
 // @desc    Delete workout log (cascades its calendar event)
-const deleteWorkoutLog = async (req, res) => {
+const deleteSessionLog = async (req, res) => {
   try {
-    const log = await WorkoutLog.findOneAndDelete({
+    const log = await SessionLog.findOneAndDelete({
       _id: req.params.id,
       userId: req.user._id
     });
@@ -296,11 +296,11 @@ const deleteWorkoutLog = async (req, res) => {
 };
 
 module.exports = {
-  getWorkoutLogs,
-  getWorkoutLogStats,
-  getWorkoutLog,
-  createWorkoutLog,
-  updateWorkoutLog,
-  deleteWorkoutLog,
-  validateWorkoutLog
+  getSessionLogs,
+  getSessionLogStats,
+  getSessionLog,
+  createSessionLog,
+  updateSessionLog,
+  deleteSessionLog,
+  validateSessionLog
 };

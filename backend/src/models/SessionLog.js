@@ -38,7 +38,7 @@ const exerciseLogSchema = new mongoose.Schema({
   avgRpe: Number
 }, { _id: false });
 
-const workoutLogSchema = new mongoose.Schema({
+const sessionLogSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -96,19 +96,19 @@ const workoutLogSchema = new mongoose.Schema({
   // Plan reference
   planId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'TrainingPlan'
+    ref: 'Plan'
   }
 }, {
   timestamps: true
 });
 
 // Indexes
-workoutLogSchema.index({ userId: 1, startedAt: -1 });
-workoutLogSchema.index({ userId: 1, type: 1 });
-workoutLogSchema.index({ calendarEventId: 1 });
+sessionLogSchema.index({ userId: 1, startedAt: -1 });
+sessionLogSchema.index({ userId: 1, type: 1 });
+sessionLogSchema.index({ calendarEventId: 1 });
 
 // Calculate metrics before saving
-workoutLogSchema.pre('save', function(next) {
+sessionLogSchema.pre('save', function(next) {
   // Calculate total strain from muscle strain
   if (this.muscleStrain) {
     this.totalStrain = Object.values(this.muscleStrain).reduce((sum, strain) => sum + (strain || 0), 0);
@@ -143,7 +143,7 @@ workoutLogSchema.pre('save', function(next) {
 });
 
 // Virtual for completion percentage
-workoutLogSchema.virtual('completionPercentage').get(function() {
+sessionLogSchema.virtual('completionPercentage').get(function() {
   const totalSets = this.exercises.reduce((sum, ex) => sum + (ex.sets?.length || 0), 0);
   if (totalSets === 0) return 0;
 
@@ -155,7 +155,7 @@ workoutLogSchema.virtual('completionPercentage').get(function() {
 });
 
 // Static method to get user's workout history
-workoutLogSchema.statics.getHistory = function(userId, options = {}) {
+sessionLogSchema.statics.getHistory = function(userId, options = {}) {
   const { days = 30, type, limit = 20 } = options;
 
   const startDate = new Date();
@@ -177,7 +177,7 @@ workoutLogSchema.statics.getHistory = function(userId, options = {}) {
 };
 
 // Static method to get user stats
-workoutLogSchema.statics.getUserStats = async function(userId, days = 30) {
+sessionLogSchema.statics.getUserStats = async function(userId, days = 30) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
@@ -210,4 +210,5 @@ workoutLogSchema.statics.getUserStats = async function(userId, days = 30) {
   };
 };
 
-module.exports = mongoose.model('WorkoutLog', workoutLogSchema);
+// Third arg pins the legacy collection name — Stage 3 flips it to 'sessionlogs'.
+module.exports = mongoose.model('SessionLog', sessionLogSchema, 'workoutlogs');

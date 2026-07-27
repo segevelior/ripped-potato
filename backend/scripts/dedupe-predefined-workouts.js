@@ -2,7 +2,7 @@
 
 /**
  * One-off cleanup: schedule_to_calendar used to mint a new date-suffixed
- * PredefinedWorkout per scheduled date ("Push Day (Jul 07)", "Push Day
+ * SessionTemplate per scheduled date ("Push Day (Jul 07)", "Push Day
  * (Jul 14)", ...), so a twice-a-week workout left 8 copies/month in the
  * Workouts tab. Creation is reuse-first now; this script merges the copies
  * that already exist.
@@ -37,9 +37,9 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const CalendarEvent = require('../src/models/CalendarEvent');
-const PredefinedWorkout = require('../src/models/PredefinedWorkout');
+const SessionTemplate = require('../src/models/SessionTemplate');
 const Plan = require('../src/models/Plan');
-const UserWorkoutModification = require('../src/models/UserWorkoutModification');
+const UserSessionModification = require('../src/models/UserSessionModification');
 const { flattenTemplateExercises } = require('../src/utils/volume');
 const { contentSignature, normalizeTemplateName } = require('../src/services/templateMaterializer');
 
@@ -71,7 +71,7 @@ async function refCount(templateId) {
   const [events, plans, mods] = await Promise.all([
     CalendarEvent.countDocuments({ workoutTemplateId: templateId }),
     Plan.countDocuments({ 'weeks.workouts.predefinedWorkoutId': templateId }),
-    UserWorkoutModification.countDocuments({ workoutId: templateId })
+    UserSessionModification.countDocuments({ workoutId: templateId })
   ]);
   return { events, plans, mods, total: events + plans + mods };
 }
@@ -100,7 +100,7 @@ async function main() {
   const query = { isCommon: { $ne: true }, createdBy: { $ne: null } };
   if (USER_ID) query.createdBy = new mongoose.Types.ObjectId(USER_ID);
 
-  const templates = await PredefinedWorkout.find(query).lean();
+  const templates = await SessionTemplate.find(query).lean();
   console.log(`Examined: ${templates.length} user-owned template(s)`);
 
   // Primary grouping: owner + normalized name + content — the duplication
@@ -149,15 +149,15 @@ async function main() {
       stats.renamed++;
       console.log(`  RENAME canonical -> "${cleanName}"`);
       if (APPLY) {
-        await PredefinedWorkout.updateOne({ _id: canonical.t._id }, { $set: { name: cleanName } });
+        await SessionTemplate.updateOne({ _id: canonical.t._id }, { $set: { name: cleanName } });
       }
     }
 
     for (const dup of dups) {
       const [planRefs, modDoc, canonicalMod] = await Promise.all([
         Plan.countDocuments({ 'weeks.workouts.predefinedWorkoutId': dup.t._id }),
-        UserWorkoutModification.findOne({ workoutId: dup.t._id }).lean(),
-        UserWorkoutModification.findOne({ workoutId: canonical.t._id }).lean()
+        UserSessionModification.findOne({ workoutId: dup.t._id }).lean(),
+        UserSessionModification.findOne({ workoutId: canonical.t._id }).lean()
       ]);
 
       // Both the dup and the canonical carry a user modification: merging is
@@ -178,7 +178,7 @@ async function main() {
         stats.eventsRepointed += modifiedCount;
         stats.plansRepointed += await repointPlans(dup.t._id, canonical.t._id);
         if (modDoc) {
-          await UserWorkoutModification.updateOne(
+          await UserSessionModification.updateOne(
             { _id: modDoc._id },
             { $set: { workoutId: canonical.t._id } }
           );
@@ -192,7 +192,7 @@ async function main() {
           console.log(`  ABORT-DELETE ${dup.t._id} — still referenced after re-pointing: ${JSON.stringify(remaining)}`);
           continue;
         }
-        await PredefinedWorkout.deleteOne({ _id: dup.t._id });
+        await SessionTemplate.deleteOne({ _id: dup.t._id });
         stats.templatesDeleted++;
       } else {
         stats.eventsRepointed += dup.events.total;

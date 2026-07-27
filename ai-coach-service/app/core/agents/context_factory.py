@@ -14,7 +14,7 @@ from app.core.agents.services import (
     MemoryService,
     PlanService,
     SearchService,
-    WorkoutService,
+    SessionService,
 )
 from app.core.agents.skills.registry import SkillContext
 
@@ -25,7 +25,7 @@ def build_skill_context(db) -> SkillContext:
         db=db,
         settings=settings,
         exercise_service=ExerciseService(db),
-        workout_service=WorkoutService(db),
+        session_service=SessionService(db),
         plan_service=PlanService(db),
         goal_service=GoalService(db),
         calendar_service=CalendarService(db),

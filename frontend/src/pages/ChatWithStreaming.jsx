@@ -218,7 +218,7 @@ export default function ChatWithStreaming() {
           }
         }
 
-        // Check for pending prompt from localStorage (e.g., from WorkoutSelectionModal)
+        // Check for pending prompt from localStorage (e.g., from SessionSelectionModal)
         // Do this after data is loaded and only once
         if (!hasProcessedPendingRef.current) {
           const storedPrompt = localStorage.getItem('pendingChatPrompt');
@@ -270,7 +270,7 @@ export default function ChatWithStreaming() {
     }
   }, [authToken, isLoadingHistory]);
 
-  // Process pending auto-send message (from WorkoutSelectionModal or other sources)
+  // Process pending auto-send message (from SessionSelectionModal or other sources)
   useEffect(() => {
     const processPendingMessage = async () => {
       if (pendingAutoSend && authToken && !isStreaming && !isLoadingHistory) {
