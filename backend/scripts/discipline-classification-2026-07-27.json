@@ -452,7 +452,7 @@
     {
       "collection": "exercises",
       "_id": "6a55306fa63a5c9bd5d9323e",
-      "name": "180\u00b0 Band Pull Apart (With External Rotation)",
+      "name": "180° Band Pull Apart (With External Rotation)",
       "isCommon": false,
       "current": [
         "Mobility"
@@ -896,8 +896,8 @@
       ],
       "source": "llm",
       "confidence": "low",
-      "reason": "General warm-up primarily prepares the body for movement.",
-      "approved": false
+      "reason": "human adjudication: LLM proposal confirmed — General warm-up primarily prepares the body for movement.",
+      "approved": true
     },
     {
       "collection": "exercises",
@@ -1017,8 +1017,8 @@
       ],
       "source": "llm",
       "confidence": "low",
-      "reason": "A structured full-body warm-up most closely supports movement preparation.",
-      "approved": false
+      "reason": "human adjudication: LLM proposal confirmed — A structured full-body warm-up most closely supports movement preparation.",
+      "approved": true
     },
     {
       "collection": "exercises",
@@ -1165,12 +1165,12 @@
         "warm_up"
       ],
       "proposed": [
-        "recovery"
+        "mobility"
       ],
       "source": "llm",
       "confidence": "low",
-      "reason": "It is a general warm-up, but no sport-specific discipline is identified.",
-      "approved": false
+      "reason": "human adjudication: sibling Body Heat warm-ups are mobility",
+      "approved": true
     },
     {
       "collection": "exercises",
@@ -1185,8 +1185,8 @@
       ],
       "source": "llm",
       "confidence": "low",
-      "reason": "The generic exercise label provides no clear sport context; strength is the best fit.",
-      "approved": false
+      "reason": "human adjudication: LLM proposal confirmed — The generic exercise label provides no clear sport context; strength is the best fit.",
+      "approved": true
     },
     {
       "collection": "exercises",
@@ -1201,8 +1201,8 @@
       ],
       "source": "llm",
       "confidence": "low",
-      "reason": "The generic exercise label provides no clear sport context; strength is the best fit.",
-      "approved": false
+      "reason": "human adjudication: LLM proposal confirmed — The generic exercise label provides no clear sport context; strength is the best fit.",
+      "approved": true
     },
     {
       "collection": "exercises",
@@ -1217,8 +1217,8 @@
       ],
       "source": "llm",
       "confidence": "low",
-      "reason": "The description references a strength and conditioning workout template.",
-      "approved": false
+      "reason": "human adjudication: LLM proposal confirmed — The description references a strength and conditioning workout template.",
+      "approved": true
     },
     {
       "collection": "exercises",
@@ -1233,8 +1233,8 @@
       ],
       "source": "llm",
       "confidence": "low",
-      "reason": "A strength and conditioning template is referenced, but the workout contents are unspecified.",
-      "approved": false
+      "reason": "human adjudication: LLM proposal confirmed — A strength and conditioning template is referenced, but the workout contents are unspecified.",
+      "approved": true
     },
     {
       "collection": "exercises",
@@ -1301,8 +1301,8 @@
       ],
       "source": "llm",
       "confidence": "low",
-      "reason": "Cat-Cow is primarily a spinal mobility exercise, though the generated-workout context is nonspecific.",
-      "approved": false
+      "reason": "human adjudication: LLM proposal confirmed — Cat-Cow is primarily a spinal mobility exercise, though the generated-workout context is nonspecific.",
+      "approved": true
     },
     {
       "collection": "sessiontemplates",
@@ -1469,19 +1469,20 @@
     {
       "collection": "sessiontemplates",
       "_id": "6a66362da6e6b963554cecc5",
-      "name": "Regular Arms, Knee Recovery & Abs \u2014 Today\u2019s Variation",
+      "name": "Regular Arms, Knee Recovery & Abs — Today’s Variation",
       "isCommon": false,
       "current": [
         "General Fitness"
       ],
       "proposed": [
+        "calisthenics",
         "strength",
-        "recovery"
+        "mobility"
       ],
       "source": "llm",
       "confidence": "low",
-      "reason": "Arms and abs suggest strength training, while knee recovery adds a recovery focus.",
-      "approved": false
+      "reason": "human adjudication: match parent template Regular Arms, Knee Recovery & Abs",
+      "approved": true
     }
   ]
 }
