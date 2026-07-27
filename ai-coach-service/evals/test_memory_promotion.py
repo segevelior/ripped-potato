@@ -159,3 +159,64 @@ async def test_tombstoned_fact_is_never_relearned(scratch_db):
         assert fasted == [], (
             f"user-deleted fact was re-learned: {[m['content'] for m in fasted]}"
         )
+
+
+async def test_unconfirmed_coach_proposal_is_not_promoted(scratch_db):
+    """Regression: the real Ironman incident (2026-07-27). The coach asked a
+    clarifying question the athlete never answered; promotion turned it into
+    an active 'interested in Ironman triathlon' memory that then contradicted
+    the profile. A coach proposal without athlete confirmation is not a fact."""
+    client, settings = _client_and_settings()
+    for _ in range(EVAL_K):
+        user_id = await seed_user(scratch_db)
+        await ShortTermContextService(scratch_db).promote_durable_facts(
+            user_id,
+            source_text=(
+                'Athlete: "Can you iron man as area if interest?"\n'
+                'Coach: "Do you mean Ironman triathlon as a training interest? '
+                'If so, I can add swimming, cycling, and running to your '
+                'profile interests."'
+            ),
+            openai_client=client,
+            settings=settings,
+        )
+        memories = await _active_memories(scratch_db, user_id)
+        assert memories == [], (
+            f"unconfirmed coach proposal leaked into long-term memory: "
+            f"{[m['content'] for m in memories]}"
+        )
+
+
+async def test_sport_interest_goes_to_profile_not_memory(scratch_db):
+    """Sport interests live in profile.sportPreferences (via the
+    update_sport_preferences tool) — a parallel memory copy drifts and
+    contradicts the profile. A goal ABOUT a sport is still a goal."""
+    client, settings = _client_and_settings()
+    for _ in range(EVAL_K):
+        user_id = await seed_user(scratch_db)
+        await ShortTermContextService(scratch_db).promote_durable_facts(
+            user_id,
+            source_text=(
+                'Athlete: "I want to get into climbing, add it to my interests. '
+                'Also, my big goal is to finish an Ironman in summer 2027."\n'
+                'Coach: "Added climbing to your training interests. And noted '
+                'the 2027 Ironman goal — exciting!"'
+            ),
+            openai_client=client,
+            settings=settings,
+        )
+        memories = await _active_memories(scratch_db, user_id)
+        interest_only = [
+            m for m in memories
+            if "climbing" in m.get("content", "").lower()
+            and "2027" not in m.get("content", "")
+        ]
+        assert interest_only == [], (
+            f"sport interest stored as memory instead of profile: "
+            f"{[m['content'] for m in interest_only]}"
+        )
+        ironman_goal = [
+            m for m in memories
+            if "ironman" in m.get("content", "").lower()
+        ]
+        assert ironman_goal, "the concrete 2027 Ironman goal should still be remembered"
