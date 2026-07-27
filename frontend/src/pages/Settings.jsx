@@ -453,35 +453,7 @@ export default function Settings() {
           <p className="text-sm font-bold text-gray-500 dark:text-gray-400 tracking-wide">Interests</p>
         </div>
         <div className="space-y-3">
-          {DISCIPLINE_GROUPS.map((group) => (
-            <div key={group.label}>
-              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1.5">
-                {group.label}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {group.disciplines.map((discipline) => {
-                  const isSelected = selected.includes(discipline);
-                  const color = getDisciplineColor(discipline);
-                  return (
-                    <button
-                      key={discipline}
-                      onClick={() => toggleSportPreference(discipline)}
-                      disabled={isSaving}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm capitalize border transition-colors ${
-                        isSelected
-                          ? 'font-semibold text-gray-900 dark:text-white'
-                          : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500'
-                      }`}
-                      style={isSelected ? { borderColor: color, backgroundColor: `${color}22` } : undefined}
-                    >
-                      {isSelected && <Check className="w-3.5 h-3.5" style={{ color }} />}
-                      {discipline}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+          {/* Your sports first — the athlete's own words lead, categories follow */}
           <div>
             <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1.5">
               Your sports
@@ -525,6 +497,35 @@ export default function Settings() {
               </button>
             </div>
           </div>
+          {DISCIPLINE_GROUPS.map((group) => (
+            <div key={group.label}>
+              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1.5">
+                {group.label}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {group.disciplines.map((discipline) => {
+                  const isSelected = selected.includes(discipline);
+                  const color = getDisciplineColor(discipline);
+                  return (
+                    <button
+                      key={discipline}
+                      onClick={() => toggleSportPreference(discipline)}
+                      disabled={isSaving}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm capitalize border transition-colors ${
+                        isSelected
+                          ? 'font-semibold text-gray-900 dark:text-white'
+                          : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                      style={isSelected ? { borderColor: color, backgroundColor: `${color}22` } : undefined}
+                    >
+                      {isSelected && <Check className="w-3.5 h-3.5" style={{ color }} />}
+                      {discipline}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
