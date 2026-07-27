@@ -200,10 +200,12 @@ def get_session_tools() -> List[Dict[str, Any]]:
             "function": {
                 "name": "log_session",
                 "description": (
-                    "Log a session the user completed (or planned) to their training history. A session is ANY "
-                    "training activity, so this is the tool for a gym workout AND for a ride, a run, a climb, a swim "
-                    "or a mobility block. Record what they actually did: sets/reps/weights/RPE for strength work, or "
-                    "distance/duration/effort for endurance and outdoor work. "
+                    "Log a session the user actually PERFORMED to their training history (it also appears on their "
+                    "calendar). A session is ANY training activity, so this is the tool for a gym workout AND for a "
+                    "ride, a run, a climb, a swim or a mobility block. Record what they actually did: "
+                    "sets/reps/weights/RPE for strength work, or distance/duration/effort for endurance and outdoor "
+                    "work. Logs are performed sessions only — to put a future/planned session on the calendar use "
+                    "schedule_to_calendar instead. "
                     "Examples: 'log today's push day, 4 exercises' → discipline 'strength' with the sets; "
                     "'log yesterday's 60km bike ride, about 2 hours' → discipline 'cycling', date = yesterday, "
                     "durationMinutes 120, and ONE exercise entry named after the activity ('Outdoor Cycling') whose "
@@ -225,11 +227,6 @@ def get_session_tools() -> List[Dict[str, Any]]:
                             "type": "string",
                             "enum": list(DISCIPLINES),
                             "description": "Which sport this session is. Use 'cycling' for rides, 'running' for runs, 'climbing' for climbs/bouldering."
-                        },
-                        "status": {
-                            "type": "string",
-                            "enum": ["planned", "in_progress", "completed", "skipped"],
-                            "description": "Session status (default: completed)"
                         },
                         "durationMinutes": {
                             "type": "integer",
@@ -295,11 +292,6 @@ def get_session_tools() -> List[Dict[str, Any]]:
                             "type": "string",
                             "enum": list(DISCIPLINES),
                             "description": "Filter by discipline / sport"
-                        },
-                        "status": {
-                            "type": "string",
-                            "enum": ["planned", "in_progress", "completed", "skipped"],
-                            "description": "Filter by status"
                         },
                         "limit": {
                             "type": "integer",

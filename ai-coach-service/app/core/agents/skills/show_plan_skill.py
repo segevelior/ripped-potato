@@ -76,6 +76,9 @@ async def show_plan(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -> Di
                 "message": "I don't see a plan to show yet — want me to build one for a goal?"}
 
     level = args.get("level") or "weeks"
+    if level == "workout":
+        # Replayed pre-rename tool_rounds carry the legacy reveal-level name.
+        level = "session"
     week_number = args.get("week_number")
     if level in ("week", "session") and week_number is None:
         # Nothing specified to drill into — fall back to the week list so the

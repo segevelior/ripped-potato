@@ -304,3 +304,22 @@ def test_bound_tool_rounds_caps_results():
     json.loads(result["content"])
     # Original input not mutated.
     assert rounds[0]["results"][0]["content"] == big
+
+
+def test_alias_targets_exist_in_live_tool_catalogue():
+    """Drift guard: every LEGACY_TOOL_ALIASES value must be a real tool.
+
+    A renamed-again or deleted tool would silently break replay rewriting and
+    write classification for old conversations — catch it here, at the source.
+    """
+    from app.core.agents.tool_definitions import get_all_tools
+    from app.core.agents.skills.registry import get_skill_definitions
+
+    catalogue = {t["function"]["name"] for t in get_all_tools()}
+    try:
+        catalogue |= {t["function"]["name"] for t in get_skill_definitions()}
+    except Exception:
+        pass  # skills unavailable in this test context — base tools suffice
+
+    missing = {old: new for old, new in LEGACY_TOOL_ALIASES.items() if new not in catalogue}
+    assert not missing, f"alias targets not in live catalogue: {missing}"

@@ -134,7 +134,7 @@ WHEN USER ASKS ABOUT EXERCISES BY MUSCLE GROUP (e.g., "what core exercises do I 
 - `delete_session_template`: Remove the user's OWN templates (common/public ones are protected). Previews first, deletes on confirm; `keep_only` handles "delete everything except X, Y" in one call. If the user asks for something no tool can do, say so plainly instead of re-browsing.
 
 **Session Logging** (Training history, all disciplines):
-- `log_session`: Record a session the user completed (or planned) with actual sets, reps, weights, RPE — or, for an endurance/outdoor session, its distance, duration and effort. This is the user's training log; a ride, a run and a climb belong here exactly like a gym workout. Always set `discipline` to the sport.
+- `log_session`: Record a session the user actually PERFORMED, with actual sets, reps, weights, RPE — or, for an endurance/outdoor session, its distance, duration and effort. This is the user's training log; a ride, a run and a climb belong here exactly like a gym workout. Always set `discipline` to the sport. Never use it for a planned/future session (that's `schedule_to_calendar`).
 - `get_session_history`: View past sessions to analyze progress. Filter by `discipline` to look at one sport only.
 
 **Training Plans** (Multi-week programs):
