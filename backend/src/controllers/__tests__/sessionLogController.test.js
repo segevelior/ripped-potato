@@ -19,6 +19,7 @@ jest.mock('../../models/CalendarEvent', () => {
     this.save = jest.fn().mockResolvedValue(this);
   });
   ctor.findByIdAndUpdate = jest.fn().mockResolvedValue({});
+  ctor.findOneAndUpdate = jest.fn().mockResolvedValue({});
   ctor.findByIdAndDelete = jest.fn().mockResolvedValue({});
   return ctor;
 });
@@ -153,9 +154,10 @@ describe('updateSessionLog', () => {
       res
     );
 
-    expect(CalendarEvent.findByIdAndUpdate).toHaveBeenCalledTimes(1);
-    const [eventId, payload] = CalendarEvent.findByIdAndUpdate.mock.calls[0];
-    expect(eventId).toBe('cal000000000000000000001');
+    expect(CalendarEvent.findOneAndUpdate).toHaveBeenCalledTimes(1);
+    const [scope, payload] = CalendarEvent.findOneAndUpdate.mock.calls[0];
+    // Owner-scoped: never a cross-user write, even with a tampered backlink.
+    expect(scope).toEqual({ _id: 'cal000000000000000000001', userId: USER_ID });
     expect(payload.$set).toEqual({
       title: 'Evening Push',
       'workoutDetails.durationMinutes': 50
@@ -182,6 +184,6 @@ describe('updateSessionLog', () => {
     expect(update.exercises[0].exerciseId).toBe(EXERCISE_ID);
     expect(update.exercises[0].order).toBe(0);
     // No linked event on this log -> nothing to sync.
-    expect(CalendarEvent.findByIdAndUpdate).not.toHaveBeenCalled();
+    expect(CalendarEvent.findOneAndUpdate).not.toHaveBeenCalled();
   });
 });

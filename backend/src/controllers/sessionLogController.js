@@ -253,9 +253,20 @@ const createSessionLog = async (req, res) => {
 };
 
 // @desc    Update workout log (partial)
+// Fields a client may change on a log. Everything else (userId,
+// calendarEventId, _id, ...) is server-owned — spreading req.body verbatim
+// into findOneAndUpdate would be a mass-assignment hole.
+const UPDATABLE_LOG_FIELDS = [
+  'title', 'type', 'startedAt', 'completedAt', 'actualDuration',
+  'exercises', 'notes', 'perceivedDifficulty', 'mood'
+];
+
 const updateSessionLog = async (req, res) => {
   try {
-    const update = { ...req.body };
+    const update = {};
+    for (const field of UPDATABLE_LOG_FIELDS) {
+      if (req.body[field] !== undefined) update[field] = req.body[field];
+    }
 
     // Same exercise-id resolution the create path does, so an update coming
     // from the MCP tool (names, maybe no ids) doesn't null out exerciseIds.
@@ -305,7 +316,12 @@ const updateSessionLog = async (req, res) => {
 
       if (Object.keys(eventUpdate).length > 0) {
         try {
-          await CalendarEvent.findByIdAndUpdate(log.calendarEventId, { $set: eventUpdate });
+          // Scoped to the owner: the log's calendarEventId is server-set, but
+          // never issue a cross-user write even if it were tampered with.
+          await CalendarEvent.findOneAndUpdate(
+            { _id: log.calendarEventId, userId: req.user._id },
+            { $set: eventUpdate }
+          );
         } catch (syncError) {
           console.error('Calendar event sync error:', syncError);
         }
