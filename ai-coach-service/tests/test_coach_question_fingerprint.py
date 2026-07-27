@@ -7,7 +7,7 @@ that is the thing the change exists to reduce.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 from zoneinfo import ZoneInfo
 
@@ -38,20 +38,35 @@ DATA_CONTEXT = {
 }
 
 
-class _Clock:
-    """Freezable stand-in for cq.datetime. `now()` must return a REAL datetime:
-    the endpoint does arithmetic on it for the +/-14d calendar window and reads
-    .hour for the part-of-day bucket."""
+def _date_str(day_offset=0, tz="UTC"):
+    return (datetime.now(ZoneInfo(tz)) + timedelta(days=day_offset)).strftime("%Y-%m-%d")
 
-    current = datetime(2026, 7, 26, 9, 0, tzinfo=ZoneInfo("UTC"))
+
+class _Clock:
+    """Freezable stand-in for cq.datetime, controlling the hour while staying on
+    the REAL calendar date.
+
+    Only the endpoint's clock is frozen, not the service's: CoachQuestionService
+    does `isinstance(generated_at, datetime)`, which rebinding the module's
+    `datetime` name would silently break. So the frozen date has to agree with
+    the service's real-time view of "today" — hence anchoring on today rather
+    than a hardcoded 2026-07-26.
+
+    `now()` must return a real datetime (the endpoint does +/-14d arithmetic on
+    it and reads `.hour` for the bucket), and honours `tz` so non-UTC athletes
+    bucket by their own local hour.
+    """
+
+    current = datetime.now(ZoneInfo("UTC")).replace(hour=9, minute=0)
 
     @classmethod
     def now(cls, tz=None):
-        return cls.current
+        return cls.current.astimezone(tz) if tz else cls.current
 
     @classmethod
-    def set(cls, *, month=7, day=26, hour=9, minute=0):
-        cls.current = datetime(2026, month, day, hour, minute, tzinfo=ZoneInfo("UTC"))
+    def set(cls, *, day_offset=0, hour=9, minute=0):
+        cls.current = (datetime.now(ZoneInfo("UTC")) + timedelta(days=day_offset)).replace(
+            hour=hour, minute=minute, second=0, microsecond=0)
 
 
 def _event(date, title, status="scheduled", **extra):
@@ -67,9 +82,15 @@ def _memory(content, updated=datetime(2026, 7, 25)):
 
 
 class Harness:
-    """Stateful fake cache + counted LLM, patched onto the classes the endpoint
-    constructs per request (it builds CoachQuestionService(db) fresh each call,
-    so instance patching would not stick)."""
+    """Counted LLM + an in-memory Mongo collection standing in for
+    `coachQuestions`.
+
+    Deliberately fakes at the COLLECTION level, not the service level: the real
+    CoachQuestionService.get_matching/save/invalidate run here, so these tests
+    can't drift from the branch logic they're supposed to be exercising. (The
+    service is constructed fresh per request from `app.main.db`, so the fake has
+    to hang off the db mock rather than an instance.)
+    """
 
     def __init__(self, monkeypatch):
         self.monkeypatch = monkeypatch
@@ -88,46 +109,31 @@ class Harness:
 
         harness = self
 
-        async def get_matching(_self, user_id, inputs_hash, max_age_minutes=None):
-            from app.services.coach_question_service import CacheLookup
-            if not inputs_hash:
-                return CacheLookup(None, "no_hash")
-            if max_age_minutes is not None and max_age_minutes <= 0:
-                return CacheLookup(None, "disabled")
-            doc = harness.store.get(user_id)
-            if not doc:
-                return CacheLookup(None, "no_doc")
-            if doc.get("inputsHash") != inputs_hash:
-                return CacheLookup(None, "hash_changed", doc.get("inputsHash"))
-            if max_age_minutes:
-                age = (datetime.utcnow() - doc["generatedAt"]).total_seconds() / 60
-                if age > max_age_minutes:
-                    return CacheLookup(None, "max_age", doc.get("inputsHash"))
-            return CacheLookup(doc, "hit", doc.get("inputsHash"))
+        async def find_one(filter_):
+            return harness.store.get(str(filter_["userId"]))
 
-        async def save(_self, user_id, local_date, timezone, question, chips, source,
-                       inputs_hash=None, part_of_day=None):
+        async def replace_one(filter_, doc, upsert=False):
             harness.saves += 1
-            harness.store[user_id] = {
-                "localDate": local_date, "question": question, "chips": chips,
-                "source": source, "inputsHash": inputs_hash, "partOfDay": part_of_day,
-                "generatedAt": datetime.utcnow(),
-            }
-            return True
+            harness.store[str(filter_["userId"])] = dict(doc)
+            return MagicMock()
 
-        async def invalidate(_self, user_id):
-            harness.store.pop(user_id, None)
+        async def delete_one(filter_):
+            harness.store.pop(str(filter_["userId"]), None)
+            return MagicMock()
 
-        monkeypatch.setattr(cq.CoachQuestionService, "get_matching", get_matching)
-        monkeypatch.setattr(cq.CoachQuestionService, "save", save)
-        monkeypatch.setattr(cq.CoachQuestionService, "invalidate", invalidate)
+        collection = MagicMock()
+        collection.find_one = AsyncMock(side_effect=find_one)
+        collection.replace_one = AsyncMock(side_effect=replace_one)
+        collection.delete_one = AsyncMock(side_effect=delete_one)
+        db = MagicMock()
+        db.__getitem__ = MagicMock(return_value=collection)
+        monkeypatch.setattr("app.main.db", db)
 
         def spawn(coro):
             harness.spawns += 1
             coro.close()
 
         monkeypatch.setattr(cq, "spawn_background", spawn)
-        monkeypatch.setattr("app.main.db", MagicMock())
         monkeypatch.setattr(cq, "datetime", _Clock)
         _Clock.set()
 
@@ -212,7 +218,7 @@ class TestTimeRollover:
     @pytest.mark.asyncio
     async def test_local_date_rollover_regenerates(self, h):
         await h.get()
-        _Clock.set(day=27)
+        _Clock.set(day_offset=1)
         await h.get()
         assert h.llm_calls == 2
 
@@ -222,11 +228,12 @@ class TestDataChanges:
     async def test_changed_calendar_event_regenerates(self, h):
         """A real production signal: logging or scheduling a session reaches the
         prompt through the calendar block."""
-        h.set_calendar({"success": True, "events": [_event("2026-07-26", "Endurance 2")]})
-        await h.get()
-        h.set_calendar({"success": True, "events": [_event("2026-07-26", "Recovery spin")]})
+        h.set_calendar({"success": True, "events": [_event(_date_str(), "Endurance 2")]})
+        first = await h.get()
+        h.set_calendar({"success": True, "events": [_event(_date_str(), "Recovery spin")]})
         await h.get()
         assert h.llm_calls == 2
+        assert first.get("cached") is None
 
     @pytest.mark.asyncio
     async def test_changed_external_activity_regenerates(self, h):
@@ -316,7 +323,6 @@ class TestCeilingAndKillSwitch:
 
     @pytest.mark.asyncio
     async def test_doc_older_than_the_ceiling_regenerates(self, h):
-        from datetime import timedelta
         await h.get()
         h.store[USER_ID]["generatedAt"] = datetime.utcnow() - timedelta(minutes=300)
         await h.get()
@@ -361,6 +367,44 @@ class TestInvalidationAndFailures:
         assert h.store[USER_ID]["inputsHash"] is None
 
     @pytest.mark.asyncio
+    async def test_assembly_error_still_serves_the_cached_question(self, h, monkeypatch):
+        """Assembly produces the fingerprint, so a failure mid-assembly leaves
+        no way to look the cache up normally. Under the old time-TTL cache the
+        hit short-circuited ahead of all this work, so an assembly error could
+        never cost the athlete a good cached question — keep that."""
+        first = await h.get()
+        monkeypatch.setattr(cq.MemoryService, "get_user_memories",
+                            AsyncMock(side_effect=RuntimeError("mongo down")))
+
+        result = await h.get()
+
+        assert result["question"] == first["question"]
+        assert result["degraded"] is True
+        assert result.get("fallback") is None
+        assert h.llm_calls == 1
+
+    @pytest.mark.asyncio
+    async def test_assembly_error_with_an_empty_cache_falls_back(self, h, monkeypatch):
+        monkeypatch.setattr(cq.MemoryService, "get_user_memories",
+                            AsyncMock(side_effect=RuntimeError("mongo down")))
+        result = await h.get()
+        assert result["fallback"] is True
+        assert result["question"] == cq.FALLBACK_QUESTION["question"]
+
+    @pytest.mark.asyncio
+    async def test_assembly_error_will_not_serve_yesterdays_question(self, h, monkeypatch):
+        await h.get()
+        h.store[USER_ID]["localDate"] = _date_str(-1)  # generated before local midnight
+        monkeypatch.setattr(cq.MemoryService, "get_user_memories",
+                            AsyncMock(side_effect=RuntimeError("mongo down")))
+
+        result = await h.get()
+
+        # "before today's session" would be actively wrong — the generic
+        # fallback at least isn't.
+        assert result["fallback"] is True
+
+    @pytest.mark.asyncio
     async def test_summarizer_spawns_exactly_once_per_request(self, h):
         """Guards the refactor that collapsed two spawn sites (the old cache-hit
         return and the pre-LLM path) into one."""
@@ -368,6 +412,39 @@ class TestInvalidationAndFailures:
         assert h.spawns == 1
         await h.get()  # cache hit
         assert h.spawns == 2
+
+
+class TestTimezones:
+    """The bucket, today_date and the normalized local time all come from the
+    athlete's OWN timezone, not the server's."""
+
+    @pytest.mark.asyncio
+    async def test_bucket_follows_the_athletes_local_hour(self, h):
+        # 09:00 and 11:00 UTC are 05:00 (night) and 07:00 (morning) in New York,
+        # so this athlete crosses a bucket boundary that a UTC athlete does not.
+        h.set_data({**DATA_CONTEXT,
+                    "user_profile": {"name": "Elior", "timezone": "America/New_York"}})
+        await h.get()
+        _Clock.set(hour=11)
+        await h.get()
+        assert h.llm_calls == 2
+
+    @pytest.mark.asyncio
+    async def test_utc_athlete_stays_in_one_bucket_across_the_same_span(self, h):
+        """Control for the test above: same two instants, same everything else,
+        different timezone -> a hit instead of a regeneration."""
+        await h.get()
+        _Clock.set(hour=11)
+        await h.get()
+        assert h.llm_calls == 1
+
+    @pytest.mark.asyncio
+    async def test_local_date_comes_from_the_athletes_timezone(self, h):
+        h.set_data({**DATA_CONTEXT,
+                    "user_profile": {"name": "Elior", "timezone": "America/New_York"}})
+        _Clock.set(hour=1)  # 21:00 the PREVIOUS day in New York
+        await h.get()
+        assert h.store[USER_ID]["localDate"] == _date_str(-1)
 
 
 class TestSortDeterminism:

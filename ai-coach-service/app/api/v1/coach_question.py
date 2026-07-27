@@ -9,6 +9,8 @@ reply chips, and a provenance line so the athlete can see what the question was
 based on (and correct the coach if a memory is wrong).
 """
 
+import asyncio
+
 from fastapi import APIRouter, Depends, Body
 from typing import Dict, Any
 from datetime import datetime, timedelta
@@ -108,11 +110,23 @@ async def get_coach_question(
             "username": current_user.get("username"),
         }
 
-        # Read user data (profile, workouts, goals, plans)
-        data_context = await data_reader.process("", user_context)
+        stc_service = ShortTermContextService(db)
 
-        # Load user memories
-        user_memories = await memory_service.get_user_memories(user_id)
+        # Fingerprint caching made assembly the COMMON path (it runs on hits
+        # too, not just misses), so this is where dashboard latency now lands.
+        # These three don't depend on each other — run them concurrently rather
+        # than as sequential round trips. A failure in any of them still
+        # propagates to the outer handler exactly as before.
+        data_context, user_memories, stc_entries = await asyncio.gather(
+            # profile, workouts, goals, plans
+            data_reader.process("", user_context),
+            memory_service.get_user_memories(user_id),
+            # recent check-ins/conversations
+            stc_service.get_recent(
+                user_id, limit=8,
+                checkin_max_age_days=settings.checkin_context_max_age_days,
+            ),
+        )
 
         user_profile = data_context.get("user_profile", {})
         user_name = user_profile.get("name", "").strip()
@@ -162,20 +176,28 @@ USER DATA:
         # question is grounded in what's actually planned, not just the
         # Today's Pick suggestion. Best-effort — a calendar failure must not
         # block the question.
-        events = []
-        try:
-            window_start = (local_now - timedelta(days=14)).strftime("%Y-%m-%d")
-            window_end = (local_now + timedelta(days=14)).strftime("%Y-%m-%d")
-            cal = await CalendarService(db).get_calendar_events(
-                user_id, {"startDate": window_start, "endDate": window_end}
-            )
-            if cal.get("success"):
-                events = cal.get("events", [])
-        except Exception:
-            logger.warning(
-                f"Failed to load calendar context for coach question (user {user_id})",
-                exc_info=True,
-            )
+        async def _load_calendar_events():
+            try:
+                window_start = (local_now - timedelta(days=14)).strftime("%Y-%m-%d")
+                window_end = (local_now + timedelta(days=14)).strftime("%Y-%m-%d")
+                cal = await CalendarService(db).get_calendar_events(
+                    user_id, {"startDate": window_start, "endDate": window_end}
+                )
+                return cal.get("events", []) if cal.get("success") else []
+            except Exception:
+                logger.warning(
+                    f"Failed to load calendar context for coach question (user {user_id})",
+                    exc_info=True,
+                )
+                return []
+
+        # Both need today's local date, so they follow the first round — but
+        # they don't need each other. Calendar stays fail-soft (its own
+        # try/except); a recommendations failure still reaches the outer handler.
+        events, recs = await asyncio.gather(
+            _load_calendar_events(),
+            RecommendationService(db).get_recent(user_id, [today_date]),
+        )
 
         calendar_str = format_calendar_anchors(
             events, today_date,
@@ -189,17 +211,11 @@ USER DATA:
 
         # Short-term context + today's recommendation, so the question can
         # reference recent check-ins/conversations and stay consistent with
-        # what Train Now already suggested today.
-        stc_service = ShortTermContextService(db)
-        stc_entries = await stc_service.get_recent(
-            user_id, limit=8,
-            checkin_max_age_days=settings.checkin_context_max_age_days,
-        )
+        # what Train Now already suggested today. (Both were fetched above.)
         stc_block = ShortTermContextService.format_for_prompt(stc_entries)
         if stc_block:
             context_str += f"\n\n{stc_block}"
 
-        recs = await RecommendationService(db).get_recent(user_id, [today_date])
         rec_block = RecommendationService.format_for_prompt(recs, today_date)
         if rec_block:
             context_str += f"\n\n{rec_block}"
@@ -321,6 +337,27 @@ USER DATA:
 
     except Exception as e:
         logger.error(f"Error generating coach question: {e}", exc_info=True)
+        # The fingerprint is a product of the context, so a failure mid-assembly
+        # leaves us unable to look the cache up normally. Under the old time-TTL
+        # cache the hit short-circuited ahead of all this work, so an assembly
+        # error could never cost the athlete a cached question; keep that
+        # property rather than handing them the generic fallback while a good
+        # question sits in Mongo. Ignores the fingerprint, still refuses to serve
+        # yesterday's question.
+        try:
+            salvaged = await CoachQuestionService(db).get_last_resort(user_id)
+        except Exception:
+            salvaged = None
+        if salvaged:
+            logger.info("coach_question_served_from_cache_after_error", user_id=user_id)
+            return {
+                "success": True,
+                "question": salvaged.get("question"),
+                "chips": salvaged.get("chips") or [],
+                "source": salvaged.get("source") or "your training",
+                "cached": True,
+                "degraded": True,
+            }
         return {
             "success": True,
             **FALLBACK_QUESTION,

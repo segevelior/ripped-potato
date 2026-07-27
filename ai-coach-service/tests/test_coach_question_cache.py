@@ -78,11 +78,23 @@ class TestGetMatching:
     @pytest.mark.asyncio
     async def test_legacy_doc_without_hash_misses_once(self):
         """Migration contract: docs written before fingerprinting simply miss
-        and get rewritten. No migration script needed."""
+        and get rewritten. No migration script needed.
+
+        The reason is deliberately NOT hash_changed: every active user produces
+        one of these right after deploy, and folding that burst into the thrash
+        signal would make the post-deploy window unreadable."""
         service, _ = _service(find_one_result=_doc(inputs_hash=None))
         lookup = await service.get_matching(USER_ID, HASH)
         assert lookup.doc is None
-        assert lookup.reason == "hash_changed"
+        assert lookup.reason == "no_stored_hash"
+
+    @pytest.mark.asyncio
+    async def test_moved_inputs_are_distinguishable_from_legacy_docs(self):
+        legacy = await _service(find_one_result=_doc(inputs_hash=None))[0].get_matching(
+            USER_ID, HASH)
+        moved = await _service(find_one_result=_doc(inputs_hash="b" * 64))[0].get_matching(
+            USER_ID, HASH)
+        assert legacy.reason != moved.reason
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("empty", [None, ""])
@@ -209,6 +221,51 @@ class TestSave:
         collection.replace_one = AsyncMock(side_effect=RuntimeError("mongo down"))
         ok = await service.save(USER_ID, "2026-07-16", "UTC", "Q?", ["A"], "src")
         assert ok is False
+
+
+class TestGetLastResort:
+    """The error path: assembly failed, so we have no fingerprint to look up
+    with, but a good question may still be sitting in Mongo."""
+
+    @pytest.mark.asyncio
+    async def test_serves_todays_doc_ignoring_the_fingerprint(self):
+        today = datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%d")
+        service, _ = _service(find_one_result=_doc(local_date=today, inputs_hash="stale"))
+        doc = await service.get_last_resort(USER_ID)
+        assert doc is not None
+
+    @pytest.mark.asyncio
+    async def test_serves_a_doc_that_never_had_a_hash(self):
+        today = datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%d")
+        service, _ = _service(find_one_result=_doc(local_date=today, inputs_hash=None))
+        assert await service.get_last_resort(USER_ID) is not None
+
+    @pytest.mark.asyncio
+    async def test_refuses_yesterdays_question(self):
+        """"Before today's session" would be actively wrong — worse than the
+        generic fallback, which at least isn't."""
+        yesterday = (datetime.now(ZoneInfo("UTC")) - timedelta(days=1)).strftime("%Y-%m-%d")
+        service, _ = _service(find_one_result=_doc(local_date=yesterday))
+        assert await service.get_last_resort(USER_ID) is None
+
+    @pytest.mark.asyncio
+    async def test_judges_the_day_from_the_docs_own_timezone(self):
+        """No profile load — the profile read is one of the things that may
+        have just failed."""
+        service, _ = _service(
+            find_one_result=_doc(local_date="2026-07-26", timezone="Not/AZone"))
+        # Bad timezone falls back to UTC rather than raising.
+        assert await service.get_last_resort(USER_ID) is None
+
+    @pytest.mark.asyncio
+    async def test_no_doc_returns_none(self):
+        service, _ = _service(find_one_result=None)
+        assert await service.get_last_resort(USER_ID) is None
+
+    @pytest.mark.asyncio
+    async def test_fetch_error_returns_none(self):
+        service, _ = _service(find_one_error=RuntimeError("mongo down"))
+        assert await service.get_last_resort(USER_ID) is None
 
 
 class TestGetPendingToday:

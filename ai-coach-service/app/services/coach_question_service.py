@@ -16,6 +16,7 @@ expiresAt garbage-collects abandoned docs.
 
 from typing import Dict, Any, List, NamedTuple, Optional
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 import structlog
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
@@ -104,6 +105,13 @@ class CoachQuestionService:
             if not doc:
                 return CacheLookup(None, "no_doc")
             stored = doc.get("inputsHash")
+            if stored is None:
+                # Distinct from hash_changed on purpose: docs written before
+                # fingerprinting (and docs saved after a fingerprint failure)
+                # have no hash. Folding them into hash_changed would make the
+                # one-per-user burst right after a deploy indistinguishable from
+                # the thrash signal these reasons exist to surface.
+                return CacheLookup(None, "no_stored_hash")
             if stored != inputs_hash:
                 return CacheLookup(None, "hash_changed", stored)
             generated_at = doc.get("generatedAt")
@@ -116,6 +124,35 @@ class CoachQuestionService:
         except Exception as e:
             logger.error(f"Error fetching cached coach question for {user_id}: {e}")
             return CacheLookup(None, "error")
+
+    async def get_last_resort(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Return today's cached question ignoring the fingerprint entirely, for
+        the error path only.
+
+        Assembling the context is what produces the fingerprint, so a failure
+        mid-assembly leaves the caller unable to look the cache up normally —
+        and handing the athlete the generic fallback while a perfectly good
+        question sits in Mongo is a worse answer than a slightly stale one.
+        Freshness is judged from the doc's OWN stored timezone, so this needs no
+        profile load (the profile read is one of the things that may have just
+        failed).
+        """
+        try:
+            doc = await self.collection.find_one({"userId": ObjectId(user_id)})
+            if not doc:
+                return None
+            try:
+                tz = ZoneInfo(doc.get("timezone") or "UTC")
+            except Exception:
+                tz = ZoneInfo("UTC")
+            # Never serve yesterday's question — "before today's session" would
+            # be actively wrong, which the generic fallback at least isn't.
+            if datetime.now(tz).strftime("%Y-%m-%d") != doc.get("localDate"):
+                return None
+            return doc
+        except Exception as e:
+            logger.error(f"Error fetching last-resort coach question for {user_id}: {e}")
+            return None
 
     async def get_pending_today(self, user_id: str, today_date: str) -> Optional[Dict[str, Any]]:
         """Return the user's live question if it belongs to today's local date,

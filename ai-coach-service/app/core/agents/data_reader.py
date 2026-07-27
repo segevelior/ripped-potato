@@ -245,7 +245,12 @@ class DataReaderAgent(BaseAgent):
                     "userId": user_oid,
                     "date": {"$gte": cutoff_date}
                 }
-            ).sort("date", -1).limit(10).to_list(10)
+            # _id tiebreaks equal dates (day-granular, so ties are the norm) to
+            # keep the rendered order stable for the coach question's
+            # fingerprint. Inert while data_reader.process("") leaves workouts
+            # unloaded — deliberately here so fixing that bug doesn't
+            # reintroduce silent cache thrash.
+            ).sort([("date", -1), ("_id", -1)]).limit(10).to_list(10)
             
             # Format workouts
             formatted = []
