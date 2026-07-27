@@ -40,3 +40,15 @@ def test_domain_vocabulary_anchor():
     # "workout" must survive as USER vocabulary — never scrubbed.
     assert '"workout"' in SYSTEM_PROMPT
     assert "discipline" in SYSTEM_PROMPT
+
+
+def test_discipline_placeholders_substituted():
+    """A stray __DISCIPLINES__ template token would silently teach the model
+    a literal placeholder instead of the vocabulary."""
+    from app.core.agents.prompts import SYSTEM_PROMPT
+    from app.core.disciplines import DISCIPLINES
+
+    assert "__DISCIPLINES__" not in SYSTEM_PROMPT
+    assert "__DISCIPLINES_PIPE__" not in SYSTEM_PROMPT
+    assert "climbing" in SYSTEM_PROMPT and "cycling" in SYSTEM_PROMPT
+    assert "|".join(DISCIPLINES) in SYSTEM_PROMPT

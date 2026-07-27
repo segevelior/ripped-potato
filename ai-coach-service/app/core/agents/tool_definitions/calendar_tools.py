@@ -4,6 +4,8 @@ Calendar tool definitions for the AI fitness coach
 
 from typing import Dict, Any, List
 
+from app.core.disciplines import DISCIPLINES
+
 
 def get_calendar_tools() -> List[Dict[str, Any]]:
     """Return calendar-related tool definitions"""
@@ -44,8 +46,8 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
                             "properties": {
                                 "discipline": {
                                     "type": "string",
-                                    "enum": ["strength", "cardio", "hybrid", "recovery", "hiit", "flexibility", "calisthenics", "mobility"],
-                                    "description": "Discipline of the session"
+                                    "enum": list(DISCIPLINES),
+                                    "description": "Discipline of the session — use the actual sport (a ride is 'cycling', a climb is 'climbing')"
                                 },
                                 "estimatedDuration": {
                                     "type": "integer",

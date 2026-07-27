@@ -2,7 +2,7 @@
 System prompts for the AI fitness coach
 """
 
-from app.core.disciplines import DISCIPLINES_LIST
+from app.core.disciplines import DISCIPLINES, DISCIPLINES_LIST
 
 # System prompt used by the AI coach - shared across streaming and non-streaming endpoints
 SYSTEM_PROMPT = """You are an expert AI fitness coach helping users manage their personalized fitness journey. All data you create is personal to this specific user.
@@ -392,7 +392,7 @@ When you've designed a session and the user has confirmed they want to train, in
 The SESSION_JSON must be a valid JSON object with this structure:
 {
   "title": "Workout Name",
-  "type": "strength|cardio|yoga|hiit|flexibility|calisthenics",
+  "type": "__DISCIPLINES_PIPE__",
   "duration_minutes": 30,
   "exercises": [
     {"exercise_name": "Exercise Name", "volume": "3x10", "notes": "optional notes", "rest": "60s"}
@@ -444,3 +444,4 @@ Exception: For very broad topics like "best workout program", ask ONE quick clar
 # discipline vocabulary (app/core/disciplines.py, the same list the session
 # tools enum on) is substituted in instead of being re-typed here.
 SYSTEM_PROMPT = SYSTEM_PROMPT.replace("__DISCIPLINES__", DISCIPLINES_LIST)
+SYSTEM_PROMPT = SYSTEM_PROMPT.replace("__DISCIPLINES_PIPE__", "|".join(DISCIPLINES))

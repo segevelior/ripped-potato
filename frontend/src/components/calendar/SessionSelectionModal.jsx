@@ -130,7 +130,9 @@ I want to add a session to my calendar for ${dateStr}. Please help me decide wha
     }
 
     const rawType = (selectedWorkout.primary_disciplines?.[0] || selectedWorkout.type || "strength").toLowerCase();
-    const workoutType = disciplineToType[rawType] || 'strength';
+    // Unmapped disciplines (climbing, cycling, running, ...) pass through
+    // as themselves — never coerce a real sport to 'strength'.
+    const workoutType = disciplineToType[rawType] || rawType;
 
     const workoutData = {
       title: selectedWorkout.name || "Unnamed Session",
