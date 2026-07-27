@@ -10,6 +10,7 @@ import {
   clearActiveWorkout,
   parseWorkoutToSessionData
 } from '@/utils/workoutSession';
+import { disciplineToType } from '@/utils/disciplineToType';
 
 /**
  * ActionButtons component displays special action buttons in chat messages.
@@ -111,20 +112,6 @@ export function ActionButtons({ actions, disabled }) {
 
       // Use provided date or default to today
       const workoutDate = dateStr || format(new Date(), 'yyyy-MM-dd');
-
-      // Map discipline to valid workout type
-      const disciplineToType = {
-        'calisthenics': 'calisthenics',
-        'strength': 'strength',
-        'cardio': 'cardio',
-        'hiit': 'hiit',
-        'yoga': 'flexibility',
-        'stretching': 'flexibility',
-        'flexibility': 'flexibility',
-        'mobility': 'mobility',
-        'recovery': 'recovery',
-        'hybrid': 'hybrid'
-      };
 
       const rawType = workout.type || workout.primary_disciplines?.[0];
       const workoutType = rawType ? (disciplineToType[rawType.toLowerCase()] || rawType.toLowerCase()) : null;

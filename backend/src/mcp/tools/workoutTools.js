@@ -1,5 +1,5 @@
 const { z } = require('zod');
-const workoutLogController = require('../../controllers/workoutLogController');
+const sessionLogController = require('../../controllers/sessionLogController');
 const { runTool } = require('../invoke');
 const { withScope } = require('./util');
 
@@ -40,7 +40,7 @@ function register(server, ctx) {
       limit: z.number().int().min(1).max(50).optional().describe('Max results, default 20')
     }
   }, withScope(scopes, READ, (args) =>
-    runTool(workoutLogController.getWorkoutLogs, { user, query: args })
+    runTool(sessionLogController.getSessionLogs, { user, query: args })
   ));
 
   server.registerTool('get_workout', {
@@ -48,7 +48,7 @@ function register(server, ctx) {
     description: 'Get a single logged workout by its id, including exercises and sets.',
     inputSchema: { id: z.string().length(24).describe('Workout log id') }
   }, withScope(scopes, READ, (args) =>
-    runTool(workoutLogController.getWorkoutLog, { user, params: { id: args.id } })
+    runTool(sessionLogController.getSessionLog, { user, params: { id: args.id } })
   ));
 
   server.registerTool('get_workout_stats', {
@@ -56,7 +56,7 @@ function register(server, ctx) {
     description: 'Aggregate statistics over logged workouts (totals, duration, strain) for the last N days.',
     inputSchema: { days: z.number().int().min(1).max(365).optional().describe('Look-back window, default 30') }
   }, withScope(scopes, READ, (args) =>
-    runTool(workoutLogController.getWorkoutLogStats, { user, query: args })
+    runTool(sessionLogController.getSessionLogStats, { user, query: args })
   ));
 
   server.registerTool('create_workout', {
@@ -78,7 +78,7 @@ function register(server, ctx) {
       actualDuration: durationMinutes,
       exercises: exercises || []
     };
-    return runTool(workoutLogController.createWorkoutLog, { user, body }, { validators: workoutLogController.validateWorkoutLog });
+    return runTool(sessionLogController.createSessionLog, { user, body }, { validators: sessionLogController.validateSessionLog });
   }));
 
   server.registerTool('update_workout', {
@@ -100,7 +100,7 @@ function register(server, ctx) {
     const { id, durationMinutes, ...rest } = args;
     const body = { ...rest };
     if (durationMinutes !== undefined) body.actualDuration = durationMinutes;
-    return runTool(workoutLogController.updateWorkoutLog, { user, params: { id }, body });
+    return runTool(sessionLogController.updateSessionLog, { user, params: { id }, body });
   }));
 
   server.registerTool('delete_workout', {
@@ -108,7 +108,7 @@ function register(server, ctx) {
     description: 'Delete a logged workout by id (also removes its calendar entry).',
     inputSchema: { id: z.string().length(24) }
   }, withScope(scopes, WRITE, (args) =>
-    runTool(workoutLogController.deleteWorkoutLog, { user, params: { id: args.id } })
+    runTool(sessionLogController.deleteSessionLog, { user, params: { id: args.id } })
   ));
 }
 

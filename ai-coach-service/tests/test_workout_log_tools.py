@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from bson import ObjectId
 
-from app.core.agents.services.workout_service import WorkoutService
+from app.core.agents.services.session_service import SessionService
 from app.core.agents.tool_definitions.workout_tools import get_workout_tools
 
 
@@ -74,7 +74,7 @@ class TestLogWorkout:
     @pytest.mark.asyncio
     async def test_inserts_into_workoutlogs_not_workouts(self):
         db = _db_for_logging()
-        result = await WorkoutService(db).log_workout(USER_ID, dict(LOG_ARGS))
+        result = await SessionService(db).log_workout(USER_ID, dict(LOG_ARGS))
 
         assert result["success"] is True
         db.workoutlogs.insert_one.assert_awaited_once()
@@ -95,7 +95,7 @@ class TestLogWorkout:
     @pytest.mark.asyncio
     async def test_creates_backlinked_calendar_event(self):
         db = _db_for_logging()
-        await WorkoutService(db).log_workout(USER_ID, dict(LOG_ARGS))
+        await SessionService(db).log_workout(USER_ID, dict(LOG_ARGS))
 
         db.calendarevents.insert_one.assert_awaited_once()
         event = db.calendarevents.insert_one.await_args.args[0]
@@ -117,7 +117,7 @@ class TestLogWorkout:
         db = _db_for_logging()
         args = dict(LOG_ARGS)
         args["status"] = "planned"
-        await WorkoutService(db).log_workout(USER_ID, args)
+        await SessionService(db).log_workout(USER_ID, args)
 
         doc = db.workoutlogs.insert_one.await_args.args[0]
         assert "status" not in doc
@@ -126,7 +126,7 @@ class TestLogWorkout:
     async def test_no_duration_gives_zero_length_session(self):
         db = _db_for_logging()
         args = {k: v for k, v in LOG_ARGS.items() if k != "durationMinutes"}
-        await WorkoutService(db).log_workout(USER_ID, args)
+        await SessionService(db).log_workout(USER_ID, args)
 
         doc = db.workoutlogs.insert_one.await_args.args[0]
         assert doc["completedAt"] == doc["startedAt"]
@@ -159,7 +159,7 @@ class TestGetWorkoutHistory:
             side_effect=AssertionError("history must read db.workoutlogs")
         )
 
-        result = await WorkoutService(db).get_workout_history(USER_ID, {"days": 30})
+        result = await SessionService(db).get_workout_history(USER_ID, {"days": 30})
 
         assert result["success"] is True
         assert result["count"] == 1

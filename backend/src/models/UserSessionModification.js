@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const userWorkoutModificationSchema = new mongoose.Schema({
+const userSessionModificationSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -9,7 +9,7 @@ const userWorkoutModificationSchema = new mongoose.Schema({
   },
   workoutId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'PredefinedWorkout',
+    ref: 'SessionTemplate',
     required: true,
     index: true
   },
@@ -76,10 +76,10 @@ const userWorkoutModificationSchema = new mongoose.Schema({
 });
 
 // Compound index for efficient lookups
-userWorkoutModificationSchema.index({ userId: 1, workoutId: 1 }, { unique: true });
+userSessionModificationSchema.index({ userId: 1, workoutId: 1 }, { unique: true });
 
 // Method to apply modifications to a workout
-userWorkoutModificationSchema.methods.applyToWorkout = function(workout) {
+userSessionModificationSchema.methods.applyToWorkout = function(workout) {
   const modifiedWorkout = workout.toObject ? workout.toObject() : workout;
 
   // Apply basic modifications
@@ -92,7 +92,7 @@ userWorkoutModificationSchema.methods.applyToWorkout = function(workout) {
 
     // NEW SCHEMA: Workouts now use blocks structure
     // For now, we'll skip applying exercise-level modifications since the schema changed
-    // TODO: Migrate UserWorkoutModification to support block-based structure
+    // TODO: Migrate UserSessionModification to support block-based structure
     // The old modifications model was designed for flat exercise arrays
     // We need to redesign this for the new block-based structure
   }
@@ -105,10 +105,11 @@ userWorkoutModificationSchema.methods.applyToWorkout = function(workout) {
 };
 
 // Method to increment times completed
-userWorkoutModificationSchema.methods.incrementTimesCompleted = function() {
+userSessionModificationSchema.methods.incrementTimesCompleted = function() {
   this.metadata.timesCompleted = (this.metadata.timesCompleted || 0) + 1;
   this.metadata.lastUsed = new Date();
   return this.save();
 };
 
-module.exports = mongoose.model('UserWorkoutModification', userWorkoutModificationSchema);
+// Third arg pins the legacy collection name — Stage 3 flips it to 'usersessionmodifications'.
+module.exports = mongoose.model('UserSessionModification', userSessionModificationSchema, 'userworkoutmodifications');

@@ -22,7 +22,7 @@ const blockSchema = new mongoose.Schema({
   exercises: [blockExerciseSchema]
 }, { _id: false });
 
-const predefinedWorkoutSchema = new mongoose.Schema({
+const sessionTemplateSchema = new mongoose.Schema({
   name: {
     type: String,
     required: [true, 'Workout name is required'],
@@ -83,24 +83,24 @@ const predefinedWorkoutSchema = new mongoose.Schema({
 
 
 // Compound indexes for common queries
-predefinedWorkoutSchema.index({ primary_disciplines: 1, difficulty_level: 1 });
-predefinedWorkoutSchema.index({ tags: 1, isCommon: 1 });
-predefinedWorkoutSchema.index({ popularity: -1, isCommon: 1 });
+sessionTemplateSchema.index({ primary_disciplines: 1, difficulty_level: 1 });
+sessionTemplateSchema.index({ tags: 1, isCommon: 1 });
+sessionTemplateSchema.index({ popularity: -1, isCommon: 1 });
 
 // Text search index
-predefinedWorkoutSchema.index({
+sessionTemplateSchema.index({
   name: 'text',
   goal: 'text',
   tags: 'text'
 });
 
 // Virtual for total exercises count
-predefinedWorkoutSchema.virtual('totalExercises').get(function () {
+sessionTemplateSchema.virtual('totalExercises').get(function () {
   return this.blocks.reduce((sum, block) => sum + block.exercises.length, 0);
 });
 
 // Static method to search workouts
-predefinedWorkoutSchema.statics.search = function (term) {
+sessionTemplateSchema.statics.search = function (term) {
   return this.find(
     { $text: { $search: term } },
     { score: { $meta: "textScore" } }
@@ -108,13 +108,13 @@ predefinedWorkoutSchema.statics.search = function (term) {
 };
 
 // Virtual for estimated calories (rough calculation)
-predefinedWorkoutSchema.virtual('estimatedCalories').get(function () {
+sessionTemplateSchema.virtual('estimatedCalories').get(function () {
   const baseCaloriesPerMinute = 6; // Default for strength training
   return Math.round(this.estimated_duration * baseCaloriesPerMinute);
 });
 
 // Static method to find popular workouts
-predefinedWorkoutSchema.statics.findPopular = function (limit = 10) {
+sessionTemplateSchema.statics.findPopular = function (limit = 10) {
   return this.find({ isCommon: true })
     .sort({ popularity: -1, 'ratings.average': -1 })
     .limit(limit)
@@ -122,7 +122,7 @@ predefinedWorkoutSchema.statics.findPopular = function (limit = 10) {
 };
 
 // Static method to find by difficulty
-predefinedWorkoutSchema.statics.findByDifficulty = function (difficulty) {
+sessionTemplateSchema.statics.findByDifficulty = function (difficulty) {
   const query = { isCommon: true };
   if (difficulty) query.difficulty_level = difficulty;
 
@@ -132,13 +132,13 @@ predefinedWorkoutSchema.statics.findByDifficulty = function (difficulty) {
 };
 
 // Method to increment popularity
-predefinedWorkoutSchema.methods.incrementPopularity = function () {
+sessionTemplateSchema.methods.incrementPopularity = function () {
   this.popularity += 1;
   return this.save();
 };
 
 // Method to add rating
-predefinedWorkoutSchema.methods.addRating = function (rating) {
+sessionTemplateSchema.methods.addRating = function (rating) {
   const currentTotal = this.ratings.average * this.ratings.count;
   this.ratings.count += 1;
   this.ratings.average = (currentTotal + rating) / this.ratings.count;
@@ -146,13 +146,14 @@ predefinedWorkoutSchema.methods.addRating = function (rating) {
 };
 
 // Method to check if user can edit this workout
-predefinedWorkoutSchema.methods.canUserEdit = function (userId) {
+sessionTemplateSchema.methods.canUserEdit = function (userId) {
   return !this.isCommon && this.createdBy?.toString() === userId.toString();
 };
 
 // Virtual for isPrivate
-predefinedWorkoutSchema.virtual('isPrivate').get(function () {
+sessionTemplateSchema.virtual('isPrivate').get(function () {
   return !this.isCommon;
 });
 
-module.exports = mongoose.model('PredefinedWorkout', predefinedWorkoutSchema);
+// Third arg pins the legacy collection name — Stage 3 flips it to 'sessiontemplates'.
+module.exports = mongoose.model('SessionTemplate', sessionTemplateSchema, 'predefinedworkouts');

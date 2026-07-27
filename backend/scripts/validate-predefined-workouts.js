@@ -9,7 +9,7 @@ const mongoose = require('mongoose');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-const PredefinedWorkout = require('../src/models/PredefinedWorkout');
+const SessionTemplate = require('../src/models/SessionTemplate');
 
 // Connect to MongoDB
 const connectDB = async () => {
@@ -31,7 +31,7 @@ const validatePredefinedWorkouts = async () => {
     console.log('🔍 Validating predefinedWorkouts...\n');
     
     // Find all predefinedWorkouts
-    const workouts = await PredefinedWorkout.find({});
+    const workouts = await SessionTemplate.find({});
     console.log(`📊 Found ${workouts.length} predefinedWorkouts\n`);
     
     const issues = {

@@ -14,7 +14,7 @@ from app.core.dedup import (
     normalize_template_title,
     template_doc_signature,
 )
-from app.core.agents.services.workout_service import WorkoutService
+from app.core.agents.services.session_service import SessionService
 
 
 class FakeCursor:
@@ -176,7 +176,7 @@ class TestCreateWorkoutTemplateGuards:
         db.predefinedworkouts.insert_one = AsyncMock(
             return_value=MagicMock(inserted_id=ObjectId())
         )
-        return WorkoutService(db), db
+        return SessionService(db), db
 
     async def test_empty_blocks_rejected_before_insert(self):
         service, db = self._service([])
@@ -216,7 +216,7 @@ class TestCreateWorkoutTemplateGuards:
             blocks, {"ambiguous": [], "created": []}
         ))
         monkeypatch.setattr(
-            "app.core.agents.services.workout_service.ExerciseResolver",
+            "app.core.agents.services.session_service.ExerciseResolver",
             lambda db: resolver,
         )
 

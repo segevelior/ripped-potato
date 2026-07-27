@@ -9,7 +9,7 @@ const mongoose = require('mongoose');
 
 // Import all models to ensure their indexes are registered
 const Exercise = require('../models/Exercise');
-const PredefinedWorkout = require('../models/PredefinedWorkout');
+const SessionTemplate = require('../models/SessionTemplate');
 const Plan = require('../models/Plan');
 const Goal = require('../models/Goal');
 const User = require('../models/User');
@@ -31,7 +31,7 @@ async function ensureIndexes(logger) {
     // List of models to ensure indexes for
     const models = [
       { name: 'Exercise', model: Exercise },
-      { name: 'PredefinedWorkout', model: PredefinedWorkout },
+      { name: 'SessionTemplate', model: SessionTemplate },
       { name: 'Plan', model: Plan },
       { name: 'Goal', model: Goal },
       { name: 'User', model: User },

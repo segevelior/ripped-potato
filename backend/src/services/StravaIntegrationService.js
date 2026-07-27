@@ -311,7 +311,7 @@ class StravaIntegrationService {
   /**
    * Map Strava sport type to our workout type
    */
-  static mapStravaTypeToWorkoutType(sportType) {
+  static mapStravaTypeToDiscipline(sportType) {
     const typeMap = {
       'Run': 'running',
       'Trail Run': 'running',
@@ -355,7 +355,7 @@ class StravaIntegrationService {
       status: 'completed',
       externalActivityId: externalActivity._id,
       workoutDetails: {
-        type: this.mapStravaTypeToWorkoutType(externalActivity.sportType),
+        type: this.mapStravaTypeToDiscipline(externalActivity.sportType),
         durationMinutes: Math.round((externalActivity.movingTime || externalActivity.elapsedTime || 0) / 60),
         source: 'strava',
         stravaData: {

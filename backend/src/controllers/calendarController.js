@@ -1,6 +1,6 @@
 const CalendarEvent = require('../models/CalendarEvent');
-const WorkoutLog = require('../models/WorkoutLog');
-const PredefinedWorkout = require('../models/PredefinedWorkout');
+const SessionLog = require('../models/SessionLog');
+const SessionTemplate = require('../models/SessionTemplate');
 const { validationResult } = require('express-validator');
 const { flattenTemplateExercises } = require('../utils/volume');
 const {
@@ -103,7 +103,7 @@ const createEvent = async (req, res) => {
 
     // Events only reference workouts — exercises live on the template.
     if (req.body.workoutTemplateId) {
-      const template = await PredefinedWorkout.findById(req.body.workoutTemplateId);
+      const template = await SessionTemplate.findById(req.body.workoutTemplateId);
       if (template) {
         eventData.title = eventData.title || template.name;
         eventData.workoutDetails = {
@@ -271,7 +271,7 @@ const moveEvent = async (req, res) => {
 };
 
 // Start workout (changes status to in_progress)
-const startWorkout = async (req, res) => {
+const startSession = async (req, res) => {
   try {
     const event = await CalendarEvent.findOne({
       _id: req.params.id,
@@ -297,7 +297,7 @@ const startWorkout = async (req, res) => {
       : event.workoutDetails?.exercises || [];
 
     // Create a workout log entry
-    const workoutLog = new WorkoutLog({
+    const workoutLog = new SessionLog({
       userId: req.user._id,
       calendarEventId: event._id,
       title: event.title,
@@ -341,7 +341,7 @@ const startWorkout = async (req, res) => {
 };
 
 // Complete workout
-const completeWorkout = async (req, res) => {
+const completeSession = async (req, res) => {
   try {
     const event = await CalendarEvent.findOne({
       _id: req.params.id,
@@ -362,7 +362,7 @@ const completeWorkout = async (req, res) => {
 
     // Update workout log if exists
     if (event.workoutLogId) {
-      const workoutLog = await WorkoutLog.findById(event.workoutLogId);
+      const workoutLog = await SessionLog.findById(event.workoutLogId);
       if (workoutLog) {
         workoutLog.completedAt = new Date();
         workoutLog.actualDuration = Math.round((new Date() - workoutLog.startedAt) / 60000); // minutes
@@ -400,7 +400,7 @@ const completeWorkout = async (req, res) => {
 };
 
 // Skip workout
-const skipWorkout = async (req, res) => {
+const skipSession = async (req, res) => {
   try {
     // Build update - append skip reason to existing notes instead of overwriting
     const skipNote = req.body.reason ? `Skipped: ${req.body.reason}` : 'Skipped';
@@ -479,8 +479,8 @@ module.exports = {
   updateEvent,
   deleteEvent,
   moveEvent,
-  startWorkout,
-  completeWorkout,
-  skipWorkout,
+  startSession,
+  completeSession,
+  skipSession,
   getTodayEvents
 };

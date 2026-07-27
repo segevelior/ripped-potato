@@ -1,6 +1,6 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
-const PredefinedWorkout = require('../src/models/PredefinedWorkout');
+const SessionTemplate = require('../src/models/SessionTemplate');
 const Exercise = require('../src/models/Exercise');
 const User = require('../src/models/User');
 
@@ -16,7 +16,7 @@ async function seedStrengthWorkout() {
         }
 
         // Delete existing workout with same name
-        await PredefinedWorkout.deleteMany({ name: 'STRENGTH & CONDITIONING 1' });
+        await SessionTemplate.deleteMany({ name: 'STRENGTH & CONDITIONING 1' });
         console.log('Deleted existing workout if any');
 
         // Get exercise IDs
@@ -224,7 +224,7 @@ async function seedStrengthWorkout() {
             ]
         };
 
-        const newWorkout = await PredefinedWorkout.create(workout);
+        const newWorkout = await SessionTemplate.create(workout);
         console.log(`✅ Workout "${newWorkout.name}" created successfully (ID: ${newWorkout._id})!`);
         console.log(`   Total blocks: ${newWorkout.blocks.length}`);
         console.log(`   Total exercises: ${newWorkout.totalExercises}`);

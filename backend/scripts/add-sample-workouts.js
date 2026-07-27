@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-const PredefinedWorkout = require('../src/models/PredefinedWorkout');
+const SessionTemplate = require('../src/models/SessionTemplate');
 const Exercise = require('../src/models/Exercise');
 
 // Connect to MongoDB
@@ -101,7 +101,7 @@ const addSampleWorkouts = async () => {
         });
       }
       
-      const workout = new PredefinedWorkout({
+      const workout = new SessionTemplate({
         ...workoutData,
         exercises: workoutExercises
       });

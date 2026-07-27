@@ -3,7 +3,7 @@ import { CalendarEvent, Plan } from "@/api/entities";
 import { ChevronLeft, ChevronRight, Plus, Check } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, startOfWeek, endOfWeek, parseISO, isValid, isToday, isSameDay } from "date-fns";
 
-import WorkoutSelectionModal from "../components/calendar/WorkoutSelectionModal";
+import SessionSelectionModal from "../components/calendar/SessionSelectionModal";
 import CalendarEventDetailModal from "../components/calendar/CalendarEventDetailModal";
 
 // Helper to get user's week start preference from localStorage
@@ -496,7 +496,7 @@ const CalendarView = ({ events, activePlans, currentDate, onDateChange, onAddEve
       </div>
 
       {showWorkoutModal && (
-        <WorkoutSelectionModal
+        <SessionSelectionModal
           date={selectedDate}
           onClose={() => setShowWorkoutModal(false)}
           onApplyWorkout={handleApplyWorkout}

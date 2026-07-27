@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PredefinedWorkout, Exercise } from "@/api/entities";
 import { Search, Plus, Filter, Play } from "lucide-react";
-import WorkoutDetailModal from "@/components/predefined/WorkoutDetailModal";
-import CreateWorkoutModal from "@/components/predefined/CreateWorkoutModal";
-import WorkoutCard from "@/components/predefined/WorkoutCard";
+import SessionDetailModal from "@/components/predefined/SessionDetailModal";
+import CreateSessionModal from "@/components/predefined/CreateSessionModal";
+import SessionCard from "@/components/predefined/SessionCard";
 import { createPageUrl } from "@/utils";
 import { toast } from "@/components/ui/use-toast";
 import {
@@ -395,7 +395,7 @@ export default function PredefinedWorkouts() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredWorkouts.map((workout) => (
-            <WorkoutCard
+            <SessionCard
               key={workout.id}
               workout={workout}
               onView={handleView}
@@ -420,7 +420,7 @@ export default function PredefinedWorkouts() {
 
       {/* Workout Detail Modal */}
       {showDetailModal && selectedWorkout && (
-        <WorkoutDetailModal
+        <SessionDetailModal
           workout={selectedWorkout}
           exercises={exercises}
           onClose={() => {
@@ -439,7 +439,7 @@ export default function PredefinedWorkouts() {
 
       {/* Create/Edit Workout Modal */}
       {showCreateModal && (
-        <CreateWorkoutModal
+        <CreateSessionModal
           exercises={exercises}
           onClose={handleCloseCreateModal}
           onSave={handleSaveWorkout}

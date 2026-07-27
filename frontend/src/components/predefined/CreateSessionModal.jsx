@@ -94,7 +94,7 @@ const BlockSearch = ({ allExercises, onSelect }) => {
   );
 };
 
-export default function CreateWorkoutModal({ exercises, onClose, onSave, editWorkout = null }) {
+export default function CreateSessionModal({ exercises, onClose, onSave, editWorkout = null }) {
   // Get current user to check for superAdmin role
   const currentUser = JSON.parse(localStorage.getItem('authUser') || '{}');
   const isSuperAdmin = currentUser?.role === 'superAdmin';

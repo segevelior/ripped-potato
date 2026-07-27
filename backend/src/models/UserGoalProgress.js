@@ -65,7 +65,7 @@ const userGoalProgressSchema = new mongoose.Schema({
   milestoneProgress: [milestoneProgressSchema],
   relatedWorkouts: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'WorkoutLog'
+    ref: 'SessionLog'
   }],
   progressMetrics: {
     // Current measurements

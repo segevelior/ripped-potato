@@ -8,9 +8,9 @@ const {
   updateEvent,
   deleteEvent,
   moveEvent,
-  startWorkout,
-  completeWorkout,
-  skipWorkout,
+  startSession,
+  completeSession,
+  skipSession,
   getTodayEvents
 } = require('../controllers/calendarController');
 const { auth } = require('../middleware/auth');
@@ -93,16 +93,16 @@ router.patch('/:id/move', auth, moveEvent);
 // @route   POST /api/v1/calendar/:id/start
 // @desc    Start a workout (creates workout log)
 // @access  Private
-router.post('/:id/start', auth, startWorkout);
+router.post('/:id/start', auth, startSession);
 
 // @route   POST /api/v1/calendar/:id/complete
 // @desc    Complete a workout
 // @access  Private
-router.post('/:id/complete', auth, completeWorkout);
+router.post('/:id/complete', auth, completeSession);
 
 // @route   POST /api/v1/calendar/:id/skip
 // @desc    Skip a workout
 // @access  Private
-router.post('/:id/skip', auth, skipWorkout);
+router.post('/:id/skip', auth, skipSession);
 
 module.exports = router;

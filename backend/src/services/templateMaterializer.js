@@ -1,5 +1,5 @@
 const CalendarEvent = require('../models/CalendarEvent');
-const PredefinedWorkout = require('../models/PredefinedWorkout');
+const SessionTemplate = require('../models/SessionTemplate');
 const Exercise = require('../models/Exercise');
 const Plan = require('../models/Plan');
 const { flattenTemplateExercises } = require('../utils/volume');
@@ -82,7 +82,7 @@ const findMatchingTemplate = async (userId, name, blockExercises) => {
   );
   if (!signature) return null;
 
-  const candidates = await PredefinedWorkout.find({
+  const candidates = await SessionTemplate.find({
     $or: [{ isCommon: true }, { createdBy: userId }]
   })
     .select('name blocks isCommon')
@@ -119,7 +119,7 @@ const ensureTemplateForCustomEvent = async (userId, eventData) => {
   const existing = await findMatchingTemplate(userId, name, blocks[0].exercises);
   if (existing) return existing._id;
 
-  const template = await PredefinedWorkout.create({
+  const template = await SessionTemplate.create({
     name,
     goal: '',
     primary_disciplines: [eventData.workoutDetails?.type || 'strength'],
@@ -168,7 +168,7 @@ const applyExercisesCopyOnWrite = async (userId, event, exercises) => {
   if (!blocks[0].exercises.length) return event.workoutTemplateId || null;
 
   const template = event.workoutTemplateId
-    ? await PredefinedWorkout.findById(event.workoutTemplateId)
+    ? await SessionTemplate.findById(event.workoutTemplateId)
     : null;
 
   if (!template) {
@@ -179,7 +179,7 @@ const applyExercisesCopyOnWrite = async (userId, event, exercises) => {
   }
 
   if (!isMaterializedCopy(template) || await isTemplateShared(userId, template, event._id)) {
-    const clone = await PredefinedWorkout.create({
+    const clone = await SessionTemplate.create({
       name: template.name,
       goal: template.goal || '',
       primary_disciplines: template.primary_disciplines,

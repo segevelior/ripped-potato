@@ -23,7 +23,7 @@ from app.core.agents.reflection_config import REFLECTION_CONFIG
 from app.core.agents.reflection_prompt import REFLECTION_SYSTEM_PROMPT, REFLECTION_USER_PROMPT
 from app.core.agents.services import (
     ExerciseService,
-    WorkoutService,
+    SessionService,
     PlanService,
     GoalService,
     CalendarService,
@@ -278,7 +278,7 @@ class AgentOrchestrator:
         # Initialize services
         logger.info("Initializing services...")
         self.exercise_service = ExerciseService(db)
-        self.workout_service = WorkoutService(db)
+        self.session_service = SessionService(db)
         self.plan_service = PlanService(db)
         self.goal_service = GoalService(db)
         self.calendar_service = CalendarService(db)
@@ -296,7 +296,7 @@ class AgentOrchestrator:
             db=self.db,
             settings=self.settings,
             exercise_service=self.exercise_service,
-            workout_service=self.workout_service,
+            session_service=self.session_service,
             plan_service=self.plan_service,
             goal_service=self.goal_service,
             calendar_service=self.calendar_service,
@@ -313,7 +313,7 @@ class AgentOrchestrator:
             tools_count=len(tools),
             services=[
                 "ExerciseService",
-                "WorkoutService",
+                "SessionService",
                 "PlanService",
                 "GoalService",
                 "CalendarService",
@@ -1372,12 +1372,12 @@ USER DATA:
             "grep_workouts": self.exercise_service.grep_workouts,
             "save_exercise_video": self.exercise_service.save_exercise_video,
             # Workout template tools
-            "create_workout_template": self.workout_service.create_workout_template,
-            "list_workout_templates": self.workout_service.list_workout_templates,
-            "delete_workout_template": self.workout_service.delete_workout_template,
+            "create_workout_template": self.session_service.create_workout_template,
+            "list_workout_templates": self.session_service.list_workout_templates,
+            "delete_workout_template": self.session_service.delete_workout_template,
             # Workout log tools
-            "log_workout": self.workout_service.log_workout,
-            "get_workout_history": self.workout_service.get_workout_history,
+            "log_workout": self.session_service.log_workout,
+            "get_workout_history": self.session_service.get_workout_history,
             # Plan tools
             "create_plan": self.plan_service.create_plan,
             "list_plans": self.plan_service.list_plans,

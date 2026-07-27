@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-const PredefinedWorkout = require('../src/models/PredefinedWorkout');
+const SessionTemplate = require('../src/models/SessionTemplate');
 const Exercise = require('../src/models/Exercise');
 
 // Connect to MongoDB
@@ -200,7 +200,7 @@ const seedPredefinedWorkouts = async () => {
     console.log('🌱 Starting predefinedWorkouts seeding...');
     
     // Check if we already have predefined workouts
-    const existingCount = await PredefinedWorkout.countDocuments();
+    const existingCount = await SessionTemplate.countDocuments();
     if (existingCount > 0) {
       console.log(`⚠️  Already have ${existingCount} predefined workouts. Skipping seed.`);
       console.log('   To reseed, delete existing workouts first.');
@@ -242,7 +242,7 @@ const seedPredefinedWorkouts = async () => {
         });
       }
       
-      const workout = new PredefinedWorkout({
+      const workout = new SessionTemplate({
         ...workoutData,
         exercises: selectedExercises
       });

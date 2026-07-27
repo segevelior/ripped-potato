@@ -1,9 +1,9 @@
 /**
  * Regression guard for the workout-log write path used by the torii MCP tools
- * (create_workout / update_workout): logs land in WorkoutLog, the session
+ * (create_workout / update_workout): logs land in SessionLog, the session
  * interval is derived honestly, and the calendar entry stays in step.
  */
-jest.mock('../../models/WorkoutLog', () => {
+jest.mock('../../models/SessionLog', () => {
   const ctor = jest.fn(function (doc) {
     Object.assign(this, doc);
     this._id = 'log000000000000000000001';
@@ -28,10 +28,10 @@ jest.mock('../../models/Exercise', () => ({
   findOne: jest.fn()
 }));
 
-const WorkoutLog = require('../../models/WorkoutLog');
+const SessionLog = require('../../models/SessionLog');
 const CalendarEvent = require('../../models/CalendarEvent');
 const Exercise = require('../../models/Exercise');
-const { createWorkoutLog, updateWorkoutLog } = require('../workoutLogController');
+const { createSessionLog, updateSessionLog } = require('../sessionLogController');
 
 const USER_ID = 'aaaaaaaaaaaaaaaaaaaaaaaa';
 const EXERCISE_ID = 'bbbbbbbbbbbbbbbbbbbbbbbb';
@@ -52,7 +52,7 @@ beforeEach(() => {
   });
 });
 
-describe('createWorkoutLog', () => {
+describe('createSessionLog', () => {
   const baseBody = {
     title: 'Morning Push',
     type: 'Strength',
@@ -65,17 +65,17 @@ describe('createWorkoutLog', () => {
 
   const run = async (body) => {
     const res = makeRes();
-    await createWorkoutLog({ user: { _id: USER_ID }, body }, res);
+    await createSessionLog({ user: { _id: USER_ID }, body }, res);
     return res;
   };
 
-  test('writes a WorkoutLog with normalized fields and a derived completedAt', async () => {
+  test('writes a SessionLog with normalized fields and a derived completedAt', async () => {
     const res = await run({ ...baseBody });
 
     expect(res.status).toHaveBeenCalledWith(201);
-    expect(WorkoutLog).toHaveBeenCalledTimes(1);
+    expect(SessionLog).toHaveBeenCalledTimes(1);
 
-    const doc = WorkoutLog.mock.calls[0][0];
+    const doc = SessionLog.mock.calls[0][0];
     expect(doc.userId).toBe(USER_ID);
     expect(doc.title).toBe('Morning Push');
     expect(doc.type).toBe('strength');
@@ -117,7 +117,7 @@ describe('createWorkoutLog', () => {
     const { actualDuration, ...rest } = baseBody;
     await run({ ...rest, completedAt: '2026-07-20T08:10:00.000Z' });
 
-    const doc = WorkoutLog.mock.calls[0][0];
+    const doc = SessionLog.mock.calls[0][0];
     expect(doc.completedAt.toISOString()).toBe('2026-07-20T08:10:00.000Z');
     expect(doc.actualDuration).toBe(70);
   });
@@ -126,15 +126,15 @@ describe('createWorkoutLog', () => {
     const { actualDuration, ...rest } = baseBody;
     await run({ ...rest });
 
-    const doc = WorkoutLog.mock.calls[0][0];
+    const doc = SessionLog.mock.calls[0][0];
     expect(doc.completedAt.toISOString()).toBe('2026-07-20T07:00:00.000Z');
     expect(doc.actualDuration).toBeUndefined();
   });
 });
 
-describe('updateWorkoutLog', () => {
+describe('updateSessionLog', () => {
   test('syncs the linked calendar event with the changed fields only', async () => {
-    WorkoutLog.findOneAndUpdate.mockResolvedValue({
+    SessionLog.findOneAndUpdate.mockResolvedValue({
       _id: 'log000000000000000000001',
       calendarEventId: 'cal000000000000000000001',
       title: 'Evening Push',
@@ -145,7 +145,7 @@ describe('updateWorkoutLog', () => {
     });
 
     const res = makeRes();
-    await updateWorkoutLog(
+    await updateSessionLog(
       {
         user: { _id: USER_ID },
         params: { id: 'log000000000000000000001' },
@@ -166,12 +166,12 @@ describe('updateWorkoutLog', () => {
   });
 
   test('resolves exercise ids on the update path', async () => {
-    WorkoutLog.findOneAndUpdate.mockResolvedValue({
+    SessionLog.findOneAndUpdate.mockResolvedValue({
       _id: 'log000000000000000000001',
       exercises: []
     });
 
-    await updateWorkoutLog(
+    await updateSessionLog(
       {
         user: { _id: USER_ID },
         params: { id: 'log000000000000000000001' },
@@ -180,7 +180,7 @@ describe('updateWorkoutLog', () => {
       makeRes()
     );
 
-    const update = WorkoutLog.findOneAndUpdate.mock.calls[0][1];
+    const update = SessionLog.findOneAndUpdate.mock.calls[0][1];
     expect(update.exercises[0].exerciseId).toBe(EXERCISE_ID);
     expect(update.exercises[0].order).toBe(0);
     // No linked event on this log -> nothing to sync.
