@@ -365,6 +365,11 @@ class WorkoutService:
             if duration_minutes:
                 completed_at = started_at + timedelta(minutes=duration_minutes)
 
+            # A workout log is a performed session — it has no status. Older
+            # callers/prompts may still send one; drop it rather than persist a
+            # field the WorkoutLog model does not have.
+            args.pop("status", None)
+
             # Shape matches the backend WorkoutLog model (the app's real
             # logging path) — see backend/src/models/WorkoutLog.js.
             log_data = {

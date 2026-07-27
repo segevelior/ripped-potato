@@ -170,13 +170,32 @@ const createWorkoutLog = async (req, res) => {
       })
     );
 
+    // Derive the session interval honestly: never fall back to "now", which
+    // would turn a session logged after the fact (e.g. yesterday's) into a
+    // multi-hour workout.
+    const startedAtDate = new Date(startedAt);
+    let completedAtDate;
+    let resolvedDuration = actualDuration;
+    if (completedAt) {
+      completedAtDate = new Date(completedAt);
+      if (resolvedDuration === undefined || resolvedDuration === null) {
+        resolvedDuration = Math.round((completedAtDate - startedAtDate) / 60000);
+      }
+    } else if (resolvedDuration !== undefined && resolvedDuration !== null) {
+      completedAtDate = new Date(startedAtDate.getTime() + resolvedDuration * 60000);
+    } else {
+      // Nothing to go on — record a zero-length session rather than invent one.
+      completedAtDate = startedAtDate;
+      resolvedDuration = undefined;
+    }
+
     const workoutLog = new WorkoutLog({
       userId: req.user._id,
       title,
       type: type.toLowerCase(),
-      startedAt: new Date(startedAt),
-      completedAt: completedAt ? new Date(completedAt) : new Date(),
-      actualDuration: actualDuration || Math.round((new Date(completedAt || Date.now()) - new Date(startedAt)) / 60000),
+      startedAt: startedAtDate,
+      completedAt: completedAtDate,
+      actualDuration: resolvedDuration,
       exercises: resolvedExercises,
       perceivedDifficulty,
       mood,
@@ -190,7 +209,7 @@ const createWorkoutLog = async (req, res) => {
     if (createCalendarEvent) {
       calendarEvent = new CalendarEvent({
         userId: req.user._id,
-        date: new Date(startedAt),
+        date: startedAtDate,
         title,
         type: 'workout',
         status: 'completed',
@@ -236,9 +255,25 @@ const createWorkoutLog = async (req, res) => {
 // @desc    Update workout log (partial)
 const updateWorkoutLog = async (req, res) => {
   try {
+    const update = { ...req.body };
+
+    // Same exercise-id resolution the create path does, so an update coming
+    // from the MCP tool (names, maybe no ids) doesn't null out exerciseIds.
+    if (Array.isArray(update.exercises)) {
+      update.exercises = await Promise.all(
+        update.exercises.map(async (ex, i) => ({
+          exerciseId: await resolveExerciseId(ex.exerciseId, ex.exerciseName),
+          exerciseName: ex.exerciseName,
+          order: ex.order !== undefined ? ex.order : i,
+          sets: ex.sets || [],
+          notes: ex.notes
+        }))
+      );
+    }
+
     const log = await WorkoutLog.findOneAndUpdate(
       { _id: req.params.id, userId: req.user._id },
-      req.body,
+      update,
       { new: true, runValidators: true }
     );
 
@@ -247,6 +282,34 @@ const updateWorkoutLog = async (req, res) => {
         success: false,
         message: 'Workout log not found'
       });
+    }
+
+    // Keep the linked calendar entry in step with the log; best-effort, the
+    // event may have been deleted independently.
+    if (log.calendarEventId) {
+      const eventUpdate = {};
+      if (update.title !== undefined) eventUpdate.title = log.title;
+      if (update.startedAt !== undefined) eventUpdate.date = log.startedAt;
+      if (update.completedAt !== undefined) eventUpdate.completedAt = log.completedAt;
+      if (update.type !== undefined) eventUpdate['workoutDetails.type'] = log.type;
+      if (update.actualDuration !== undefined) {
+        eventUpdate['workoutDetails.durationMinutes'] = log.actualDuration;
+      }
+      if (update.exercises !== undefined) {
+        eventUpdate['workoutDetails.exercises'] = (log.exercises || []).map(ex => ({
+          exerciseId: ex.exerciseId,
+          exerciseName: ex.exerciseName,
+          sets: ex.sets
+        }));
+      }
+
+      if (Object.keys(eventUpdate).length > 0) {
+        try {
+          await CalendarEvent.findByIdAndUpdate(log.calendarEventId, { $set: eventUpdate });
+        } catch (syncError) {
+          console.error('Calendar event sync error:', syncError);
+        }
+      }
     }
 
     res.json({
