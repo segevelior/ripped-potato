@@ -16,8 +16,8 @@ export default function ReplaceExerciseModal({
   canPersist = false,
   isCommonTemplate = false,
   // Live-session context for the embedded coach chat
-  workoutTitle,
-  sourceWorkoutId,
+  sessionTitle,
+  sourceTemplateId,
   sessionExercises,
   elapsedMinutes,
   conversationId,
@@ -118,8 +118,8 @@ export default function ReplaceExerciseModal({
           <div className={tab === "sensei" ? "" : "hidden"}>
             <MiniCoachChat
               exercise={exercise}
-              workoutTitle={workoutTitle}
-              sourceWorkoutId={sourceWorkoutId}
+              sessionTitle={sessionTitle}
+              sourceTemplateId={sourceTemplateId}
               exercises={sessionExercises}
               elapsedMinutes={elapsedMinutes}
               conversationId={conversationId}

@@ -37,7 +37,7 @@ def format_calendar_anchors(
     def fmt_event(ev):
         line = (
             f"\n- {ev.get('date')} ({ev.get('dayOfWeek')}) "
-            f"{ev.get('type', 'workout')} \"{ev.get('title')}\" "
+            f"{ev.get('type', 'session')} \"{ev.get('title')}\" "
             f"[{ev.get('status', 'scheduled')}]"
         )
         if ev.get("duration"):
@@ -111,22 +111,22 @@ class CalendarService:
                     event_date = datetime.strptime(date_str, "%Y-%m-%d")
 
             title = args.get("title", "Workout")
-            event_type = args.get("type", "workout")
-            workout_details = args.get("workoutDetails", {})
+            event_type = args.get("type", "session")
+            workout_details = args.get("sessionDetails", {})
             notes = args.get("notes", "")
 
             # Linking an existing library workout: verify it exists and is
             # visible to this user BEFORE any preview/write, so a bad id is a
             # structured error the agent can recover from by re-listing.
             existing_template = None
-            template_id_arg = args.get("workout_template_id")
+            template_id_arg = args.get("session_template_id")
             if template_id_arg:
                 try:
                     template_oid = ObjectId(template_id_arg)
                 except Exception:
                     template_oid = None
                 if template_oid is not None:
-                    existing_template = await self.db.predefinedworkouts.find_one({
+                    existing_template = await self.db.sessiontemplates.find_one({
                         "_id": template_oid,
                         "$or": [{"isCommon": True}, {"createdBy": ObjectId(user_id)}],
                     })
@@ -136,8 +136,8 @@ class CalendarService:
                         "error": "template_not_found",
                         "message": (
                             f"No workout template with id '{template_id_arg}' is available to this user. "
-                            "Call list_workout_templates to find the correct id, or pass "
-                            "workoutDetails.exercises to schedule a new custom session. "
+                            "Call list_session_templates to find the correct id, or pass "
+                            "sessionDetails.exercises to schedule a new custom session. "
                             "Never guess an id — take it from a tool result."
                         ),
                     }
@@ -157,7 +157,7 @@ class CalendarService:
             # backed by a library template — never a bare title. Returning a
             # tool error here makes the agent plan the exercises and retry.
             if (
-                event_type in ("workout", "deload")
+                event_type in ("session", "deload")
                 and existing_template is None
                 and not workout_details.get("exercises")
             ):
@@ -166,9 +166,9 @@ class CalendarService:
                     "error": "missing_workout_details",
                     "message": (
                         "A workout calendar event must reference a workout. Either pass "
-                        "workout_template_id for an existing library workout (find it with "
-                        "list_workout_templates), or plan the session first and pass the full "
-                        "workoutDetails.exercises to create a new one."
+                        "session_template_id for an existing library workout (find it with "
+                        "list_session_templates), or plan the session first and pass the full "
+                        "sessionDetails.exercises to create a new one."
                     ),
                 }
 
@@ -186,7 +186,7 @@ class CalendarService:
             # base title) already on that date means the model is about to
             # create the duplicate the user will have to complain about. Runs
             # on BOTH the preview and the write path — they are separate turns.
-            if event_type in ("workout", "deload") and not args.get("allow_duplicate", False):
+            if event_type in ("session", "deload") and not args.get("allow_duplicate", False):
                 duplicate = await self._find_same_day_duplicate(
                     user_id,
                     event_date,
@@ -207,13 +207,13 @@ class CalendarService:
                     existing_template=existing_template,
                 )
 
-            workout_template_id = None
+            session_template_id = None
             reused_inline_match = False
 
             if existing_template is not None:
                 # Link the existing library workout — never duplicate it.
-                workout_template_id = existing_template["_id"]
-            elif event_type in ("workout", "deload") and workout_details:
+                session_template_id = existing_template["_id"]
+            elif event_type in ("session", "deload") and workout_details:
                 # Build the blocks structure; the shared resolver fills in real
                 # exercise ids (exact → fuzzy → vector → create) so neither the
                 # PredefinedWorkout nor the CalendarEvent can carry a null id.
@@ -253,7 +253,7 @@ class CalendarService:
                     # The earlier same-day check ran without a template id (the
                     # match didn't exist yet) — re-check so an inline-reuse of a
                     # template already scheduled that day under another title is
-                    # refused exactly like an explicit workout_template_id.
+                    # refused exactly like an explicit session_template_id.
                     if not args.get("allow_duplicate", False):
                         duplicate = await self._find_same_day_duplicate(
                             user_id, event_date,
@@ -263,7 +263,7 @@ class CalendarService:
                             return duplicate
                     existing_template = reused
                     reused_inline_match = True
-                    workout_template_id = reused["_id"]
+                    session_template_id = reused["_id"]
                     logger.info(
                         "schedule_to_calendar reused existing template",
                         template_id=str(reused["_id"]), name=reused.get("name"),
@@ -287,9 +287,9 @@ class CalendarService:
                         "updatedAt": datetime.utcnow()
                     }
 
-                    template_result = await self.db.predefinedworkouts.insert_one(workout_template)
+                    template_result = await self.db.sessiontemplates.insert_one(workout_template)
                     if template_result.inserted_id:
-                        workout_template_id = template_result.inserted_id
+                        session_template_id = template_result.inserted_id
                         logger.info(f"Saved workout '{template_name}' to user's library")
 
             # Build the calendar event document
@@ -305,21 +305,21 @@ class CalendarService:
             }
 
             # Link to workout template (existing library workout or just created)
-            if workout_template_id:
-                event_data["workoutTemplateId"] = workout_template_id
+            if session_template_id:
+                event_data["sessionTemplateId"] = session_template_id
 
             # The event only carries display scalars — exercises live on the
             # linked template, never embedded in the calendar event.
-            if event_type in ("workout", "deload"):
+            if event_type in ("session", "deload"):
                 if existing_template is not None:
                     disciplines = existing_template.get("primary_disciplines") or []
-                    event_data["workoutDetails"] = {
-                        "type": (disciplines[0].lower() if disciplines else "strength"),
+                    event_data["sessionDetails"] = {
+                        "discipline": (disciplines[0].lower() if disciplines else "strength"),
                         "estimatedDuration": existing_template.get("estimated_duration", 45),
                     }
                 elif workout_details:
-                    event_data["workoutDetails"] = {
-                        "type": workout_details.get("workoutType", "strength"),
+                    event_data["sessionDetails"] = {
+                        "discipline": workout_details.get("discipline", "strength"),
                         "estimatedDuration": workout_details.get("estimatedDuration", 45),
                     }
 
@@ -344,9 +344,9 @@ class CalendarService:
                     )
                 elif existing_template is not None:
                     response_msg += f"\n\nLinked to **{existing_template.get('name')}** from your workout library."
-                elif workout_template_id:
+                elif session_template_id:
                     response_msg += "\n\n**Saved to your workout library** - you can reuse this workout anytime!"
-                if event_type in ("workout", "deload") and exercise_count > 0:
+                if event_type in ("session", "deload") and exercise_count > 0:
                     response_msg += f"\n\n**{exercise_count} exercises** | **~{duration} min**"
 
                 # Check if it's today (user-local)
@@ -358,7 +358,7 @@ class CalendarService:
                     "success": True,
                     "message": response_msg,
                     "event_id": str(result.inserted_id),
-                    "workout_template_id": str(workout_template_id) if workout_template_id else None,
+                    "session_template_id": str(session_template_id) if session_template_id else None,
                     "date": formatted_date,
                     "dateISO": event_date.strftime("%Y-%m-%d"),
                     "relativeDay": relative_day_label(event_date.date(), today.date()),
@@ -387,13 +387,13 @@ class CalendarService:
         cursor = self.db.calendarevents.find({
             "userId": ObjectId(user_id),
             "date": {"$gte": day_start, "$lt": day_end},
-            "type": {"$in": ["workout", "deload"]},
+            "type": {"$in": ["session", "deload"]},
             "status": {"$ne": "cancelled"},
         })
         async for event in cursor:
             same_template = (
                 template_oid is not None
-                and event.get("workoutTemplateId") == template_oid
+                and event.get("sessionTemplateId") == template_oid
             )
             same_title = (
                 base_title
@@ -466,7 +466,7 @@ class CalendarService:
                 f"\n\nLinks existing library workout **{existing_template.get('name')}** "
                 f"(no new workout is created), ~{duration} min:\n" + "\n".join(lines)
             )
-        elif event_type in ("workout", "deload") and workout_details:
+        elif event_type in ("session", "deload") and workout_details:
             workout_exercises = workout_details.get("exercises", [])
             items = [
                 {
@@ -666,13 +666,13 @@ class CalendarService:
             # Events reference their workout — batch-fetch the linked templates
             # so the coach still sees the exercise-by-exercise list.
             template_ids = {
-                event["workoutTemplateId"]
+                event["sessionTemplateId"]
                 for event in events
-                if event.get("workoutTemplateId")
+                if event.get("sessionTemplateId")
             }
             templates_by_id = {}
             if template_ids:
-                async for tmpl in self.db.predefinedworkouts.find(
+                async for tmpl in self.db.sessiontemplates.find(
                     {"_id": {"$in": list(template_ids)}}
                 ):
                     templates_by_id[tmpl["_id"]] = tmpl
@@ -680,8 +680,8 @@ class CalendarService:
             # Format events for response
             formatted_events = []
             for event in events:
-                workout_details = event.get("workoutDetails") or {}
-                template = templates_by_id.get(event.get("workoutTemplateId"))
+                workout_details = event.get("sessionDetails") or {}
+                template = templates_by_id.get(event.get("sessionTemplateId"))
                 if template is not None:
                     raw_exercises = flatten_template_exercises(template)
                 else:
@@ -710,10 +710,10 @@ class CalendarService:
                     "relativeDay": relative_day_label(event["date"].date(), today.date()),
                     "isToday": event["date"].date() == today.date(),
                     "title": event.get("title", "Untitled"),
-                    "type": event.get("type", "workout"),
+                    "type": event.get("type", "session"),
                     "status": event.get("status", "scheduled"),
                     "duration": duration,
-                    "workoutTemplateId": str(event["workoutTemplateId"]) if event.get("workoutTemplateId") else None,
+                    "sessionTemplateId": str(event["sessionTemplateId"]) if event.get("sessionTemplateId") else None,
                     "templateName": template.get("name") if template is not None else None,
                     "exerciseCount": len(raw_exercises),
                     "exercises": exercises,
@@ -721,7 +721,7 @@ class CalendarService:
                 })
 
             # Build summary message
-            workout_count = sum(1 for e in formatted_events if e["type"] == "workout")
+            workout_count = sum(1 for e in formatted_events if e["type"] == "session")
             rest_count = sum(1 for e in formatted_events if e["type"] == "rest")
 
             summary = (

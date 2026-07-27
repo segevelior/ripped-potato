@@ -123,17 +123,17 @@ async function createSearchIndexes(logger) {
       logger.info('Created text search index for exercises');
     }
 
-    // Similar for predefinedworkouts
-    const workoutsCollection = db.collection('predefinedworkouts');
-    const workoutIndexes = await workoutsCollection.indexes();
-    const hasWorkoutTextIndex = workoutIndexes.some(idx => idx.key && idx.key._fts === 'text');
+    // Similar for sessiontemplates
+    const sessionTemplatesCollection = db.collection('sessiontemplates');
+    const sessionTemplateIndexes = await sessionTemplatesCollection.indexes();
+    const hasSessionTextIndex = sessionTemplateIndexes.some(idx => idx.key && idx.key._fts === 'text');
 
-    if (!hasWorkoutTextIndex) {
-      await workoutsCollection.createIndex(
+    if (!hasSessionTextIndex) {
+      await sessionTemplatesCollection.createIndex(
         { name: 'text', goal: 'text', tags: 'text' },
-        { name: 'workout_text_search', background: true }
+        { name: 'session_text_search', background: true }
       );
-      logger.info('Created text search index for predefinedworkouts');
+      logger.info('Created text search index for sessiontemplates');
     }
 
     logger.info('Search indexes verified');

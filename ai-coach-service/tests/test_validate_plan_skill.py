@@ -10,8 +10,8 @@ from app.core.agents.skills.validate_plan_skill import validate_plan, validate_p
 def _custom_workout(day, wtype="strength", n_ex=4, sets_per=3):
     return {
         "dayOfWeek": day,
-        "workoutType": "custom",
-        "customWorkout": {
+        "sessionType": "custom",
+        "customSession": {
             "title": f"{wtype} day",
             "type": wtype,
             "exercises": [
@@ -30,7 +30,7 @@ def _good_strength_plan():
             "weekNumber": wn,
             "deloadWeek": wn == 4,
             "restDays": [0, 6],
-            "workouts": [_custom_workout(1), _custom_workout(3), _custom_workout(5)],
+            "sessions": [_custom_workout(1), _custom_workout(3), _custom_workout(5)],
         })
     return {"schedule": {"weeksTotal": 4}, "weeks": weeks}
 
@@ -48,7 +48,7 @@ class TestValidatePlanDoc:
         assert any("no workouts" in v.lower() for v in report["violations"])
 
     def test_underdosed_frequency_and_volume(self):
-        weeks = [{"weekNumber": 1, "restDays": [0], "workouts": [_custom_workout(1, n_ex=1, sets_per=1)]}]
+        weeks = [{"weekNumber": 1, "restDays": [0], "sessions": [_custom_workout(1, n_ex=1, sets_per=1)]}]
         report = validate_plan_doc({"schedule": {"weeksTotal": 1}, "weeks": weeks}, "strength")
         assert report["valid"] is False
         assert any("sessions/week" in v for v in report["violations"])
@@ -56,8 +56,8 @@ class TestValidatePlanDoc:
 
     def test_aggressive_ramp_flagged(self):
         weeks = [
-            {"weekNumber": 1, "restDays": [0], "workouts": [_custom_workout(1, n_ex=2, sets_per=3)]},
-            {"weekNumber": 2, "restDays": [0], "workouts": [_custom_workout(1, n_ex=10, sets_per=5)]},
+            {"weekNumber": 1, "restDays": [0], "sessions": [_custom_workout(1, n_ex=2, sets_per=3)]},
+            {"weekNumber": 2, "restDays": [0], "sessions": [_custom_workout(1, n_ex=10, sets_per=5)]},
         ]
         report = validate_plan_doc({"schedule": {"weeksTotal": 2}, "weeks": weeks}, "strength")
         assert any("jumps" in v for v in report["violations"])
@@ -65,7 +65,7 @@ class TestValidatePlanDoc:
     def test_long_plan_without_deload_suggested(self):
         weeks = [
             {"weekNumber": wn, "deloadWeek": False, "restDays": [0, 6],
-             "workouts": [_custom_workout(1), _custom_workout(3), _custom_workout(5)]}
+             "sessions": [_custom_workout(1), _custom_workout(3), _custom_workout(5)]}
             for wn in range(1, 9)
         ]
         report = validate_plan_doc({"schedule": {"weeksTotal": 8}, "weeks": weeks}, "strength")
@@ -79,8 +79,8 @@ class TestValidatePlanDoc:
         # Same aggressive week-2 jump, but with check_ramp=False (skeleton plans
         # get their ramp check from validate_skeleton) it must NOT be flagged.
         weeks = [
-            {"weekNumber": 1, "restDays": [0], "workouts": [_custom_workout(1, n_ex=2, sets_per=3)]},
-            {"weekNumber": 2, "restDays": [0], "workouts": [_custom_workout(1, n_ex=10, sets_per=5)]},
+            {"weekNumber": 1, "restDays": [0], "sessions": [_custom_workout(1, n_ex=2, sets_per=3)]},
+            {"weekNumber": 2, "restDays": [0], "sessions": [_custom_workout(1, n_ex=10, sets_per=5)]},
         ]
         plan = {"schedule": {"weeksTotal": 2}, "weeks": weeks}
         assert any("jumps" in v for v in validate_plan_doc(plan, "strength")["violations"])
@@ -89,9 +89,9 @@ class TestValidatePlanDoc:
     def test_ramp_deload_aware_no_false_positive_on_rebuild(self):
         # A deload week (few sets) then a normal rebuild is NOT an aggressive jump.
         weeks = [
-            {"weekNumber": 1, "restDays": [0, 6], "workouts": [_custom_workout(1), _custom_workout(3), _custom_workout(5)]},
-            {"weekNumber": 2, "deloadWeek": True, "restDays": [0, 6], "workouts": [_custom_workout(1, n_ex=2, sets_per=2)]},
-            {"weekNumber": 3, "restDays": [0, 6], "workouts": [_custom_workout(1), _custom_workout(3), _custom_workout(5)]},
+            {"weekNumber": 1, "restDays": [0, 6], "sessions": [_custom_workout(1), _custom_workout(3), _custom_workout(5)]},
+            {"weekNumber": 2, "deloadWeek": True, "restDays": [0, 6], "sessions": [_custom_workout(1, n_ex=2, sets_per=2)]},
+            {"weekNumber": 3, "restDays": [0, 6], "sessions": [_custom_workout(1), _custom_workout(3), _custom_workout(5)]},
         ]
         report = validate_plan_doc({"schedule": {"weeksTotal": 3}, "weeks": weeks}, "strength")
         assert not any("jumps" in v for v in report["violations"])
@@ -100,24 +100,24 @@ class TestValidatePlanDoc:
         # A hybrid session whose timed runs total 150 min should satisfy the floor
         # even though its type isn't "cardio".
         hybrid = {
-            "dayOfWeek": 1, "workoutType": "custom",
-            "customWorkout": {"title": "Run + Strength", "type": "hybrid", "durationMinutes": 60,
+            "dayOfWeek": 1, "sessionType": "custom",
+            "customSession": {"title": "Run + Strength", "type": "hybrid", "durationMinutes": 60,
                               "exercises": [
                                   {"exerciseName": "Easy Run", "sets": [{"reps": 1, "time": 9000}]},  # 150 min
                                   {"exerciseName": "Squat", "sets": [{"reps": 8}] * 3},
                               ]},
         }
-        weeks = [{"weekNumber": 1, "restDays": [0, 6], "workouts": [hybrid, _custom_workout(3, "cardio"), _custom_workout(5, "cardio")]}]
+        weeks = [{"weekNumber": 1, "restDays": [0, 6], "sessions": [hybrid, _custom_workout(3, "cardio"), _custom_workout(5, "cardio")]}]
         report = validate_plan_doc({"schedule": {"weeksTotal": 1}, "weeks": weeks}, "endurance", check_ramp=False)
         assert not any("Aerobic volume" in v for v in report["violations"])
 
     def test_aerobic_flags_when_never_reaches_floor(self):
         # Cardio sessions that never build past ~90 min/week peak → flagged.
         def short_cardio(day):
-            return {"dayOfWeek": day, "workoutType": "custom",
-                    "customWorkout": {"title": "Easy Run", "type": "cardio", "durationMinutes": 45,
+            return {"dayOfWeek": day, "sessionType": "custom",
+                    "customSession": {"title": "Easy Run", "type": "cardio", "durationMinutes": 45,
                                       "exercises": [{"exerciseName": "Easy Run", "sets": [{"reps": 1, "time": 2700}]}]}}  # 45 min
-        weeks = [{"weekNumber": wn, "restDays": [0, 6], "workouts": [short_cardio(1), short_cardio(3)]}
+        weeks = [{"weekNumber": wn, "restDays": [0, 6], "sessions": [short_cardio(1), short_cardio(3)]}
                  for wn in range(1, 5)]
         report = validate_plan_doc({"schedule": {"weeksTotal": 4}, "weeks": weeks}, "endurance", check_ramp=False)
         assert any("Aerobic volume" in v for v in report["violations"])
@@ -125,12 +125,12 @@ class TestValidatePlanDoc:
     def test_aerobic_peak_based_ignores_low_early_weeks(self):
         # Beginner ramp: early weeks low, later weeks build past the floor → clean.
         def cardio(day, minutes):
-            return {"dayOfWeek": day, "workoutType": "custom",
-                    "customWorkout": {"title": "Run", "type": "cardio", "durationMinutes": minutes,
+            return {"dayOfWeek": day, "sessionType": "custom",
+                    "customSession": {"title": "Run", "type": "cardio", "durationMinutes": minutes,
                                       "exercises": [{"exerciseName": "Run", "sets": [{"reps": 1, "time": minutes * 60}]}]}}
         weeks = [
-            {"weekNumber": 1, "restDays": [0, 6], "workouts": [cardio(1, 30), cardio(3, 30), cardio(5, 30)]},  # 90
-            {"weekNumber": 2, "restDays": [0, 6], "workouts": [cardio(1, 60), cardio(3, 60), cardio(5, 60)]},  # 180 peak
+            {"weekNumber": 1, "restDays": [0, 6], "sessions": [cardio(1, 30), cardio(3, 30), cardio(5, 30)]},  # 90
+            {"weekNumber": 2, "restDays": [0, 6], "sessions": [cardio(1, 60), cardio(3, 60), cardio(5, 60)]},  # 180 peak
         ]
         report = validate_plan_doc({"schedule": {"weeksTotal": 2}, "weeks": weeks}, "endurance", check_ramp=False)
         assert not any("Aerobic volume" in v for v in report["violations"])

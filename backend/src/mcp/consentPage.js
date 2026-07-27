@@ -8,8 +8,8 @@
  */
 
 const SCOPE_LABELS = {
-  'workouts:read': 'View your workouts and training stats',
-  'workouts:write': 'Create, update and delete your workouts and their calendar entries',
+  'sessions:read': 'View your training sessions and stats',
+  'sessions:write': 'Create, update and delete your training sessions and their calendar entries',
   'calendar:read': 'View your training calendar',
   'calendar:write': 'Schedule and reschedule calendar events',
   'exercises:read': 'Search the exercise library'

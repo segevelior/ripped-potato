@@ -1,5 +1,5 @@
 """
-Workout service - handles workout template and workout log operations
+Session service - handles session template and session log operations
 """
 
 from typing import Dict, Any, List
@@ -18,12 +18,12 @@ logger = structlog.get_logger()
 
 
 class SessionService:
-    """Service for workout-related operations"""
+    """Service for session-related operations"""
 
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
 
-    async def create_workout_template(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def create_session_template(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Create a workout template (PredefinedWorkout) with blocks structure"""
         try:
             # A template with zero exercises is a placeholder, never a real
@@ -37,7 +37,7 @@ class SessionService:
                     "message": (
                         "Refusing to create a workout template with no exercises. "
                         "If the user referenced a workout they already have, search "
-                        "the library (grep_workouts / list_workout_templates) and "
+                        "the library (grep_session_templates / list_session_templates) and "
                         "reuse it. If it is genuinely new, gather its exercises "
                         "first, then retry."
                     ),
@@ -105,7 +105,7 @@ class SessionService:
                 "updatedAt": datetime.utcnow()
             }
 
-            result = await self.db.predefinedworkouts.insert_one(workout_data)
+            result = await self.db.sessiontemplates.insert_one(workout_data)
 
             if result.inserted_id:
                 total_exercises = sum(len(b.get("exercises", [])) for b in blocks)
@@ -126,7 +126,7 @@ class SessionService:
             logger.error(f"Error creating workout template: {e}")
             return {"success": False, "message": str(e)}
 
-    async def list_workout_templates(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def list_session_templates(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """List workout templates (PredefinedWorkouts)"""
         try:
             # Build the base ownership filter
@@ -166,9 +166,9 @@ class SessionService:
             # Count before limiting so the model can tell a filtered/truncated
             # view from the full library (prevents contradictory answers across
             # calls with different filters).
-            total_matching = await self.db.predefinedworkouts.count_documents(query)
+            total_matching = await self.db.sessiontemplates.count_documents(query)
 
-            workouts = await self.db.predefinedworkouts.find(
+            workouts = await self.db.sessiontemplates.find(
                 query,
                 {"name": 1, "goal": 1, "difficulty_level": 1, "estimated_duration": 1, "blocks": 1, "primary_disciplines": 1}
             ).limit(limit).to_list(None)
@@ -221,7 +221,7 @@ class SessionService:
             logger.error(f"Error listing workout templates: {e}")
             return {"success": False, "message": str(e)}
 
-    async def delete_workout_template(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def delete_session_template(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Delete the user's own workout templates (never common/public ones).
 
         Two-step: without confirm=true this only previews what would be deleted
@@ -240,7 +240,7 @@ class SessionService:
                 return {"success": False,
                         "message": "Tell me which template(s) to delete: a template_id, a name, or keep_only=[names to keep]."}
 
-            own = await self.db.predefinedworkouts.find(
+            own = await self.db.sessiontemplates.find(
                 own_filter, {"name": 1, "createdAt": 1}
             ).to_list(None)
 
@@ -270,7 +270,7 @@ class SessionService:
             deletable: List[Dict[str, Any]] = []
             for t in targets:
                 refs = await self.db.calendarevents.count_documents({
-                    "workoutTemplateId": t["_id"],
+                    "sessionTemplateId": t["_id"],
                     "status": {"$in": ["scheduled", "in_progress"]},
                 })
                 if refs > 0:
@@ -299,7 +299,7 @@ class SessionService:
                         "skipped_referenced": referenced,
                         "unmatched_keep_names": unmatched_keeps, "message": msg}
 
-            result = await self.db.predefinedworkouts.delete_many(
+            result = await self.db.sessiontemplates.delete_many(
                 {**own_filter, "_id": {"$in": [t["_id"] for t in deletable]}}
             )
             logger.info(f"Deleted {result.deleted_count} workout template(s) for user {user_id}")
@@ -314,7 +314,7 @@ class SessionService:
             logger.error(f"Error deleting workout template: {e}")
             return {"success": False, "message": str(e)}
 
-    async def log_workout(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def log_session(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Log a workout to the user's workout history"""
         try:
             # Get exercise IDs for the exercises
@@ -375,7 +375,7 @@ class SessionService:
             log_data = {
                 "userId": ObjectId(user_id),
                 "title": args["title"],
-                "type": str(args.get("type", "strength")).lower(),
+                "discipline": str(args.get("type", "strength")).lower(),
                 "startedAt": started_at,
                 "completedAt": completed_at,
                 "actualDuration": duration_minutes,
@@ -392,7 +392,7 @@ class SessionService:
                 except Exception:
                     pass
 
-            result = await self.db.workoutlogs.insert_one(log_data)
+            result = await self.db.sessionlogs.insert_one(log_data)
 
             if result.inserted_id:
                 # Mirror the backend logging path: a completed calendar event
@@ -401,11 +401,11 @@ class SessionService:
                     "userId": ObjectId(user_id),
                     "date": started_at,
                     "title": args["title"],
-                    "type": "workout",
+                    "type": "session",
                     "status": "completed",
-                    "workoutLogId": result.inserted_id,
-                    "workoutDetails": {
-                        "type": log_data["type"],
+                    "sessionLogId": result.inserted_id,
+                    "sessionDetails": {
+                        "discipline": log_data["discipline"],
                         "durationMinutes": duration_minutes,
                         "exercises": [
                             {
@@ -421,7 +421,7 @@ class SessionService:
                     "updatedAt": datetime.utcnow()
                 }
                 event_result = await self.db.calendarevents.insert_one(calendar_event)
-                await self.db.workoutlogs.update_one(
+                await self.db.sessionlogs.update_one(
                     {"_id": result.inserted_id},
                     {"$set": {"calendarEventId": event_result.inserted_id}}
                 )
@@ -439,7 +439,7 @@ class SessionService:
             logger.error(f"Error logging workout: {e}")
             return {"success": False, "message": str(e)}
 
-    async def get_workout_history(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def get_session_history(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Get user's workout history"""
         try:
             days = args.get("days", 30)
@@ -451,14 +451,14 @@ class SessionService:
             }
 
             if args.get("type"):
-                query["type"] = args["type"]
+                query["discipline"] = args["type"]
 
             limit = args.get("limit", 10)
 
-            # workoutlogs is the app's real logging path (performed sessions)
-            workouts = await self.db.workoutlogs.find(
+            # sessionlogs is the app's real logging path (performed sessions)
+            workouts = await self.db.sessionlogs.find(
                 query,
-                {"title": 1, "startedAt": 1, "type": 1, "actualDuration": 1, "exercises": 1}
+                {"title": 1, "startedAt": 1, "discipline": 1, "actualDuration": 1, "exercises": 1}
             ).sort("startedAt", -1).limit(limit).to_list(None)
 
             results = []
@@ -487,7 +487,7 @@ class SessionService:
                     "id": str(w["_id"]),
                     "title": w["title"],
                     "date": w["startedAt"].isoformat() if w.get("startedAt") else None,
-                    "type": w.get("type"),
+                    "discipline": w.get("discipline"),
                     "duration": w.get("actualDuration"),
                     "exercise_count": len(raw_exercises),
                     "exercises": exercises

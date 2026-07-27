@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { PredefinedWorkout, Exercise } from "@/api/entities";
+import { SessionTemplate, Exercise } from "@/api/entities";
 import { Search, Plus, Filter, Play } from "lucide-react";
 import SessionDetailModal from "@/components/predefined/SessionDetailModal";
 import CreateSessionModal from "@/components/predefined/CreateSessionModal";
@@ -8,11 +8,11 @@ import SessionCard from "@/components/predefined/SessionCard";
 import { createPageUrl } from "@/utils";
 import { toast } from "@/components/ui/use-toast";
 import {
-  getActiveWorkout,
-  startWorkoutSession,
-  clearActiveWorkout,
-  parseWorkoutToSessionData
-} from "@/utils/workoutSession";
+  getActiveSession,
+  startLiveSession,
+  clearActiveSession,
+  parseTemplateToSessionData
+} from "@/utils/liveSession";
 
 // Helper function to get available categories from workouts
 const getAvailableCategories = (workouts) => {
@@ -49,9 +49,13 @@ const getAvailableCategories = (workouts) => {
   return categories;
 };
 
-export default function PredefinedWorkouts() {
+const BOOKMARKED_SESSIONS_KEY = 'bookmarkedSessions';
+// Pre-rename key (workout → session). Read-and-migrate only: never written.
+const LEGACY_BOOKMARKED_SESSIONS_KEY = 'bookmarkedWorkouts';
+
+export default function Sessions() {
   const navigate = useNavigate();
-  const [predefinedWorkouts, setPredefinedWorkouts] = useState([]);
+  const [sessionTemplates, setSessionTemplates] = useState([]);
   const [exercises, setExercises] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedWorkout, setSelectedWorkout] = useState(null);
@@ -62,20 +66,34 @@ export default function PredefinedWorkouts() {
   // New state for search and filters
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [bookmarkedWorkouts, setBookmarkedWorkouts] = useState(() => {
-    // Load bookmarks from localStorage
-    const saved = localStorage.getItem('bookmarkedWorkouts');
-    return saved ? JSON.parse(saved) : [];
+  const [bookmarkedSessions, setBookmarkedSessions] = useState(() => {
+    // Load bookmarks from localStorage. Plain key shim for the workout→session
+    // rename: read the pre-rename key when the new one is missing, then rewrite
+    // under the new key and drop the old one. Keep for at least two releases.
+    try {
+      const saved = localStorage.getItem(BOOKMARKED_SESSIONS_KEY);
+      if (saved) return JSON.parse(saved);
+
+      const legacy = localStorage.getItem(LEGACY_BOOKMARKED_SESSIONS_KEY);
+      if (!legacy) return [];
+
+      const parsed = JSON.parse(legacy);
+      localStorage.setItem(BOOKMARKED_SESSIONS_KEY, legacy);
+      localStorage.removeItem(LEGACY_BOOKMARKED_SESSIONS_KEY);
+      return parsed;
+    } catch {
+      return [];
+    }
   });
 
   // Active workout state (for resume/conflict handling)
-  const [activeWorkout, setActiveWorkout] = useState(null);
+  const [activeSession, setActiveSession] = useState(null);
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [pendingNewWorkout, setPendingNewWorkout] = useState(null);
 
   useEffect(() => {
     // Check for active workout on mount
-    setActiveWorkout(getActiveWorkout());
+    setActiveSession(getActiveSession());
     loadData();
   }, []);
 
@@ -83,14 +101,14 @@ export default function PredefinedWorkouts() {
     setIsLoading(true);
     try {
       const [workoutData, exerciseData] = await Promise.all([
-        PredefinedWorkout.list(),
+        SessionTemplate.list(),
         Exercise.list()
       ]);
-      setPredefinedWorkouts(workoutData || []);
+      setSessionTemplates(workoutData || []);
       setExercises(exerciseData || []);
     } catch (error) {
       console.error("Error loading data:", error);
-      setPredefinedWorkouts([]);
+      setSessionTemplates([]);
       setExercises([]);
     }
     setIsLoading(false);
@@ -114,7 +132,7 @@ export default function PredefinedWorkouts() {
         name: `${workout.name} (Copy)`,
         id: undefined
       };
-      await PredefinedWorkout.create(duplicatedWorkout);
+      await SessionTemplate.create(duplicatedWorkout);
       await loadData();
       alert("Workout duplicated successfully!");
     } catch (error) {
@@ -125,7 +143,7 @@ export default function PredefinedWorkouts() {
 
   const handleDelete = async (workout) => {
     try {
-      await PredefinedWorkout.delete(workout.id);
+      await SessionTemplate.delete(workout.id);
       await loadData();
     } catch (error) {
       console.error("Error deleting workout:", error);
@@ -134,7 +152,7 @@ export default function PredefinedWorkouts() {
 
   const handleCreate = async (newWorkout) => {
     try {
-      await PredefinedWorkout.create(newWorkout);
+      await SessionTemplate.create(newWorkout);
       await loadData();
       setShowCreateModal(false);
       setEditingWorkout(null);
@@ -145,7 +163,7 @@ export default function PredefinedWorkouts() {
 
   const handleUpdate = async (updatedWorkout) => {
     try {
-      await PredefinedWorkout.update(updatedWorkout.id, updatedWorkout);
+      await SessionTemplate.update(updatedWorkout.id, updatedWorkout);
       await loadData();
       setShowCreateModal(false);
       setEditingWorkout(null);
@@ -178,17 +196,17 @@ export default function PredefinedWorkouts() {
   const handleBookmark = (workout, isBookmarked) => {
     let updatedBookmarks;
     if (isBookmarked) {
-      updatedBookmarks = [...bookmarkedWorkouts, workout.id];
+      updatedBookmarks = [...bookmarkedSessions, workout.id];
     } else {
-      updatedBookmarks = bookmarkedWorkouts.filter(id => id !== workout.id);
+      updatedBookmarks = bookmarkedSessions.filter(id => id !== workout.id);
     }
-    setBookmarkedWorkouts(updatedBookmarks);
-    localStorage.setItem('bookmarkedWorkouts', JSON.stringify(updatedBookmarks));
+    setBookmarkedSessions(updatedBookmarks);
+    localStorage.setItem(BOOKMARKED_SESSIONS_KEY, JSON.stringify(updatedBookmarks));
   };
 
-  const startWorkout = (workout) => {
+  const startSession = (workout) => {
     // Check for existing active workout
-    if (activeWorkout) {
+    if (activeSession) {
       setPendingNewWorkout(workout);
       setShowConflictModal(true);
       return;
@@ -198,14 +216,14 @@ export default function PredefinedWorkouts() {
 
   const doStartWorkout = (workout) => {
     try {
-      const sessionData = parseWorkoutToSessionData(workout, {
-        sourceWorkoutId: workout._id || workout.id,
-        sourceWorkoutIsCommon: workout.isCommon
+      const sessionData = parseTemplateToSessionData(workout, {
+        sourceTemplateId: workout._id || workout.id,
+        sourceTemplateIsCommon: workout.isCommon
       });
-      startWorkoutSession(sessionData);
-      navigate(createPageUrl('LiveWorkout')); // No ID param needed
+      startLiveSession(sessionData);
+      navigate(createPageUrl('LiveSession')); // No ID param needed
     } catch (error) {
-      console.error('[PredefinedWorkouts] Failed to start workout:', error);
+      console.error('[Sessions] Failed to start workout:', error);
       alert(`Failed to start workout: ${error.message}`);
     }
   };
@@ -213,12 +231,12 @@ export default function PredefinedWorkouts() {
   const resumeWorkout = () => {
     setShowConflictModal(false);
     setPendingNewWorkout(null);
-    navigate(createPageUrl('LiveWorkout'));
+    navigate(createPageUrl('LiveSession'));
   };
 
   const discardAndStartNew = () => {
-    clearActiveWorkout();
-    setActiveWorkout(null);
+    clearActiveSession();
+    setActiveSession(null);
     setShowConflictModal(false);
 
     if (pendingNewWorkout) {
@@ -233,7 +251,7 @@ export default function PredefinedWorkouts() {
   };
 
   // Filter workouts based on search and category
-  const filteredWorkouts = predefinedWorkouts.filter(workout => {
+  const filteredWorkouts = sessionTemplates.filter(workout => {
     // Search filter
     const matchesSearch = searchQuery === "" ||
       workout.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -272,7 +290,7 @@ export default function PredefinedWorkouts() {
               You have an unfinished workout:
             </p>
             <p className="font-semibold text-gray-900 mb-4">
-              {activeWorkout?.data?.title}
+              {activeSession?.data?.title}
             </p>
             <p className="text-gray-600 mb-6">
               Would you like to resume it or start a new workout?
@@ -302,7 +320,7 @@ export default function PredefinedWorkouts() {
       )}
 
       {/* Resume Workout Banner - shown when active workout exists */}
-      {activeWorkout && (
+      {activeSession && (
         <div className="p-4 bg-green-50 border border-green-200 rounded-2xl">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -310,9 +328,9 @@ export default function PredefinedWorkouts() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-green-900">Workout in Progress</p>
-              <p className="text-sm text-green-700 truncate">{activeWorkout.data?.title}</p>
+              <p className="text-sm text-green-700 truncate">{activeSession.data?.title}</p>
               <p className="text-xs text-green-600">
-                {Math.floor(activeWorkout.totalWorkoutTime / 60)} min elapsed
+                {Math.floor(activeSession.totalSessionTime / 60)} min elapsed
               </p>
             </div>
             <button
@@ -356,7 +374,7 @@ export default function PredefinedWorkouts() {
 
       {/* Category Filters */}
       <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-        {getAvailableCategories(predefinedWorkouts).map((category) => (
+        {getAvailableCategories(sessionTemplates).map((category) => (
           <button
             key={category.id}
             onClick={() => setSelectedCategory(category.id)}
@@ -400,10 +418,10 @@ export default function PredefinedWorkouts() {
               workout={workout}
               onView={handleView}
               onBookmark={handleBookmark}
-              isBookmarked={bookmarkedWorkouts.includes(workout.id)}
+              isBookmarked={bookmarkedSessions.includes(workout.id)}
               onDelete={handleDelete}
               onEdit={handleEdit}
-              onStart={startWorkout}
+              onStart={startSession}
               onCalendar={handleApplyToCalendar}
             />
           ))}
@@ -433,7 +451,7 @@ export default function PredefinedWorkouts() {
             handleEdit(workout);
           }}
           onDelete={handleDelete}
-          onStart={startWorkout}
+          onStart={startSession}
         />
       )}
 

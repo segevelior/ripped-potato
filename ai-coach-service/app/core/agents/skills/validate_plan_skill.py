@@ -30,11 +30,11 @@ _PREDEFINED_SET_PROXY = 12
 
 def _week_metrics(week: Dict[str, Any]) -> Tuple[int, int, List[Dict[str, Any]]]:
     """Return (sessions, working_sets, workouts) for one week."""
-    workouts = week.get("workouts", []) or []
+    workouts = week.get("sessions", []) or []
     sets = 0
     for w in workouts:
-        if w.get("workoutType") == "custom":
-            custom = w.get("customWorkout") or {}
+        if w.get("sessionType") == "custom":
+            custom = w.get("customSession") or {}
             for ex in custom.get("exercises", []) or []:
                 sets += len(ex.get("sets", []) or [])
         else:
@@ -62,7 +62,7 @@ def _aerobic_minutes(workouts_list: List[Dict[str, Any]]) -> int:
     contribute only their timed portion, so strength blocks aren't miscounted."""
     minutes = 0
     for w in workouts_list:
-        custom = w.get("customWorkout") or {}
+        custom = w.get("customSession") or {}
         wtype = (custom.get("type") or "").lower()
         timed = _session_timed_minutes(custom)
         if wtype in tk.AEROBIC_WORKOUT_TYPES:
@@ -76,8 +76,8 @@ def _has_aerobic(weeks: List[Dict[str, Any]]) -> bool:
     """Any aerobic stimulus present? True for cardio/hiit/endurance sessions, and
     for hybrid sessions that carry timed work (embedded runs)."""
     for week in weeks:
-        for w in week.get("workouts", []) or []:
-            custom = w.get("customWorkout") or {}
+        for w in week.get("sessions", []) or []:
+            custom = w.get("customSession") or {}
             wtype = (custom.get("type") or "").lower()
             if wtype in tk.AEROBIC_WORKOUT_TYPES:
                 return True
@@ -105,7 +105,7 @@ def validate_plan_doc(plan: Dict[str, Any], goal_category: str, check_ramp: bool
     weeks = sorted(plan.get("weeks", []) or [], key=lambda w: w.get("weekNumber", 0))
     weeks_total = (plan.get("schedule") or {}).get("weeksTotal") or len(weeks)
 
-    if not weeks or all(not (w.get("workouts") or []) for w in weeks):
+    if not weeks or all(not (w.get("sessions") or []) for w in weeks):
         return {
             "valid": False,
             "violations": ["The plan has no workouts."],

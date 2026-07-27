@@ -86,7 +86,7 @@ router.get('/:id', auth, async (req, res) => {
     }
 
     await plan.populate('goalId', 'name description category milestones');
-    await plan.populate('weeks.workouts.predefinedWorkoutId', 'title type durationMinutes');
+    await plan.populate('weeks.sessions.sessionTemplateId', 'name goal estimated_duration');
 
     res.json(plan);
   } catch (error) {
@@ -143,9 +143,9 @@ router.post('/from-template/:templateId', auth, async (req, res) => {
       actualEndDate: undefined,
       progress: {
         currentWeek: 1,
-        completedWorkouts: 0,
-        totalWorkouts: 0,
-        skippedWorkouts: 0,
+        completedSessions: 0,
+        totalSessions: 0,
+        skippedSessions: 0,
         adherencePercentage: 0
       }
     };
@@ -226,10 +226,10 @@ router.post('/:id/start', auth, async (req, res) => {
   }
 });
 
-// POST /api/plans/:id/complete-workout - Complete workout in plan (authenticated)
-router.post('/:id/complete-workout', auth, async (req, res) => {
+// POST /api/plans/:id/complete-session - Complete session in plan (authenticated)
+router.post('/:id/complete-session', auth, async (req, res) => {
   try {
-    const { weekNumber, workoutIndex } = req.body;
+    const { weekNumber, sessionIndex } = req.body;
     
     const plan = await Plan.findOne({ _id: req.params.id, userId: req.user.id });
 
@@ -241,15 +241,15 @@ router.post('/:id/complete-workout', auth, async (req, res) => {
       return res.status(400).json({ error: 'Plan is not active' });
     }
 
-    await plan.completeWorkout(weekNumber, workoutIndex);
+    await plan.completeSession(weekNumber, sessionIndex);
     res.json(plan);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST /api/plans/:id/skip-workout - Skip workout in plan (authenticated)
-router.post('/:id/skip-workout', auth, async (req, res) => {
+// POST /api/plans/:id/skip-session - Skip session in plan (authenticated)
+router.post('/:id/skip-session', auth, async (req, res) => {
   try {
     const { reason } = req.body;
     
@@ -263,7 +263,7 @@ router.post('/:id/skip-workout', auth, async (req, res) => {
       return res.status(400).json({ error: 'Plan is not active' });
     }
 
-    await plan.skipWorkout(reason);
+    await plan.skipSession(reason);
     res.json(plan);
   } catch (error) {
     res.status(500).json({ error: error.message });

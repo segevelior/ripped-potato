@@ -29,7 +29,7 @@ const STATUS_CONFIG = {
   }
 };
 
-const WORKOUT_TYPE_COLORS = {
+const DISCIPLINE_COLORS = {
   strength: { bg: "bg-indigo-50", text: "text-indigo-700", badge: "bg-indigo-500" },
   cardio: { bg: "bg-emerald-50", text: "text-emerald-700", badge: "bg-emerald-500" },
   hiit: { bg: "bg-amber-50", text: "text-amber-700", badge: "bg-amber-500" },
@@ -65,19 +65,19 @@ export default function CalendarEventDetailModal({ event, onClose, onStartWorkou
   const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.scheduled;
   const StatusIcon = statusConfig.icon;
 
-  const workoutType = event.workoutDetails?.type || event.eventType || "strength";
-  const typeColors = WORKOUT_TYPE_COLORS[workoutType] || WORKOUT_TYPE_COLORS.strength;
+  const discipline = event.sessionDetails?.discipline || event.eventType || "strength";
+  const typeColors = DISCIPLINE_COLORS[discipline] || DISCIPLINE_COLORS.strength;
 
   // Completed events embed the ACTUAL performed sets; scheduled events read
   // the plan from the linked workout template (embedded list is a legacy
   // fallback for unmigrated events).
-  const embeddedExercises = event.workoutDetails?.exercises || [];
-  const templateExercises = flattenTemplateBlocks(event.workoutTemplateId?.blocks);
+  const embeddedExercises = event.sessionDetails?.exercises || [];
+  const templateExercises = flattenTemplateBlocks(event.sessionTemplateId?.blocks);
   const exercises = status === 'completed'
     ? (embeddedExercises.length ? embeddedExercises : templateExercises)
     : (templateExercises.length ? templateExercises : embeddedExercises);
-  const duration = event.workoutDetails?.estimatedDuration || event.workoutDetails?.durationMinutes || event.workoutTemplateId?.estimated_duration || 60;
-  const notes = event.workoutDetails?.notes || event.notes || "";
+  const duration = event.sessionDetails?.estimatedDuration || event.sessionDetails?.durationMinutes || event.sessionTemplateId?.estimated_duration || 60;
+  const notes = event.sessionDetails?.notes || event.notes || "";
 
   const eventDate = typeof event.date === 'string' ? new Date(event.date) : event.date;
 
@@ -95,7 +95,7 @@ export default function CalendarEventDetailModal({ event, onClose, onStartWorkou
             <div className="flex-1 min-w-0">
               {/* Type Badge */}
               <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold text-white mb-2 ${typeColors.badge}`}>
-                {workoutType.charAt(0).toUpperCase() + workoutType.slice(1)}
+                {discipline.charAt(0).toUpperCase() + discipline.slice(1)}
               </span>
 
               {/* Title */}

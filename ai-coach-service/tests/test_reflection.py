@@ -49,12 +49,12 @@ class TestReflectionTrigger:
         )
         assert result is True
 
-    def test_triggers_on_create_workout_template(self, orchestrator):
-        """Should trigger reflection when create_workout_template tool is used."""
+    def test_triggers_on_create_session_template(self, orchestrator):
+        """Should trigger reflection when create_session_template tool is used."""
         long_response = "Here's your workout template..." + "x" * 600
         result = orchestrator._requires_reflection(
             response_content=long_response,
-            tools_used=["create_workout_template"]
+            tools_used=["create_session_template"]
         )
         assert result is True
 
@@ -67,12 +67,12 @@ class TestReflectionTrigger:
         )
         assert result is True
 
-    def test_triggers_on_add_plan_workout(self, orchestrator):
-        """Should trigger reflection when add_plan_workout tool is used."""
+    def test_triggers_on_add_plan_session(self, orchestrator):
+        """Should trigger reflection when add_plan_session tool is used."""
         long_response = "I've added the workout to your plan..." + "x" * 600
         result = orchestrator._requires_reflection(
             response_content=long_response,
-            tools_used=["add_plan_workout"]
+            tools_used=["add_plan_session"]
         )
         assert result is True
 
@@ -473,9 +473,9 @@ class TestReflectionConfig:
         """Trigger tools should be valid tool names."""
         valid_tools = [
             "create_plan",
-            "create_workout_template",
+            "create_session_template",
             "create_goal",
-            "add_plan_workout",
+            "add_plan_session",
         ]
         for tool in REFLECTION_CONFIG["trigger_tools"]:
             assert tool in valid_tools, f"Invalid trigger tool: {tool}"

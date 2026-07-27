@@ -14,7 +14,7 @@ import { FeedbackButtons } from "@/components/chat/FeedbackButtons";
 import { QuickReplies, parseQuickReplies } from "@/components/chat/QuickReplies";
 import { ActionButtons, parseActionButtons } from "@/components/chat/ActionButtons";
 import { MARKDOWN_COMPONENTS } from "@/components/chat/markdownComponents";
-import { stripContextMarkers } from "@/utils/chatMarkers";
+import { stripContextMarkers, SESSION_REQUEST_PREFIXES } from "@/utils/chatMarkers";
 import { aiService } from "@/services/aiService";
 
 // API Base URL
@@ -283,8 +283,10 @@ export default function ChatWithStreaming() {
         } else if (pendingAutoSend.includes('TRAIN NOW')) {
           // Train Now request without specific input
           displayMessage = "I want to train now - help me decide what to do";
-        } else if (pendingAutoSend.includes('[WORKOUT REQUEST')) {
-          // Calendar workout request without specific input
+        } else if (SESSION_REQUEST_PREFIXES.some((p) => pendingAutoSend.includes(p))) {
+          // Calendar session request without specific input. Both marker
+          // spellings are accepted here — a pre-rename bundle in another tab
+          // can still be the one that wrote `pendingChatPrompt`.
           displayMessage = "Help me plan a workout for today";
         }
 

@@ -34,7 +34,7 @@ class ContextService:
             
             # Load recent workouts (last 7 days)
             week_ago = datetime.utcnow() - timedelta(days=7)
-            recent_workouts = await self.db.predefinedworkouts.find(
+            recent_workouts = await self.db.sessiontemplates.find(
                 {
                     "userId": user_oid,
                     "date": {"$gte": week_ago}
@@ -92,7 +92,7 @@ class ContextService:
             logger.error(f"Error loading exercises: {e}")
             return []
     
-    async def get_workout_history(
+    async def get_session_history(
         self, 
         user_id: str, 
         days: int = 30
@@ -104,7 +104,7 @@ class ContextService:
             user_oid = ObjectId(user_id)
             cutoff_date = datetime.utcnow() - timedelta(days=days)
             
-            workouts = await self.db.predefinedworkouts.find(
+            workouts = await self.db.sessiontemplates.find(
                 {
                     "userId": user_oid,
                     "date": {"$gte": cutoff_date}

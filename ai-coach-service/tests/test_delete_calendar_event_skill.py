@@ -28,7 +28,7 @@ def _event(**overrides):
         "userId": ObjectId(USER_ID),
         "title": "Endurance 1 (Jul 20)",
         "date": datetime(2026, 7, 20),
-        "type": "workout",
+        "type": "session",
         "status": "scheduled",
     }
     event.update(overrides)

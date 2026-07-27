@@ -18,11 +18,11 @@ TODAY = datetime(2026, 7, 10)
 class TestComputeAdherence:
     def test_counts_and_pct(self):
         events = [
-            {"type": "workout", "status": "completed", "date": TODAY - timedelta(days=5)},
-            {"type": "workout", "status": "completed", "date": TODAY - timedelta(days=3)},
-            {"type": "workout", "status": "skipped", "date": TODAY - timedelta(days=2)},
-            {"type": "workout", "status": "scheduled", "date": TODAY - timedelta(days=1)},  # missed
-            {"type": "workout", "status": "scheduled", "date": TODAY + timedelta(days=1)},  # upcoming
+            {"type": "session", "status": "completed", "date": TODAY - timedelta(days=5)},
+            {"type": "session", "status": "completed", "date": TODAY - timedelta(days=3)},
+            {"type": "session", "status": "skipped", "date": TODAY - timedelta(days=2)},
+            {"type": "session", "status": "scheduled", "date": TODAY - timedelta(days=1)},  # missed
+            {"type": "session", "status": "scheduled", "date": TODAY + timedelta(days=1)},  # upcoming
             {"type": "rest", "status": "scheduled", "date": TODAY - timedelta(days=1)},     # ignored
         ]
         a = compute_adherence(events, TODAY)
@@ -30,12 +30,12 @@ class TestComputeAdherence:
         assert a["adherencePct"] == 50  # 2 / (2+1+1)
 
     def test_no_due_sessions(self):
-        a = compute_adherence([{"type": "workout", "status": "scheduled", "date": TODAY + timedelta(days=2)}], TODAY)
+        a = compute_adherence([{"type": "session", "status": "scheduled", "date": TODAY + timedelta(days=2)}], TODAY)
         assert a["adherencePct"] is None
 
     @pytest.mark.asyncio
     async def test_handler(self):
-        events = [{"type": "workout", "status": "completed", "date": TODAY - timedelta(days=1)}]
+        events = [{"type": "session", "status": "completed", "date": TODAY - timedelta(days=1)}]
         db = MagicMock()
         fr = MagicMock(); fr.to_list = AsyncMock(return_value=events)
         db.calendarevents.find = MagicMock(return_value=fr)
@@ -102,10 +102,10 @@ class TestRescheduleHandler:
 
 def _plan_weeks():
     def wk(n):
-        return {"weekNumber": n, "restDays": [0, 6], "workouts": [
-            {"dayOfWeek": 1, "workoutType": "custom", "customWorkout": {"type": "strength", "exercises": [
+        return {"weekNumber": n, "restDays": [0, 6], "sessions": [
+            {"dayOfWeek": 1, "sessionType": "custom", "customSession": {"type": "strength", "exercises": [
                 {"exerciseName": "Squat", "sets": [{"reps": 5}, {"reps": 5}, {"reps": 5}]}]}},
-            {"dayOfWeek": 3, "workoutType": "custom", "customWorkout": {"type": "strength", "exercises": [
+            {"dayOfWeek": 3, "sessionType": "custom", "customSession": {"type": "strength", "exercises": [
                 {"exerciseName": "Bench", "sets": [{"reps": 5}, {"reps": 5}, {"reps": 5}]}]}},
         ]}
     return [wk(1), wk(2)]
@@ -114,13 +114,13 @@ def _plan_weeks():
 class TestApplyAdjustment:
     def test_volume_increase(self):
         weeks, desc = apply_adjustment(_plan_weeks(), "volume", "increase", 1)
-        sets = weeks[0]["workouts"][0]["customWorkout"]["exercises"][0]["sets"]
+        sets = weeks[0]["sessions"][0]["customSession"]["exercises"][0]["sets"]
         assert len(sets) == 4
         assert "increase" in desc
 
     def test_volume_decrease_keeps_at_least_one(self):
         weeks, _ = apply_adjustment(_plan_weeks(), "volume", "decrease", 10)
-        sets = weeks[0]["workouts"][0]["customWorkout"]["exercises"][0]["sets"]
+        sets = weeks[0]["sessions"][0]["customSession"]["exercises"][0]["sets"]
         assert len(sets) == 1
 
     def test_deload_marks_first_week(self):
@@ -130,12 +130,12 @@ class TestApplyAdjustment:
 
     def test_frequency_decrease(self):
         weeks, _ = apply_adjustment(_plan_weeks(), "frequency", "decrease", 1)
-        assert len(weeks[0]["workouts"]) == 1
+        assert len(weeks[0]["sessions"]) == 1
 
     def test_original_not_mutated(self):
         original = _plan_weeks()
         apply_adjustment(original, "volume", "increase", 5)
-        assert len(original[0]["workouts"][0]["customWorkout"]["exercises"][0]["sets"]) == 3
+        assert len(original[0]["sessions"][0]["customSession"]["exercises"][0]["sets"]) == 3
 
 
 def _adjust_ctx(plan):

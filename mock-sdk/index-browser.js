@@ -479,46 +479,46 @@ class APIExercise extends APIEntity {
   // async filter(query = {}) is inherited from MockEntity
 }
 
-// API Workout Entity - uses backend API with localStorage fallback
-class APIWorkout extends APIEntity {
+// API SessionLog Entity - uses backend API with localStorage fallback
+class APISessionLog extends APIEntity {
   constructor() {
-    console.log('🔧 APIWorkout constructor starting...');
-    super('Workout', 'workouts');
-    console.log('🔧 APIWorkout constructor completed successfully');
+    console.log('🔧 APISessionLog constructor starting...');
+    super('SessionLog', 'session-logs');
+    console.log('🔧 APISessionLog constructor completed successfully');
   }
 
   // Inherited list() method from APIEntity
 
-  async create(workoutData) {
+  async create(sessionData) {
     try {
-      console.log('🌐 Trying API call to create workout...');
-      const response = await fetch(`${this.baseURL}/workouts`, {
+      console.log('🌐 Trying API call to create session log...');
+      const response = await fetch(`${this.baseURL}/session-logs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...auth.getAuthHeaders()
         },
-        body: JSON.stringify(workoutData)
+        body: JSON.stringify(sessionData)
       });
       
       if (!response.ok) {
         console.warn('⚠️ API create failed, falling back to localStorage');
-        return super.create(workoutData);
+        return super.create(sessionData);
       }
       
       const result = await response.json();
       console.log('✅ API create successful');
       
       // Handle nested response structure and normalize ID
-      const workout = result.data?.workout || result;
+      const log = result.data?.log || result;
       return {
-        ...workout,
-        id: workout.id || workout._id,
+        ...log,
+        id: log.id || log._id,
         _id: undefined
       };
     } catch (error) {
       console.warn('⚠️ API create error, falling back to localStorage:', error.message);
-      return super.create(workoutData);
+      return super.create(sessionData);
     }
   }
 
@@ -528,17 +528,17 @@ class APIWorkout extends APIEntity {
 
   async findById(id) {
     try {
-      const response = await fetch(`${this.baseURL}/workouts/${id}`, {
+      const response = await fetch(`${this.baseURL}/session-logs/${id}`, {
         headers: auth.getAuthHeaders()
       });
       if (!response.ok) {
         return super.get(id);
       }
       const data = await response.json();
-      const workout = data.data?.workout || data;
+      const log = data.data?.log || data;
       return {
-        ...workout,
-        id: workout.id || workout._id,
+        ...log,
+        id: log.id || log._id,
         _id: undefined
       };
     } catch (error) {
@@ -549,7 +549,7 @@ class APIWorkout extends APIEntity {
 
   async update(id, updates) {
     try {
-      const response = await fetch(`${this.baseURL}/workouts/${id}`, {
+      const response = await fetch(`${this.baseURL}/session-logs/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -563,10 +563,10 @@ class APIWorkout extends APIEntity {
       }
       
       const result = await response.json();
-      const workout = result.data?.workout || result;
+      const log = result.data?.log || result;
       return {
-        ...workout,
-        id: workout.id || workout._id,
+        ...log,
+        id: log.id || log._id,
         _id: undefined
       };
     } catch (error) {
@@ -577,7 +577,7 @@ class APIWorkout extends APIEntity {
 
   async delete(id) {
     try {
-      const response = await fetch(`${this.baseURL}/workouts/${id}`, {
+      const response = await fetch(`${this.baseURL}/session-logs/${id}`, {
         method: 'DELETE',
         headers: auth.getAuthHeaders()
       });
@@ -709,27 +709,27 @@ class APIGoal extends APIEntity {
   }
 }
 
-// API PredefinedWorkout Entity
-class APIPredefinedWorkout extends APIEntity {
+// API SessionTemplate Entity
+class APISessionTemplate extends APIEntity {
   constructor() {
-    console.log('🔧 APIPredefinedWorkout constructor starting...');
-    super('PredefinedWorkout', 'predefined-workouts');
-    console.log('🔧 APIPredefinedWorkout constructor completed successfully');
+    console.log('🔧 APISessionTemplate constructor starting...');
+    super('SessionTemplate', 'session-templates');
+    console.log('🔧 APISessionTemplate constructor completed successfully');
   }
 
   // Inherited list() method from APIEntity
 
   async create(data) {
     try {
-      console.log('🌐 Trying API call to create predefined workout...');
-      const response = await fetch(`${this.baseURL}/predefined-workouts`, {
+      console.log('🌐 Trying API call to create session template...');
+      const response = await fetch(`${this.baseURL}/session-templates`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...auth.getAuthHeaders() },
         body: JSON.stringify(data)
       });
       if (!response.ok) return super.create(data);
       const result = await response.json();
-      const workout = result.data?.predefinedWorkout || result;
+      const workout = result.data?.sessionTemplate || result;
       return { ...workout, id: workout.id || workout._id, _id: undefined };
     } catch (error) {
       return super.create(data);
@@ -739,12 +739,12 @@ class APIPredefinedWorkout extends APIEntity {
   async get(id) { return this.findById(id); }
   async findById(id) {
     try {
-      const response = await fetch(`${this.baseURL}/predefined-workouts/${id}`, {
+      const response = await fetch(`${this.baseURL}/session-templates/${id}`, {
         headers: auth.getAuthHeaders()
       });
       if (!response.ok) return super.get(id);
       const data = await response.json();
-      const workout = data.data?.predefinedWorkout || data;
+      const workout = data.data?.sessionTemplate || data;
       return { ...workout, id: workout.id || workout._id, _id: undefined };
     } catch (error) {
       return super.get(id);
@@ -753,14 +753,14 @@ class APIPredefinedWorkout extends APIEntity {
 
   async update(id, updates) {
     try {
-      const response = await fetch(`${this.baseURL}/predefined-workouts/${id}`, {
+      const response = await fetch(`${this.baseURL}/session-templates/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...auth.getAuthHeaders() },
         body: JSON.stringify(updates)
       });
       if (!response.ok) return super.update(id, updates);
       const result = await response.json();
-      const workout = result.data?.predefinedWorkout || result;
+      const workout = result.data?.sessionTemplate || result;
       return { ...workout, id: workout.id || workout._id, _id: undefined };
     } catch (error) {
       return super.update(id, updates);
@@ -769,7 +769,7 @@ class APIPredefinedWorkout extends APIEntity {
 
   async delete(id) {
     try {
-      const response = await fetch(`${this.baseURL}/predefined-workouts/${id}`, {
+      const response = await fetch(`${this.baseURL}/session-templates/${id}`, {
         method: 'DELETE',
         headers: auth.getAuthHeaders()
       });
@@ -931,12 +931,12 @@ try {
 }
 
 try {
-  console.log('📍 Creating Workout entity with APIWorkout...');
-  entities.Workout = new APIWorkout(); // 🔄 Testing API integration
-  console.log('✅ Workout entity created successfully');
+  console.log('📍 Creating SessionLog entity with APISessionLog...');
+  entities.SessionLog = new APISessionLog(); // 🔄 Testing API integration
+  console.log('✅ SessionLog entity created successfully');
 } catch (error) {
-  console.error('❌ Failed to create APIWorkout, falling back to MockEntity:', error);
-  entities.Workout = new MockEntity('Workout');
+  console.error('❌ Failed to create APISessionLog, falling back to MockEntity:', error);
+  entities.SessionLog = new MockEntity('SessionLog');
 }
 
 try {
@@ -949,12 +949,12 @@ try {
 }
 
 try {
-  console.log('📍 Creating PredefinedWorkout entity with APIPredefinedWorkout...');
-  entities.PredefinedWorkout = new APIPredefinedWorkout(); // 🔄 Testing API integration
-  console.log('✅ PredefinedWorkout entity created successfully');
+  console.log('📍 Creating SessionTemplate entity with APISessionTemplate...');
+  entities.SessionTemplate = new APISessionTemplate(); // 🔄 Testing API integration
+  console.log('✅ SessionTemplate entity created successfully');
 } catch (error) {
-  console.error('❌ Failed to create APIPredefinedWorkout, falling back to MockEntity:', error);
-  entities.PredefinedWorkout = new MockEntity('PredefinedWorkout');
+  console.error('❌ Failed to create APISessionTemplate, falling back to MockEntity:', error);
+  entities.SessionTemplate = new MockEntity('SessionTemplate');
 }
 
 try {
@@ -969,9 +969,9 @@ try {
 // Create other entities (remaining non-API entities)
 const otherEntities = {
   ExternalActivity: new MockEntity('ExternalActivity'),
-  WorkoutTemplate: new MockEntity('WorkoutTemplate'),
+  SessionTemplateAlias: new MockEntity('SessionTemplateAlias'),
   Discipline: new MockEntity('Discipline'),
-  WorkoutType: new MockEntity('WorkoutType'),
+  SessionType: new MockEntity('SessionType'),
   TrainingPlan: new MockEntity('TrainingPlan'),
   ProgressionPath: new MockEntity('ProgressionPath'),
   UserGoalProgress: new MockEntity('UserGoalProgress'),
@@ -1189,15 +1189,15 @@ function initializeSampleData(entities) {
   ];
   entities.Discipline.saveData();
   
-  // Add workout types
-  entities.WorkoutType.data = [
+  // Add session types
+  entities.SessionType.data = [
     { id: 'wt-1', name: 'strength' },
     { id: 'wt-2', name: 'cardio' },
     { id: 'wt-3', name: 'hybrid' },
     { id: 'wt-4', name: 'recovery' },
     { id: 'wt-5', name: 'hiit' }
   ];
-  entities.WorkoutType.saveData();
+  entities.SessionType.saveData();
   
   // Add sample goals
   entities.Goal.data = [
@@ -1241,8 +1241,8 @@ function initializeSampleData(entities) {
   entities.Goal.saveData();
   console.log('Initialized Goal data:', entities.Goal.data.length, 'goals');
   
-  // Add sample predefined workouts
-  entities.PredefinedWorkout.data = [
+  // Add sample session templates
+  entities.SessionTemplate.data = [
     {
       id: 'pw-1',
       name: 'Climbing + Push Strength Day',
@@ -1379,8 +1379,8 @@ function initializeSampleData(entities) {
       updatedAt: new Date().toISOString()
     }
   ];
-  entities.PredefinedWorkout.saveData();
-  console.log('Initialized PredefinedWorkout data:', entities.PredefinedWorkout.data.length, 'workouts');
+  entities.SessionTemplate.saveData();
+  console.log('Initialized SessionTemplate data:', entities.SessionTemplate.data.length, 'workouts');
 }
 
 // Main SDK client creation function

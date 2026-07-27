@@ -46,18 +46,22 @@ logger = structlog.get_logger()
 # Messages that reference the user's OWN plan/calendar/workouts must be grounded
 # in their real data — force at least one tool call on the first LLM round so the
 # model reads the data instead of answering generically (see prompts.py principle 1).
+# NOTE: this matches USER UTTERANCES, not our vocabulary. Users will say
+# "workout" forever, so every "workout" alternative below is permanent — the
+# session/rename is ADDITIVE here: session twins were added alongside, never
+# replacing a workout pattern.
 _GROUNDING_INTENT_RE = re.compile(
     r"\bmy\s+(plan|plans|workout|workouts|program|calendar|schedule|training|routine|session|sessions|history|week)\b"
     r"|\b(scheduled|swap|replace|substitute|reschedule|move|skip)\b"
     r"|\bbased on my\b"
     r"|\bwhat('s| is) (on |in )?(my|the) (calendar|schedule)\b"
-    r"|\b(today|tomorrow|this week|next week|sunday|monday|tuesday|wednesday|thursday|friday|saturday)('s)? workout\b"
-    r"|\bworkout (for |on )?(today|tomorrow|this week|sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b"
+    r"|\b(today|tomorrow|this week|next week|sunday|monday|tuesday|wednesday|thursday|friday|saturday)('s)? (workout|session)\b"
+    r"|\b(workout|session) (for |on )?(today|tomorrow|this week|sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b"
     r"|\btoday'?s\s+pick\b"
-    r"|\b(suggested|recommended)\s+workout\b"
+    r"|\b(suggested|recommended)\s+(workout|session)\b"
     r"|\bwhat\s+(should|do)\s+i\s+(do|train)\s+today\b"
     r"|\bshould\s+i\s+(train|work\s?out|rest)\s+today\b"
-    r"|\b(do|have)\s+i\s+(got\s+|have\s+)?a?\s*workout\s+today\b",
+    r"|\b(do|have)\s+i\s+(got\s+|have\s+)?a?\s*(workout|session)\s+today\b",
     re.IGNORECASE,
 )
 
@@ -129,16 +133,42 @@ REPLAY_TOOL_CHARS_BUDGET = 24_000
 # A dry-run/confirm preview mutates nothing and counts as a read.
 _WRITE_PREVIEW_DEFAULT_TRUE = {  # dry_run defaults true → write only on explicit dry_run=false
     "schedule_to_calendar", "schedule_plan_to_calendar", "reschedule_session",
-    "update_calendar_workout", "adjust_plan",
+    "update_calendar_session", "adjust_plan",
 }
-_WRITE_CONFIRM_TOOLS = {"delete_calendar_event", "delete_workout_template"}  # write only on confirm=true
+_WRITE_CONFIRM_TOOLS = {"delete_calendar_event", "delete_session_template"}  # write only on confirm=true
 _WRITE_PREVIEW_DEFAULT_FALSE = {"resolve_week"}  # writes unless dry_run=true
 _WRITE_ALWAYS = {
-    "add_exercise", "add_plan_workout", "create_goal", "create_plan",
-    "create_workout_template", "delete_memory", "generate_plan", "log_workout",
-    "remove_plan_workout", "save_exercise_video", "save_memory",
+    "add_exercise", "add_plan_session", "create_goal", "create_plan",
+    "create_session_template", "delete_memory", "generate_plan", "log_session",
+    "remove_plan_session", "save_exercise_video", "save_memory",
     "substitute_exercise", "update_goal", "update_memory", "update_plan",
 }
+
+
+# Persisted `tool_rounds` in chatConversations speak the OLD tool vocabulary
+# FOREVER: every pre-rename conversation stored the workout-era names verbatim,
+# and no migration can rewrite them safely (arguments are opaque JSON strings).
+# This map is therefore permanent, not a transition shim. It is applied in two
+# places: _call_is_write (so a stale write is still classified as a write and
+# forced grounding does not wrongly relax) and _expand_tool_rounds (so the model
+# never sees a dead tool name replayed as an exemplar and starts emitting it).
+LEGACY_TOOL_ALIASES = {
+    "create_workout_template": "create_session_template",
+    "list_workout_templates": "list_session_templates",
+    "delete_workout_template": "delete_session_template",
+    "log_workout": "log_session",
+    "get_workout_history": "get_session_history",
+    "grep_workouts": "grep_session_templates",
+    "add_plan_workout": "add_plan_session",
+    "remove_plan_workout": "remove_plan_session",
+    "update_calendar_workout": "update_calendar_session",
+}
+
+
+def resolve_tool_name(name: str | None) -> str:
+    """Map a possibly-legacy (pre-session-rename) tool name to its current name."""
+    name = name or ""
+    return LEGACY_TOOL_ALIASES.get(name, name)
 
 
 def _call_is_write(name: str, arguments_json: str | None) -> bool:
@@ -149,6 +179,9 @@ def _call_is_write(name: str, arguments_json: str | None) -> bool:
         args = {}
     if not isinstance(args, dict):
         args = {}
+    # Replayed history may carry pre-rename names — classify them as their
+    # current equivalents, otherwise a stale write reads as a read.
+    name = resolve_tool_name(name)
     if name in _WRITE_ALWAYS:
         return True
     if name in _WRITE_CONFIRM_TOOLS:
@@ -199,7 +232,11 @@ def _replayable_indexes(conversation_history: List[Dict[str, Any]]) -> set:
 def _expand_tool_rounds(tool_rounds: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Expand persisted rounds into OpenAI messages. A round missing any
     matching result is skipped whole — an assistant tool_calls message
-    without its full set of adjacent tool replies 400s the API."""
+    without its full set of adjacent tool replies 400s the API.
+
+    Names are resolved through LEGACY_TOOL_ALIASES: rounds persisted before the
+    workout→session rename name tools that no longer exist, and replaying them
+    verbatim teaches the model to emit dead names."""
     expanded = []
     for round_ in tool_rounds:
         calls = round_.get("tool_calls") or []
@@ -215,7 +252,7 @@ def _expand_tool_rounds(tool_rounds: List[Dict[str, Any]]) -> List[Dict[str, Any
                     "id": c["id"],
                     "type": "function",
                     "function": {
-                        "name": c.get("name") or "",
+                        "name": resolve_tool_name(c.get("name")),
                         "arguments": c.get("arguments") or "{}",
                     },
                 }
@@ -478,8 +515,8 @@ USER PROFILE:
 - Height: {height_str}
 - Units: {units}
 - Available Equipment: {', '.join(user_profile.get('equipment', [])) or 'not specified'}
-- Preferred Workout Duration: {user_profile.get('workoutDuration', 'not set')} minutes
-- Workout Days per Week: {len(user_profile.get('workoutDays', []))}
+- Preferred Workout Duration: {user_profile.get('sessionDuration', 'not set')} minutes
+- Workout Days per Week: {len(user_profile.get('sessionDays', []))}
 - Stated Goals (from profile): {', '.join(user_profile.get('goals', [])) or 'none listed'}
 - Profile-listed Injuries (standing baseline): {', '.join(user_profile.get('injuries', [])) or 'none listed'}
 
@@ -639,20 +676,20 @@ USER DATA:
             "add_exercise": f"Adding {function_args.get('name', 'exercise')} to your library",
             "list_exercises": f"Searching exercises by {function_args.get('muscle', function_args.get('name', 'filter'))}",
             "grep_exercises": f"Searching for {', '.join(function_args.get('patterns', ['exercises'])[:3])}",
-            "grep_workouts": f"Searching workouts: {', '.join(function_args.get('patterns', ['workouts'])[:3])}",
-            # Workout template tools
-            "create_workout_template": f"Creating workout template: {function_args.get('name', 'workout')}",
-            "list_workout_templates": "Browsing workout templates",
-            "delete_workout_template": "Removing workout template(s)",
-            # Workout log tools
-            "log_workout": f"Logging workout: {function_args.get('title', 'workout')}",
-            "get_workout_history": "Fetching your workout history",
+            "grep_session_templates": f"Searching sessions: {', '.join(function_args.get('patterns', ['sessions'])[:3])}",
+            # Session template tools
+            "create_session_template": f"Creating session template: {function_args.get('name', 'session')}",
+            "list_session_templates": "Browsing session templates",
+            "delete_session_template": "Removing session template(s)",
+            # Session log tools
+            "log_session": f"Logging session: {function_args.get('title', 'session')}",
+            "get_session_history": "Fetching your session history",
             # Plan tools
             "create_plan": f"Creating training plan: {function_args.get('name', 'plan')}",
             "list_plans": "Fetching your training plans",
             "update_plan": "Updating your training plan",
-            "add_plan_workout": f"Adding workout to week {function_args.get('weekNumber', '')}",
-            "remove_plan_workout": f"Removing workout from week {function_args.get('weekNumber', '')}",
+            "add_plan_session": f"Adding session to week {function_args.get('weekNumber', '')}",
+            "remove_plan_session": f"Removing session from week {function_args.get('weekNumber', '')}",
             # Goal tools
             "create_goal": f"Setting up goal: {function_args.get('name', 'fitness goal')}",
             "update_goal": "Updating your fitness goal",
@@ -1369,21 +1406,21 @@ USER DATA:
             "add_exercise": self.exercise_service.add_exercise,
             "list_exercises": self.exercise_service.list_exercises,
             "grep_exercises": self.exercise_service.grep_exercises,
-            "grep_workouts": self.exercise_service.grep_workouts,
+            "grep_session_templates": self.exercise_service.grep_session_templates,
             "save_exercise_video": self.exercise_service.save_exercise_video,
-            # Workout template tools
-            "create_workout_template": self.session_service.create_workout_template,
-            "list_workout_templates": self.session_service.list_workout_templates,
-            "delete_workout_template": self.session_service.delete_workout_template,
-            # Workout log tools
-            "log_workout": self.session_service.log_workout,
-            "get_workout_history": self.session_service.get_workout_history,
+            # Session template tools
+            "create_session_template": self.session_service.create_session_template,
+            "list_session_templates": self.session_service.list_session_templates,
+            "delete_session_template": self.session_service.delete_session_template,
+            # Session log tools
+            "log_session": self.session_service.log_session,
+            "get_session_history": self.session_service.get_session_history,
             # Plan tools
             "create_plan": self.plan_service.create_plan,
             "list_plans": self.plan_service.list_plans,
             "update_plan": self.plan_service.update_plan,
-            "add_plan_workout": self.plan_service.add_plan_workout,
-            "remove_plan_workout": self.plan_service.remove_plan_workout,
+            "add_plan_session": self.plan_service.add_plan_session,
+            "remove_plan_session": self.plan_service.remove_plan_session,
             # Goal tools
             "create_goal": self.goal_service.create_goal,
             "update_goal": self.goal_service.update_goal,

@@ -309,7 +309,7 @@ class StravaIntegrationService {
   }
 
   /**
-   * Map Strava sport type to our workout type
+   * Map Strava sport type to our discipline vocabulary
    */
   static mapStravaTypeToDiscipline(sportType) {
     const typeMap = {
@@ -327,6 +327,7 @@ class StravaIntegrationService {
       'Hike': 'walking',
       'Yoga': 'yoga',
       'Weight Training': 'strength',
+      // 'Workout' is Strava's own sport-type literal — never rename the KEY.
       'Workout': 'strength',
       'CrossFit': 'hiit',
       'HIIT': 'hiit',
@@ -351,11 +352,11 @@ class StravaIntegrationService {
       userId,
       date: externalActivity.startDate,
       title: externalActivity.name,
-      type: 'workout',
+      type: 'session',
       status: 'completed',
       externalActivityId: externalActivity._id,
-      workoutDetails: {
-        type: this.mapStravaTypeToDiscipline(externalActivity.sportType),
+      sessionDetails: {
+        discipline: this.mapStravaTypeToDiscipline(externalActivity.sportType),
         durationMinutes: Math.round((externalActivity.movingTime || externalActivity.elapsedTime || 0) / 60),
         source: 'strava',
         stravaData: {

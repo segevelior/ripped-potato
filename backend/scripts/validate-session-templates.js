@@ -222,7 +222,7 @@ const validatePredefinedWorkouts = async () => {
     } else {
       console.log(`\n📊 Summary: Found ${totalIssues} total issues across ${workouts.length} workouts`);
       console.log('\n💡 Run the migration script to fix these issues:');
-      console.log('   npm run migrate:predefined-workouts');
+      console.log('   npm run migrate:session-templates');
     }
     
   } catch (error) {

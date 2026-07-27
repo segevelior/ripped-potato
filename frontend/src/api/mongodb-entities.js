@@ -72,12 +72,12 @@ export const Plan = {
   active: async () => normalizeArray(await apiService.plans.active())
 };
 
-// PredefinedWorkout entity
-export const PredefinedWorkout = {
-  list: async () => normalizeArray(await apiService.predefinedWorkouts.list()),
-  create: async (data) => normalizeId(await apiService.predefinedWorkouts.create(data)),
-  update: async (id, data) => normalizeId(await apiService.predefinedWorkouts.update(id, data)),
-  delete: async (id) => apiService.predefinedWorkouts.delete(id)
+// SessionTemplate entity
+export const SessionTemplate = {
+  list: async () => normalizeArray(await apiService.sessionTemplates.list()),
+  create: async (data) => normalizeId(await apiService.sessionTemplates.create(data)),
+  update: async (id, data) => normalizeId(await apiService.sessionTemplates.update(id, data)),
+  delete: async (id) => apiService.sessionTemplates.delete(id)
 };
 
 // UserGoalProgress entity
@@ -91,9 +91,9 @@ export const Discipline = {
   list: async () => normalizeArray(await apiService.disciplines.list())
 };
 
-// WorkoutType entity
-export const WorkoutType = {
-  list: async () => normalizeArray(await apiService.workoutTypes.list())
+// SessionType entity
+export const SessionType = {
+  list: async () => normalizeArray(await apiService.sessionTypes.list())
 };
 
 // ExternalActivity entity
@@ -146,24 +146,23 @@ export const CalendarEvent = {
   update: async (id, data) => normalizeId(await apiService.calendar.update(id, data)),
   delete: async (id) => apiService.calendar.delete(id),
   move: async (id, newDate) => normalizeId(await apiService.calendar.move(id, newDate)),
-  startWorkout: async (id) => apiService.calendar.startWorkout(id),
-  completeWorkout: async (id, data) => apiService.calendar.completeWorkout(id, data),
-  skipWorkout: async (id, reason) => apiService.calendar.skipWorkout(id, reason)
+  startSession: async (id) => apiService.calendar.startSession(id),
+  completeSession: async (id, data) => apiService.calendar.completeSession(id, data),
+  skipSession: async (id, reason) => apiService.calendar.skipSession(id, reason)
 };
 
-// WorkoutLog entity (completed workouts from TrainNow)
-export const WorkoutLog = {
-  list: async (params) => normalizeArray(await apiService.workoutLogs.list(params)),
-  get: async (id) => normalizeId(await apiService.workoutLogs.get(id)),
-  stats: async (days) => apiService.workoutLogs.stats(days),
-  create: async (data) => normalizeId(await apiService.workoutLogs.create(data)),
-  update: async (id, data) => normalizeId(await apiService.workoutLogs.update(id, data)),
-  delete: async (id) => apiService.workoutLogs.delete(id)
+// SessionLog entity (completed sessions from TrainNow)
+export const SessionLog = {
+  list: async (params) => normalizeArray(await apiService.sessionLogs.list(params)),
+  get: async (id) => normalizeId(await apiService.sessionLogs.get(id)),
+  stats: async (days) => apiService.sessionLogs.stats(days),
+  create: async (data) => normalizeId(await apiService.sessionLogs.create(data)),
+  update: async (id, data) => normalizeId(await apiService.sessionLogs.update(id, data)),
+  delete: async (id) => apiService.sessionLogs.delete(id)
 };
 
 // Aliases for compatibility
 export const TrainingPlan = Plan;
-export const WorkoutTemplate = PredefinedWorkout;
 export const UserTrainingPattern = {
   list: async () => []
 };

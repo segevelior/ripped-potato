@@ -50,7 +50,7 @@ async def test_scenario(scenario, scratch_db):
 
         if problems:
             calls = "\n".join(
-                f"  turn {c.turn}: {c.name}({ {k: v for k, v in (c.args or {}).items() if k != 'workoutDetails'} })"
+                f"  turn {c.turn}: {c.name}({ {k: v for k, v in (c.args or {}).items() if k != 'sessionDetails'} })"
                 for c in trace.calls
             )
             pytest.fail(

@@ -4,7 +4,7 @@ Skill: delete_calendar_event
 Permanently remove ONE event from the user's calendar. This is the tool for
 "remove/delete it from my calendar" — distinct from reschedule_session's
 skip, which only marks status and leaves the event visible. Two-step confirm
-matching delete_workout_template: preview first, delete only on confirm=true.
+matching delete_session_template: preview first, delete only on confirm=true.
 """
 
 from datetime import datetime

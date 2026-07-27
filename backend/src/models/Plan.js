@@ -1,22 +1,22 @@
 const mongoose = require('mongoose');
 
-const weeklyWorkoutSchema = new mongoose.Schema({
+const weeklySessionSchema = new mongoose.Schema({
   dayOfWeek: {
     type: Number,
     required: true,
     min: 0,
     max: 6 // 0 = Sunday, 6 = Saturday
   },
-  workoutType: {
+  sessionType: {
     type: String,
     enum: ['predefined', 'custom'],
     required: true
   },
-  predefinedWorkoutId: {
+  sessionTemplateId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'SessionTemplate'
   },
-  customWorkout: {
+  customSession: {
     title: String,
     type: {
       type: String,
@@ -53,7 +53,7 @@ const weekSchema = new mongoose.Schema({
   },
   focus: String, // weekly training focus
   description: String,
-  workouts: [weeklyWorkoutSchema],
+  sessions: [weeklySessionSchema],
   restDays: [{
     type: Number,
     min: 0,
@@ -104,7 +104,7 @@ const planSchema = new mongoose.Schema({
       min: 2,
       max: 26 // product bounds: 2 weeks to 6 months
     },
-    workoutsPerWeek: {
+    sessionsPerWeek: {
       type: Number,
       required: true,
       min: 1,
@@ -115,7 +115,7 @@ const planSchema = new mongoose.Schema({
       min: 0,
       max: 6
     }],
-    preferredWorkoutDays: [{
+    preferredSessionDays: [{
       type: Number,
       min: 0,
       max: 6
@@ -145,15 +145,15 @@ const planSchema = new mongoose.Schema({
       type: Number,
       default: 0
     },
-    completedWorkouts: {
+    completedSessions: {
       type: Number,
       default: 0
     },
-    totalWorkouts: {
+    totalSessions: {
       type: Number,
       default: 0
     },
-    skippedWorkouts: {
+    skippedSessions: {
       type: Number,
       default: 0
     },
@@ -171,7 +171,7 @@ const planSchema = new mongoose.Schema({
     },
     allowModifications: {
       type: Boolean,
-      default: true // allow user to modify workouts
+      default: true // allow user to modify sessions
     },
     sendReminders: {
       type: Boolean,
@@ -210,8 +210,8 @@ planSchema.virtual('durationDays').get(function() {
 
 // Virtual for completion percentage
 planSchema.virtual('completionPercentage').get(function() {
-  if (this.progress.totalWorkouts === 0) return 0;
-  return Math.round((this.progress.completedWorkouts / this.progress.totalWorkouts) * 100);
+  if (this.progress.totalSessions === 0) return 0;
+  return Math.round((this.progress.completedSessions / this.progress.totalSessions) * 100);
 });
 
 // Virtual for current week progress
@@ -224,8 +224,8 @@ planSchema.virtual('currentWeekProgress').get(function() {
   return {
     weekNumber: currentWeek.weekNumber,
     focus: currentWeek.focus,
-    totalWorkouts: currentWeek.workouts.length,
-    workouts: currentWeek.workouts
+    totalSessions: currentWeek.sessions.length,
+    sessions: currentWeek.sessions
   };
 });
 
@@ -263,44 +263,44 @@ planSchema.methods.startPlan = function(startDate = new Date()) {
   this.startDate = startDate;
   this.endDate = new Date(startDate.getTime() + (this.schedule.weeksTotal * 7 * 24 * 60 * 60 * 1000));
   
-  // Calculate total workouts
-  this.progress.totalWorkouts = this.weeks.reduce((sum, week) => sum + week.workouts.length, 0);
-  
+  // Calculate total sessions
+  this.progress.totalSessions = this.weeks.reduce((sum, week) => sum + week.sessions.length, 0);
+
   return this.save();
 };
 
-// Method to complete workout
-planSchema.methods.completeWorkout = function(weekNumber, workoutIndex) {
-  this.progress.completedWorkouts += 1;
+// Method to complete session
+planSchema.methods.completeSession = function(weekNumber, sessionIndex) {
+  this.progress.completedSessions += 1;
   this.updateAdherence();
-  
+
   // Check if week is completed
   const week = this.weeks.find(w => w.weekNumber === weekNumber);
   if (week) {
-    const completedInWeek = /* would need to track per workout */ 1;
-    
-    // Auto advance to next week if all workouts completed
-    if (this.settings.autoAdvance && completedInWeek >= week.workouts.length) {
+    const completedInWeek = /* would need to track per session */ 1;
+
+    // Auto advance to next week if all sessions completed
+    if (this.settings.autoAdvance && completedInWeek >= week.sessions.length) {
       this.advanceToNextWeek();
     }
   }
-  
+
   return this.save();
 };
 
-// Method to skip workout
-planSchema.methods.skipWorkout = function(reason) {
-  this.progress.skippedWorkouts += 1;
+// Method to skip session
+planSchema.methods.skipSession = function(reason) {
+  this.progress.skippedSessions += 1;
   this.updateAdherence();
   return this.save();
 };
 
 // Method to update adherence percentage
 planSchema.methods.updateAdherence = function() {
-  const totalScheduled = this.progress.completedWorkouts + this.progress.skippedWorkouts;
+  const totalScheduled = this.progress.completedSessions + this.progress.skippedSessions;
   if (totalScheduled > 0) {
     this.progress.adherencePercentage = Math.round(
-      (this.progress.completedWorkouts / totalScheduled) * 100
+      (this.progress.completedSessions / totalScheduled) * 100
     );
   }
 };
@@ -349,9 +349,9 @@ planSchema.methods.createTemplate = function(templateName, description) {
     actualEndDate: undefined,
     progress: {
       currentWeek: 1,
-      completedWorkouts: 0,
-      totalWorkouts: 0,
-      skippedWorkouts: 0,
+      completedSessions: 0,
+      totalSessions: 0,
+      skippedSessions: 0,
       adherencePercentage: 0
     },
     createdFrom: this._id

@@ -42,8 +42,8 @@ def apply_adjustment(
     if change_type == "volume":
         delta = magnitude if direction == "increase" else -magnitude
         for w in weeks:
-            for wo in w.get("workouts", []) or []:
-                cw = wo.get("customWorkout")
+            for wo in w.get("sessions", []) or []:
+                cw = wo.get("customSession")
                 if not cw:
                     continue
                 for ex in cw.get("exercises", []) or []:
@@ -60,10 +60,10 @@ def apply_adjustment(
 
     elif change_type == "deload":
         for w in weeks:
-            if (w.get("workouts") or []) and not w.get("deloadWeek"):
+            if (w.get("sessions") or []) and not w.get("deloadWeek"):
                 w["deloadWeek"] = True
-                for wo in w["workouts"]:
-                    cw = wo.get("customWorkout")
+                for wo in w["sessions"]:
+                    cw = wo.get("customSession")
                     if cw:
                         for ex in cw.get("exercises", []) or []:
                             sets = ex.get("sets", []) or []
@@ -74,12 +74,12 @@ def apply_adjustment(
     elif change_type == "frequency":
         if direction == "decrease":
             for w in weeks:
-                if len(w.get("workouts", []) or []) > 1:
-                    w["workouts"] = w["workouts"][:-1]
+                if len(w.get("sessions", []) or []) > 1:
+                    w["sessions"] = w["sessions"][:-1]
             desc = "reduced training frequency by one day/week"
         else:
             for w in weeks:
-                workouts = w.get("workouts", []) or []
+                workouts = w.get("sessions", []) or []
                 if not workouts:
                     continue
                 used = {x.get("dayOfWeek") for x in workouts}
@@ -87,7 +87,7 @@ def apply_adjustment(
                 if off is not None:
                     extra = copy.deepcopy(workouts[0])
                     extra["dayOfWeek"] = off
-                    w["workouts"] = workouts + [extra]
+                    w["sessions"] = workouts + [extra]
             desc = "added one training day/week"
 
     return weeks, desc
@@ -168,10 +168,10 @@ async def adjust_plan(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -> 
         msg += "Apply it?"
         return {"success": True, "dry_run": True, "description": desc, "validation": report, "message": msg}
 
-    total_workouts = sum(len(w.get("workouts", []) or []) for w in new_weeks)
+    total_workouts = sum(len(w.get("sessions", []) or []) for w in new_weeks)
     update: Dict[str, Any] = {
         "weeks": new_weeks,
-        "progress.totalWorkouts": total_workouts,
+        "progress.totalSessions": total_workouts,
         "updatedAt": datetime.utcnow(),
     }
     extra_msg = ""

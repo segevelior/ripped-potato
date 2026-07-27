@@ -74,7 +74,7 @@ const getTypeColorIndex = (type, typeMap) => {
 // Get color for event type
 const getEventTypeColor = (eventType) => {
   switch (eventType) {
-    case 'workout':
+    case 'session':
       return WORKOUT_COLORS[0]; // blue
     case 'rest':
       return WORKOUT_COLORS[6]; // yellow
@@ -98,10 +98,10 @@ const CalendarView = ({ events, activePlans, currentDate, onDateChange, onAddEve
   const [hoveredDate, setHoveredDate] = useState(null);
   const [pickerYear, setPickerYear] = useState(currentDate.getFullYear());
 
-  // Create a stable type-to-color mapping based on workoutDetails.type
+  // Create a stable type-to-color mapping based on sessionDetails.discipline
   const workoutTypeMap = new Map();
   events.forEach(e => {
-    const type = e.workoutDetails?.type || e.type || 'general';
+    const type = e.sessionDetails?.discipline || e.type || 'general';
     if (!workoutTypeMap.has(type)) {
       workoutTypeMap.set(type, workoutTypeMap.size);
     }
@@ -178,8 +178,8 @@ const CalendarView = ({ events, activePlans, currentDate, onDateChange, onAddEve
   };
 
   const getEventColor = (event) => {
-    if (event.type === 'workout') {
-      const type = event.workoutDetails?.type || 'strength';
+    if (event.type === 'session') {
+      const type = event.sessionDetails?.discipline || 'strength';
       const colorIndex = getTypeColorIndex(type, workoutTypeMap);
       return getWorkoutTypeColor(colorIndex);
     }
@@ -362,7 +362,7 @@ const CalendarView = ({ events, activePlans, currentDate, onDateChange, onAddEve
                         const isCompleted = status === 'completed';
                         const isSkipped = status === 'skipped';
                         const isPastAndNotDone = !isCompleted && !isSkipped && new Date(event.date) < new Date().setHours(0,0,0,0);
-                        const isStrava = event.externalActivityId || event.workoutDetails?.source === 'strava';
+                        const isStrava = event.externalActivityId || event.sessionDetails?.source === 'strava';
                         return (
                           <div
                             key={event.id || idx}
@@ -410,12 +410,12 @@ const CalendarView = ({ events, activePlans, currentDate, onDateChange, onAddEve
                 const colors = getEventColor(event);
                 const status = event.status || 'scheduled';
                 const statusStyle = STATUS_STYLES[status] || STATUS_STYLES.scheduled;
-                const workoutType = event.workoutDetails?.type || event.eventType || 'Workout';
+                const workoutType = event.sessionDetails?.discipline || event.eventType || 'Workout';
                 const isCompleted = status === 'completed';
                 const isSkipped = status === 'skipped';
                 const isPastAndNotDone = !isCompleted && !isSkipped && new Date(event.date) < new Date().setHours(0,0,0,0);
-                const isStrava = event.externalActivityId || event.workoutDetails?.source === 'strava';
-                const stravaData = event.workoutDetails?.stravaData;
+                const isStrava = event.externalActivityId || event.sessionDetails?.source === 'strava';
+                const stravaData = event.sessionDetails?.stravaData;
                 return (
                   <div
                     key={event.id || idx}
@@ -465,23 +465,23 @@ const CalendarView = ({ events, activePlans, currentDate, onDateChange, onAddEve
 
                       {/* Duration */}
                       <p className={`text-xs mt-1 ${isPastAndNotDone && !isStrava ? 'text-gray-400' : 'text-gray-500'}`}>
-                        {event.workoutDetails?.durationMinutes || event.workoutDetails?.estimatedDuration || 60} min
+                        {event.sessionDetails?.durationMinutes || event.sessionDetails?.estimatedDuration || 60} min
                         {stravaData?.distance && ` • ${(stravaData.distance / 1000).toFixed(1)} km`}
                       </p>
 
                       {/* Mood & Feedback (for completed workouts) */}
-                      {isCompleted && event.workoutDetails?.mood && (
+                      {isCompleted && event.sessionDetails?.mood && (
                         <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-2">
-                          <span className="text-base" title={event.workoutDetails.mood}>
-                            {event.workoutDetails.mood === 'great' && '😄'}
-                            {event.workoutDetails.mood === 'good' && '🙂'}
-                            {event.workoutDetails.mood === 'okay' && '😐'}
-                            {event.workoutDetails.mood === 'tired' && '😕'}
-                            {event.workoutDetails.mood === 'exhausted' && '😢'}
+                          <span className="text-base" title={event.sessionDetails.mood}>
+                            {event.sessionDetails.mood === 'great' && '😄'}
+                            {event.sessionDetails.mood === 'good' && '🙂'}
+                            {event.sessionDetails.mood === 'okay' && '😐'}
+                            {event.sessionDetails.mood === 'tired' && '😕'}
+                            {event.sessionDetails.mood === 'exhausted' && '😢'}
                           </span>
-                          {event.workoutDetails.feedback && (
+                          {event.sessionDetails.feedback && (
                             <span className="text-xs text-gray-500 line-clamp-1 flex-1">
-                              {event.workoutDetails.feedback}
+                              {event.sessionDetails.feedback}
                             </span>
                           )}
                         </div>
@@ -577,19 +577,19 @@ export default function CalendarPage() {
       const eventData = {
         date: workoutData.date,
         title: workoutData.title,
-        type: 'workout',
+        type: 'session',
         status: 'scheduled',
-        workoutDetails: {
-          type: workoutData.type || 'strength',
+        sessionDetails: {
+          discipline: workoutData.type || 'strength',
           estimatedDuration: workoutData.durationMinutes || 60
         },
         notes: workoutData.notes
       };
 
-      if (workoutData.workoutTemplateId) {
-        eventData.workoutTemplateId = workoutData.workoutTemplateId;
+      if (workoutData.sessionTemplateId) {
+        eventData.sessionTemplateId = workoutData.sessionTemplateId;
       } else {
-        eventData.workoutDetails.exercises = workoutData.exercises || [];
+        eventData.sessionDetails.exercises = workoutData.exercises || [];
       }
 
       await CalendarEvent.create(eventData);
@@ -605,8 +605,8 @@ export default function CalendarPage() {
       const updateData = {
         title: eventData.title,
         date: eventData.date,
-        workoutDetails: {
-          type: eventData.type || 'strength',
+        sessionDetails: {
+          discipline: eventData.type || 'strength',
           estimatedDuration: eventData.durationMinutes || 60,
           exercises: eventData.exercises || []
         },

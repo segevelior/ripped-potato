@@ -63,7 +63,7 @@ const userGoalProgressSchema = new mongoose.Schema({
     default: 0 // index of current milestone
   },
   milestoneProgress: [milestoneProgressSchema],
-  relatedWorkouts: [{
+  relatedSessions: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'SessionLog'
   }],
@@ -234,10 +234,10 @@ userGoalProgressSchema.methods.resumeGoal = function() {
   return this.save();
 };
 
-// Method to add workout
-userGoalProgressSchema.methods.addWorkout = function(workoutId) {
-  if (!this.relatedWorkouts.includes(workoutId)) {
-    this.relatedWorkouts.push(workoutId);
+// Method to add session
+userGoalProgressSchema.methods.addSession = function(sessionLogId) {
+  if (!this.relatedSessions.includes(sessionLogId)) {
+    this.relatedSessions.push(sessionLogId);
     return this.save();
   }
   return this;

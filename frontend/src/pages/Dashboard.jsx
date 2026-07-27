@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
-import { CalendarEvent, WorkoutLog, UserGoalProgress, Plan } from "@/api/entities";
+import { CalendarEvent, SessionLog, UserGoalProgress, Plan } from "@/api/entities";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Calendar, Target, ChevronRight, Activity, Trophy, Clock, Play, Users, MoreVertical, Trash2, FileText, Plus } from "lucide-react";
 import { format, startOfWeek, addDays, isToday, parseISO, isValid, isAfter } from "date-fns";
@@ -187,7 +187,7 @@ export default function Dashboard() {
       const rangeEnd = format(addDays(new Date(), 14), 'yyyy-MM-dd');
       const [eventsData, logsData, goalsData, plansData] = await Promise.all([
         CalendarEvent.list(rangeStart, rangeEnd).catch(() => []),
-        WorkoutLog.list().catch(() => []),
+        SessionLog.list().catch(() => []),
         UserGoalProgress.list().catch(() => []),
         Plan.active().catch(() => []),
       ]);
@@ -204,7 +204,7 @@ export default function Dashboard() {
   };
 
   const upcomingWorkouts = upcomingEvents
-    .filter(e => e.type === 'workout' && !['completed', 'skipped', 'cancelled'].includes(e.status))
+    .filter(e => e.type === 'session' && !['completed', 'skipped', 'cancelled'].includes(e.status))
     .filter(e => isValid(parseISO(e.date)) && isAfter(parseISO(e.date), addDays(new Date(), -1)))
     .sort((a, b) => new Date(a.date) - new Date(b.date))
     .slice(0, 5)
@@ -212,14 +212,14 @@ export default function Dashboard() {
       id: e.id,
       title: e.title,
       date: e.date,
-      duration_minutes: e.workoutDetails?.durationMinutes ||
-        e.workoutDetails?.estimatedDuration ||
-        e.workoutTemplateId?.estimated_duration || 60,
+      duration_minutes: e.sessionDetails?.durationMinutes ||
+        e.sessionDetails?.estimatedDuration ||
+        e.sessionTemplateId?.estimated_duration || 60,
       // Scheduled events don't embed exercises — the linked template is the
       // source of truth (same pattern as TodayView).
-      exerciseCount: e.workoutTemplateId?.blocks?.reduce(
+      exerciseCount: e.sessionTemplateId?.blocks?.reduce(
         (n, b) => n + (b.exercises?.length || 0), 0
-      ) || e.workoutDetails?.exercises?.length || 0,
+      ) || e.sessionDetails?.exercises?.length || 0,
     }));
 
   const completedWorkoutsThisWeek = recentLogs.filter(l => {

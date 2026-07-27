@@ -13,9 +13,9 @@
     "seed:prod": "NODE_ENV=production node src/utils/seedDatabase.js",
     "install:prod": "npm ci --only=production",
     "build": "echo 'Build completed at:' && date",
-    "validate:predefined-workouts": "node scripts/validate-predefined-workouts.js",
-    "migrate:predefined-workouts": "node scripts/migrate-predefined-workouts.js",
-    "seed:predefined-workouts": "node scripts/seed-predefined-workouts.js"
+    "validate:session-templates": "node scripts/validate-session-templates.js",
+    "migrate:session-templates": "node scripts/migrate-session-templates.js",
+    "seed:session-templates": "node scripts/seed-session-templates.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

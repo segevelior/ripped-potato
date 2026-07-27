@@ -87,7 +87,7 @@ def _make_ctx(profile=None, goal=None, create_ok=True, missing=None, skeleton=No
               planner_model=None, existing_draft=None):
     profile = profile if profile is not None else {
         "fitnessLevel": "intermediate",
-        "preferences": {"equipment": ["barbell"], "workoutDays": [1, 3, 5]},
+        "preferences": {"equipment": ["barbell"], "sessionDays": [1, 3, 5]},
     }
     skeleton = skeleton if skeleton is not None else _sample_skeleton()
 
@@ -138,11 +138,11 @@ class TestHandler:
         # rolling horizon: weeks within the horizon materialized, the rest stubs
         weeks = create_args["weeks"]
         assert len(weeks) == 8
-        assert weeks[0]["resolved"] is True and weeks[0]["workouts"]
+        assert weeks[0]["resolved"] is True and weeks[0]["sessions"]
         for w in weeks[:expected_resolved]:
-            assert w["resolved"] is True and w["workouts"]
+            assert w["resolved"] is True and w["sessions"]
         for w in weeks[expected_resolved:]:
-            assert w["resolved"] is False and not w["workouts"]
+            assert w["resolved"] is False and not w["sessions"]
 
     @pytest.mark.asyncio
     async def test_planner_model_override_used(self):
@@ -179,7 +179,7 @@ class TestHandler:
         result = await generate_plan(ctx, str(ObjectId()), {"goal_text": "run a half marathon"})
         assert result["success"] is True
         weeks = ctx.plan_service.create_plan.call_args.args[1]["weeks"]
-        ex = weeks[0]["workouts"][0]["customWorkout"]["exercises"][0]
+        ex = weeks[0]["sessions"][0]["customSession"]["exercises"][0]
         assert all(isinstance(s.get("reps"), int) for s in ex["sets"])
         assert "half marathon pace" in ex.get("notes", "")
 
@@ -210,7 +210,7 @@ class TestHandler:
         ov = result["overview"]
         assert [p["name"] for p in ov["phases"]] == ["Base", "Build"]
         assert len(ov["weeks"]) == 8
-        assert ov["weeks"][0]["workoutTitles"]  # real content, not just counts
+        assert ov["weeks"][0]["sessionTitles"]  # real content, not just counts
 
     @pytest.mark.asyncio
     async def test_dedupes_into_existing_draft(self):

@@ -79,8 +79,8 @@ async def run_turn(orchestrator, message: str, history: list, user_id: str) -> t
 # ----------------------------- graders -----------------------------
 
 READ_TOOLS = {
-    "grep_workouts", "list_workout_templates", "get_calendar_events",
-    "list_exercises", "grep_exercises", "get_workout_history",
+    "grep_session_templates", "list_session_templates", "get_calendar_events",
+    "list_exercises", "grep_exercises", "get_session_history",
     "list_plans", "show_plan", "get_daily_recommendation",
 }
 
@@ -88,19 +88,19 @@ READ_TOOLS = {
 # a schedule preview reads the calendar (same-day dedup) before anything is
 # written, and a delete preview reads the event.
 RELEVANT_READS = {
-    "create_workout_template": {"grep_workouts", "list_workout_templates"},
-    "schedule_to_calendar": {"get_calendar_events", "grep_workouts",
-                             "list_workout_templates", "schedule_to_calendar"},
+    "create_session_template": {"grep_session_templates", "list_session_templates"},
+    "schedule_to_calendar": {"get_calendar_events", "grep_session_templates",
+                             "list_session_templates", "schedule_to_calendar"},
     "schedule_plan_to_calendar": {"get_calendar_events", "show_plan",
                                   "list_plans", "schedule_plan_to_calendar"},
     "reschedule_session": {"get_calendar_events", "reschedule_session"},
     "delete_calendar_event": {"get_calendar_events", "delete_calendar_event"},
-    "delete_workout_template": {"grep_workouts", "list_workout_templates",
-                                "delete_workout_template"},
+    "delete_session_template": {"grep_session_templates", "list_session_templates",
+                                "delete_session_template"},
 }
 
-ID_ARGS = ("workout_template_id", "event_id", "plan_id", "template_id",
-           "predefinedWorkoutId", "exercise_id")
+ID_ARGS = ("session_template_id", "event_id", "plan_id", "template_id",
+           "sessionTemplateId", "exercise_id")
 
 
 def is_write(call: ToolCall) -> bool:
@@ -109,12 +109,12 @@ def is_write(call: ToolCall) -> bool:
     if name in ("schedule_to_calendar", "schedule_plan_to_calendar",
                 "reschedule_session"):
         return args.get("dry_run", True) is False
-    if name in ("delete_calendar_event", "delete_workout_template"):
+    if name in ("delete_calendar_event", "delete_session_template"):
         return args.get("confirm", False) is True
-    if name in ("create_workout_template", "add_exercise", "log_workout",
+    if name in ("create_session_template", "add_exercise", "log_session",
                 "create_plan", "create_goal", "update_plan", "update_goal",
-                "add_plan_workout", "remove_plan_workout",
-                "update_calendar_workout"):
+                "add_plan_session", "remove_plan_session",
+                "update_calendar_session"):
         return True
     return False
 
@@ -124,7 +124,7 @@ def _is_preview(call: ToolCall) -> bool:
     if name in ("schedule_to_calendar", "schedule_plan_to_calendar",
                 "reschedule_session"):
         return args.get("dry_run", True) is not False
-    if name in ("delete_calendar_event", "delete_workout_template"):
+    if name in ("delete_calendar_event", "delete_session_template"):
         return args.get("confirm", False) is not True
     return False
 

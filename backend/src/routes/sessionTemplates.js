@@ -5,7 +5,7 @@ const SessionService = require('../services/SessionService');
 const { auth, optionalAuth } = require('../middleware/auth');
 const router = express.Router();
 
-// GET /api/predefined-workouts - Get all predefined workouts with filtering
+// GET /api/v1/session-templates - Get all session templates with filtering
 router.get('/', optionalAuth, async (req, res) => {
   try {
     const {
@@ -76,7 +76,7 @@ router.get('/', optionalAuth, async (req, res) => {
   }
 });
 
-// GET /api/predefined-workouts/search/:term - Search predefined workouts
+// GET /api/v1/session-templates/search/:term - Search session templates
 router.get('/search/:term', async (req, res) => {
   try {
     const { term } = req.params;
@@ -93,7 +93,7 @@ router.get('/search/:term', async (req, res) => {
   }
 });
 
-// GET /api/predefined-workouts/:id - Get specific predefined workout
+// GET /api/v1/session-templates/:id - Get specific session template
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
     let workout;
@@ -126,7 +126,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
     }
 
     if (!workout) {
-      return res.status(404).json({ error: 'Predefined workout not found' });
+      return res.status(404).json({ error: 'Session template not found' });
     }
 
     // Add 'id' field
@@ -137,7 +137,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
   }
 });
 
-// POST /api/predefined-workouts - Create new predefined workout (authenticated)
+// POST /api/v1/session-templates - Create new session template (authenticated)
 router.post('/', auth, async (req, res) => {
   try {
     const workoutData = {
@@ -170,13 +170,13 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// PUT /api/predefined-workouts/:id - Update predefined workout (authenticated)
+// PUT /api/v1/session-templates/:id - Update session template (authenticated)
 router.put('/:id', auth, async (req, res) => {
   try {
     const workout = await SessionTemplate.findById(req.params.id);
 
     if (!workout) {
-      return res.status(404).json({ error: 'Predefined workout not found' });
+      return res.status(404).json({ error: 'Session template not found' });
     }
 
     // SuperAdmin can edit any workout, including common ones
@@ -215,20 +215,20 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/predefined-workouts/:id - Delete predefined workout (authenticated)
+// DELETE /api/v1/session-templates/:id - Delete session template (authenticated)
 router.delete('/:id', auth, async (req, res) => {
   try {
     const workout = await SessionTemplate.findById(req.params.id);
 
     if (!workout) {
-      return res.status(404).json({ error: 'Predefined workout not found' });
+      return res.status(404).json({ error: 'Session template not found' });
     }
 
     // Calendar events reference workouts instead of embedding exercises, so
     // deleting a workout that upcoming events link to would empty those
     // sessions. Completed/skipped history may dangle (readers null-guard).
     const upcomingRefs = await CalendarEvent.countDocuments({
-      workoutTemplateId: workout._id,
+      sessionTemplateId: workout._id,
       status: { $in: ['scheduled', 'in_progress'] }
     });
     const forceDelete = req.user.role === 'superAdmin' && req.query.force === 'true';
@@ -243,12 +243,12 @@ router.delete('/:id', auth, async (req, res) => {
     if (req.user.role === 'superAdmin') {
       if (upcomingRefs > 0) {
         await CalendarEvent.updateMany(
-          { workoutTemplateId: workout._id, status: { $in: ['scheduled', 'in_progress'] } },
-          { $unset: { workoutTemplateId: 1 } }
+          { sessionTemplateId: workout._id, status: { $in: ['scheduled', 'in_progress'] } },
+          { $unset: { sessionTemplateId: 1 } }
         );
       }
       await workout.deleteOne();
-      return res.json({ message: 'Predefined workout deleted successfully' });
+      return res.json({ message: 'Session template deleted successfully' });
     }
 
     // Regular users can only delete their own private workouts
@@ -266,13 +266,13 @@ router.delete('/:id', auth, async (req, res) => {
     }
 
     await workout.deleteOne();
-    res.json({ message: 'Predefined workout deleted successfully' });
+    res.json({ message: 'Session template deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST /api/predefined-workouts/:id/rate - Rate a predefined workout (authenticated)
+// POST /api/v1/session-templates/:id/rate - Rate a session template (authenticated)
 router.post('/:id/rate', auth, async (req, res) => {
   try {
     const { rating } = req.body;
@@ -284,7 +284,7 @@ router.post('/:id/rate', auth, async (req, res) => {
     const workout = await SessionTemplate.findById(req.params.id);
 
     if (!workout) {
-      return res.status(404).json({ error: 'Predefined workout not found' });
+      return res.status(404).json({ error: 'Session template not found' });
     }
 
     // Use the model method to add rating
@@ -324,7 +324,7 @@ async function buildUserClone(workout, userId) {
   const UserSessionModification = require('../models/UserSessionModification');
   const modification = await UserSessionModification.findOne({
     userId,
-    workoutId: workout._id
+    sessionTemplateId: workout._id
   });
   if (modification?.modifications) {
     if (modification.modifications.title) cloneData.name = modification.modifications.title;
@@ -338,7 +338,7 @@ async function buildUserClone(workout, userId) {
 
 async function relinkUserReferences(workout, clone, modification, userId) {
   if (modification) {
-    modification.workoutId = clone._id;
+    modification.sessionTemplateId = clone._id;
     // Field overrides are baked into the clone now; keeping them on the row
     // would double-apply if the user later edits the clone directly.
     if (modification.modifications) {
@@ -355,21 +355,21 @@ async function relinkUserReferences(workout, clone, modification, userId) {
   await CalendarEvent.updateMany(
     {
       userId,
-      workoutTemplateId: workout._id,
+      sessionTemplateId: workout._id,
       status: { $in: ['scheduled', 'in_progress'] }
     },
-    { $set: { workoutTemplateId: clone._id } }
+    { $set: { sessionTemplateId: clone._id } }
   );
 
   const Plan = require('../models/Plan');
   await Plan.updateMany(
-    { userId, 'weeks.workouts.predefinedWorkoutId': workout._id },
-    { $set: { 'weeks.$[].workouts.$[w].predefinedWorkoutId': clone._id } },
-    { arrayFilters: [{ 'w.predefinedWorkoutId': workout._id }] }
+    { userId, 'weeks.sessions.sessionTemplateId': workout._id },
+    { $set: { 'weeks.$[].sessions.$[s].sessionTemplateId': clone._id } },
+    { arrayFilters: [{ 's.sessionTemplateId': workout._id }] }
   );
 }
 
-// POST /api/predefined-workouts/:id/swap-exercise - Replace an exercise in the
+// POST /api/v1/session-templates/:id/swap-exercise - Replace an exercise in the
 // template "for good". Own template: edited in place. Common template:
 // clone-on-modify (see above).
 router.post('/:id/swap-exercise', auth, async (req, res) => {
@@ -381,7 +381,7 @@ router.post('/:id/swap-exercise', auth, async (req, res) => {
 
     const workout = await SessionTemplate.findById(req.params.id);
     if (!workout) {
-      return res.status(404).json({ error: 'Predefined workout not found' });
+      return res.status(404).json({ error: 'Session template not found' });
     }
 
     if (!workout.canUserEdit(req.user.id) && !workout.isCommon) {
@@ -442,7 +442,7 @@ router.post('/:id/swap-exercise', auth, async (req, res) => {
   }
 });
 
-// POST /api/predefined-workouts/:id/remove-exercise - Delete an exercise from
+// POST /api/v1/session-templates/:id/remove-exercise - Delete an exercise from
 // the template "for good" (all occurrences). Own template: edited in place.
 // Common template: clone-on-modify. Refuses to leave the workout empty.
 router.post('/:id/remove-exercise', auth, async (req, res) => {
@@ -454,7 +454,7 @@ router.post('/:id/remove-exercise', auth, async (req, res) => {
 
     const workout = await SessionTemplate.findById(req.params.id);
     if (!workout) {
-      return res.status(404).json({ error: 'Predefined workout not found' });
+      return res.status(404).json({ error: 'Session template not found' });
     }
 
     if (!workout.canUserEdit(req.user.id) && !workout.isCommon) {
@@ -514,7 +514,7 @@ router.post('/:id/remove-exercise', auth, async (req, res) => {
 
 // Modification endpoints
 
-// PUT /api/predefined-workouts/:id/modifications - Create or update workout modification
+// PUT /api/v1/session-templates/:id/modifications - Create or update workout modification
 router.put('/:id/modifications', auth, async (req, res) => {
   try {
     const { modifications, metadata } = req.body;
@@ -535,7 +535,7 @@ router.put('/:id/modifications', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/predefined-workouts/:id/modifications - Remove workout modification (revert to original)
+// DELETE /api/v1/session-templates/:id/modifications - Remove workout modification (revert to original)
 router.delete('/:id/modifications', auth, async (req, res) => {
   try {
     await SessionService.removeModification(req.user.id, req.params.id);
@@ -549,7 +549,7 @@ router.delete('/:id/modifications', auth, async (req, res) => {
   }
 });
 
-// PUT /api/predefined-workouts/:id/favorite - Toggle favorite status
+// PUT /api/v1/session-templates/:id/favorite - Toggle favorite status
 router.put('/:id/favorite', auth, async (req, res) => {
   try {
     const { isFavorite } = req.body;
@@ -562,7 +562,7 @@ router.put('/:id/favorite', auth, async (req, res) => {
   }
 });
 
-// POST /api/predefined-workouts/:id/complete - Record workout completion
+// POST /api/v1/session-templates/:id/complete - Record workout completion
 router.post('/:id/complete', auth, async (req, res) => {
   try {
     const { totalWeight, completionTime } = req.body;

@@ -1,6 +1,6 @@
 /**
  * Regression guard for the workout-log write path used by the torii MCP tools
- * (create_workout / update_workout): logs land in SessionLog, the session
+ * (create_session / update_session): logs land in SessionLog, the session
  * interval is derived honestly, and the calendar entry stays in step.
  */
 jest.mock('../../models/SessionLog', () => {
@@ -55,7 +55,7 @@ beforeEach(() => {
 describe('createSessionLog', () => {
   const baseBody = {
     title: 'Morning Push',
-    type: 'Strength',
+    discipline: 'Strength',
     startedAt: '2026-07-20T07:00:00.000Z',
     actualDuration: 45,
     exercises: [
@@ -78,7 +78,7 @@ describe('createSessionLog', () => {
     const doc = SessionLog.mock.calls[0][0];
     expect(doc.userId).toBe(USER_ID);
     expect(doc.title).toBe('Morning Push');
-    expect(doc.type).toBe('strength');
+    expect(doc.discipline).toBe('strength');
     expect(doc.startedAt).toBeInstanceOf(Date);
     expect(doc.startedAt.toISOString()).toBe('2026-07-20T07:00:00.000Z');
     expect(doc.actualDuration).toBe(45);
@@ -99,13 +99,13 @@ describe('createSessionLog', () => {
 
     expect(CalendarEvent).toHaveBeenCalledTimes(1);
     const event = CalendarEvent.mock.calls[0][0];
-    expect(event.type).toBe('workout');
+    expect(event.type).toBe('session');
     expect(event.status).toBe('completed');
-    expect(event.workoutLogId).toBe('log000000000000000000001');
+    expect(event.sessionLogId).toBe('log000000000000000000001');
     expect(event.date.toISOString()).toBe('2026-07-20T07:00:00.000Z');
     expect(event.completedAt.toISOString()).toBe('2026-07-20T07:45:00.000Z');
-    expect(event.workoutDetails.durationMinutes).toBe(45);
-    expect(event.workoutDetails.exercises[0].exerciseName).toBe('Bench Press');
+    expect(event.sessionDetails.durationMinutes).toBe(45);
+    expect(event.sessionDetails.exercises[0].exerciseName).toBe('Bench Press');
 
     // The log carries the backlink to the event.
     const { log } = lastJson(res).data;
@@ -138,7 +138,7 @@ describe('updateSessionLog', () => {
       _id: 'log000000000000000000001',
       calendarEventId: 'cal000000000000000000001',
       title: 'Evening Push',
-      type: 'strength',
+      discipline: 'strength',
       startedAt: new Date('2026-07-20T18:00:00.000Z'),
       actualDuration: 50,
       exercises: []
@@ -160,7 +160,7 @@ describe('updateSessionLog', () => {
     expect(scope).toEqual({ _id: 'cal000000000000000000001', userId: USER_ID });
     expect(payload.$set).toEqual({
       title: 'Evening Push',
-      'workoutDetails.durationMinutes': 50
+      'sessionDetails.durationMinutes': 50
     });
     expect(lastJson(res).success).toBe(true);
   });

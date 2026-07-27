@@ -77,7 +77,7 @@ def _event(oid_hex_suffix, day, title):
         "_id": ObjectId("6a51000000000000000000" + oid_hex_suffix),
         "date": day,
         "title": title,
-        "type": "workout",
+        "type": "session",
         "status": "scheduled",
     }
 
@@ -209,12 +209,12 @@ def _fake_resolver(monkeypatch):
 def _insert_db():
     db = MagicMock()
     db.calendarevents.insert_one = AsyncMock(return_value=MagicMock(inserted_id=ObjectId()))
-    db.predefinedworkouts.insert_one = AsyncMock(return_value=MagicMock(inserted_id=ObjectId()))
+    db.sessiontemplates.insert_one = AsyncMock(return_value=MagicMock(inserted_id=ObjectId()))
     return db
 
 
 class TestScheduleToCalendarTemplateLink:
-    @pytest.mark.parametrize("event_type", ["workout", "deload"])
+    @pytest.mark.parametrize("event_type", ["session", "deload"])
     async def test_workout_without_exercises_rejected(self, monkeypatch, event_type):
         _anchor(monkeypatch)
         db = _insert_db()
@@ -226,9 +226,9 @@ class TestScheduleToCalendarTemplateLink:
 
         assert result["success"] is False
         assert result["error"] == "missing_workout_details"
-        assert "workoutDetails.exercises" in result["message"]
+        assert "sessionDetails.exercises" in result["message"]
         db.calendarevents.insert_one.assert_not_called()
-        db.predefinedworkouts.insert_one.assert_not_called()
+        db.sessiontemplates.insert_one.assert_not_called()
 
     async def test_workout_with_empty_exercises_rejected(self, monkeypatch):
         _anchor(monkeypatch)
@@ -237,15 +237,15 @@ class TestScheduleToCalendarTemplateLink:
 
         result = await service.schedule_to_calendar(
             USER_ID,
-            {"date": "today", "title": "Leg Day", "type": "workout",
-             "workoutDetails": {"exercises": []}},
+            {"date": "today", "title": "Leg Day", "type": "session",
+             "sessionDetails": {"exercises": []}},
         )
 
         assert result["success"] is False
         assert result["error"] == "missing_workout_details"
         db.calendarevents.insert_one.assert_not_called()
 
-    @pytest.mark.parametrize("event_type", ["workout", "deload"])
+    @pytest.mark.parametrize("event_type", ["session", "deload"])
     async def test_workout_with_exercises_creates_and_links_template(self, monkeypatch, event_type):
         _anchor(monkeypatch)
         _fake_resolver(monkeypatch)
@@ -255,22 +255,22 @@ class TestScheduleToCalendarTemplateLink:
         result = await service.schedule_to_calendar(
             USER_ID,
             {"date": "today", "title": "Leg Day", "type": event_type, "dry_run": False,
-             "workoutDetails": {"exercises": [
+             "sessionDetails": {"exercises": [
                  {"exerciseName": "Squat", "targetSets": 5, "targetReps": 5},
              ]}},
         )
 
         assert result["success"] is True
-        db.predefinedworkouts.insert_one.assert_awaited_once()
-        template = db.predefinedworkouts.insert_one.call_args[0][0]
+        db.sessiontemplates.insert_one.assert_awaited_once()
+        template = db.sessiontemplates.insert_one.call_args[0][0]
         assert template["isCommon"] is False
         assert template["createdBy"] == ObjectId(USER_ID)
         assert template["blocks"][0]["exercises"][0]["exercise_id"] is not None
 
         # The event only references the template — exercises are never embedded.
         event = db.calendarevents.insert_one.call_args[0][0]
-        assert event["workoutTemplateId"] is not None
-        assert "exercises" not in event["workoutDetails"]
+        assert event["sessionTemplateId"] is not None
+        assert "exercises" not in event["sessionDetails"]
 
     async def test_rest_event_needs_no_exercises(self, monkeypatch):
         _anchor(monkeypatch)
@@ -282,7 +282,7 @@ class TestScheduleToCalendarTemplateLink:
         )
 
         assert result["success"] is True
-        db.predefinedworkouts.insert_one.assert_not_called()
+        db.sessiontemplates.insert_one.assert_not_called()
 
 
 # ------------------- schedule_to_calendar: linking an existing template -------------------
@@ -312,58 +312,58 @@ class TestScheduleToCalendarExistingTemplate:
     async def test_template_id_links_without_creating_template(self, monkeypatch):
         _anchor(monkeypatch)
         db = _insert_db()
-        db.predefinedworkouts.find_one = AsyncMock(return_value=_library_template())
+        db.sessiontemplates.find_one = AsyncMock(return_value=_library_template())
         service = CalendarService(db)
 
         result = await service.schedule_to_calendar(
             USER_ID,
-            {"date": "today", "type": "workout", "dry_run": False,
-             "workout_template_id": str(LIBRARY_TEMPLATE_ID)},
+            {"date": "today", "type": "session", "dry_run": False,
+             "session_template_id": str(LIBRARY_TEMPLATE_ID)},
         )
 
         assert result["success"] is True
         # No duplicate template is ever created for a library workout.
-        db.predefinedworkouts.insert_one.assert_not_called()
+        db.sessiontemplates.insert_one.assert_not_called()
         event = db.calendarevents.insert_one.call_args[0][0]
-        assert event["workoutTemplateId"] == LIBRARY_TEMPLATE_ID
-        assert "exercises" not in event["workoutDetails"]
-        assert event["workoutDetails"]["estimatedDuration"] == 75
+        assert event["sessionTemplateId"] == LIBRARY_TEMPLATE_ID
+        assert "exercises" not in event["sessionDetails"]
+        assert event["sessionDetails"]["estimatedDuration"] == 75
         # Title defaults to the template name (plus the date suffix).
         assert event["title"].startswith("Endurance 1")
-        assert result["workout_template_id"] == str(LIBRARY_TEMPLATE_ID)
+        assert result["session_template_id"] == str(LIBRARY_TEMPLATE_ID)
 
     async def test_template_id_not_found_errors(self, monkeypatch):
         _anchor(monkeypatch)
         db = _insert_db()
         # Covers both a bogus id and another user's private template — the
         # access-scoped find_one returns nothing either way.
-        db.predefinedworkouts.find_one = AsyncMock(return_value=None)
+        db.sessiontemplates.find_one = AsyncMock(return_value=None)
         service = CalendarService(db)
 
         result = await service.schedule_to_calendar(
             USER_ID,
-            {"date": "today", "type": "workout", "dry_run": False,
-             "workout_template_id": str(ObjectId())},
+            {"date": "today", "type": "session", "dry_run": False,
+             "session_template_id": str(ObjectId())},
         )
 
         assert result["success"] is False
         assert result["error"] == "template_not_found"
         db.calendarevents.insert_one.assert_not_called()
-        db.predefinedworkouts.insert_one.assert_not_called()
+        db.sessiontemplates.insert_one.assert_not_called()
 
     async def test_template_lookup_scoped_to_user_visible(self, monkeypatch):
         _anchor(monkeypatch)
         db = _insert_db()
-        db.predefinedworkouts.find_one = AsyncMock(return_value=_library_template())
+        db.sessiontemplates.find_one = AsyncMock(return_value=_library_template())
         service = CalendarService(db)
 
         await service.schedule_to_calendar(
             USER_ID,
-            {"date": "today", "type": "workout", "dry_run": False,
-             "workout_template_id": str(LIBRARY_TEMPLATE_ID)},
+            {"date": "today", "type": "session", "dry_run": False,
+             "session_template_id": str(LIBRARY_TEMPLATE_ID)},
         )
 
-        query = db.predefinedworkouts.find_one.call_args[0][0]
+        query = db.sessiontemplates.find_one.call_args[0][0]
         assert query["_id"] == LIBRARY_TEMPLATE_ID
         assert {"isCommon": True} in query["$or"]
         assert {"createdBy": ObjectId(USER_ID)} in query["$or"]
@@ -373,13 +373,13 @@ class TestScheduleToCalendarExistingTemplate:
         resolver_cls = MagicMock()
         monkeypatch.setattr(calendar_service_module, "ExerciseResolver", resolver_cls)
         db = _insert_db()
-        db.predefinedworkouts.find_one = AsyncMock(return_value=_library_template())
+        db.sessiontemplates.find_one = AsyncMock(return_value=_library_template())
         service = CalendarService(db)
 
         result = await service.schedule_to_calendar(
             USER_ID,
-            {"date": "today", "type": "workout",
-             "workout_template_id": str(LIBRARY_TEMPLATE_ID)},
+            {"date": "today", "type": "session",
+             "session_template_id": str(LIBRARY_TEMPLATE_ID)},
         )
 
         assert result["success"] is True
@@ -389,7 +389,7 @@ class TestScheduleToCalendarExistingTemplate:
         assert "Endurance 1" in result["message"]
         assert "Pull-Ups" in result["message"]
         db.calendarevents.insert_one.assert_not_called()
-        db.predefinedworkouts.insert_one.assert_not_called()
+        db.sessiontemplates.insert_one.assert_not_called()
 
 
 # ------------------- schedule_to_calendar: dry-run preview (TOR-88) -------------------
@@ -418,8 +418,8 @@ def _create_pending(given):
 
 
 EASY_RUN_ARGS = {
-    "date": "today", "title": "Easy Run", "type": "workout",
-    "workoutDetails": {"estimatedDuration": 20, "exercises": [
+    "date": "today", "title": "Easy Run", "type": "session",
+    "sessionDetails": {"estimatedDuration": 20, "exercises": [
         {"exerciseName": "Easy Run", "targetSets": 1, "targetReps": 1},
     ]},
 }
@@ -439,7 +439,7 @@ class TestScheduleToCalendarDryRun:
         assert result["success"] is True
         assert result["dry_run"] is True
         db.calendarevents.insert_one.assert_not_called()
-        db.predefinedworkouts.insert_one.assert_not_called()
+        db.sessiontemplates.insert_one.assert_not_called()
         # The probe must not create catalog exercises for a declined workout.
         assert resolver.resolve.call_args.kwargs["create"] is False
 
@@ -498,7 +498,7 @@ class TestPreviewCard:
         assert card["title"] == "Easy Run"
         assert card["date"] == "2026-07-13"
         assert card["relativeDay"] == "today"
-        assert card["type"] == "workout"
+        assert card["type"] == "session"
         assert card["durationMin"] == 20
         assert card["link"] == {"mode": "creates_new", "name": "Easy Run"}
         assert card["exercises"] == [
@@ -533,13 +533,13 @@ class TestPreviewCard:
     async def test_template_link_card(self, monkeypatch):
         _anchor(monkeypatch)
         db = _insert_db()
-        db.predefinedworkouts.find_one = AsyncMock(return_value=_library_template())
+        db.sessiontemplates.find_one = AsyncMock(return_value=_library_template())
         service = CalendarService(db)
 
         result = await service.schedule_to_calendar(
             USER_ID,
-            {"date": "today", "type": "workout",
-             "workout_template_id": str(LIBRARY_TEMPLATE_ID)},
+            {"date": "today", "type": "session",
+             "session_template_id": str(LIBRARY_TEMPLATE_ID)},
         )
 
         card = result["preview_card"]

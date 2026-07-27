@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from "react";
-import { WorkoutLog } from "@/api/entities";
+import { SessionLog } from "@/api/entities";
 import { ArrowLeft, Square, Play, Pause, Plus, Minus, Check, X, Save, Trash2, MoreVertical, RefreshCw, ArrowUp, ArrowDown, Undo2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
-  getActiveWorkout,
-  saveWorkoutProgress,
-  clearActiveWorkout,
-  startWorkoutSession,
+  getActiveSession,
+  saveSessionProgress,
+  clearActiveSession,
+  startLiveSession,
   buildSessionExercise
-} from "@/utils/workoutSession";
+} from "@/utils/liveSession";
 import {
   Drawer,
   DrawerContent,
@@ -478,10 +478,10 @@ function Stopwatch({ seconds, isRunning, onToggle }) {
   );
 }
 
-export default function LiveWorkout() {
+export default function LiveSession() {
   const navigate = useNavigate();
   const [workout, setWorkout] = useState(null);
-  const [totalWorkoutTime, setTotalWorkoutTime] = useState(0);
+  const [totalSessionTime, setTotalSessionTime] = useState(0);
   const [isWorkoutRunning, setIsWorkoutRunning] = useState(true);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [workoutStartTime] = useState(new Date());
@@ -514,7 +514,7 @@ export default function LiveWorkout() {
     );
 
     return {
-      duration: Math.ceil(totalWorkoutTime / 60),
+      duration: Math.ceil(totalSessionTime / 60),
       exercisesDone,
       setsCompleted
     };
@@ -522,10 +522,10 @@ export default function LiveWorkout() {
 
   // Load workout data from localStorage (or legacy sessionStorage)
   useEffect(() => {
-    const activeWorkout = getActiveWorkout();
+    const activeSession = getActiveSession();
 
-    if (activeWorkout) {
-      const parsed = activeWorkout.data;
+    if (activeSession) {
+      const parsed = activeSession.data;
 
       // Normalize exercise sets
       if (parsed.exercises) {
@@ -541,8 +541,8 @@ export default function LiveWorkout() {
       setWorkout(parsed);
 
       // Restore elapsed time and keep timer running
-      if (activeWorkout.totalWorkoutTime > 0) {
-        setTotalWorkoutTime(activeWorkout.totalWorkoutTime);
+      if (activeSession.totalSessionTime > 0) {
+        setTotalSessionTime(activeSession.totalSessionTime);
       }
       // Timer continues running (isWorkoutRunning defaults to true)
       return;
@@ -568,7 +568,7 @@ export default function LiveWorkout() {
           setWorkout(parsed);
 
           // Migrate to new localStorage format
-          startWorkoutSession(parsed);
+          startLiveSession(parsed);
           sessionStorage.removeItem(id); // Clean up old storage
 
           // Remove ?id param from URL
@@ -589,7 +589,7 @@ export default function LiveWorkout() {
     let interval;
     if (isWorkoutRunning) {
       interval = setInterval(() => {
-        setTotalWorkoutTime(prev => prev + 1);
+        setTotalSessionTime(prev => prev + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
@@ -601,11 +601,11 @@ export default function LiveWorkout() {
 
     // Debounce saves to avoid excessive writes
     const timeoutId = setTimeout(() => {
-      saveWorkoutProgress(workout, totalWorkoutTime);
+      saveSessionProgress(workout, totalSessionTime);
     }, 500); // Save 500ms after last change
 
     return () => clearTimeout(timeoutId);
-  }, [workout, totalWorkoutTime]);
+  }, [workout, totalSessionTime]);
 
   const handleSetUpdate = (exIndex, setIndex, newSetData) => {
     const newWorkout = { ...workout };
@@ -646,10 +646,10 @@ export default function LiveWorkout() {
     setConfirmDelete(null);
     if (navigator.vibrate) navigator.vibrate(40);
 
-    if (opts.permanent && workout.sourceWorkoutId && removed.exercise_id) {
+    if (opts.permanent && workout.sourceTemplateId && removed.exercise_id) {
       // Template changed too — an undo would silently diverge from it, so the
       // permanent path reports via toast instead of offering undo.
-      persistRemoveFromTemplate(workout.sourceWorkoutId, removed);
+      persistRemoveFromTemplate(workout.sourceTemplateId, removed);
       return;
     }
 
@@ -662,13 +662,13 @@ export default function LiveWorkout() {
   // Persist a deletion to the source template ("from now on"). Mirrors
   // persistReplaceToTemplate: the session change already happened and is never
   // rolled back; only the template write is reported.
-  const persistRemoveFromTemplate = async (sourceWorkoutId, removed) => {
+  const persistRemoveFromTemplate = async (sourceTemplateId, removed) => {
     try {
-      const result = await apiService.predefinedWorkouts.removeExercise(sourceWorkoutId, {
+      const result = await apiService.sessionTemplates.removeExercise(sourceTemplateId, {
         exerciseId: removed.exercise_id,
       });
       if (result?.cloned) {
-        setWorkout(w => ({ ...w, sourceWorkoutId: result.workout._id, sourceWorkoutIsCommon: false }));
+        setWorkout(w => ({ ...w, sourceTemplateId: result.workout._id, sourceTemplateIsCommon: false }));
         toast({
           title: "Saved to your workouts",
           description: `Created your own copy of “${result.workout.name}” without “${removed.exercise_name}”.`,
@@ -680,7 +680,7 @@ export default function LiveWorkout() {
         });
       }
     } catch (error) {
-      console.error('[LiveWorkout] Failed to persist removal to template:', error);
+      console.error('[LiveSession] Failed to persist removal to template:', error);
       const description = /empty/i.test(error?.message || '')
         ? "It was removed from this session, but a workout can't be left empty — it wasn't changed."
         : "It was removed from this session, but saving that to the workout failed. Try again from the Workouts page.";
@@ -705,16 +705,16 @@ export default function LiveWorkout() {
   // Persist a replacement to the source template ("from now on"). Fired after
   // the session swap and never rolls it back on failure — the session change
   // already happened; only the template write is reported.
-  const persistReplaceToTemplate = async (sourceWorkoutId, fromExerciseId, picked) => {
+  const persistReplaceToTemplate = async (sourceTemplateId, fromExerciseId, picked) => {
     try {
-      const result = await apiService.predefinedWorkouts.swapExercise(sourceWorkoutId, {
+      const result = await apiService.sessionTemplates.swapExercise(sourceTemplateId, {
         fromExerciseId,
         toExerciseId: picked._id || picked.id,
       });
       if (result?.cloned) {
         // The common template was forked into a private copy — relink the
         // session so a second "from now on" edits the copy in place.
-        setWorkout(w => ({ ...w, sourceWorkoutId: result.workout._id, sourceWorkoutIsCommon: false }));
+        setWorkout(w => ({ ...w, sourceTemplateId: result.workout._id, sourceTemplateIsCommon: false }));
         toast({
           title: "Saved to your workouts",
           description: `Created your own copy of “${result.workout.name}” with the swap.`,
@@ -726,7 +726,7 @@ export default function LiveWorkout() {
         });
       }
     } catch (error) {
-      console.error('[LiveWorkout] Failed to persist replacement to template:', error);
+      console.error('[LiveSession] Failed to persist replacement to template:', error);
       toast({
         title: "Session updated, workout not",
         description: "The swap applies to this session, but saving it to the workout failed. Try again from the Workouts page.",
@@ -759,8 +759,8 @@ export default function LiveWorkout() {
     if (!opts.keepOpen) setReplaceIndex(null);
     if (navigator.vibrate) navigator.vibrate(30);
 
-    if (opts.permanent && workout.sourceWorkoutId && old.exercise_id) {
-      persistReplaceToTemplate(workout.sourceWorkoutId, old.exercise_id, picked);
+    if (opts.permanent && workout.sourceTemplateId && old.exercise_id) {
+      persistReplaceToTemplate(workout.sourceTemplateId, old.exercise_id, picked);
     }
   };
 
@@ -817,7 +817,7 @@ export default function LiveWorkout() {
     ex.sets.every(s => s.is_completed)
   );
 
-  const getWorkoutType = (type) => {
+  const getDiscipline = (type) => {
     if (!type) return 'strength';
     return type.toLowerCase().trim();
   };
@@ -827,12 +827,12 @@ export default function LiveWorkout() {
     setIsSaving(true);
 
     try {
-      const workoutLogData = {
+      const sessionLogData = {
         title: workout.title || 'Workout',
-        type: getWorkoutType(workout.type),
+        discipline: getDiscipline(workout.type),
         startedAt: workoutStartTime.toISOString(),
         completedAt: new Date().toISOString(),
-        actualDuration: Math.ceil(totalWorkoutTime / 60) || workout.duration_minutes || 60,
+        actualDuration: Math.ceil(totalSessionTime / 60) || workout.duration_minutes || 60,
         exercises: workout.exercises.map((ex, i) => ({
           exerciseId: ex.exercise_id,
           exerciseName: ex.exercise_name,
@@ -852,10 +852,10 @@ export default function LiveWorkout() {
         createCalendarEvent: true
       };
 
-      console.log('Saving workout log:', workoutLogData);
-      const result = await WorkoutLog.create(workoutLogData);
+      console.log('Saving workout log:', sessionLogData);
+      const result = await SessionLog.create(sessionLogData);
       console.log('Workout saved successfully:', result);
-      clearActiveWorkout(); // Clear active workout from localStorage
+      clearActiveSession(); // Clear active workout from localStorage
       if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]);
       navigate(-1);
     } catch (error) {
@@ -866,7 +866,7 @@ export default function LiveWorkout() {
   };
 
   const discardAndExit = () => {
-    clearActiveWorkout(); // Clear active workout from localStorage
+    clearActiveSession(); // Clear active workout from localStorage
     navigate(-1);
   };
 
@@ -915,7 +915,7 @@ export default function LiveWorkout() {
       {/* Stopwatch */}
       <div className="px-4 py-4">
         <Stopwatch
-          seconds={totalWorkoutTime}
+          seconds={totalSessionTime}
           isRunning={isWorkoutRunning}
           onToggle={() => setIsWorkoutRunning(!isWorkoutRunning)}
         />
@@ -1000,7 +1000,7 @@ export default function LiveWorkout() {
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 className="text-lg font-bold text-gray-900 mb-2">Delete exercise?</h3>
-            {Boolean(workout.sourceWorkoutId && confirmDelete.exercise?.exercise_id) ? (
+            {Boolean(workout.sourceTemplateId && confirmDelete.exercise?.exercise_id) ? (
               <>
                 <p className="text-sm text-gray-600 mb-5">
                   Remove <span className="font-semibold">{confirmDelete.exercise?.exercise_name}</span> — for how long?
@@ -1018,7 +1018,7 @@ export default function LiveWorkout() {
                   >
                     From now on
                     <span className="block text-xs font-normal text-red-400 mt-0.5">
-                      {workout.sourceWorkoutIsCommon ? "Creates your own copy of this workout" : "Updates this workout"}
+                      {workout.sourceTemplateIsCommon ? "Creates your own copy of this workout" : "Updates this workout"}
                     </span>
                   </button>
                   <button
@@ -1075,19 +1075,19 @@ export default function LiveWorkout() {
         <ExerciseSwapContext.Provider
           value={{
             applySwap: applySwapFromChat,
-            canPersist: Boolean(workout.sourceWorkoutId),
+            canPersist: Boolean(workout.sourceTemplateId),
           }}
         >
           <ReplaceExerciseModal
             exercise={workout.exercises[replaceIndex]}
             onClose={() => setReplaceIndex(null)}
             onReplace={(picked, opts) => handleReplaceExercise(replaceIndex, picked, opts)}
-            canPersist={Boolean(workout.sourceWorkoutId && workout.exercises[replaceIndex]?.exercise_id)}
-            isCommonTemplate={Boolean(workout.sourceWorkoutIsCommon)}
-            workoutTitle={workout.title}
-            sourceWorkoutId={workout.sourceWorkoutId}
+            canPersist={Boolean(workout.sourceTemplateId && workout.exercises[replaceIndex]?.exercise_id)}
+            isCommonTemplate={Boolean(workout.sourceTemplateIsCommon)}
+            sessionTitle={workout.title}
+            sourceTemplateId={workout.sourceTemplateId}
             sessionExercises={workout.exercises}
-            elapsedMinutes={Math.floor(totalWorkoutTime / 60)}
+            elapsedMinutes={Math.floor(totalSessionTime / 60)}
             conversationId={workout.senseiConversationId || null}
             onConversationId={(id) => setWorkout((w) => ({ ...w, senseiConversationId: id }))}
           />

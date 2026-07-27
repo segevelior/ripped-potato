@@ -26,7 +26,7 @@ class SessionService {
     // Create a map for quick lookup
     const modMap = new Map();
     modifications.forEach(mod => {
-      modMap.set(mod.workoutId.toString(), mod);
+      modMap.set(mod.sessionTemplateId.toString(), mod);
     });
     
     // Apply modifications to workouts
@@ -34,7 +34,7 @@ class SessionService {
       const modification = modMap.get(workout._id.toString());
       if (modification) {
         const UserSessionModificationDoc = new UserSessionModification(modification);
-        return UserSessionModificationDoc.applyToWorkout(workout);
+        return UserSessionModificationDoc.applyToSessionTemplate(workout);
       }
       return workout;
     });
@@ -43,11 +43,11 @@ class SessionService {
   /**
    * Get a single workout for a user with modifications applied
    */
-  static async getSessionForUser(workoutId, userId) {
+  static async getSessionForUser(sessionTemplateId, userId) {
     // Convert userId to ObjectId for comparison
     const userObjectId = new mongoose.Types.ObjectId(userId);
 
-    const workout = await SessionTemplate.findById(workoutId)
+    const workout = await SessionTemplate.findById(sessionTemplateId)
       .populate('blocks.exercises.exercise_id', 'name muscles')
       .lean();
 
@@ -63,12 +63,12 @@ class SessionService {
     // Get user's modification if exists
     const modification = await UserSessionModification.findOne({
       userId,
-      workoutId
+      sessionTemplateId
     }).lean();
     
     if (modification) {
       const UserSessionModificationDoc = new UserSessionModification(modification);
-      return UserSessionModificationDoc.applyToWorkout(workout);
+      return UserSessionModificationDoc.applyToSessionTemplate(workout);
     }
     
     return workout;
@@ -77,8 +77,8 @@ class SessionService {
   /**
    * Save or update a user's workout modification
    */
-  static async saveModification(userId, workoutId, modifications, metadata) {
-    const workout = await SessionTemplate.findById(workoutId);
+  static async saveModification(userId, sessionTemplateId, modifications, metadata) {
+    const workout = await SessionTemplate.findById(sessionTemplateId);
     
     if (!workout) {
       throw new Error('Workout not found');
@@ -95,10 +95,10 @@ class SessionService {
     }
     
     const modification = await UserSessionModification.findOneAndUpdate(
-      { userId, workoutId },
+      { userId, sessionTemplateId },
       {
         userId,
-        workoutId,
+        sessionTemplateId,
         modifications,
         metadata
       },
@@ -115,10 +115,10 @@ class SessionService {
   /**
    * Remove a user's workout modification
    */
-  static async removeModification(userId, workoutId) {
+  static async removeModification(userId, sessionTemplateId) {
     const result = await UserSessionModification.findOneAndDelete({
       userId,
-      workoutId
+      sessionTemplateId
     });
     
     if (!result) {
@@ -131,8 +131,8 @@ class SessionService {
   /**
    * Toggle favorite status for a workout
    */
-  static async toggleFavorite(userId, workoutId, isFavorite) {
-    const workout = await SessionTemplate.findById(workoutId);
+  static async toggleFavorite(userId, sessionTemplateId, isFavorite) {
+    const workout = await SessionTemplate.findById(sessionTemplateId);
     
     if (!workout) {
       throw new Error('Workout not found');
@@ -140,7 +140,7 @@ class SessionService {
     
     // Ensure modification exists with at least the favorite status
     const modification = await UserSessionModification.findOneAndUpdate(
-      { userId, workoutId },
+      { userId, sessionTemplateId },
       {
         $set: {
           'metadata.isFavorite': isFavorite
@@ -159,20 +159,20 @@ class SessionService {
   /**
    * Record workout completion
    */
-  static async recordCompletion(userId, workoutId, completionData) {
-    const workout = await SessionTemplate.findById(workoutId);
+  static async recordCompletion(userId, sessionTemplateId, completionData) {
+    const workout = await SessionTemplate.findById(sessionTemplateId);
     
     if (!workout) {
       throw new Error('Workout not found');
     }
     
     // Get or create modification
-    let modification = await UserSessionModification.findOne({ userId, workoutId });
+    let modification = await UserSessionModification.findOne({ userId, sessionTemplateId });
     
     if (!modification) {
       modification = new UserSessionModification({
         userId,
-        workoutId,
+        sessionTemplateId,
         metadata: {}
       });
     }

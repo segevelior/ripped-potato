@@ -41,7 +41,7 @@ app.use('/', router);
 const USER_ID = 'aaaaaaaaaaaaaaaaaaaaaaaa';
 const FROM_EX = 'bbbbbbbbbbbbbbbbbbbbbbbb';
 const TO_EX = 'cccccccccccccccccccccccc';
-const WORKOUT_ID = 'dddddddddddddddddddddddd';
+const TEMPLATE_ID = 'dddddddddddddddddddddddd';
 const CLONE_ID = 'eeeeeeeeeeeeeeeeeeeeeeee';
 
 const makeBlocks = () => [
@@ -58,9 +58,9 @@ const makeBlocks = () => [
   }
 ];
 
-const makeWorkout = ({ ownedByUser, isCommon, blocks = makeBlocks() }) => {
+const makeTemplate = ({ ownedByUser, isCommon, blocks = makeBlocks() }) => {
   const workout = {
-    _id: WORKOUT_ID,
+    _id: TEMPLATE_ID,
     name: 'Push Day',
     goal: 'strength',
     estimated_duration: 45,
@@ -95,11 +95,11 @@ beforeEach(() => {
 
 describe('POST /:id/swap-exercise', () => {
   test('own template: swaps every occurrence in place, keeps volume/rest/notes', async () => {
-    const workout = makeWorkout({ ownedByUser: true, isCommon: false });
+    const workout = makeTemplate({ ownedByUser: true, isCommon: false });
     SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
-      .post(`/${WORKOUT_ID}/swap-exercise`)
+      .post(`/${TEMPLATE_ID}/swap-exercise`)
       .send({ fromExerciseId: FROM_EX, toExerciseId: TO_EX });
 
     expect(res.status).toBe(200);
@@ -120,11 +120,11 @@ describe('POST /:id/swap-exercise', () => {
   });
 
   test('common template: clones privately, swaps, relinks calendar events and plans', async () => {
-    const workout = makeWorkout({ ownedByUser: false, isCommon: true });
+    const workout = makeTemplate({ ownedByUser: false, isCommon: true });
     SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
-      .post(`/${WORKOUT_ID}/swap-exercise`)
+      .post(`/${TEMPLATE_ID}/swap-exercise`)
       .send({ fromExerciseId: FROM_EX, toExerciseId: TO_EX });
 
     expect(res.status).toBe(200);
@@ -143,20 +143,20 @@ describe('POST /:id/swap-exercise', () => {
     expect(CalendarEvent.updateMany).toHaveBeenCalledWith(
       {
         userId: USER_ID,
-        workoutTemplateId: WORKOUT_ID,
+        sessionTemplateId: TEMPLATE_ID,
         status: { $in: ['scheduled', 'in_progress'] }
       },
-      { $set: { workoutTemplateId: CLONE_ID } }
+      { $set: { sessionTemplateId: CLONE_ID } }
     );
     expect(Plan.updateMany).toHaveBeenCalledWith(
-      { userId: USER_ID, 'weeks.workouts.predefinedWorkoutId': WORKOUT_ID },
-      { $set: { 'weeks.$[].workouts.$[w].predefinedWorkoutId': CLONE_ID } },
-      { arrayFilters: [{ 'w.predefinedWorkoutId': WORKOUT_ID }] }
+      { userId: USER_ID, 'weeks.sessions.sessionTemplateId': TEMPLATE_ID },
+      { $set: { 'weeks.$[].sessions.$[s].sessionTemplateId': CLONE_ID } },
+      { arrayFilters: [{ 's.sessionTemplateId': TEMPLATE_ID }] }
     );
   });
 
   test('common template clone folds the modification overlay and moves the row', async () => {
-    const workout = makeWorkout({ ownedByUser: false, isCommon: true });
+    const workout = makeTemplate({ ownedByUser: false, isCommon: true });
     SessionTemplate.findById.mockResolvedValue(workout);
     const modification = {
       modifications: { title: 'My Push Day', description: 'tweaked', durationMinutes: 60 },
@@ -167,7 +167,7 @@ describe('POST /:id/swap-exercise', () => {
     UserSessionModification.findOne.mockResolvedValue(modification);
 
     const res = await request(app)
-      .post(`/${WORKOUT_ID}/swap-exercise`)
+      .post(`/${TEMPLATE_ID}/swap-exercise`)
       .send({ fromExerciseId: FROM_EX, toExerciseId: TO_EX });
 
     expect(res.status).toBe(200);
@@ -176,7 +176,7 @@ describe('POST /:id/swap-exercise', () => {
     expect(cloneData.goal).toBe('tweaked');
     expect(cloneData.estimated_duration).toBe(60);
 
-    expect(modification.workoutId).toBe(CLONE_ID);
+    expect(modification.sessionTemplateId).toBe(CLONE_ID);
     expect(modification.modifications.title).toBeUndefined();
     expect(modification.modifications.description).toBeUndefined();
     expect(modification.modifications.durationMinutes).toBeUndefined();
@@ -185,7 +185,7 @@ describe('POST /:id/swap-exercise', () => {
   });
 
   test('400 when the exercise is not in the workout', async () => {
-    const workout = makeWorkout({
+    const workout = makeTemplate({
       ownedByUser: true,
       isCommon: false,
       blocks: [{ name: 'Main', exercises: [{ exercise_id: 'ffffffffffffffffffffffff', exercise_name: 'Squat' }] }]
@@ -193,7 +193,7 @@ describe('POST /:id/swap-exercise', () => {
     SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
-      .post(`/${WORKOUT_ID}/swap-exercise`)
+      .post(`/${TEMPLATE_ID}/swap-exercise`)
       .send({ fromExerciseId: FROM_EX, toExerciseId: TO_EX });
 
     expect(res.status).toBe(400);
@@ -201,23 +201,23 @@ describe('POST /:id/swap-exercise', () => {
   });
 
   test('403 on someone else\'s private workout', async () => {
-    const workout = makeWorkout({ ownedByUser: false, isCommon: false });
+    const workout = makeTemplate({ ownedByUser: false, isCommon: false });
     SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
-      .post(`/${WORKOUT_ID}/swap-exercise`)
+      .post(`/${TEMPLATE_ID}/swap-exercise`)
       .send({ fromExerciseId: FROM_EX, toExerciseId: TO_EX });
 
     expect(res.status).toBe(403);
   });
 
   test('400 when the replacement exercise is not visible to the user', async () => {
-    const workout = makeWorkout({ ownedByUser: true, isCommon: false });
+    const workout = makeTemplate({ ownedByUser: true, isCommon: false });
     SessionTemplate.findById.mockResolvedValue(workout);
     Exercise.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(null) });
 
     const res = await request(app)
-      .post(`/${WORKOUT_ID}/swap-exercise`)
+      .post(`/${TEMPLATE_ID}/swap-exercise`)
       .send({ fromExerciseId: FROM_EX, toExerciseId: TO_EX });
 
     expect(res.status).toBe(400);

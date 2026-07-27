@@ -5,11 +5,11 @@ import { createPageUrl } from '@/utils';
 import { format } from 'date-fns';
 import { CalendarEvent } from '@/api/entities';
 import {
-  getActiveWorkout,
-  startWorkoutSession,
-  clearActiveWorkout,
-  parseWorkoutToSessionData
-} from '@/utils/workoutSession';
+  getActiveSession,
+  startLiveSession,
+  clearActiveSession,
+  parseTemplateToSessionData
+} from '@/utils/liveSession';
 import { disciplineToType } from '@/utils/disciplineToType';
 
 /**
@@ -18,13 +18,16 @@ import { disciplineToType } from '@/utils/disciplineToType';
  * like starting a workout or adding to calendar.
  *
  * Format in AI messages:
- * <action-button action="train-now" workout='{"title":"...","exercises":[...]}' date="2025-01-15">Start Training Now</action-button>
- * <action-button action="add-to-calendar" date="2025-01-15" workout='{"title":"..."}'>Add to Calendar</action-button>
+ * <action-button action="train-now" session='{"title":"...","exercises":[...]}' date="2025-01-15">Start Training Now</action-button>
+ * <action-button action="add-to-calendar" date="2025-01-15" session='{"title":"..."}'>Add to Calendar</action-button>
+ *
+ * The pre-rename `workout='...'` attribute is still accepted on parse — it is
+ * what conversations persisted before the workout→session rename contain.
  */
 export function ActionButtons({ actions, disabled }) {
   const navigate = useNavigate();
   const [showConflictModal, setShowConflictModal] = useState(false);
-  const [activeWorkout, setActiveWorkout] = useState(null);
+  const [activeSession, setActiveSession] = useState(null);
   const [pendingAction, setPendingAction] = useState(null);
 
   if (!actions || actions.length === 0) return null;
@@ -35,18 +38,18 @@ export function ActionButtons({ actions, disabled }) {
     switch (action.type) {
       case 'train-now':
         // Check for existing active workout
-        const existing = getActiveWorkout();
+        const existing = getActiveSession();
         if (existing) {
-          setActiveWorkout(existing);
+          setActiveSession(existing);
           setPendingAction(action);
           setShowConflictModal(true);
           return;
         }
         // First save to calendar, then start the workout
-        await saveWorkoutToCalendarAndStart(action.workout, action.date);
+        await saveWorkoutToCalendarAndStart(action.session, action.date);
         break;
       case 'add-to-calendar':
-        addToCalendar(action.date, action.workout);
+        addToCalendar();
         break;
       default:
         console.warn('Unknown action type:', action.type);
@@ -56,14 +59,14 @@ export function ActionButtons({ actions, disabled }) {
   const resumeWorkout = () => {
     setShowConflictModal(false);
     setPendingAction(null);
-    navigate(createPageUrl('LiveWorkout'));
+    navigate(createPageUrl('LiveSession'));
   };
 
   const discardAndStartNew = async () => {
-    clearActiveWorkout();
+    clearActiveSession();
     setShowConflictModal(false);
     if (pendingAction) {
-      await saveWorkoutToCalendarAndStart(pendingAction.workout, pendingAction.date);
+      await saveWorkoutToCalendarAndStart(pendingAction.session, pendingAction.date);
       setPendingAction(null);
     }
   };
@@ -103,7 +106,7 @@ export function ActionButtons({ actions, disabled }) {
 
       let sessionData;
       try {
-        sessionData = parseWorkoutToSessionData(workout);
+        sessionData = parseTemplateToSessionData(workout);
       } catch (parseError) {
         console.error('Failed to parse workout data:', parseError);
         alert(parseError.message || 'The workout data is invalid. Please ask Sensei to create the workout again.');
@@ -114,7 +117,7 @@ export function ActionButtons({ actions, disabled }) {
       const workoutDate = dateStr || format(new Date(), 'yyyy-MM-dd');
 
       const rawType = workout.type || workout.primary_disciplines?.[0];
-      const workoutType = rawType ? (disciplineToType[rawType.toLowerCase()] || rawType.toLowerCase()) : null;
+      const discipline = rawType ? (disciplineToType[rawType.toLowerCase()] || rawType.toLowerCase()) : null;
 
       // Build exercises for calendar format (must match CalendarEvent schema)
       const calendarExercises = sessionData.exercises.map((ex) => ({
@@ -128,10 +131,10 @@ export function ActionButtons({ actions, disabled }) {
       const calendarEventData = {
         date: workoutDate,
         title: sessionData.title,
-        type: 'workout',
+        type: 'session',
         status: 'scheduled',
-        workoutDetails: {
-          type: workoutType,
+        sessionDetails: {
+          discipline,
           estimatedDuration: sessionData.duration_minutes,
           exercises: calendarExercises
         },
@@ -147,27 +150,20 @@ export function ActionButtons({ actions, disabled }) {
       }
 
       // Store in localStorage using the new workout session utility and navigate
-      startWorkoutSession(sessionData);
-      navigate(createPageUrl('LiveWorkout'));
+      startLiveSession(sessionData);
+      navigate(createPageUrl('LiveSession'));
     } catch (error) {
       console.error('Error starting workout:', error);
       alert('Failed to start workout. Please try again.');
     }
   };
 
-  const addToCalendar = (date, workoutData) => {
-    // Navigate to calendar with the workout data
-    try {
-      const workout = typeof workoutData === 'string' ? JSON.parse(workoutData) : workoutData;
-      sessionStorage.setItem('pendingCalendarWorkout', JSON.stringify({
-        date,
-        workout
-      }));
-      navigate(createPageUrl('Calendar'));
-    } catch (error) {
-      console.error('Error adding to calendar:', error);
-      navigate(createPageUrl('Calendar'));
-    }
+  // Nothing on the Calendar page ever read the sessionStorage hand-off this used
+  // to write ('pendingCalendarWorkout'), so the write was dead and is gone. The
+  // button still navigates to the Calendar; wiring the pre-fill is tracked
+  // separately.
+  const addToCalendar = () => {
+    navigate(createPageUrl('Calendar'));
   };
 
   const getButtonIcon = (type) => {
@@ -203,7 +199,7 @@ export function ActionButtons({ actions, disabled }) {
               You have an unfinished workout:
             </p>
             <p className="font-semibold text-gray-900 mb-4">
-              {activeWorkout?.data?.title}
+              {activeSession?.data?.title}
             </p>
             <p className="text-gray-600 mb-6">
               Would you like to resume it or start a new workout?
@@ -255,11 +251,48 @@ export function ActionButtons({ actions, disabled }) {
 }
 
 /**
+ * Extract a raw JSON attribute value (single- or double-quoted) for `name`.
+ * The JSON payload itself uses double quotes, so the closing delimiter is found
+ * by looking for the quote that follows the final `}` rather than by regex.
+ * @returns {string|null}
+ */
+function extractJsonAttribute(attributesStr, name) {
+  const singleQuoteToken = `${name}='`;
+  const doubleQuoteToken = `${name}="`;
+  const singleQuoteStart = attributesStr.indexOf(singleQuoteToken);
+  const doubleQuoteStart = attributesStr.indexOf(doubleQuoteToken);
+
+  if (singleQuoteStart !== -1) {
+    const startIdx = singleQuoteStart + singleQuoteToken.length;
+    let endIdx = attributesStr.indexOf("}'", startIdx);
+    if (endIdx !== -1) {
+      return attributesStr.substring(startIdx, endIdx + 1);
+    }
+    // Fallback: find last single quote
+    endIdx = attributesStr.lastIndexOf("'");
+    return endIdx > startIdx ? attributesStr.substring(startIdx, endIdx) : null;
+  }
+
+  if (doubleQuoteStart !== -1) {
+    const startIdx = doubleQuoteStart + doubleQuoteToken.length;
+    const endIdx = attributesStr.indexOf('}"', startIdx);
+    if (endIdx !== -1) {
+      return attributesStr.substring(startIdx, endIdx + 1);
+    }
+  }
+
+  return null;
+}
+
+/**
  * Parses action buttons from message content.
  * Returns { cleanContent, actionButtons }
  *
  * Format:
- * <action-button action="train-now" workout='{"title":"..."}'>Start Training</action-button>
+ * <action-button action="train-now" session='{"title":"..."}'>Start Training</action-button>
+ *
+ * Both `session=` (current) and `workout=` (pre-rename, still present in
+ * persisted conversations) are accepted.
  */
 export function parseActionButtons(content) {
   if (!content) return { cleanContent: content, actionButtons: [] };
@@ -280,54 +313,30 @@ export function parseActionButtons(content) {
     const actionMatch = attributesStr.match(/action=["']([^"']+)["']/);
     const dateMatch = attributesStr.match(/date=["']([^"']+)["']/);
 
-    // Parse workout JSON - handle single-quoted attribute with JSON inside
-    // The JSON itself uses double quotes, so we need careful extraction
-    let workout = null;
-    let workoutStr = null;
+    // Parse the session JSON. Accept the new `session=` spelling first and fall
+    // back to the pre-rename `workout=` so old persisted messages still render
+    // working buttons.
+    let session = null;
+    const sessionStr =
+      extractJsonAttribute(attributesStr, 'session') ??
+      extractJsonAttribute(attributesStr, 'workout');
 
-    // Try to find workout=' and extract until the matching closing '
-    // Account for the fact that JSON inside uses double quotes
-    const singleQuoteStart = attributesStr.indexOf("workout='");
-    const doubleQuoteStart = attributesStr.indexOf('workout="');
-
-    if (singleQuoteStart !== -1) {
-      // Extract from after workout=' to the next single quote that's followed by space or end
-      const startIdx = singleQuoteStart + 9; // length of "workout='"
-      // Find the closing single quote - should be after a }
-      let endIdx = attributesStr.indexOf("}'", startIdx);
-      if (endIdx !== -1) {
-        workoutStr = attributesStr.substring(startIdx, endIdx + 1);
-      } else {
-        // Fallback: find last single quote
-        endIdx = attributesStr.lastIndexOf("'");
-        if (endIdx > startIdx) {
-          workoutStr = attributesStr.substring(startIdx, endIdx);
-        }
-      }
-    } else if (doubleQuoteStart !== -1) {
-      const startIdx = doubleQuoteStart + 9; // length of 'workout="'
-      let endIdx = attributesStr.indexOf('}"', startIdx);
-      if (endIdx !== -1) {
-        workoutStr = attributesStr.substring(startIdx, endIdx + 1);
-      }
-    }
-
-    if (workoutStr) {
+    if (sessionStr) {
       try {
         // Handle HTML entity encoding
-        const decodedStr = workoutStr
+        const decodedStr = sessionStr
           .replace(/&quot;/g, '"')
           .replace(/&apos;/g, "'")
           .replace(/&lt;/g, '<')
           .replace(/&gt;/g, '>')
           .replace(/&amp;/g, '&');
-        workout = JSON.parse(decodedStr);
+        session = JSON.parse(decodedStr);
       } catch (e) {
-        console.error('Failed to parse workout JSON:', e, 'Raw string:', workoutStr);
+        console.error('Failed to parse session JSON:', e, 'Raw string:', sessionStr);
         // Try to fix common issues
         try {
           // Sometimes the AI uses curly quotes or other issues
-          const fixedStr = workoutStr
+          const fixedStr = sessionStr
             .replace(/[""]/g, '"')  // Replace curly quotes
             .replace(/['']/g, "'")  // Replace curly single quotes
             .replace(/&quot;/g, '"')
@@ -335,10 +344,10 @@ export function parseActionButtons(content) {
             .replace(/&lt;/g, '<')
             .replace(/&gt;/g, '>')
             .replace(/&amp;/g, '&');
-          workout = JSON.parse(fixedStr);
+          session = JSON.parse(fixedStr);
         } catch (e2) {
           console.error('Still failed after fixing:', e2);
-          workout = null;
+          session = null;
         }
       }
     }
@@ -346,7 +355,7 @@ export function parseActionButtons(content) {
     return {
       type: actionMatch ? actionMatch[1] : 'unknown',
       label,
-      workout,
+      session,
       date: dateMatch ? dateMatch[1] : null
     };
   });

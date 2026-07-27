@@ -199,13 +199,13 @@ class APIService {
     start: (id) => this.request(`/plans/${id}/start`, {
       method: 'POST'
     }),
-    completeWorkout: (id, workoutData) => this.request(`/plans/${id}/complete-workout`, {
+    completeSession: (id, sessionData) => this.request(`/plans/${id}/complete-session`, {
       method: 'POST',
-      body: JSON.stringify(workoutData)
+      body: JSON.stringify(sessionData)
     }),
-    skipWorkout: (id, workoutData) => this.request(`/plans/${id}/skip-workout`, {
+    skipSession: (id, sessionData) => this.request(`/plans/${id}/skip-session`, {
       method: 'POST',
-      body: JSON.stringify(workoutData)
+      body: JSON.stringify(sessionData)
     }),
     pause: (id) => this.request(`/plans/${id}/pause`, {
       method: 'POST'
@@ -215,41 +215,41 @@ class APIService {
     })
   };
 
-  // PredefinedWorkout endpoints
-  predefinedWorkouts = {
-    list: () => this.request('/predefined-workouts'),
-    get: (id) => this.request(`/predefined-workouts/${id}`),
-    create: (data) => this.request('/predefined-workouts', {
+  // SessionTemplate endpoints
+  sessionTemplates = {
+    list: () => this.request('/session-templates'),
+    get: (id) => this.request(`/session-templates/${id}`),
+    create: (data) => this.request('/session-templates', {
       method: 'POST',
       body: JSON.stringify(data)
     }),
-    update: (id, data) => this.request(`/predefined-workouts/${id}`, {
+    update: (id, data) => this.request(`/session-templates/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     }),
-    delete: (id) => this.request(`/predefined-workouts/${id}`, {
+    delete: (id) => this.request(`/session-templates/${id}`, {
       method: 'DELETE'
     }),
-    rate: (id, rating) => this.request(`/predefined-workouts/${id}/rate`, {
+    rate: (id, rating) => this.request(`/session-templates/${id}/rate`, {
       method: 'POST',
       body: JSON.stringify({ rating })
     }),
-    complete: (id, data) => this.request(`/predefined-workouts/${id}/complete`, {
+    complete: (id, data) => this.request(`/session-templates/${id}/complete`, {
       method: 'POST',
       body: JSON.stringify(data)
     }),
     // Returns { workout, cloned, replacedCount } — the route responds with a
     // bare object (no data envelope), so no extra unwrap here.
-    swapExercise: (id, data) => this.request(`/predefined-workouts/${id}/swap-exercise`, {
+    swapExercise: (id, data) => this.request(`/session-templates/${id}/swap-exercise`, {
       method: 'POST',
       body: JSON.stringify(data)
     }),
     // Returns { workout, cloned, removedCount } — same bare-object convention.
-    removeExercise: (id, data) => this.request(`/predefined-workouts/${id}/remove-exercise`, {
+    removeExercise: (id, data) => this.request(`/session-templates/${id}/remove-exercise`, {
       method: 'POST',
       body: JSON.stringify(data)
     }),
-    favorite: (id) => this.request(`/predefined-workouts/${id}/favorite`, {
+    favorite: (id) => this.request(`/session-templates/${id}/favorite`, {
       method: 'PUT'
     })
   };
@@ -278,24 +278,24 @@ class APIService {
     }
   };
 
-  // WorkoutType endpoints
-  workoutTypes = {
-    list: () => this.request('/workout-types'),
-    get: (id) => this.request(`/workout-types/${id}`),
-    create: (data) => this.request('/workout-types', {
+  // SessionType endpoints
+  sessionTypes = {
+    list: () => this.request('/session-types'),
+    get: (id) => this.request(`/session-types/${id}`),
+    create: (data) => this.request('/session-types', {
       method: 'POST',
       body: JSON.stringify(data)
     }),
-    update: (id, data) => this.request(`/workout-types/${id}`, {
+    update: (id, data) => this.request(`/session-types/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     }),
-    delete: (id) => this.request(`/workout-types/${id}`, {
+    delete: (id) => this.request(`/session-types/${id}`, {
       method: 'DELETE'
     }),
-    recommendations: (userLevel) => this.request(`/workout-types/recommendations/${userLevel}`),
-    byFitnessLevel: (level) => this.request(`/workout-types/fitness-level/${level}`),
-    byGoal: (goal) => this.request(`/workout-types/goal/${goal}`)
+    recommendations: (userLevel) => this.request(`/session-types/recommendations/${userLevel}`),
+    byFitnessLevel: (level) => this.request(`/session-types/fitness-level/${level}`),
+    byGoal: (goal) => this.request(`/session-types/goal/${goal}`)
   };
 
   // ExternalActivity endpoints
@@ -405,14 +405,14 @@ class APIService {
       method: 'PATCH',
       body: JSON.stringify({ newDate })
     }),
-    startWorkout: (id) => this.request(`/calendar/${id}/start`, {
+    startSession: (id) => this.request(`/calendar/${id}/start`, {
       method: 'POST'
     }),
-    completeWorkout: (id, data) => this.request(`/calendar/${id}/complete`, {
+    completeSession: (id, data) => this.request(`/calendar/${id}/complete`, {
       method: 'POST',
       body: JSON.stringify(data || {})
     }),
-    skipWorkout: (id, reason) => this.request(`/calendar/${id}/skip`, {
+    skipSession: (id, reason) => this.request(`/calendar/${id}/skip`, {
       method: 'POST',
       body: JSON.stringify({ reason })
     })
@@ -492,30 +492,30 @@ class APIService {
     })
   };
 
-  // Workout Logs endpoints (completed workouts from TrainNow)
-  workoutLogs = {
+  // Session Logs endpoints (completed sessions from TrainNow)
+  sessionLogs = {
     list: async (params = {}) => {
       const queryString = new URLSearchParams(params).toString();
-      const response = await this.request(`/workout-logs${queryString ? `?${queryString}` : ''}`);
+      const response = await this.request(`/session-logs${queryString ? `?${queryString}` : ''}`);
       return response.logs || response;
     },
     get: async (id) => {
-      const response = await this.request(`/workout-logs/${id}`);
+      const response = await this.request(`/session-logs/${id}`);
       return response.log || response;
     },
     stats: async (days = 30) => {
-      const response = await this.request(`/workout-logs/stats?days=${days}`);
+      const response = await this.request(`/session-logs/stats?days=${days}`);
       return response.stats || response;
     },
-    create: (data) => this.request('/workout-logs', {
+    create: (data) => this.request('/session-logs', {
       method: 'POST',
       body: JSON.stringify(data)
     }),
-    update: (id, data) => this.request(`/workout-logs/${id}`, {
+    update: (id, data) => this.request(`/session-logs/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     }),
-    delete: (id) => this.request(`/workout-logs/${id}`, {
+    delete: (id) => this.request(`/session-logs/${id}`, {
       method: 'DELETE'
     })
   };
@@ -551,7 +551,6 @@ class APIService {
 
   // Alias endpoints for naming compatibility
   trainingPlans = this.plans;  // TrainingPlan -> Plan
-  workoutTemplates = this.predefinedWorkouts;  // WorkoutTemplate -> PredefinedWorkout
 }
 
 // Export singleton instance

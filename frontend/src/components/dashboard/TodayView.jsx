@@ -140,23 +140,23 @@ export default function TodayView() {
           setSession({
             title: scheduledEvent.title,
             type:
-              scheduledEvent.workoutDetails?.type ||
+              scheduledEvent.sessionDetails?.discipline ||
               scheduledEvent.eventType ||
               "Workout",
             time: fmtTime(scheduledEvent.date),
             duration:
-              scheduledEvent.workoutDetails?.durationMinutes ||
-              scheduledEvent.workoutDetails?.estimatedDuration ||
-              scheduledEvent.workoutTemplateId?.estimated_duration ||
+              scheduledEvent.sessionDetails?.durationMinutes ||
+              scheduledEvent.sessionDetails?.estimatedDuration ||
+              scheduledEvent.sessionTemplateId?.estimated_duration ||
               null,
             // Exercise count comes from the linked template; embedded list
             // is a legacy fallback for unmigrated events.
             exercises:
-              scheduledEvent.workoutTemplateId?.blocks?.reduce(
+              scheduledEvent.sessionTemplateId?.blocks?.reduce(
                 (n, b) => n + (b.exercises?.length || 0),
                 0
               ) ||
-              scheduledEvent.workoutDetails?.exercises?.length ||
+              scheduledEvent.sessionDetails?.exercises?.length ||
               null,
             eventId: scheduledEvent.id,
           });
@@ -169,7 +169,7 @@ export default function TodayView() {
           return;
         }
         // No calendar event — fetch (or generate) today's persisted suggestion
-        const data = await aiService.getTodayWorkout();
+        const data = await aiService.getTodaySession();
         if (!mounted.current) return;
         if (data?.suggestion) {
           const s = data.suggestion;
@@ -219,7 +219,7 @@ export default function TodayView() {
 
   const startSession = () => {
     // TrainNow shows calendar-scheduled sessions as the "Scheduled Today" card
-    // (same pickTodaySession selection) and owns the LiveWorkout launch flow,
+    // (same pickTodaySession selection) and owns the LiveSession launch flow,
     // including the active-session conflict guard.
     navigate(createPageUrl("TrainNow"));
   };

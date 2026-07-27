@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Apply the collection-level $jsonSchema validator on predefinedworkouts:
+ * Apply the collection-level $jsonSchema validator on sessiontemplates:
  * every blocks[].exercises[] entry must have a real (objectId) exercise_id
  * and a non-empty exercise_name, and every document must have blocks.
  *
@@ -10,10 +10,10 @@
  * integrity invariant, so unrelated schema evolution is never blocked.
  *
  * Rollout (run fix-null-exercise-ids.js FIRST — it must report clean):
- *   node scripts/add-predefinedworkouts-validator.js --warn    # log violations, allow writes
- *   node scripts/add-predefinedworkouts-validator.js --error   # reject violations (after quiet warn period)
- *   node scripts/add-predefinedworkouts-validator.js --status  # show current validator
- *   node scripts/add-predefinedworkouts-validator.js --remove  # drop the validator
+ *   node scripts/add-sessiontemplates-validator.js --warn    # log violations, allow writes
+ *   node scripts/add-sessiontemplates-validator.js --error   # reject violations (after quiet warn period)
+ *   node scripts/add-sessiontemplates-validator.js --status  # show current validator
+ *   node scripts/add-sessiontemplates-validator.js --remove  # drop the validator
  *
  * Violations in warn mode appear in the mongod/Atlas logs as
  * "Document would fail validation".
@@ -65,7 +65,7 @@ async function run() {
   console.log(`✅ Connected to MongoDB (mode: ${MODE})`);
 
   if (MODE === 'status') {
-    const info = await db.command({ listCollections: 1, filter: { name: 'predefinedworkouts' } });
+    const info = await db.command({ listCollections: 1, filter: { name: 'sessiontemplates' } });
     const options = info.cursor.firstBatch[0]?.options || {};
     console.log(JSON.stringify({
       validator: options.validator || null,
@@ -73,12 +73,12 @@ async function run() {
       validationAction: options.validationAction || null,
     }, null, 2));
   } else if (MODE === 'remove') {
-    await db.command({ collMod: 'predefinedworkouts', validator: {}, validationLevel: 'off' });
+    await db.command({ collMod: 'sessiontemplates', validator: {}, validationLevel: 'off' });
     console.log('🗑️  Validator removed');
   } else {
     // Refuse to tighten over dirty data: strict validation fires on ANY update
     // to an invalid document, not just inserts.
-    const bad = await db.collection('predefinedworkouts').countDocuments({
+    const bad = await db.collection('sessiontemplates').countDocuments({
       $or: [
         { blocks: { $exists: false } },
         { 'blocks.exercises': { $elemMatch: { $or: [
@@ -95,7 +95,7 @@ async function run() {
     }
 
     await db.command({
-      collMod: 'predefinedworkouts',
+      collMod: 'sessiontemplates',
       validator: VALIDATOR,
       validationLevel: 'strict',
       validationAction: MODE, // 'warn' logs + allows; 'error' rejects

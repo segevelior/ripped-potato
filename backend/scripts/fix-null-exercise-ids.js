@@ -1,17 +1,21 @@
 #!/usr/bin/env node
 
 /**
- * One-off migration: repair predefinedworkouts whose blocks[].exercises[]
+ * NOTE: this script must run BEFORE the workout→session migration in its
+ * pre-rename form — this post-rename version targets the new names
+ * (sessiontemplates / sessionTemplateId / sessionDetails / type 'session').
+ *
+ * One-off migration: repair sessiontemplates whose blocks[].exercises[]
  * carry a null/missing exercise_id (written by the Python coach service
  * before the ExerciseResolver existed).
  *
  * Per null entry: reuse an existing exercise by exact case-insensitive name
- * (common or owned by the workout's creator); otherwise create a private
- * exercise for the workout owner via Mongoose (the pre-save hook embeds it
+ * (common or owned by the template's creator); otherwise create a private
+ * exercise for the template owner via Mongoose (the pre-save hook embeds it
  * when OPENAI_API_KEY is live; otherwise the embedding backfill catches it).
  *
  * MUST run (and report clean) before the collection validator is applied —
- * validate with scripts/add-predefinedworkouts-validator.js afterwards.
+ * validate with scripts/add-sessiontemplates-validator.js afterwards.
  *
  * Usage:
  *   node scripts/fix-null-exercise-ids.js --dry-run   # report only

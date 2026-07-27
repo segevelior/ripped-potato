@@ -40,7 +40,7 @@ app.use('/', router);
 const USER_ID = 'aaaaaaaaaaaaaaaaaaaaaaaa';
 const TARGET_EX = 'bbbbbbbbbbbbbbbbbbbbbbbb';
 const OTHER_EX = 'ffffffffffffffffffffffff';
-const WORKOUT_ID = 'dddddddddddddddddddddddd';
+const TEMPLATE_ID = 'dddddddddddddddddddddddd';
 const CLONE_ID = 'eeeeeeeeeeeeeeeeeeeeeeee';
 
 const makeBlocks = () => [
@@ -57,9 +57,9 @@ const makeBlocks = () => [
   }
 ];
 
-const makeWorkout = ({ ownedByUser, isCommon, blocks = makeBlocks() }) => {
+const makeTemplate = ({ ownedByUser, isCommon, blocks = makeBlocks() }) => {
   const workout = {
-    _id: WORKOUT_ID,
+    _id: TEMPLATE_ID,
     name: 'Core Day',
     isCommon,
     createdBy: ownedByUser ? USER_ID : 'a1a1a1a1a1a1a1a1a1a1a1a1',
@@ -86,16 +86,16 @@ beforeEach(() => {
 
 describe('POST /:id/remove-exercise', () => {
   it('400s without exerciseId', async () => {
-    const res = await request(app).post(`/${WORKOUT_ID}/remove-exercise`).send({});
+    const res = await request(app).post(`/${TEMPLATE_ID}/remove-exercise`).send({});
     expect(res.status).toBe(400);
   });
 
   it('removes all occurrences in-place on an own template and drops emptied blocks', async () => {
-    const workout = makeWorkout({ ownedByUser: true, isCommon: false });
+    const workout = makeTemplate({ ownedByUser: true, isCommon: false });
     SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
-      .post(`/${WORKOUT_ID}/remove-exercise`)
+      .post(`/${TEMPLATE_ID}/remove-exercise`)
       .send({ exerciseId: TARGET_EX });
 
     expect(res.status).toBe(200);
@@ -108,11 +108,11 @@ describe('POST /:id/remove-exercise', () => {
   });
 
   it('clones a common template and relinks calendar + plan references', async () => {
-    const workout = makeWorkout({ ownedByUser: false, isCommon: true });
+    const workout = makeTemplate({ ownedByUser: false, isCommon: true });
     SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
-      .post(`/${WORKOUT_ID}/remove-exercise`)
+      .post(`/${TEMPLATE_ID}/remove-exercise`)
       .send({ exerciseId: TARGET_EX });
 
     expect(res.status).toBe(200);
@@ -121,18 +121,18 @@ describe('POST /:id/remove-exercise', () => {
     expect(res.body.workout.createdBy).toBe(USER_ID);
     expect(workout.save).not.toHaveBeenCalled(); // original untouched
     expect(CalendarEvent.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ workoutTemplateId: WORKOUT_ID }),
-      { $set: { workoutTemplateId: CLONE_ID } }
+      expect.objectContaining({ sessionTemplateId: TEMPLATE_ID }),
+      { $set: { sessionTemplateId: CLONE_ID } }
     );
     expect(Plan.updateMany).toHaveBeenCalled();
   });
 
   it('400s when the exercise is not in the workout', async () => {
-    const workout = makeWorkout({ ownedByUser: true, isCommon: false });
+    const workout = makeTemplate({ ownedByUser: true, isCommon: false });
     SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
-      .post(`/${WORKOUT_ID}/remove-exercise`)
+      .post(`/${TEMPLATE_ID}/remove-exercise`)
       .send({ exerciseId: 'cccccccccccccccccccccccc' });
 
     expect(res.status).toBe(400);
@@ -140,7 +140,7 @@ describe('POST /:id/remove-exercise', () => {
   });
 
   it('refuses to remove the last remaining exercise', async () => {
-    const workout = makeWorkout({
+    const workout = makeTemplate({
       ownedByUser: true,
       isCommon: false,
       blocks: [{ name: 'Only', exercises: [{ exercise_id: TARGET_EX, exercise_name: 'Plank', volume: '3x60s', rest: '', notes: '' }] }]
@@ -148,7 +148,7 @@ describe('POST /:id/remove-exercise', () => {
     SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
-      .post(`/${WORKOUT_ID}/remove-exercise`)
+      .post(`/${TEMPLATE_ID}/remove-exercise`)
       .send({ exerciseId: TARGET_EX });
 
     expect(res.status).toBe(400);
@@ -157,11 +157,11 @@ describe('POST /:id/remove-exercise', () => {
   });
 
   it('403s on someone else\'s private workout', async () => {
-    const workout = makeWorkout({ ownedByUser: false, isCommon: false });
+    const workout = makeTemplate({ ownedByUser: false, isCommon: false });
     SessionTemplate.findById.mockResolvedValue(workout);
 
     const res = await request(app)
-      .post(`/${WORKOUT_ID}/remove-exercise`)
+      .post(`/${TEMPLATE_ID}/remove-exercise`)
       .send({ exerciseId: TARGET_EX });
 
     expect(res.status).toBe(403);

@@ -80,7 +80,7 @@ class TestPlanOverview:
         assert len(ov["weeks"]) == 8
         wk1 = ov["weeks"][0]
         assert wk1["weekNumber"] == 1 and wk1["resolved"] is True
-        assert wk1["workoutTitles"]  # titles present, but not exercise detail
+        assert wk1["sessionTitles"]  # titles present, but not exercise detail
         assert ov["weeks"][5]["resolved"] is False  # week 6 is a stub (horizon 4)
 
     def test_week_level_drills_to_exercises(self):
@@ -88,8 +88,8 @@ class TestPlanOverview:
         ov = build_plan_overview(skel, weeks, level="week", week_number=1)
         wk = ov["week"]
         assert wk["weekNumber"] == 1
-        assert wk["workouts"][0]["dayName"] in {"Monday", "Wednesday"}
-        ex = wk["workouts"][0]["exercises"][0]
+        assert wk["sessions"][0]["dayName"] in {"Monday", "Wednesday"}
+        ex = wk["sessions"][0]["exercises"][0]
         assert "exerciseName" in ex and "sets" in ex
 
     def test_week_level_missing_week_is_none(self):
@@ -181,31 +181,31 @@ class TestMaterializeWeek:
     def test_day_hints_respected(self):
         s = normalize_skeleton(_skeleton(), 8, 2)
         week = materialize_week(s, 1, [1, 3])
-        assert [w["dayOfWeek"] for w in week["workouts"]] == [1, 3]
-        assert week["workouts"][0]["customWorkout"]["title"] == "Tempo Run"
+        assert [w["dayOfWeek"] for w in week["sessions"]] == [1, 3]
+        assert week["sessions"][0]["customSession"]["title"] == "Tempo Run"
         assert week["resolved"] is True
 
     def test_unhinted_days_filled_in_order(self):
         s = normalize_skeleton(_skeleton(), 8, 2)
         week = materialize_week(s, 1, [2, 5])  # hints 1,3 not available
-        assert [w["dayOfWeek"] for w in week["workouts"]] == [2, 5]
+        assert [w["dayOfWeek"] for w in week["sessions"]] == [2, 5]
 
     def test_deload_week_scales_sets(self):
         s = normalize_skeleton(_skeleton(), 8, 2)
         normal = materialize_week(s, 6, [1, 3])   # Build phase, mult 1.0
         deload = materialize_week(s, 5, [1, 3])   # deload, mult 0.6
-        n_sets = len(normal["workouts"][1]["customWorkout"]["exercises"][0]["sets"])
-        d_sets = len(deload["workouts"][1]["customWorkout"]["exercises"][0]["sets"])
+        n_sets = len(normal["sessions"][1]["customSession"]["exercises"][0]["sets"])
+        d_sets = len(deload["sessions"][1]["customSession"]["exercises"][0]["sets"])
         assert d_sets < n_sets
         assert deload["deloadWeek"] is True
 
     def test_timed_work_carries_time_and_notes(self):
         s = normalize_skeleton(_skeleton(), 8, 2)
         week = materialize_week(s, 1, [1, 3])
-        run = week["workouts"][0]["customWorkout"]["exercises"][0]
+        run = week["sessions"][0]["customSession"]["exercises"][0]
         assert run["sets"][0]["time"] == 1800
         assert "threshold pace" in run["notes"]
-        assert "threshold pace" in week["workouts"][0]["notes"]
+        assert "threshold pace" in week["sessions"][0]["notes"]
 
     def test_uncovered_week_returns_none(self):
         s = normalize_skeleton(_skeleton(), 8, 2)
@@ -217,7 +217,7 @@ class TestStubsAndFullBuild:
         s = normalize_skeleton(_skeleton(), 8, 2)
         stub = build_week_stub(s, 6)
         assert stub["resolved"] is False
-        assert stub["workouts"] == []
+        assert stub["sessions"] == []
         assert stub["weekNumber"] == 6
 
     def test_full_build_materializes_horizon_only(self):
@@ -317,15 +317,15 @@ class TestTimedVolumeScaling:
         s = normalize_skeleton(_skeleton(), 8, 2)
         normal = materialize_week(s, 1, [1, 3])          # mult 1.0
         deload = materialize_week(s, 1, [1, 3], volume_multiplier=0.6)
-        run_n = normal["workouts"][0]["customWorkout"]["exercises"][0]["sets"][0]["time"]
-        run_d = deload["workouts"][0]["customWorkout"]["exercises"][0]["sets"][0]["time"]
+        run_n = normal["sessions"][0]["customSession"]["exercises"][0]["sets"][0]["time"]
+        run_d = deload["sessions"][0]["customSession"]["exercises"][0]["sets"][0]["time"]
         assert run_d < run_n
         assert run_d == int(run_n * 0.6)
 
     def test_progression_does_not_inflate_duration(self):
         s = normalize_skeleton(_skeleton(), 8, 2)
         week = materialize_week(s, 1, [1, 3], volume_multiplier=1.1)
-        run = week["workouts"][0]["customWorkout"]["exercises"][0]["sets"][0]["time"]
+        run = week["sessions"][0]["customSession"]["exercises"][0]["sets"][0]["time"]
         assert run == 1800  # duration prescriptions don't auto-inflate
 
     def test_duration_floor_sixty_seconds(self):

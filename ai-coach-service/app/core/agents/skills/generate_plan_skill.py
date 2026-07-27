@@ -211,11 +211,11 @@ async def generate_plan(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -
     prefs = profile.get("preferences") or {}
     fitness_level = profile.get("fitnessLevel", "beginner")
     equipment = prefs.get("equipment") or []
-    duration = prefs.get("workoutDuration") or 45
+    duration = prefs.get("sessionDuration") or 45
     # Product bounds: 2 weeks minimum (anything shorter isn't a plan), 26 weeks
     # (6 months) maximum. The tool schema enforces this too; clamp defensively.
     weeks = max(2, min(26, int(args.get("weeks") or 8)))
-    days_per_week = int(args.get("days_per_week") or len(prefs.get("workoutDays") or []) or 3)
+    days_per_week = int(args.get("days_per_week") or len(prefs.get("sessionDays") or []) or 3)
 
     # --- Safety caveats ---
     safety = await get_safety_context(ctx, user_id)
@@ -255,7 +255,7 @@ async def generate_plan(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -
     skeleton["generatedBy"] = model
 
     # --- Deterministic scaffold: materialize the first weeks, stub the rest ---
-    workout_days = pick_workout_days(days_per_week, prefs.get("workoutDays"))
+    workout_days = pick_workout_days(days_per_week, prefs.get("sessionDays"))
     horizon = min(DEFAULT_HORIZON_WEEKS, weeks)
     plan_weeks = build_plan_weeks_from_skeleton(skeleton, workout_days, weeks, horizon=horizon)
     resolved_weeks = [w for w in plan_weeks if w.get("resolved") is not False]
@@ -266,7 +266,7 @@ async def generate_plan(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -
     # structural/frequency check.
     plan_name = args.get("name") or f"{weeks}-Week {goal_name} Plan"
     report = validate_plan_doc(
-        {"schedule": {"weeksTotal": len(resolved_weeks), "workoutsPerWeek": len(workout_days)},
+        {"schedule": {"weeksTotal": len(resolved_weeks), "sessionsPerWeek": len(workout_days)},
          "weeks": resolved_weeks},
         category,
         # Skeleton plans get their ramp check from validate_skeleton (deload-aware,
@@ -290,9 +290,9 @@ async def generate_plan(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -
         "description": f"AI-generated draft for: {goal_name}",
         "schedule": {
             "weeksTotal": weeks,
-            "workoutsPerWeek": len(workout_days),
+            "sessionsPerWeek": len(workout_days),
             "restDays": sorted(set(range(7)) - set(workout_days)),
-            "preferredWorkoutDays": workout_days,
+            "preferredSessionDays": workout_days,
         },
         "weeks": plan_weeks,
         "skeleton": skeleton,

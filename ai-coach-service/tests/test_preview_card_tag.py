@@ -7,7 +7,7 @@ import re
 
 from app.core.agents.orchestrator import _build_preview_card_tag, _model_facing_result
 
-CARD = {"v": 1, "title": "Easy Run (Jul 13)", "date": "2026-07-13", "type": "workout"}
+CARD = {"v": 1, "title": "Easy Run (Jul 13)", "date": "2026-07-13", "type": "session"}
 PREVIEW_RESULT = {"success": True, "dry_run": True, "message": "…", "preview_card": CARD}
 
 

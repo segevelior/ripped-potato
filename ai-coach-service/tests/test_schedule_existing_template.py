@@ -1,6 +1,6 @@
 """
 Tests for schedule_to_calendar's think-then-act additions:
-existing-template mode (workout_template_id) and the same-day duplicate check.
+existing-template mode (session_template_id) and the same-day duplicate check.
 """
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
@@ -44,8 +44,8 @@ class FakeCursor:
 def _service(template=TEMPLATE, existing_events=()):
     db = MagicMock()
     db.users.find_one = AsyncMock(return_value=None)  # get_user_today -> UTC
-    db.predefinedworkouts.find_one = AsyncMock(return_value=template)
-    db.predefinedworkouts.insert_one = AsyncMock(
+    db.sessiontemplates.find_one = AsyncMock(return_value=template)
+    db.sessiontemplates.insert_one = AsyncMock(
         return_value=MagicMock(inserted_id=ObjectId())
     )
     db.calendarevents.find = MagicMock(return_value=FakeCursor(existing_events))
@@ -59,39 +59,39 @@ class TestExistingTemplateMode:
     async def test_preview_lists_template_exercises_and_writes_nothing(self):
         service, db = _service()
         res = await service.schedule_to_calendar(
-            USER_ID, {"date": "2026-07-20", "type": "workout",
-                      "workout_template_id": str(TEMPLATE_ID)}
+            USER_ID, {"date": "2026-07-20", "type": "session",
+                      "session_template_id": str(TEMPLATE_ID)}
         )
         assert res["dry_run"] is True
         assert "existing library workout" in res["message"]
         assert "Endurance 1" in res["message"]
         assert all(e["method"] == "existing_template" for e in res["resolved_exercises"])
-        db.predefinedworkouts.insert_one.assert_not_called()
+        db.sessiontemplates.insert_one.assert_not_called()
         db.calendarevents.insert_one.assert_not_called()
 
     async def test_write_links_existing_template_and_creates_no_new_one(self):
         service, db = _service()
         res = await service.schedule_to_calendar(
-            USER_ID, {"date": "2026-07-20", "type": "workout", "dry_run": False,
-                      "workout_template_id": str(TEMPLATE_ID)}
+            USER_ID, {"date": "2026-07-20", "type": "session", "dry_run": False,
+                      "session_template_id": str(TEMPLATE_ID)}
         )
         assert res["success"] is True
         assert "Linked to" in res["message"]
-        assert res["workout_template_id"] == str(TEMPLATE_ID)
-        db.predefinedworkouts.insert_one.assert_not_called()
+        assert res["session_template_id"] == str(TEMPLATE_ID)
+        db.sessiontemplates.insert_one.assert_not_called()
         event_doc = db.calendarevents.insert_one.call_args[0][0]
-        assert event_doc["workoutTemplateId"] == TEMPLATE_ID
+        assert event_doc["sessionTemplateId"] == TEMPLATE_ID
         # Reference architecture: the event never embeds exercises — they
         # live on the linked template.
-        assert "exercises" not in event_doc["workoutDetails"]
+        assert "exercises" not in event_doc["sessionDetails"]
         # Title falls back to the template name.
         assert event_doc["title"].startswith("Endurance 1 (")
 
     async def test_template_not_found_is_corrective(self):
         service, db = _service(template=None)
         res = await service.schedule_to_calendar(
-            USER_ID, {"date": "2026-07-20", "type": "workout",
-                      "workout_template_id": str(ObjectId())}
+            USER_ID, {"date": "2026-07-20", "type": "session",
+                      "session_template_id": str(ObjectId())}
         )
         assert res["success"] is False
         assert res["error"] == "template_not_found"
@@ -100,8 +100,8 @@ class TestExistingTemplateMode:
     async def test_invalid_id_is_corrective_not_crash(self):
         service, db = _service(template=None)
         res = await service.schedule_to_calendar(
-            USER_ID, {"date": "2026-07-20", "type": "workout",
-                      "workout_template_id": "not-an-oid"}
+            USER_ID, {"date": "2026-07-20", "type": "session",
+                      "session_template_id": "not-an-oid"}
         )
         assert res["error"] == "template_not_found"
 
@@ -109,8 +109,8 @@ class TestExistingTemplateMode:
         empty = dict(TEMPLATE, blocks=[{"name": "Main", "exercises": []}])
         service, db = _service(template=empty)
         res = await service.schedule_to_calendar(
-            USER_ID, {"date": "2026-07-20", "type": "workout",
-                      "workout_template_id": str(TEMPLATE_ID)}
+            USER_ID, {"date": "2026-07-20", "type": "session",
+                      "session_template_id": str(TEMPLATE_ID)}
         )
         assert res["error"] == "empty_template"
         db.calendarevents.insert_one.assert_not_called()
@@ -118,10 +118,10 @@ class TestExistingTemplateMode:
     async def test_missing_details_message_mentions_template_arg(self):
         service, db = _service()
         res = await service.schedule_to_calendar(
-            USER_ID, {"date": "2026-07-20", "type": "workout", "title": "Endurance 1"}
+            USER_ID, {"date": "2026-07-20", "type": "session", "title": "Endurance 1"}
         )
         assert res["error"] == "missing_workout_details"
-        assert "workout_template_id" in res["message"]
+        assert "session_template_id" in res["message"]
 
 
 class TestSameDayDuplicate:
@@ -130,9 +130,9 @@ class TestSameDayDuplicate:
             "_id": ObjectId(),
             "title": "Endurance 1 (Jul 20)",
             "date": datetime(2026, 7, 20),
-            "type": "workout",
+            "type": "session",
             "status": "scheduled",
-            "workoutDetails": {"exercises": [{"exerciseName": "Run"}]},
+            "sessionDetails": {"exercises": [{"exerciseName": "Run"}]},
         }
         event.update(overrides)
         return event
@@ -140,8 +140,8 @@ class TestSameDayDuplicate:
     async def test_same_base_title_refused_on_preview(self):
         service, db = _service(existing_events=[self._existing_event()])
         res = await service.schedule_to_calendar(
-            USER_ID, {"date": "2026-07-20", "type": "workout", "title": "Endurance 1",
-                      "workoutDetails": {"exercises": [{"exerciseName": "Run"}]}}
+            USER_ID, {"date": "2026-07-20", "type": "session", "title": "Endurance 1",
+                      "sessionDetails": {"exercises": [{"exerciseName": "Run"}]}}
         )
         assert res["error"] == "already_scheduled"
         assert res["existing_event"]["title"] == "Endurance 1 (Jul 20)"
@@ -149,11 +149,11 @@ class TestSameDayDuplicate:
         db.calendarevents.insert_one.assert_not_called()
 
     async def test_same_template_id_refused_on_write(self):
-        event = self._existing_event(title="Something Else", workoutTemplateId=TEMPLATE_ID)
+        event = self._existing_event(title="Something Else", sessionTemplateId=TEMPLATE_ID)
         service, db = _service(existing_events=[event])
         res = await service.schedule_to_calendar(
-            USER_ID, {"date": "2026-07-20", "type": "workout", "dry_run": False,
-                      "workout_template_id": str(TEMPLATE_ID)}
+            USER_ID, {"date": "2026-07-20", "type": "session", "dry_run": False,
+                      "session_template_id": str(TEMPLATE_ID)}
         )
         assert res["error"] == "already_scheduled"
         db.calendarevents.insert_one.assert_not_called()
@@ -161,9 +161,9 @@ class TestSameDayDuplicate:
     async def test_allow_duplicate_writes(self):
         service, db = _service(existing_events=[self._existing_event()])
         res = await service.schedule_to_calendar(
-            USER_ID, {"date": "2026-07-20", "type": "workout", "dry_run": False,
+            USER_ID, {"date": "2026-07-20", "type": "session", "dry_run": False,
                       "allow_duplicate": True,
-                      "workout_template_id": str(TEMPLATE_ID)}
+                      "session_template_id": str(TEMPLATE_ID)}
         )
         assert res["success"] is True
         db.calendarevents.insert_one.assert_called_once()
@@ -171,8 +171,8 @@ class TestSameDayDuplicate:
     async def test_different_day_not_a_duplicate(self):
         service, db = _service(existing_events=[])
         res = await service.schedule_to_calendar(
-            USER_ID, {"date": "2026-07-21", "type": "workout",
-                      "workout_template_id": str(TEMPLATE_ID)}
+            USER_ID, {"date": "2026-07-21", "type": "session",
+                      "session_template_id": str(TEMPLATE_ID)}
         )
         assert res.get("error") is None
         assert res["dry_run"] is True

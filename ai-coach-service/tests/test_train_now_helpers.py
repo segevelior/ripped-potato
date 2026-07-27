@@ -11,12 +11,12 @@ def _plan(status="active", current_week=1, resolved=True, workouts=True):
     week = {
         "weekNumber": current_week,
         "focus": "Base",
-        "workouts": [
-            {"dayOfWeek": 1, "workoutType": "custom",
-             "customWorkout": {"title": "Tempo Run", "type": "cardio",
+        "sessions": [
+            {"dayOfWeek": 1, "sessionType": "custom",
+             "customSession": {"title": "Tempo Run", "type": "cardio",
                                "exercises": [{"exerciseName": "Tempo Run", "sets": [{"reps": 1}]}]}},
-            {"dayOfWeek": 3, "workoutType": "custom",
-             "customWorkout": {"title": "Pull Strength", "type": "strength",
+            {"dayOfWeek": 3, "sessionType": "custom",
+             "customSession": {"title": "Pull Strength", "type": "strength",
                                "exercises": [{"exerciseName": "Pull-up", "sets": [{"reps": 6}] * 4}]}},
         ] if workouts else [],
     }
@@ -29,7 +29,7 @@ def _plan(status="active", current_week=1, resolved=True, workouts=True):
         "status": status,
         "weeks": [week],
         "progress": {"currentWeek": current_week},
-        "schedule": {"weeksTotal": 12, "workoutsPerWeek": 5},
+        "schedule": {"weeksTotal": 12, "sessionsPerWeek": 5},
     }
 
 
@@ -106,8 +106,8 @@ class TestFormatCalendarForLLM:
         out = format_calendar_for_llm(self._calendar(recent_workouts=[{
             "date": datetime(2026, 7, 11),
             "title": "Push Day",
-            "workoutDetails": {
-                "type": "strength",
+            "sessionDetails": {
+                "discipline": "strength",
                 "exercises": [
                     {"exerciseName": "Bench Press"},
                     {"exerciseName": "Overhead Press"},
@@ -124,8 +124,8 @@ class TestFormatCalendarForLLM:
         out = format_calendar_for_llm(self._calendar(recent_workouts=[{
             "date": datetime(2026, 7, 11),
             "title": "Mega Day",
-            "workoutDetails": {
-                "type": "strength",
+            "sessionDetails": {
+                "discipline": "strength",
                 "exercises": [{"exerciseName": f"Move {i}"} for i in range(15)],
             },
         }]))

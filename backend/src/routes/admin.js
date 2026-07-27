@@ -184,12 +184,12 @@ router.delete('/goals/:id', async (req, res) => {
   }
 });
 
-// @route   POST /api/v1/admin/predefined-workouts
-// @desc    Create common predefined workout
+// @route   POST /api/v1/admin/session-templates
+// @desc    Create common session template
 // @access  Admin only
-router.post('/predefined-workouts', async (req, res) => {
+router.post('/session-templates', async (req, res) => {
   try {
-    const workout = await SessionTemplate.create({
+    const sessionTemplate = await SessionTemplate.create({
       ...req.body,
       isCommon: true,
       createdBy: null
@@ -197,7 +197,7 @@ router.post('/predefined-workouts', async (req, res) => {
     
     res.status(201).json({
       success: true,
-      data: workout
+      data: sessionTemplate
     });
   } catch (error) {
     res.status(400).json({
@@ -207,29 +207,29 @@ router.post('/predefined-workouts', async (req, res) => {
   }
 });
 
-// @route   PUT /api/v1/admin/predefined-workouts/:id
-// @desc    Update common predefined workout
+// @route   PUT /api/v1/admin/session-templates/:id
+// @desc    Update common session template
 // @access  Admin only
-router.put('/predefined-workouts/:id', async (req, res) => {
+router.put('/session-templates/:id', async (req, res) => {
   try {
-    const workout = await SessionTemplate.findOne({
+    const sessionTemplate = await SessionTemplate.findOne({
       _id: req.params.id,
       isCommon: true
     });
     
-    if (!workout) {
+    if (!sessionTemplate) {
       return res.status(404).json({
         success: false,
-        message: 'Common predefined workout not found'
+        message: 'Common session template not found'
       });
     }
     
-    Object.assign(workout, req.body);
-    await workout.save();
+    Object.assign(sessionTemplate, req.body);
+    await sessionTemplate.save();
     
     res.json({
       success: true,
-      data: workout
+      data: sessionTemplate
     });
   } catch (error) {
     res.status(400).json({
@@ -239,28 +239,28 @@ router.put('/predefined-workouts/:id', async (req, res) => {
   }
 });
 
-// @route   DELETE /api/v1/admin/predefined-workouts/:id
-// @desc    Delete common predefined workout
+// @route   DELETE /api/v1/admin/session-templates/:id
+// @desc    Delete common session template
 // @access  Admin only
-router.delete('/predefined-workouts/:id', async (req, res) => {
+router.delete('/session-templates/:id', async (req, res) => {
   try {
-    const workout = await SessionTemplate.findOne({
+    const sessionTemplate = await SessionTemplate.findOne({
       _id: req.params.id,
       isCommon: true
     });
     
-    if (!workout) {
+    if (!sessionTemplate) {
       return res.status(404).json({
         success: false,
-        message: 'Common predefined workout not found'
+        message: 'Common session template not found'
       });
     }
     
-    await workout.deleteOne();
+    await sessionTemplate.deleteOne();
     
     res.json({
       success: true,
-      message: 'Common predefined workout deleted successfully'
+      message: 'Common session template deleted successfully'
     });
   } catch (error) {
     res.status(400).json({

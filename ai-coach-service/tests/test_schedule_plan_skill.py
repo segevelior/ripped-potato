@@ -76,8 +76,8 @@ class TestParseStartDate:
 class TestResolveWorkoutContent:
     def test_custom_workout(self):
         workout = {
-            "workoutType": "custom",
-            "customWorkout": {
+            "sessionType": "custom",
+            "customSession": {
                 "title": "Strength",
                 "type": "strength",
                 "durationMinutes": 50,
@@ -102,7 +102,7 @@ class TestResolveWorkoutContent:
                 ]}],
             }
         }
-        workout = {"workoutType": "predefined", "predefinedWorkoutId": tid}
+        workout = {"sessionType": "predefined", "sessionTemplateId": tid}
         c = _resolve_workout_content(workout, template_map)
         assert c["title"] == "Push Day"
         assert c["duration"] == 40
@@ -112,7 +112,7 @@ class TestResolveWorkoutContent:
         assert c["exercises"][0]["targetReps"] == 8
 
     def test_missing_template_flagged(self):
-        workout = {"workoutType": "predefined", "predefinedWorkoutId": ObjectId()}
+        workout = {"sessionType": "predefined", "sessionTemplateId": ObjectId()}
         c = _resolve_workout_content(workout, {})
         assert c["title"] == "Workout"
         assert c["exercises"] == []
@@ -121,8 +121,8 @@ class TestResolveWorkoutContent:
     def test_custom_workout_keeps_exercise_id(self):
         ex_id = ObjectId()
         workout = {
-            "workoutType": "custom",
-            "customWorkout": {
+            "sessionType": "custom",
+            "customSession": {
                 "title": "Hills",
                 "exercises": [
                     {"exerciseId": ex_id, "exerciseName": "Hill Sprint", "sets": [{"reps": 8}]},
@@ -144,18 +144,18 @@ def _sample_plan():
         "weeks": [
             {
                 "weekNumber": 1, "deloadWeek": False, "restDays": [6],
-                "workouts": [
-                    {"dayOfWeek": 0, "workoutType": "custom",
-                     "customWorkout": {"title": "S&C", "type": "strength", "exercises": []}},
-                    {"dayOfWeek": 2, "workoutType": "custom",
-                     "customWorkout": {"title": "Endurance", "type": "cardio", "exercises": []}},
+                "sessions": [
+                    {"dayOfWeek": 0, "sessionType": "custom",
+                     "customSession": {"title": "S&C", "type": "strength", "exercises": []}},
+                    {"dayOfWeek": 2, "sessionType": "custom",
+                     "customSession": {"title": "Endurance", "type": "cardio", "exercises": []}},
                 ],
             },
             {
                 "weekNumber": 2, "deloadWeek": True, "restDays": [],
-                "workouts": [
-                    {"dayOfWeek": 0, "workoutType": "custom",
-                     "customWorkout": {"title": "Deload", "type": "strength", "exercises": []}},
+                "sessions": [
+                    {"dayOfWeek": 0, "sessionType": "custom",
+                     "customSession": {"title": "Deload", "type": "strength", "exercises": []}},
                 ],
             },
         ],
@@ -172,7 +172,7 @@ class TestBuildEvents:
         by_title = {e["title"].split(" (")[0]: e for e in events}
 
         assert by_title["S&C"]["date"] == datetime(2026, 7, 12)
-        assert by_title["S&C"]["type"] == "workout"
+        assert by_title["S&C"]["type"] == "session"
         assert by_title["S&C"]["planWeek"] == 1
         assert by_title["S&C"]["planDay"] == 0
 
@@ -193,7 +193,7 @@ class TestBuildEvents:
 
     def test_custom_with_exercises_marked_for_template(self):
         plan = _sample_plan()
-        plan["weeks"][0]["workouts"][0]["customWorkout"]["exercises"] = [
+        plan["weeks"][0]["sessions"][0]["customSession"]["exercises"] = [
             {"exerciseName": "Squat", "sets": [{"reps": 5}] * 3},
         ]
         events = _build_events(plan, SUNDAY, None, {}, plan["userId"], plan["_id"], NOW)
@@ -205,8 +205,8 @@ class TestBuildEvents:
 
     def test_missing_template_workout_dropped(self):
         plan = _sample_plan()
-        plan["weeks"][0]["workouts"][0] = {
-            "dayOfWeek": 0, "workoutType": "predefined", "predefinedWorkoutId": ObjectId(),
+        plan["weeks"][0]["sessions"][0] = {
+            "dayOfWeek": 0, "sessionType": "predefined", "sessionTemplateId": ObjectId(),
         }
         events = _build_events(plan, SUNDAY, None, {}, plan["userId"], plan["_id"], NOW)
         # The dangling reference is dropped: 2 remaining workouts + 1 rest = 3
@@ -219,7 +219,7 @@ class TestBuildEvents:
 def _make_ctx(plan, existing_events=None, templates=None, plan_tagged_templates=None):
     """Build a SkillContext-like mock with an async Mongo db.
 
-    predefinedworkouts.find serves two queries: the template_map batch fetch
+    sessiontemplates.find serves two queries: the template_map batch fetch
     (by _id) and _ensure_templates' plan-tagged reuse lookup (by tags) — each
     call gets a fresh iterator over the matching fixture list.
     """
@@ -239,8 +239,8 @@ def _make_ctx(plan, existing_events=None, templates=None, plan_tagged_templates=
     db = MagicMock()
     db.plans.find_one = AsyncMock(return_value=plan)
     db.plans.update_one = AsyncMock(return_value=MagicMock(modified_count=1))
-    db.predefinedworkouts.find = MagicMock(side_effect=_template_find)
-    db.predefinedworkouts.insert_one = AsyncMock(
+    db.sessiontemplates.find = MagicMock(side_effect=_template_find)
+    db.sessiontemplates.insert_one = AsyncMock(
         side_effect=lambda doc, *a, **k: MagicMock(inserted_id=ObjectId())
     )
 
@@ -292,7 +292,7 @@ class TestHandler:
         set_doc = ctx.db.plans.update_one.call_args.args[1]["$set"]
         assert set_doc["status"] == "active"
         assert set_doc["startDate"] == datetime(2026, 7, 12)
-        assert set_doc["progress.totalWorkouts"] == 3
+        assert set_doc["progress.totalSessions"] == 3
 
     @pytest.mark.asyncio
     async def test_dedup_skips_already_scheduled_slots(self):
@@ -401,8 +401,8 @@ def fake_resolver(monkeypatch):
 def _custom_plan_with_exercises():
     """A 3-week plan repeating the SAME custom workout each week."""
     workout = {
-        "dayOfWeek": 0, "workoutType": "custom",
-        "customWorkout": {
+        "dayOfWeek": 0, "sessionType": "custom",
+        "customSession": {
             "title": "Hill Repeats", "type": "cardio", "durationMinutes": 40,
             "exercises": [{"exerciseName": "Hill Sprint", "sets": [{"reps": 8}] * 4}],
         },
@@ -413,7 +413,7 @@ def _custom_plan_with_exercises():
         "name": "Run Plan",
         "schedule": {"weeksTotal": 3},
         "weeks": [
-            {"weekNumber": n, "deloadWeek": False, "restDays": [], "workouts": [dict(workout)]}
+            {"weekNumber": n, "deloadWeek": False, "restDays": [], "sessions": [dict(workout)]}
             for n in (1, 2, 3)
         ],
     }
@@ -430,8 +430,8 @@ class TestEnsureTemplates:
         )
         assert result["events_created"] == 3
         # one template for the workout repeated across 3 weeks
-        ctx.db.predefinedworkouts.insert_one.assert_awaited_once()
-        template = ctx.db.predefinedworkouts.insert_one.call_args.args[0]
+        ctx.db.sessiontemplates.insert_one.assert_awaited_once()
+        template = ctx.db.sessiontemplates.insert_one.call_args.args[0]
         assert template["name"] == "Hill Repeats"
         assert template["isCommon"] is False
         assert template["createdBy"] == plan["userId"]
@@ -439,13 +439,13 @@ class TestEnsureTemplates:
         assert template["blocks"][0]["exercises"][0]["exercise_id"] is not None
 
         inserted = ctx.db.calendarevents.insert_many.call_args.args[0]
-        template_ids = {e.get("workoutTemplateId") for e in inserted}
+        template_ids = {e.get("sessionTemplateId") for e in inserted}
         assert len(template_ids) == 1 and None not in template_ids
         # internal markers never persisted; events reference the template
         # instead of embedding exercises
         assert all("_pendingTemplate" not in e for e in inserted)
         assert all("_exerciseCount" not in e for e in inserted)
-        assert all("exercises" not in e["workoutDetails"] for e in inserted)
+        assert all("exercises" not in e["sessionDetails"] for e in inserted)
 
     @pytest.mark.asyncio
     async def test_dry_run_creates_no_templates(self, fake_resolver):
@@ -455,7 +455,7 @@ class TestEnsureTemplates:
             ctx, str(plan["userId"]), {"plan_id": str(plan["_id"]), "start_date": "2026-07-12"},
         )
         assert result["dry_run"] is True
-        ctx.db.predefinedworkouts.insert_one.assert_not_called()
+        ctx.db.sessiontemplates.insert_one.assert_not_called()
         ctx.db.calendarevents.insert_many.assert_not_called()
 
     @pytest.mark.asyncio
@@ -476,16 +476,16 @@ class TestEnsureTemplates:
             ctx, str(plan["userId"]),
             {"plan_id": str(plan["_id"]), "start_date": "2026-07-12", "dry_run": False},
         )
-        ctx.db.predefinedworkouts.insert_one.assert_not_called()
+        ctx.db.sessiontemplates.insert_one.assert_not_called()
         inserted = ctx.db.calendarevents.insert_many.call_args.args[0]
-        assert all(e["workoutTemplateId"] == existing_id for e in inserted)
-        assert all("exercises" not in e["workoutDetails"] for e in inserted)
+        assert all(e["sessionTemplateId"] == existing_id for e in inserted)
+        assert all("exercises" not in e["sessionDetails"] for e in inserted)
 
     @pytest.mark.asyncio
     async def test_same_name_different_content_gets_own_template(self, fake_resolver):
         plan = _custom_plan_with_exercises()
         # Same title, different prescription (hard week) — must NOT reuse.
-        plan["weeks"][2]["workouts"][0]["customWorkout"] = {
+        plan["weeks"][2]["sessions"][0]["customSession"] = {
             "title": "Hill Repeats", "type": "cardio", "durationMinutes": 40,
             "exercises": [{"exerciseName": "Hill Sprint", "sets": [{"reps": 12}] * 6}],
         }
@@ -494,13 +494,13 @@ class TestEnsureTemplates:
             ctx, str(plan["userId"]),
             {"plan_id": str(plan["_id"]), "start_date": "2026-07-12", "dry_run": False},
         )
-        assert ctx.db.predefinedworkouts.insert_one.await_count == 2
+        assert ctx.db.sessiontemplates.insert_one.await_count == 2
 
     @pytest.mark.asyncio
     async def test_missing_template_workouts_skipped_with_note(self, fake_resolver):
         plan = _custom_plan_with_exercises()
-        plan["weeks"][0]["workouts"][0] = {
-            "dayOfWeek": 0, "workoutType": "predefined", "predefinedWorkoutId": ObjectId(),
+        plan["weeks"][0]["sessions"][0] = {
+            "dayOfWeek": 0, "sessionType": "predefined", "sessionTemplateId": ObjectId(),
         }
         ctx = _make_ctx(plan)
         preview = await schedule_plan_to_calendar(
@@ -526,7 +526,7 @@ def _skeleton_sample_plan():
     plan = _sample_plan()
     plan["weeks"][0]["resolved"] = True
     plan["weeks"][1]["resolved"] = False   # stub — must not be scheduled
-    plan["weeks"][1]["workouts"] = []
+    plan["weeks"][1]["sessions"] = []
     plan["skeleton"] = {
         "milestones": [{"week": 1, "title": "Checkpoint", "criteria": "3 pull-ups"}],
     }
@@ -560,13 +560,13 @@ class TestSkeletonScheduling:
         assert not [e for e in events if e["type"] == "milestone"]
 
     def test_slot_key_separates_milestone_from_workout_same_day(self):
-        workout = {"planWeek": 1, "planDay": 6, "type": "workout"}
+        workout = {"planWeek": 1, "planDay": 6, "type": "session"}
         milestone = {"planWeek": 1, "planDay": 6, "type": "milestone"}
         rest = {"planWeek": 1, "planDay": 6, "type": "rest"}
         assert _slot_key(workout) != _slot_key(milestone) != _slot_key(rest)
 
     def test_slot_key_workout_and_deload_share_class(self):
         # A re-planned deload week must MOVE the session, not duplicate it.
-        a = {"planWeek": 2, "planDay": 0, "type": "workout"}
+        a = {"planWeek": 2, "planDay": 0, "type": "session"}
         b = {"planWeek": 2, "planDay": 0, "type": "deload"}
         assert _slot_key(a) == _slot_key(b)

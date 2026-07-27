@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { PredefinedWorkout, Exercise } from "@/api/entities";
+import { SessionTemplate, Exercise } from "@/api/entities";
 import { format } from "date-fns";
 import {
   Play, Clock, ChevronRight, Dumbbell, Calendar,
@@ -12,11 +12,11 @@ import { pickTodaySession } from "@/utils/todaySession";
 import SessionDetailModal from "../components/predefined/SessionDetailModal";
 import { aiService } from "@/services/aiService";
 import {
-  getActiveWorkout,
-  startWorkoutSession,
-  clearActiveWorkout,
-  parseWorkoutToSessionData
-} from "@/utils/workoutSession";
+  getActiveSession,
+  startLiveSession,
+  clearActiveSession,
+  parseTemplateToSessionData
+} from "@/utils/liveSession";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -316,14 +316,14 @@ export default function TrainNow() {
   const [completedToday, setCompletedToday] = useState(false);
 
   // Active workout state (for resume/conflict handling)
-  const [activeWorkout, setActiveWorkout] = useState(null);
+  const [activeSession, setActiveSession] = useState(null);
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [pendingNewWorkout, setPendingNewWorkout] = useState(null);
 
   useEffect(() => {
     // Check for active workout on mount
-    const active = getActiveWorkout();
-    setActiveWorkout(active);
+    const active = getActiveSession();
+    setActiveSession(active);
 
     loadData();
     loadTodaySuggestion();
@@ -333,7 +333,7 @@ export default function TrainNow() {
       if (document.visibilityState === 'visible') {
         console.log('🔄 [TrainNow] Page visible, re-checking calendar...');
         // Also re-check for active workout
-        setActiveWorkout(getActiveWorkout());
+        setActiveSession(getActiveSession());
         loadTodaySuggestion();
       }
     };
@@ -346,7 +346,7 @@ export default function TrainNow() {
     setIsLoading(true);
     try {
       const [workoutData, exerciseData] = await Promise.all([
-        PredefinedWorkout.list(),
+        SessionTemplate.list(),
         Exercise.list()
       ]);
       setWorkouts(workoutData || []);
@@ -392,15 +392,15 @@ export default function TrainNow() {
           const { scheduledEvent, completedToday: doneToday } = pickTodaySession(events);
           setCompletedToday(doneToday);
 
-          if (calendarData.success && ['workout', 'deload'].includes(scheduledEvent?.type)) {
+          if (calendarData.success && ['session', 'deload'].includes(scheduledEvent?.type)) {
             console.log('[TrainNow] Using calendar workout -', scheduledEvent.title);
 
             // The linked template's blocks are the source of truth; embedded
             // event exercises only remain on legacy unmigrated events.
-            const templateBlocks = scheduledEvent.workoutTemplateId?.blocks || [];
+            const templateBlocks = scheduledEvent.sessionTemplateId?.blocks || [];
 
-            // Convert legacy embedded format for parseWorkoutToSessionData
-            const calendarExercises = scheduledEvent.workoutDetails?.exercises || [];
+            // Convert legacy embedded format for parseTemplateToSessionData
+            const calendarExercises = scheduledEvent.sessionDetails?.exercises || [];
             const convertedExercises = calendarExercises.map(ex => ({
               exercise_id: ex.exerciseId || ex.exercise_id,
               exercise_name: ex.exerciseName || ex.exercise_name,
@@ -413,16 +413,16 @@ export default function TrainNow() {
             setTodaySuggestion({
               id: scheduledEvent._id,
               name: scheduledEvent.title,
-              estimated_duration: scheduledEvent.workoutDetails?.estimatedDuration || 45,
-              primary_disciplines: [scheduledEvent.workoutDetails?.type || 'strength'],
-              // parseWorkoutToSessionData concatenates blocks and exercises,
+              estimated_duration: scheduledEvent.sessionDetails?.estimatedDuration || 45,
+              primary_disciplines: [scheduledEvent.sessionDetails?.discipline || 'strength'],
+              // parseTemplateToSessionData concatenates blocks and exercises,
               // so exactly one of the two may be non-empty or every exercise
               // duplicates.
               blocks: templateBlocks,
               exercises: templateBlocks.length > 0 ? [] : convertedExercises,
               calendarEventId: scheduledEvent._id,
-              sourceWorkoutId: scheduledEvent.workoutTemplateId?._id,
-              isCommon: scheduledEvent.workoutTemplateId?.isCommon
+              sourceTemplateId: scheduledEvent.sessionTemplateId?._id,
+              isCommon: scheduledEvent.sessionTemplateId?.isCommon
             });
             setIsFromCalendar(true);
             setSuggestionLoading(false);
@@ -441,7 +441,7 @@ export default function TrainNow() {
       }
 
       // Step 2: Server-persisted daily suggestion (same one the Dashboard shows)
-      const data = await aiService.getTodayWorkout(refresh);
+      const data = await aiService.getTodaySession(refresh);
       if (data?.suggestion) {
         console.log('[TrainNow] Using AI suggestion -', data.suggestion.name, data.cached ? '(persisted)' : '(fresh)');
         setTodaySuggestion(data.suggestion);
@@ -483,9 +483,9 @@ export default function TrainNow() {
       )
     : [];
 
-  const startWorkout = (workout) => {
+  const startSession = (workout) => {
     // Check for existing active workout
-    if (activeWorkout) {
+    if (activeSession) {
       setPendingNewWorkout(workout);
       setShowConflictModal(true);
       return;
@@ -495,15 +495,15 @@ export default function TrainNow() {
 
   const doStartWorkout = (workout) => {
     try {
-      // sourceWorkoutId is set explicitly on the calendar suggestion; library
+      // sourceTemplateId is set explicitly on the calendar suggestion; library
       // cards carry _id. AI-generated suggestions have neither (no template).
       // Never fall back to .id here — on the calendar path it's the event id.
-      const sessionData = parseWorkoutToSessionData(workout, {
-        sourceWorkoutId: workout.sourceWorkoutId || workout._id,
-        sourceWorkoutIsCommon: workout.isCommon
+      const sessionData = parseTemplateToSessionData(workout, {
+        sourceTemplateId: workout.sourceTemplateId || workout._id,
+        sourceTemplateIsCommon: workout.isCommon
       });
-      startWorkoutSession(sessionData);
-      navigate(createPageUrl('LiveWorkout')); // No ID param needed
+      startLiveSession(sessionData);
+      navigate(createPageUrl('LiveSession')); // No ID param needed
     } catch (error) {
       console.error('[TrainNow] Failed to start workout:', error);
       alert(`Failed to start workout: ${error.message}`);
@@ -513,12 +513,12 @@ export default function TrainNow() {
   const resumeWorkout = () => {
     setShowConflictModal(false);
     setPendingNewWorkout(null);
-    navigate(createPageUrl('LiveWorkout'));
+    navigate(createPageUrl('LiveSession'));
   };
 
   const discardAndStartNew = () => {
-    clearActiveWorkout();
-    setActiveWorkout(null);
+    clearActiveSession();
+    setActiveSession(null);
     setShowConflictModal(false);
 
     if (pendingNewWorkout) {
@@ -546,13 +546,13 @@ export default function TrainNow() {
 
     let prompt;
     if (coachPrompt.trim()) {
-      prompt = `[WORKOUT REQUEST for ${dateStr} (${isoDate}) - TODAY - TRAIN NOW]
+      prompt = `[SESSION REQUEST for ${dateStr} (${isoDate}) - TODAY - TRAIN NOW]
 
 I want to start training RIGHT NOW. Here's what I'm looking for: ${coachPrompt}
 
 Please suggest a workout that matches this request. After I approve, start the live workout session immediately so I can begin training.`;
     } else {
-      prompt = `[WORKOUT REQUEST for ${dateStr} (${isoDate}) - TODAY - TRAIN NOW]
+      prompt = `[SESSION REQUEST for ${dateStr} (${isoDate}) - TODAY - TRAIN NOW]
 
 I want to start training RIGHT NOW but I'm not sure what to do. Help me decide what to train based on my goals and recent activity. Ask me a quick question about what I'm in the mood for, or suggest a few workout options. Once I pick one, start the live workout session immediately.`;
     }
@@ -623,7 +623,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
                 <CompactSessionCard
                   key={workout.id}
                   workout={workout}
-                  onStart={startWorkout}
+                  onStart={startSession}
                   onView={setWorkoutToView}
                 />
               ))}
@@ -652,7 +652,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
               You have an unfinished workout:
             </p>
             <p className="font-semibold text-gray-900 mb-4">
-              {activeWorkout?.data?.title}
+              {activeSession?.data?.title}
             </p>
             <p className="text-gray-600 mb-6">
               Would you like to resume it or start a new workout?
@@ -685,7 +685,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
       {!showSearch && (
         <>
           {/* Resume Workout Banner - shown when active workout exists */}
-          {activeWorkout && (
+          {activeSession && (
             <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-2xl">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -693,9 +693,9 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-green-900">Workout in Progress</p>
-                  <p className="text-sm text-green-700 truncate">{activeWorkout.data?.title}</p>
+                  <p className="text-sm text-green-700 truncate">{activeSession.data?.title}</p>
                   <p className="text-xs text-green-600">
-                    {Math.floor(activeWorkout.totalWorkoutTime / 60)} min elapsed
+                    {Math.floor(activeSession.totalSessionTime / 60)} min elapsed
                   </p>
                 </div>
                 <button
@@ -711,7 +711,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
           {/* Featured / Quick Start - calendar -> persisted daily AI suggestion */}
           <QuickStartCard
             workout={featuredWorkout}
-            onStart={startWorkout}
+            onStart={startSession}
             isFromCalendar={isFromCalendar}
             isLoading={suggestionLoading}
             reasoning={suggestionReasoning}
@@ -753,7 +753,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
             title="Quick Workouts"
             icon={Clock}
             workouts={quickWorkouts}
-            onStart={startWorkout}
+            onStart={startSession}
             onView={setWorkoutToView}
           />
 
@@ -762,9 +762,9 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
             title="Strength"
             icon={Dumbbell}
             workouts={getWorkoutsByDiscipline('strength')}
-            onStart={startWorkout}
+            onStart={startSession}
             onView={setWorkoutToView}
-            seeAllLink={createPageUrl("PredefinedWorkouts")}
+            seeAllLink={createPageUrl("Sessions")}
           />
 
           {/* HIIT */}
@@ -772,13 +772,13 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
             title="HIIT & Cardio"
             icon={Flame}
             workouts={[...getWorkoutsByDiscipline('hiit'), ...getWorkoutsByDiscipline('cardio')].slice(0, 6)}
-            onStart={startWorkout}
+            onStart={startSession}
             onView={setWorkoutToView}
           />
 
           {/* Browse All CTA */}
           <Link
-            to={createPageUrl("PredefinedWorkouts")}
+            to={createPageUrl("Sessions")}
             className="block bg-gray-100 rounded-2xl p-4 text-center hover:bg-gray-200 transition-colors"
           >
             <Dumbbell className="w-6 h-6 text-gray-400 mx-auto mb-1" />
@@ -795,7 +795,7 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
           exercises={exercises}
           onClose={() => setWorkoutToView(null)}
           onApply={applyToCalendar}
-          onStart={startWorkout}
+          onStart={startSession}
         />
       )}
     </div>

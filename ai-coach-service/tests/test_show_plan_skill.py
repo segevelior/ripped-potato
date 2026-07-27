@@ -13,17 +13,17 @@ def _plan():
         "userId": ObjectId(),
         "name": "Beginner 10K Plan",
         "status": "draft",
-        "schedule": {"weeksTotal": 8, "workoutsPerWeek": 3},
+        "schedule": {"weeksTotal": 8, "sessionsPerWeek": 3},
         "skeleton": {
             "phases": [{"name": "Base", "startWeek": 1, "endWeek": 8, "focus": "aerobic", "progression": "ramp"}],
             "milestones": [{"week": 8, "title": "10K", "criteria": "run 10k"}],
         },
         "weeks": [
             {"weekNumber": 1, "focus": "easy", "deloadWeek": False, "resolved": True,
-             "workouts": [{"dayOfWeek": 0, "customWorkout": {
+             "sessions": [{"dayOfWeek": 0, "customSession": {
                  "title": "Easy Run", "type": "cardio", "durationMinutes": 40,
                  "exercises": [{"exerciseName": "Easy Run", "sets": [{"reps": 1, "time": 1800}], "notes": "zone2"}]}}]},
-            {"weekNumber": 2, "focus": "build", "deloadWeek": False, "resolved": False, "workouts": []},
+            {"weekNumber": 2, "focus": "build", "deloadWeek": False, "resolved": False, "sessions": []},
         ],
     }
 
@@ -52,23 +52,23 @@ class TestShowPlan:
         plan = _plan()
         res = await show_plan(_ctx(plan), str(plan["userId"]), {"level": "weeks"})
         assert len(res["overview"]["weeks"]) == 2
-        assert res["overview"]["weeks"][0]["workoutTitles"] == ["Easy Run"]
+        assert res["overview"]["weeks"][0]["sessionTitles"] == ["Easy Run"]
 
     @pytest.mark.asyncio
     async def test_week_level_drills_to_exercises(self):
         plan = _plan()
         res = await show_plan(_ctx(plan), str(plan["userId"]), {"level": "week", "week_number": 1})
         wk = res["overview"]["week"]
-        assert wk["workouts"][0]["exercises"][0]["exerciseName"] == "Easy Run"
-        assert wk["workouts"][0]["exercises"][0]["timeSeconds"] == 1800
+        assert wk["sessions"][0]["exercises"][0]["exerciseName"] == "Easy Run"
+        assert wk["sessions"][0]["exercises"][0]["timeSeconds"] == 1800
 
     @pytest.mark.asyncio
     async def test_workout_level_filters_by_day(self):
         plan = _plan()
         res = await show_plan(_ctx(plan), str(plan["userId"]),
-                              {"level": "workout", "week_number": 1, "day_of_week": 0})
-        assert len(res["overview"]["week"]["workouts"]) == 1
-        assert res["overview"]["week"]["workouts"][0]["dayOfWeek"] == 0
+                              {"level": "session", "week_number": 1, "day_of_week": 0})
+        assert len(res["overview"]["week"]["sessions"]) == 1
+        assert res["overview"]["week"]["sessions"][0]["dayOfWeek"] == 0
 
     @pytest.mark.asyncio
     async def test_default_plan_used_when_no_id(self):

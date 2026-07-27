@@ -113,8 +113,8 @@ USER PROFILE:
 - Height: {height_str}
 - Units: {units}
 - Available Equipment: {', '.join(user_profile.get('equipment', [])) or 'not specified'}
-- Preferred Workout Duration: {user_profile.get('workoutDuration', 'not set')} minutes
-- Workout Days per Week: {len(user_profile.get('workoutDays', []))}
+- Preferred Workout Duration: {user_profile.get('sessionDuration', 'not set')} minutes
+- Workout Days per Week: {len(user_profile.get('sessionDays', []))}
 - Goals: {', '.join(user_profile.get('goals', [])) or 'not specified'}
 - Sport Preferences: {', '.join(user_profile.get('sportPreferences', [])) or 'not specified'}
 

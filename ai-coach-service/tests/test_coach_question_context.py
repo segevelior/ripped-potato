@@ -56,7 +56,7 @@ def _event(date, title, status="scheduled", **extra):
     return {
         "date": date,
         "dayOfWeek": "Sunday",
-        "type": "workout",
+        "type": "session",
         "title": title,
         "status": status,
         **extra,
