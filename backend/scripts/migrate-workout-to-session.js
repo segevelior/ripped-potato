@@ -361,8 +361,14 @@ async function main() {
   if (existing3.has('sessiontemplates')) {
     const st = db.collection('sessiontemplates');
     const stIdx = await st.indexes();
-    if (!stIdx.some(i => i.name === 'session_text_search')) {
+    // A booted post-rename backend may already have auto-created the text
+    // index under Mongoose's default name; same keys under a different name
+    // is fine — Mongo forbids a duplicate spec anyway.
+    const textIdx = stIdx.find(i => i.key && i.key._fts === 'text');
+    if (!textIdx) {
       await st.createIndex({ name: 'text', goal: 'text', tags: 'text' }, { name: 'session_text_search', background: true });
+    } else {
+      console.log(`text index already present as '${textIdx.name}' — keeping it`);
     }
   }
   if (existing3.has('usersessionmodifications')) {
@@ -450,7 +456,7 @@ async function verify(db, current) {
     assert(n === 0, `${coll}: zero docs matching old names (found ${n})`);
   }
   const stIdx = await db.collection('sessiontemplates').indexes();
-  assert(stIdx.some(i => i.name === 'session_text_search'), 'session_text_search index present');
+  assert(stIdx.some(i => i.key && i.key._fts === 'text'), 'sessiontemplates text index present (any name)');
   const usmIdx = await db.collection('usersessionmodifications').indexes();
   assert(usmIdx.some(i => i.key && i.key.sessionTemplateId !== undefined && i.key.userId !== undefined && i.unique), 'unique {userId, sessionTemplateId} index present');
 
