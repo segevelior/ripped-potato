@@ -13,7 +13,7 @@ def get_plan_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "create_plan",
-                "description": "Create a new multi-week training plan for the user. Plans contain weekly workout schedules that can reference workout templates or define custom workouts.",
+                "description": "Create a new multi-week training plan for the user. Plans contain weekly session schedules that can reference session templates or define custom sessions, and may mix disciplines (e.g. strength days plus climbing or riding days).",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -43,7 +43,7 @@ def get_plan_tools() -> List[Dict[str, Any]]:
                                     "type": "integer",
                                     "minimum": 1,
                                     "maximum": 7,
-                                    "description": "Target workouts per week"
+                                    "description": "Target sessions per week"
                                 },
                                 "restDays": {
                                     "type": "array",
@@ -53,14 +53,14 @@ def get_plan_tools() -> List[Dict[str, Any]]:
                                 "preferredSessionDays": {
                                     "type": "array",
                                     "items": {"type": "integer", "minimum": 0, "maximum": 6},
-                                    "description": "Preferred workout days"
+                                    "description": "Preferred training days"
                                 }
                             },
                             "required": ["weeksTotal", "sessionsPerWeek"]
                         },
                         "weeks": {
                             "type": "array",
-                            "description": "Weekly workout definitions",
+                            "description": "Weekly session definitions",
                             "items": {
                                 "type": "object",
                                 "properties": {
@@ -119,7 +119,7 @@ def get_plan_tools() -> List[Dict[str, Any]]:
                             "type": "object",
                             "properties": {
                                 "autoAdvance": {"type": "boolean", "description": "Automatically advance to next week"},
-                                "allowModifications": {"type": "boolean", "description": "Allow user to modify workouts"},
+                                "allowModifications": {"type": "boolean", "description": "Allow user to modify sessions"},
                                 "sendReminders": {"type": "boolean"},
                                 "difficultyAdjustment": {"type": "string", "enum": ["auto", "manual", "none"]}
                             }
@@ -186,7 +186,7 @@ def get_plan_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "add_plan_session",
-                "description": "Add a workout to a specific week and day in a training plan.",
+                "description": "Add a session to a specific week and day in a training plan.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -235,14 +235,14 @@ def get_plan_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "remove_plan_session",
-                "description": "Remove a workout from a specific week in a training plan.",
+                "description": "Remove a session from a specific week in a training plan.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "plan_id": {"type": "string"},
                         "weekNumber": {"type": "integer", "minimum": 1},
                         "sessionIndex": {"type": "integer", "description": "Index of the session in the week's sessions array"},
-                        "weeklySessionId": {"type": "string", "description": "Or the _id of the workout subdocument"}
+                        "weeklySessionId": {"type": "string", "description": "Or the _id of the session subdocument"}
                     },
                     "required": ["plan_id", "weekNumber"]
                 }

@@ -60,7 +60,7 @@ export default function RecentActivities({ workouts, activities, isLoading }) {
           <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center rounded-full bg-gray-100">
             <Activity className="w-8 h-8" style={{color: 'var(--text-secondary)'}} />
           </div>
-          <p style={{color: 'var(--text-secondary)'}}>Log a workout to get started</p>
+          <p style={{color: 'var(--text-secondary)'}}>Log a session to get started</p>
         </div>
       )}
     </div>

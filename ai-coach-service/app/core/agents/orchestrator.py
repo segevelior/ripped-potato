@@ -49,19 +49,20 @@ logger = structlog.get_logger()
 # NOTE: this matches USER UTTERANCES, not our vocabulary. Users will say
 # "workout" forever, so every "workout" alternative below is permanent — the
 # session/rename is ADDITIVE here: session twins were added alongside, never
-# replacing a workout pattern.
+# replacing a workout pattern. Same rule for the multi-sport twins (ride /
+# climb / run): a session is any training activity, and users name the sport.
 _GROUNDING_INTENT_RE = re.compile(
-    r"\bmy\s+(plan|plans|workout|workouts|program|calendar|schedule|training|routine|session|sessions|history|week)\b"
+    r"\bmy\s+(plan|plans|workout|workouts|program|calendar|schedule|training|routine|session|sessions|ride|rides|climb|climbs|run|runs|history|week)\b"
     r"|\b(scheduled|swap|replace|substitute|reschedule|move|skip)\b"
     r"|\bbased on my\b"
     r"|\bwhat('s| is) (on |in )?(my|the) (calendar|schedule)\b"
-    r"|\b(today|tomorrow|this week|next week|sunday|monday|tuesday|wednesday|thursday|friday|saturday)('s)? (workout|session)\b"
-    r"|\b(workout|session) (for |on )?(today|tomorrow|this week|sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b"
+    r"|\b(today|tomorrow|this week|next week|sunday|monday|tuesday|wednesday|thursday|friday|saturday)('s)? (workout|session|ride|climb|run)\b"
+    r"|\b(workout|session|ride|climb|run) (for |on )?(today|tomorrow|this week|sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b"
     r"|\btoday'?s\s+pick\b"
-    r"|\b(suggested|recommended)\s+(workout|session)\b"
+    r"|\b(suggested|recommended)\s+(workout|session|ride|climb|run)\b"
     r"|\bwhat\s+(should|do)\s+i\s+(do|train)\s+today\b"
-    r"|\bshould\s+i\s+(train|work\s?out|rest)\s+today\b"
-    r"|\b(do|have)\s+i\s+(got\s+|have\s+)?a?\s*(workout|session)\s+today\b",
+    r"|\bshould\s+i\s+(train|work\s?out|rest|ride|climb|run)\s+today\b"
+    r"|\b(do|have)\s+i\s+(got\s+|have\s+)?a?\s*(workout|session|ride|climb|run)\s+today\b",
     re.IGNORECASE,
 )
 
@@ -515,14 +516,14 @@ USER PROFILE:
 - Height: {height_str}
 - Units: {units}
 - Available Equipment: {', '.join(user_profile.get('equipment', [])) or 'not specified'}
-- Preferred Workout Duration: {user_profile.get('sessionDuration', 'not set')} minutes
-- Workout Days per Week: {len(user_profile.get('sessionDays', []))}
+- Preferred Session Duration: {user_profile.get('sessionDuration', 'not set')} minutes
+- Training Days per Week: {len(user_profile.get('sessionDays', []))}
 - Stated Goals (from profile): {', '.join(user_profile.get('goals', [])) or 'none listed'}
 - Profile-listed Injuries (standing baseline): {', '.join(user_profile.get('injuries', [])) or 'none listed'}
 
 USER DATA:
 - {len(data_context.get('exercises', []))} exercises in library
-- {len(data_context.get('workouts', []))} recent workouts
+- {len(data_context.get('workouts', []))} recent sessions
 - {len(data_context.get('goals', []))} active tracked goals (Goals feature)
 - {len(data_context.get('plans', []))} training plans"""
 
@@ -799,7 +800,7 @@ USER PROFILE:
 
 USER DATA:
 - {len(data_context.get('exercises', []))} exercises
-- {len(data_context.get('workouts', []))} workouts
+- {len(data_context.get('workouts', []))} sessions
 - {len(data_context.get('goals', []))} active tracked goals (Goals feature)"""
 
         # Add user memories to context (shared dated formatter)

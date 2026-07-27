@@ -287,7 +287,7 @@ export default function ChatWithStreaming() {
           // Calendar session request without specific input. Both marker
           // spellings are accepted here — a pre-rename bundle in another tab
           // can still be the one that wrote `pendingChatPrompt`.
-          displayMessage = "Help me plan a workout for today";
+          displayMessage = "Help me plan a session for today";
         }
 
         // Add clean user message to UI
@@ -350,7 +350,7 @@ export default function ChatWithStreaming() {
       } else {
         // Fetch failed - use defaults
         setSuggestions([
-          "Create a 30-min HIIT workout",
+          "Create a 30-min HIIT session",
           "How do I improve my squat form?",
           "Plan a weekly schedule for me",
           "Explain progressive overload"
@@ -358,7 +358,7 @@ export default function ChatWithStreaming() {
       }
     } catch {
       setSuggestions([
-        "Create a 30-min HIIT workout",
+        "Create a 30-min HIIT session",
         "How do I improve my squat form?",
         "Plan a weekly schedule for me",
         "Explain progressive overload"
@@ -723,7 +723,7 @@ export default function ChatWithStreaming() {
                     Sensei
                   </h2>
                   <p className="text-gray-500 max-w-md">
-                    I can help you create workouts, analyze your progress, and answer fitness questions.
+                    I can help you create sessions, analyze your progress, and answer fitness questions.
                   </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-lg">

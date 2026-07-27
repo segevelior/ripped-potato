@@ -27,3 +27,28 @@ def test_incident_hardened_anchors_untouched():
 def test_new_tools_documented():
     assert "delete_calendar_event" in SYSTEM_PROMPT
     assert "session_template_id" in SYSTEM_PROMPT
+
+
+def test_domain_vocabulary_anchor():
+    """Stage 4 of the workout→session rename: the coach must be told that a
+    session is the umbrella for ALL training, not a renamed gym workout."""
+    assert "DOMAIN VOCABULARY" in SYSTEM_PROMPT
+    assert "SESSION vs EXERCISE" in SYSTEM_PROMPT
+    # Multi-sport examples are what make the umbrella concrete.
+    for sport in ("climbing", "bike ride", "run", "mobility"):
+        assert sport in SYSTEM_PROMPT, sport
+    # "workout" must survive as USER vocabulary — never scrubbed.
+    assert '"workout"' in SYSTEM_PROMPT
+    assert "discipline" in SYSTEM_PROMPT
+
+
+def test_discipline_placeholders_substituted():
+    """A stray __DISCIPLINES__ template token would silently teach the model
+    a literal placeholder instead of the vocabulary."""
+    from app.core.agents.prompts import SYSTEM_PROMPT
+    from app.core.disciplines import DISCIPLINES
+
+    assert "__DISCIPLINES__" not in SYSTEM_PROMPT
+    assert "__DISCIPLINES_PIPE__" not in SYSTEM_PROMPT
+    assert "climbing" in SYSTEM_PROMPT and "cycling" in SYSTEM_PROMPT
+    assert "|".join(DISCIPLINES) in SYSTEM_PROMPT

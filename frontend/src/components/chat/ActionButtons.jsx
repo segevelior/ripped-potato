@@ -81,7 +81,7 @@ export function ActionButtons({ actions, disabled }) {
     try {
       if (!workoutData) {
         console.error('No workout data provided');
-        alert('Workout data is missing. Please try again or ask Sensei to create a new workout.');
+        alert('Session data is missing. Please try again or ask Sensei to create a new session.');
         return;
       }
 
@@ -91,7 +91,7 @@ export function ActionButtons({ actions, disabled }) {
           workout = JSON.parse(workoutData);
         } catch (parseError) {
           console.error('Failed to parse workout string:', parseError, workoutData);
-          alert('There was an issue with the workout data format. Please ask Sensei to create the workout again.');
+          alert('There was an issue with the session data format. Please ask Sensei to create the session again.');
           return;
         }
       } else {
@@ -100,7 +100,7 @@ export function ActionButtons({ actions, disabled }) {
 
       if (!workout || (!workout.title && !workout.name)) {
         console.error('Invalid workout object:', workout);
-        alert('The workout data appears to be incomplete. Please ask Sensei to create the workout again.');
+        alert('The session data appears to be incomplete. Please ask Sensei to create the session again.');
         return;
       }
 
@@ -109,7 +109,7 @@ export function ActionButtons({ actions, disabled }) {
         sessionData = parseTemplateToSessionData(workout);
       } catch (parseError) {
         console.error('Failed to parse workout data:', parseError);
-        alert(parseError.message || 'The workout data is invalid. Please ask Sensei to create the workout again.');
+        alert(parseError.message || 'The session data is invalid. Please ask Sensei to create the session again.');
         return;
       }
 
@@ -138,7 +138,7 @@ export function ActionButtons({ actions, disabled }) {
           estimatedDuration: sessionData.duration_minutes,
           exercises: calendarExercises
         },
-        notes: 'AI-generated workout'
+        notes: 'AI-generated session'
       };
 
       try {
@@ -154,7 +154,7 @@ export function ActionButtons({ actions, disabled }) {
       navigate(createPageUrl('LiveSession'));
     } catch (error) {
       console.error('Error starting workout:', error);
-      alert('Failed to start workout. Please try again.');
+      alert('Failed to start session. Please try again.');
     }
   };
 
@@ -194,22 +194,22 @@ export function ActionButtons({ actions, disabled }) {
       {showConflictModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Unfinished Workout</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Unfinished Session</h3>
             <p className="text-gray-600 mb-1">
-              You have an unfinished workout:
+              You have an unfinished session:
             </p>
             <p className="font-semibold text-gray-900 mb-4">
               {activeSession?.data?.title}
             </p>
             <p className="text-gray-600 mb-6">
-              Would you like to resume it or start a new workout?
+              Would you like to resume it or start a new session?
             </p>
             <div className="space-y-3">
               <button
                 onClick={resumeWorkout}
                 className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors"
               >
-                Resume Workout
+                Resume Session
               </button>
               <button
                 onClick={discardAndStartNew}

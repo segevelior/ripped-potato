@@ -343,9 +343,9 @@ class CalendarService:
                         f"**{existing_template.get('name')}** — no duplicate was created."
                     )
                 elif existing_template is not None:
-                    response_msg += f"\n\nLinked to **{existing_template.get('name')}** from your workout library."
+                    response_msg += f"\n\nLinked to **{existing_template.get('name')}** from your session library."
                 elif session_template_id:
-                    response_msg += "\n\n**Saved to your workout library** - you can reuse this workout anytime!"
+                    response_msg += "\n\n**Saved to your session library** - you can reuse this session anytime!"
                 if event_type in ("session", "deload") and exercise_count > 0:
                     response_msg += f"\n\n**{exercise_count} exercises** | **~{duration} min**"
 

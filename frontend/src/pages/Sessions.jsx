@@ -134,10 +134,10 @@ export default function Sessions() {
       };
       await SessionTemplate.create(duplicatedWorkout);
       await loadData();
-      alert("Workout duplicated successfully!");
+      alert("Session duplicated successfully!");
     } catch (error) {
       console.error("Error duplicating workout:", error);
-      alert("Error duplicating workout. Please try again.");
+      alert("Error duplicating session. Please try again.");
     }
   };
 
@@ -224,7 +224,7 @@ export default function Sessions() {
       navigate(createPageUrl('LiveSession')); // No ID param needed
     } catch (error) {
       console.error('[Sessions] Failed to start workout:', error);
-      alert(`Failed to start workout: ${error.message}`);
+      alert(`Failed to start session: ${error.message}`);
     }
   };
 
@@ -268,11 +268,11 @@ export default function Sessions() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold text-gray-900">Workouts</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Sessions</h1>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-gray-200 border-t-accent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading workouts...</p>
+            <p className="text-gray-600">Loading sessions...</p>
           </div>
         </div>
       </div>
@@ -285,22 +285,22 @@ export default function Sessions() {
       {showConflictModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Unfinished Workout</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Unfinished Session</h3>
             <p className="text-gray-600 mb-1">
-              You have an unfinished workout:
+              You have an unfinished session:
             </p>
             <p className="font-semibold text-gray-900 mb-4">
               {activeSession?.data?.title}
             </p>
             <p className="text-gray-600 mb-6">
-              Would you like to resume it or start a new workout?
+              Would you like to resume it or start a new session?
             </p>
             <div className="space-y-3">
               <button
                 onClick={resumeWorkout}
                 className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors"
               >
-                Resume Workout
+                Resume Session
               </button>
               <button
                 onClick={discardAndStartNew}
@@ -327,7 +327,7 @@ export default function Sessions() {
               <Play className="w-6 h-6 text-green-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-green-900">Workout in Progress</p>
+              <p className="font-semibold text-green-900">Session in Progress</p>
               <p className="text-sm text-green-700 truncate">{activeSession.data?.title}</p>
               <p className="text-xs text-green-600">
                 {Math.floor(activeSession.totalSessionTime / 60)} min elapsed
@@ -346,9 +346,9 @@ export default function Sessions() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Workouts</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Sessions</h1>
           <p className="text-base text-gray-600 mt-1">
-            {filteredWorkouts.length} workout{filteredWorkouts.length !== 1 ? 's' : ''} available
+            {filteredWorkouts.length} session{filteredWorkouts.length !== 1 ? 's' : ''} available
           </p>
         </div>
         <button
@@ -356,7 +356,7 @@ export default function Sessions() {
           className="hidden md:flex bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-semibold items-center gap-2 transition-colors shadow-lg shadow-gray-900/10"
         >
           <Plus className="w-5 h-5" />
-          Create Workout
+          Create Session
         </button>
       </div>
 
@@ -365,7 +365,7 @@ export default function Sessions() {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
         <input
           type="text"
-          placeholder="Search workouts..."
+          placeholder="Search sessions..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all text-base"
@@ -394,11 +394,11 @@ export default function Sessions() {
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Search className="w-8 h-8 text-gray-400" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No workouts found</h3>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">No sessions found</h3>
           <p className="text-gray-600 mb-6">
             {searchQuery || selectedCategory !== 'all'
               ? 'Try adjusting your search or filters'
-              : 'Create your first workout to get started'}
+              : 'Create your first session to get started'}
           </p>
           {!searchQuery && selectedCategory === 'all' && (
             <button
@@ -406,7 +406,7 @@ export default function Sessions() {
               className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-semibold inline-flex items-center gap-2 transition-colors"
             >
               <Plus className="w-5 h-5" />
-              Create Workout
+              Create Session
             </button>
           )}
         </div>

@@ -1,5 +1,13 @@
 # Sensei coach A/B test — grounding, data visibility, verbosity
 
+> **Terminology note:** the runs and transcripts below predate the workout→session
+> rename. They are kept VERBATIM as historical records, so they still say "workout"
+> and use the old tool names (`list_workout_templates`, `grep_workouts`,
+> `update_calendar_workout`, …). Today those are `list_session_templates`,
+> `grep_session_templates` and `update_calendar_session`, and a *session* is the
+> umbrella for all training (gym workouts, rides, climbs, runs). Do not rewrite the
+> recorded transcripts.
+
 **Method:** drive the real `AgentOrchestrator` (production streaming path, real OpenAI
 calls, production MongoDB data) with the same user questions before and after each fix.
 Writes are blocked by a harness guard (+ verified against the DB afterwards). Run:

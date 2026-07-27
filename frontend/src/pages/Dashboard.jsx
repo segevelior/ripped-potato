@@ -132,7 +132,7 @@ const ActivePlanCard = ({ plan, onPlanClick }) => {
               {plan.status}
             </span>
             <span className="text-sm text-gray-600">
-              {progress.completed}/{progress.total} workouts
+              {progress.completed}/{progress.total} sessions
             </span>
           </div>
         </div>
@@ -324,7 +324,7 @@ export default function Dashboard() {
                 <div className="p-3 bg-blue-100 rounded-lg"><Activity className="w-6 h-6 text-blue-600" /></div>
                 <div>
                   <p className="text-3xl font-bold text-gray-900">{completedWorkoutsThisWeek}</p>
-                  <p className="text-sm text-gray-600">Workouts this week</p>
+                  <p className="text-sm text-gray-600">Sessions this week</p>
                 </div>
               </div>
             </div>
@@ -364,7 +364,7 @@ export default function Dashboard() {
               <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-gray-500" />
-                  Upcoming Workouts
+                  Upcoming Sessions
                 </h2>
                 {upcomingWorkouts.length > 0 ? (
                   <div className="space-y-3">
@@ -387,9 +387,9 @@ export default function Dashboard() {
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No upcoming workouts scheduled.</p>
+                    <p>No upcoming sessions scheduled.</p>
                     <Link to={createPageUrl("TrainNow")}>
-                      <button className="mt-3 text-blue-600 font-semibold">Plan a workout</button>
+                      <button className="mt-3 text-blue-600 font-semibold">Plan a session</button>
                     </Link>
                   </div>
                 )}
@@ -565,7 +565,7 @@ export default function Dashboard() {
             ) : (
               <div className="text-center py-12 text-gray-500">
                 <Calendar className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-semibold mb-2">No workouts planned</h3>
+                <h3 className="text-lg font-semibold mb-2">No sessions planned</h3>
                 <p className="mb-6">Let's get your training plan started!</p>
                 <Link to={createPageUrl("TrainNow")}>
                   <button className="bg-primary-500 hover:bg-primary-600 text-white px-6 py-3 rounded-lg font-medium">

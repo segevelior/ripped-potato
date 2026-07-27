@@ -254,7 +254,7 @@ export default function SessionDetailModal({ workout, exercises, onClose, onAppl
               {!workout.primary_disciplines?.[0] && (
                 <>
                   <span className="w-2 h-2 rounded-full bg-coral-brand" />
-                  <span className="text-coral-brand font-bold text-xs uppercase tracking-wider">WORKOUT TEMPLATE</span>
+                  <span className="text-coral-brand font-bold text-xs uppercase tracking-wider">SESSION TEMPLATE</span>
                 </>
               )}
             </div>
@@ -314,7 +314,7 @@ export default function SessionDetailModal({ workout, exercises, onClose, onAppl
             <div className="mb-8">
               <h3 className="text-lg font-bold text-gray-900 mb-2">About</h3>
               <p className="text-gray-500 text-sm leading-relaxed">
-                {workout.goal || "A comprehensive workout designed to improve your fitness levels through structured exercises."}
+                {workout.goal || "A comprehensive session designed to improve your fitness levels through structured exercises."}
               </p>
             </div>
 
@@ -351,7 +351,7 @@ export default function SessionDetailModal({ workout, exercises, onClose, onAppl
 
             {/* How to Prepare / Blocks Preview */}
             <div className="mb-8">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Workout Blocks</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Session Blocks</h3>
               <div className="space-y-4">
                 {(workout.blocks || []).map((block, idx) => {
                   const isExpanded = expandedBlocks.has(idx);
@@ -491,7 +491,7 @@ export default function SessionDetailModal({ workout, exercises, onClose, onAppl
               className="w-full bg-accent hover:bg-accent/90 text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-lg"
             >
               <Play className="w-5 h-5 fill-white" />
-              Start Workout
+              Start Session
             </button>
           </div>
         )}
@@ -500,7 +500,7 @@ export default function SessionDetailModal({ workout, exercises, onClose, onAppl
       {showDeleteConfirm && (
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-[110] rounded-[40px]">
           <div className="bg-white rounded-2xl p-6 mx-4 max-w-sm w-full shadow-2xl">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Workout?</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Session?</h3>
             <p className="text-sm text-gray-600 mb-6">
               Are you sure you want to delete "{workout.name}"? This action cannot be undone.
             </p>

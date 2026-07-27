@@ -24,7 +24,7 @@ class SessionService:
         self.db = db
 
     async def create_session_template(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a workout template (PredefinedWorkout) with blocks structure"""
+        """Create a session template (any discipline) with a blocks structure"""
         try:
             # A template with zero exercises is a placeholder, never a real
             # request — refuse before touching the resolver or the db.
@@ -35,8 +35,8 @@ class SessionService:
                     "success": False,
                     "error": "empty_workout_template",
                     "message": (
-                        "Refusing to create a workout template with no exercises. "
-                        "If the user referenced a workout they already have, search "
+                        "Refusing to create a session template with no exercises. "
+                        "If the user referenced a session they already have, search "
                         "the library (grep_session_templates / list_session_templates) and "
                         "reuse it. If it is genuinely new, gather its exercises "
                         "first, then retry."
@@ -109,8 +109,8 @@ class SessionService:
 
             if result.inserted_id:
                 total_exercises = sum(len(b.get("exercises", [])) for b in blocks)
-                logger.info(f"Created workout template '{args['name']}' for user {user_id}")
-                message = f"Created workout template '{args['name']}' with {len(blocks)} blocks and {total_exercises} exercises!"
+                logger.info(f"Created session template '{args['name']}' for user {user_id}")
+                message = f"Created session template '{args['name']}' with {len(blocks)} blocks and {total_exercises} exercises!"
                 created_names = [r["matched_name"] for r in report["created"]]
                 if created_names:
                     message += f" Also added {len(created_names)} new exercise(s) to the library: {', '.join(created_names)}."
@@ -120,14 +120,14 @@ class SessionService:
                     "workout_id": str(result.inserted_id)
                 }
             else:
-                return {"success": False, "message": "Failed to create workout template"}
+                return {"success": False, "message": "Failed to create session template"}
 
         except Exception as e:
-            logger.error(f"Error creating workout template: {e}")
+            logger.error(f"Error creating session template: {e}")
             return {"success": False, "message": str(e)}
 
     async def list_session_templates(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        """List workout templates (PredefinedWorkouts)"""
+        """List session templates (any discipline)"""
         try:
             # Build the base ownership filter
             include_common = args.get("include_common", True)
@@ -214,15 +214,15 @@ class SessionService:
                     "difficulty_level": args.get("difficulty_level"),
                     "limit": limit,
                 },
-                "workouts": results
+                "sessions": results
             }
 
         except Exception as e:
-            logger.error(f"Error listing workout templates: {e}")
+            logger.error(f"Error listing session templates: {e}")
             return {"success": False, "message": str(e)}
 
     async def delete_session_template(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Delete the user's own workout templates (never common/public ones).
+        """Delete the user's own session templates (never common/public ones).
 
         Two-step: without confirm=true this only previews what would be deleted
         (and which keep_only names matched nothing). Matching is case-insensitive.
@@ -302,7 +302,7 @@ class SessionService:
             result = await self.db.sessiontemplates.delete_many(
                 {**own_filter, "_id": {"$in": [t["_id"] for t in deletable]}}
             )
-            logger.info(f"Deleted {result.deleted_count} workout template(s) for user {user_id}")
+            logger.info(f"Deleted {result.deleted_count} session template(s) for user {user_id}")
             msg = f"Deleted {result.deleted_count} template(s): " + ", ".join(t["name"] for t in preview) + "."
             if referenced:
                 names = ", ".join(f"{r['name']} ({r['upcoming_events']} upcoming)" for r in referenced)
@@ -311,11 +311,11 @@ class SessionService:
                     "skipped_referenced": referenced, "message": msg}
 
         except Exception as e:
-            logger.error(f"Error deleting workout template: {e}")
+            logger.error(f"Error deleting session template: {e}")
             return {"success": False, "message": str(e)}
 
     async def log_session(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Log a workout to the user's workout history"""
+        """Log a session (any discipline) to the user's training history"""
         try:
             # Get exercise IDs for the exercises
             existing_exercises = await self.db.exercises.find(
@@ -375,7 +375,11 @@ class SessionService:
             log_data = {
                 "userId": ObjectId(user_id),
                 "title": args["title"],
-                "discipline": str(args.get("type", "strength")).lower(),
+                # `type` is the pre-rename arg name: replayed tool_rounds from old
+                # conversations still carry it, so it stays an accepted fallback.
+                "discipline": str(
+                    args.get("discipline") or args.get("type") or "strength"
+                ).lower(),
                 "startedAt": started_at,
                 "completedAt": completed_at,
                 "actualDuration": duration_minutes,
@@ -426,21 +430,21 @@ class SessionService:
                     {"$set": {"calendarEventId": event_result.inserted_id}}
                 )
 
-                logger.info(f"Logged workout '{args['title']}' for user {user_id}")
+                logger.info(f"Logged session '{args['title']}' for user {user_id}")
                 return {
                     "success": True,
                     "message": f"Logged '{args['title']}' with {len(formatted_exercises)} exercises!",
                     "workout_id": str(result.inserted_id)
                 }
             else:
-                return {"success": False, "message": "Failed to log workout"}
+                return {"success": False, "message": "Failed to log session"}
 
         except Exception as e:
-            logger.error(f"Error logging workout: {e}")
+            logger.error(f"Error logging session: {e}")
             return {"success": False, "message": str(e)}
 
     async def get_session_history(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Get user's workout history"""
+        """Get the user's session history (all disciplines)"""
         try:
             days = args.get("days", 30)
             start_date = datetime.utcnow() - timedelta(days=days)
@@ -450,8 +454,10 @@ class SessionService:
                 "startedAt": {"$gte": start_date}
             }
 
-            if args.get("type"):
-                query["discipline"] = args["type"]
+            # `type` is the pre-rename arg name — still accepted (replayed history).
+            discipline = args.get("discipline") or args.get("type")
+            if discipline:
+                query["discipline"] = discipline
 
             limit = args.get("limit", 10)
 
@@ -496,9 +502,9 @@ class SessionService:
             return {
                 "success": True,
                 "count": len(results),
-                "workouts": results
+                "sessions": results
             }
 
         except Exception as e:
-            logger.error(f"Error getting workout history: {e}")
+            logger.error(f"Error getting session history: {e}")
             return {"success": False, "message": str(e)}

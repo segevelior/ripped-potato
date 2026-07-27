@@ -169,7 +169,7 @@ class TestGetSessionHistory:
         assert "startedAt" in query and "$gte" in query["startedAt"]
         cursor.sort.assert_called_once_with("startedAt", -1)
 
-        workout = result["workouts"][0]
+        workout = result["sessions"][0]
         assert workout["duration"] == 45
         assert workout["exercises"][0]["name"] == "Bench Press"
 

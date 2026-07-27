@@ -93,7 +93,7 @@ const PlanCard = ({ plan, onEdit, onDelete, onToggleStatus, goals }) => {
                 {statusInfo.label}
               </span>
               <span>{daysInfo.label}: {daysInfo.value}</span>
-              <span>{progress.completed}/{progress.total} workouts</span>
+              <span>{progress.completed}/{progress.total} sessions</span>
             </div>
           </div>
           
@@ -152,7 +152,7 @@ const PlanCard = ({ plan, onEdit, onDelete, onToggleStatus, goals }) => {
         {/* Next Workout */}
         {nextWorkout && nextWorkout.scheduled_date && (
           <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-            <div className="text-xs text-blue-600 font-medium mb-1">Next Workout</div>
+            <div className="text-xs text-blue-600 font-medium mb-1">Next Session</div>
             <div className="text-sm text-blue-800">
               {(() => {
                 try {
@@ -258,7 +258,7 @@ export default function Plans() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Plans</h1>
           <p className="text-lg text-gray-600">
-            Structured training plans that combine workouts with goal progression.
+            Structured training plans that combine sessions with goal progression.
           </p>
         </div>
         <Link to={createPageUrl("CreatePlan")}>
@@ -333,7 +333,7 @@ export default function Plans() {
           </h3>
           <p className="text-gray-600 mb-6">
             {view === 'all' 
-              ? 'Create your first structured training plan to combine workouts with goal progression.'
+              ? 'Create your first structured training plan to combine sessions with goal progression.'
               : `You don't have any ${view} plans at the moment.`
             }
           </p>

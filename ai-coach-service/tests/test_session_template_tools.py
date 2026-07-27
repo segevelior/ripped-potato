@@ -135,3 +135,74 @@ class TestDeleteTemplate:
         assert res["skipped_referenced"][0]["name"] == "Scheduled One"
         deleted_ids = db.sessiontemplates.delete_many.call_args.args[0]["_id"]["$in"]
         assert deleted_ids == [own[1]["_id"]]
+
+
+def _log_service():
+    """SessionService wired for log_session / get_session_history."""
+    db = MagicMock()
+
+    exercises = MagicMock()
+    exercises.to_list = AsyncMock(return_value=[])
+    db.exercises.find = MagicMock(return_value=exercises)
+
+    db.sessionlogs.insert_one = AsyncMock(return_value=MagicMock(inserted_id=ObjectId()))
+    db.sessionlogs.update_one = AsyncMock()
+    db.calendarevents.insert_one = AsyncMock(
+        return_value=MagicMock(inserted_id=ObjectId()))
+
+    history = MagicMock()
+    history.to_list = AsyncMock(return_value=[])
+    history.limit = MagicMock(return_value=history)
+    history.sort = MagicMock(return_value=history)
+    db.sessionlogs.find = MagicMock(return_value=history)
+    return SessionService(db), db
+
+
+class TestDisciplineArg:
+    """`type` → `discipline` rename: the new name wins, the old one is still
+    accepted because replayed tool_rounds from pre-rename chats carry it."""
+
+    @pytest.mark.asyncio
+    async def test_log_session_uses_discipline(self):
+        svc, db = _log_service()
+        res = await svc.log_session(str(USER), {
+            "title": "Sunday Long Ride", "discipline": "cycling",
+            "exercises": [{"exerciseName": "Outdoor Cycling", "sets": []}],
+        })
+        assert res["success"] is True
+        assert db.sessionlogs.insert_one.call_args.args[0]["discipline"] == "cycling"
+        event = db.calendarevents.insert_one.call_args.args[0]
+        assert event["sessionDetails"]["discipline"] == "cycling"
+
+    @pytest.mark.asyncio
+    async def test_log_session_accepts_legacy_type_arg(self):
+        svc, db = _log_service()
+        await svc.log_session(str(USER), {
+            "title": "Leg Day", "type": "strength",
+            "exercises": [{"exerciseName": "Squat", "sets": []}],
+        })
+        assert db.sessionlogs.insert_one.call_args.args[0]["discipline"] == "strength"
+
+    @pytest.mark.asyncio
+    async def test_log_session_defaults_to_strength(self):
+        svc, db = _log_service()
+        await svc.log_session(str(USER), {"title": "Something", "exercises": []})
+        assert db.sessionlogs.insert_one.call_args.args[0]["discipline"] == "strength"
+
+    @pytest.mark.asyncio
+    async def test_history_filters_by_discipline(self):
+        svc, db = _log_service()
+        await svc.get_session_history(str(USER), {"discipline": "climbing"})
+        assert db.sessionlogs.find.call_args.args[0]["discipline"] == "climbing"
+
+    @pytest.mark.asyncio
+    async def test_history_accepts_legacy_type_filter(self):
+        svc, db = _log_service()
+        await svc.get_session_history(str(USER), {"type": "cycling"})
+        assert db.sessionlogs.find.call_args.args[0]["discipline"] == "cycling"
+
+    @pytest.mark.asyncio
+    async def test_history_returns_sessions_key(self):
+        svc, _ = _log_service()
+        res = await svc.get_session_history(str(USER), {})
+        assert "sessions" in res and "workouts" not in res

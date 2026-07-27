@@ -460,6 +460,237 @@ FRESHNESS_AFTER_WRITE = Scenario(
 )
 
 
+# --- multi-sport scenarios (session = umbrella for ALL training) ----------
+# Acceptance tests for the workout→session rename: the coach must treat a
+# climb, a ride and a mixed-discipline week as first-class sessions and set
+# `discipline` from the SPORT, not default everything to strength.
+
+
+def _next_weekday(weekday: int) -> datetime:
+    """Next occurrence of `weekday` (0=Mon..6=Sun) strictly after today."""
+    today = _today()
+    delta = (weekday - today.weekday()) % 7 or 7
+    return today + timedelta(days=delta)
+
+
+# These scenarios assert on STRUCTURAL discipline fields only — never on
+# titles, template names or exercise names. A session called "Friday Climbing"
+# whose discipline is "strength" is precisely the bug they exist to catch, so a
+# title match must never be able to make one of them pass.
+
+def _discipline_values(*values) -> set:
+    """Normalize discipline FIELDS (str / list / dict of them) to a lowercase set.
+    Only ever fed real discipline fields, never free-text names."""
+    out = set()
+    stack = list(values)
+    while stack:
+        v = stack.pop()
+        if isinstance(v, str):
+            if v.strip():
+                out.add(v.strip().lower())
+        elif isinstance(v, dict):
+            stack.extend(v.values())
+        elif isinstance(v, (list, tuple)):
+            stack.extend(v)
+    return out
+
+
+def _has_discipline(values, *prefixes) -> bool:
+    """True if any discipline value starts with one of `prefixes` (so 'climbing'
+    and 'bouldering' both satisfy climb/boulder, without matching prose)."""
+    return any(v.startswith(prefixes) for v in values)
+
+
+_CLIMBING = ("climb", "boulder")
+_STRENGTH = ("strength", "weight", "lifting", "resistance")
+
+
+async def _event_disciplines(db, event) -> set:
+    """The event's structural discipline fields: sessionDetails.discipline and,
+    under the reference architecture, the linked template's primary_disciplines."""
+    details = event.get("sessionDetails") or {}
+    values = _discipline_values(details.get("discipline"))
+    tid = event.get("sessionTemplateId")
+    if tid:
+        t = await db.sessiontemplates.find_one({"_id": tid})
+        if t:
+            values |= _discipline_values(t.get("primary_disciplines"))
+    return values
+
+
+async def _check_climbing_session_friday(db, user_id, refs, trace):
+    """A climbing session must land on Friday as a real session (linked
+    template or embedded exercises) whose sessionDetails.discipline — or whose
+    linked template's primary_disciplines — says CLIMBING. A climbing-sounding
+    TITLE over discipline 'strength' is a failure of the domain model, not a pass."""
+    problems = []
+    friday = refs["friday"]
+    events = await _workout_events_on(db, user_id, friday)
+    if len(events) != 1:
+        problems.append(f"expected exactly 1 session event on Friday, found {len(events)}")
+        return problems
+    event = events[0]
+    disciplines = await _event_disciplines(db, event)
+    if not _has_discipline(disciplines, *_CLIMBING):
+        problems.append(
+            f"Friday's event carries no climbing discipline (sessionDetails.discipline "
+            f"+ template primary_disciplines = {sorted(disciplines)!r}, title "
+            f"{event.get('title')!r}) — the coach treated a climbing session as a "
+            "generic/strength workout"
+        )
+    if await _event_exercise_count(db, event) < 1:
+        problems.append("Friday's climbing session has no exercises — empty placeholder")
+    if await _empty_templates(db, user_id):
+        problems.append("an empty placeholder template exists")
+    # Tool choice: creating and/or scheduling a session, never add_exercise alone.
+    names = [c.name for c in trace.calls]
+    if not ({"create_session_template", "schedule_to_calendar"} & set(names)):
+        problems.append(f"no session create/schedule tool was used (tools: {names})")
+    if "add_exercise" in names and "create_session_template" not in names:
+        problems.append("a whole climbing session was saved as a single exercise")
+    return problems
+
+
+async def _seed_for_climbing(db, user_id):
+    await seed_exercises(db, user_id)
+    return {"friday": _next_weekday(4),
+            "template_count": await _template_count(db, user_id)}
+
+
+CLIMBING_SESSION = Scenario(
+    id="multisport-climbing-session-friday",
+    turns=["Add a climbing session to my calendar for Friday — I boulder indoors, "
+           "about 90 minutes",
+           "Yes, that looks good",
+           "Yes, confirm"],
+    seed=_seed_for_climbing,
+    final_state_check=_check_climbing_session_friday,
+)
+
+
+_CYCLING_DISCIPLINES = {"cycling", "endurance", "bike", "ride", "riding"}
+
+
+async def _check_logged_ride(db, user_id, refs, trace):
+    """Yesterday's ride must land in sessionlogs with a CYCLING discipline and
+    yesterday's date — not today, and not discipline 'strength'."""
+    problems = []
+    logs = [l async for l in db.sessionlogs.find({"userId": ObjectId(user_id)})]
+    if len(logs) != 1:
+        problems.append(f"expected exactly 1 session log, found {len(logs)}")
+        return problems
+    log = logs[0]
+    discipline = (log.get("discipline") or "").lower()
+    if not any(d in discipline for d in _CYCLING_DISCIPLINES):
+        problems.append(
+            f"logged session discipline is {discipline!r} — a bike ride must be "
+            "logged as cycling/endurance, not as a gym workout"
+        )
+    started = log.get("startedAt")
+    if not isinstance(started, datetime) or started.date() != refs["yesterday"].date():
+        problems.append(f"log is dated {started} — expected yesterday ({refs['yesterday'].date()})")
+    if not (log.get("exercises") or []):
+        problems.append("the ride was logged with no exercises at all")
+    names = [c.name for c in trace.calls]
+    if "log_session" not in names:
+        problems.append(f"log_session was never called (tools: {names})")
+    return problems
+
+
+async def _seed_for_ride(db, user_id):
+    await seed_exercises(db, user_id)
+    return {"yesterday": _today() - timedelta(days=1)}
+
+
+LOG_BIKE_RIDE = Scenario(
+    id="multisport-log-bike-ride",
+    turns=["Log yesterday's bike ride, 60km, about 2 hours",
+           "Yes, log it"],
+    seed=_seed_for_ride,
+    final_state_check=_check_logged_ride,
+    trajectory_checks=[assert_id_provenance, assert_no_false_success],
+)
+
+
+_PLAN_TOOLS = {"generate_plan", "create_plan", "resolve_week", "add_plan_session"}
+
+
+async def _plan_disciplines(db, plan) -> set:
+    """The plan's structural discipline fields ONLY — no titles, no plan name:
+
+    - skeleton.phases[].disciplines[].discipline and phases[].sessionBlueprints[].discipline
+      (the typed discipline fields the planner writes)
+    - weeks[].sessions[].customSession.type
+    - weeks[].sessions[].sessionTemplateId -> sessiontemplates.primary_disciplines
+      (the only structural route for a sport customSession.type has no enum
+      value for, e.g. climbing)
+    """
+    values = set()
+    skeleton = plan.get("skeleton") or {}
+    for phase in (skeleton.get("phases") or []):
+        for d in (phase.get("disciplines") or []):
+            values |= _discipline_values(d.get("discipline") if isinstance(d, dict) else d)
+        for bp in (phase.get("sessionBlueprints") or []):
+            values |= _discipline_values(bp.get("discipline"))
+    for week in (plan.get("weeks") or []):
+        for session in (week.get("sessions") or []):
+            values |= _discipline_values((session.get("customSession") or {}).get("type"))
+            tid = session.get("sessionTemplateId")
+            if tid:
+                t = await db.sessiontemplates.find_one({"_id": tid})
+                if t:
+                    values |= _discipline_values(t.get("primary_disciplines"))
+    return values
+
+
+async def _check_mixed_discipline_plan(db, user_id, refs, trace):
+    """A week 'mixing strength and climbing' must produce a plan whose SESSIONS
+    carry both disciplines structurally (customSession.type / linked template
+    primary_disciplines / the skeleton's discipline fields). A plan that only
+    says "climbing" in a session TITLE is the collapse back to gym workouts
+    this scenario exists to catch."""
+    problems = []
+    names = [c.name for c in trace.calls]
+    if not (_PLAN_TOOLS & set(names)):
+        problems.append(f"no plan tool was used (tools: {names})")
+    plans = [p async for p in db.plans.find({"userId": ObjectId(user_id)})]
+    if not plans:
+        problems.append("no plan was created")
+        return problems
+    if len(plans) > 1:
+        problems.append(f"expected 1 plan, found {len(plans)} (duplicate drafts)")
+    disciplines = set()
+    for plan in plans:
+        disciplines |= await _plan_disciplines(db, plan)
+    if not _has_discipline(disciplines, *_STRENGTH):
+        problems.append(
+            f"no session carries a strength discipline (structural disciplines: "
+            f"{sorted(disciplines)!r})"
+        )
+    if not _has_discipline(disciplines, *_CLIMBING):
+        problems.append(
+            f"no session carries a climbing discipline (structural disciplines: "
+            f"{sorted(disciplines)!r}) — climbing named only in titles does not count"
+        )
+    return problems
+
+
+async def _seed_for_mixed_plan(db, user_id):
+    await seed_exercises(db, user_id)
+    return {}
+
+
+MIXED_DISCIPLINE_PLAN = Scenario(
+    id="multisport-strength-plus-climbing-week",
+    turns=["Plan me a week mixing strength and climbing",
+           "Intermediate, 4 days a week, I have a full gym and a bouldering gym",
+           "Yes, build it"],
+    seed=_seed_for_mixed_plan,
+    final_state_check=_check_mixed_discipline_plan,
+    trajectory_checks=[assert_id_provenance, assert_no_false_success],
+)
+
+
 SCENARIOS = [
     SCHEDULE_EXISTING,
     SCHEDULE_NONEXISTENT,
@@ -470,4 +701,7 @@ SCENARIOS = [
     SCHEDULE_TWICE_ONE_TEMPLATE,
     TOOL_MEMORY,
     FRESHNESS_AFTER_WRITE,
+    CLIMBING_SESSION,
+    LOG_BIKE_RIDE,
+    MIXED_DISCIPLINE_PLAN,
 ]

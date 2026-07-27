@@ -186,15 +186,25 @@ export const semanticColors = {
         info: primitiveColors.blue[500],
     },
 
-    // Discipline colors (for workout/exercise categories)
+    // Discipline colors (one per session discipline).
+    // The vocabulary itself is canonical in ai-coach-service/app/core/disciplines.py
+    // (DISCIPLINES) — keep this map covering it. Related disciplines deliberately
+    // share a hue; getDisciplineColor() falls back to gray for anything unknown.
     discipline: {
         strength: primitiveColors.blue[600],
         running: primitiveColors.green[500],
+        walking: primitiveColors.green[500],
         cycling: primitiveColors.purple[500],
+        swimming: primitiveColors.blue[500],
         climbing: primitiveColors.orange[600],
         hiit: primitiveColors.red[500],
         cardio: primitiveColors.pink[500],
+        hybrid: primitiveColors.orange[500],
+        recovery: primitiveColors.green[600],
         mobility: primitiveColors.cyan[500],
+        flexibility: primitiveColors.cyan[500],
+        yoga: primitiveColors.cyan[500],
+        meditation: primitiveColors.purple[600],
         calisthenics: primitiveColors.yellow[600],
     },
 

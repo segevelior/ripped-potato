@@ -249,8 +249,11 @@ def generate_stats_report(feedback_contexts: List[Dict[str, Any]]) -> str:
 
     # Simple keyword analysis
     keywords = defaultdict(int)
+    # ADDITIVE: "workout" stays forever (users say it), session/multi-sport terms
+    # are added alongside so feedback about rides/climbs/runs is counted too.
     keyword_list = ["hallucin", "wrong", "incorrect", "not in", "doesn't exist", "made up",
-                    "muscle", "exercise", "workout", "tool", "search", "find", "can't",
+                    "muscle", "exercise", "workout", "session", "template", "discipline",
+                    "ride", "climb", "run", "tool", "search", "find", "can't",
                     "doesn't work", "error", "missing", "database", "db"]
 
     for ctx in feedback_contexts:

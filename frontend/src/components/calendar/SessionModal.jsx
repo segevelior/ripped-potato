@@ -42,7 +42,7 @@ export default function SessionModal({ date, workout, onClose, onSave, disciplin
 
   const handleSave = () => {
     if (!workoutData.title.trim()) {
-      alert("Please enter a workout title");
+      alert("Please enter a session title");
       return;
     }
     
@@ -86,7 +86,7 @@ export default function SessionModal({ date, workout, onClose, onSave, disciplin
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold" style={{color: 'var(--text-primary)'}}>
-                  {workout ? 'Edit Workout' : 'Add Workout'}
+                  {workout ? 'Edit Session' : 'Add Session'}
                 </h2>
                 <p className="text-sm" style={{color: 'var(--text-secondary)'}}>
                   {format(date, 'EEEE, MMM d, yyyy')}
@@ -102,7 +102,7 @@ export default function SessionModal({ date, workout, onClose, onSave, disciplin
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1" style={{color: 'var(--text-secondary)'}}>
-                  Workout Title
+                  Session Title
                 </label>
                 <input
                   type="text"
@@ -196,7 +196,7 @@ export default function SessionModal({ date, workout, onClose, onSave, disciplin
                 <textarea
                   value={workoutData.notes}
                   onChange={(e) => setWorkoutData(prev => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Workout details, exercises, or any notes..."
+                  placeholder="Session details, exercises, or any notes..."
                   rows={3}
                   className="apple-input w-full resize-none"
                 />
@@ -209,7 +209,7 @@ export default function SessionModal({ date, workout, onClose, onSave, disciplin
               Cancel
             </button>
             <button onClick={handleSave} className="apple-button-primary flex-1">
-              {workout ? 'Update Workout' : 'Add Workout'}
+              {workout ? 'Update Session' : 'Add Session'}
             </button>
           </div>
         </div>

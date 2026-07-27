@@ -225,14 +225,14 @@ export default function CalendarEventDetailModal({ event, onClose, onStartWorkou
                 onClick={() => onStartWorkout(event)}
                 className="flex-1 px-4 py-3 bg-[#FE5334] text-white rounded-xl hover:bg-[#E84A2D] transition-colors font-semibold text-sm"
               >
-                Start Workout
+                Start Session
               </button>
             )}
 
             {onDelete && (
               <button
                 onClick={() => {
-                  if (confirm('Are you sure you want to delete this workout?')) {
+                  if (confirm('Are you sure you want to delete this session?')) {
                     onDelete(event.id);
                     onClose();
                   }

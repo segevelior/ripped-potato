@@ -1246,7 +1246,7 @@ export default function Settings() {
                     Claude (Model Context Protocol)
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                    Manage your workouts from Claude on any device. In Claude, open
+                    Manage your sessions from Claude on any device. In Claude, open
                     Settings → Connectors → Add custom connector, then paste this URL
                     and sign in with your SynergyFit account:
                   </p>

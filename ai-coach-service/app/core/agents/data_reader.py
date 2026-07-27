@@ -4,9 +4,27 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 from datetime import datetime, timedelta
 import json
+import re
 import structlog
 
 logger = structlog.get_logger()
+
+
+# Session-ish user utterances that mean "load their training data".
+# Matches USER UTTERANCES, not our vocabulary — ADDITIVE ONLY. Users say
+# "workout" forever, and multi-sport users say "ride"/"climb"/"run";
+# every term below is permanent, none replaces another.
+WORKOUT_KEYWORDS = ["workout", "routine", "program", "plan", "session", "training",
+                    "ride", "climb", "climbing", "run", "running"]
+
+# Matched with a LEADING word boundary so a keyword must START a word: without
+# it "run" fires on "crunches" and "ride" fires on "pride". There is deliberately
+# NO trailing \b — the inflections users actually type ("workouts", "rides",
+# "planning", "climbed") must keep matching, so this only ever removes the
+# mid-word false positives.
+WORKOUT_KEYWORD_RE = re.compile(
+    r"\b(?:" + "|".join(re.escape(k) for k in WORKOUT_KEYWORDS) + r")"
+)
 
 
 class DataReaderAgent(BaseAgent):
@@ -96,9 +114,8 @@ class DataReaderAgent(BaseAgent):
         if any(keyword in message_lower for keyword in exercise_keywords):
             needs["exercises"] = True
         
-        # Check for workout-related queries
-        workout_keywords = ["workout", "routine", "program", "plan", "session", "training"]
-        if any(keyword in message_lower for keyword in workout_keywords):
+        # Check for workout-related queries (see WORKOUT_KEYWORDS above)
+        if WORKOUT_KEYWORD_RE.search(message_lower):
             needs["workouts"] = True
             needs["exercises"] = True
         

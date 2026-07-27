@@ -65,7 +65,7 @@ export default function SessionCard({ workout, onView, onBookmark, isBookmarked:
     }
   };
 
-  const primaryDiscipline = workout.primary_disciplines?.[0] || 'Workout';
+  const primaryDiscipline = workout.primary_disciplines?.[0] || 'Session';
   const rating = workout.ratings?.average || 0;
   const ratingCount = workout.ratings?.count || 0;
 
@@ -171,7 +171,7 @@ export default function SessionCard({ workout, onView, onBookmark, isBookmarked:
             <button
               onClick={handleStartClick}
               className="w-9 h-9 rounded-full bg-coral-brand hover:bg-coral-brand/90 flex items-center justify-center transition-colors shadow-sm"
-              title="Start Workout"
+              title="Start Session"
             >
               <Play className="w-4 h-4 text-white fill-white" />
             </button>

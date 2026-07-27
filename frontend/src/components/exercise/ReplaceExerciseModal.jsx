@@ -146,7 +146,7 @@ export default function ReplaceExerciseModal({
             >
               From now on
               <span className="block text-xs font-normal text-gray-500 mt-0.5">
-                {isCommonTemplate ? "Creates your own copy of this workout" : "Updates this workout"}
+                {isCommonTemplate ? "Creates your own copy of this session" : "Updates this session"}
               </span>
             </button>
             <button

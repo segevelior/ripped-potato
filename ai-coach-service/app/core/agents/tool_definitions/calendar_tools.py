@@ -4,6 +4,8 @@ Calendar tool definitions for the AI fitness coach
 
 from typing import Dict, Any, List
 
+from app.core.disciplines import DISCIPLINES
+
 
 def get_calendar_tools() -> List[Dict[str, Any]]:
     """Return calendar-related tool definitions"""
@@ -13,7 +15,7 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "schedule_to_calendar",
-                "description": "Schedule a workout or event to the user's calendar for a specific date. A calendar event only combines a workout with a date — it never carries its own exercise list. For 'session' and 'deload' events, EITHER pass session_template_id for an existing library workout (find it with list_session_templates / grep_session_templates — ALWAYS prefer this; it links the event without creating anything new), OR plan a brand-new session and pass sessionDetails.exercises (this creates a new library workout and links it). Reuse-first is enforced in code: if the passed sessionDetails exactly match an existing library workout, the tool LINKS that workout instead of creating a duplicate — the preview and result say which happened; report that accurately. Never schedule a bare title. Refuses to double-book: if an equivalent event already exists on that date it returns already_scheduled instead of writing. Defaults to a dry-run PREVIEW that writes nothing. Present the preview to the user; ONLY after they confirm, call again with the same arguments plus dry_run=false to actually write. If the user declines the preview, do NOT call again.",
+                "description": "Schedule a session or event to the user's calendar for a specific date. A session is ANY training activity — a gym workout, a climbing session, a ride, a run, a mobility block — and they are all scheduled with this tool. A calendar event only combines a session with a date — it never carries its own exercise list. For 'session' and 'deload' events, EITHER pass session_template_id for an existing library session (find it with list_session_templates / grep_session_templates — ALWAYS prefer this; it links the event without creating anything new), OR plan a brand-new session and pass sessionDetails.exercises (this creates a new library session and links it). Reuse-first is enforced in code: if the passed sessionDetails exactly match an existing library session, the tool LINKS that session instead of creating a duplicate — the preview and result say which happened; report that accurately. Never schedule a bare title. Refuses to double-book: if an equivalent event already exists on that date it returns already_scheduled instead of writing. Defaults to a dry-run PREVIEW that writes nothing. Present the preview to the user; ONLY after they confirm, call again with the same arguments plus dry_run=false to actually write. If the user declines the preview, do NOT call again.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -23,7 +25,7 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
                         },
                         "title": {
                             "type": "string",
-                            "description": "Title for the calendar event (e.g., 'Upper Body Strength', 'Active Recovery', 'Rest Day'). When linking a library workout via session_template_id, omit to default to the workout's name."
+                            "description": "Title for the calendar event (e.g., 'Upper Body Strength', 'Active Recovery', 'Rest Day'). When linking a library session via session_template_id, omit to default to the session's name."
                         },
                         "type": {
                             "type": "string",
@@ -32,20 +34,20 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
                         },
                         "session_template_id": {
                             "type": "string",
-                            "description": "ID of an existing library workout to schedule (take it from a list_session_templates / grep_session_templates result in THIS conversation — never invent one). ALWAYS pass this instead of sessionDetails when the workout already exists — do NOT resend its exercises."
+                            "description": "ID of an existing library session to schedule (take it from a list_session_templates / grep_session_templates result in THIS conversation — never invent one). ALWAYS pass this instead of sessionDetails when the session already exists — do NOT resend its exercises."
                         },
                         "allow_duplicate": {
                             "type": "boolean",
-                            "description": "Default false: if a same-titled or same-template event already exists on the target date the tool refuses with already_scheduled. Set true ONLY if the user explicitly wants a second session of the same workout that day."
+                            "description": "Default false: if a same-titled or same-template event already exists on the target date the tool refuses with already_scheduled. Set true ONLY if the user explicitly wants a second session of the same kind that day."
                         },
                         "sessionDetails": {
                             "type": "object",
-                            "description": "Details for a NEWLY designed workout session — creates a new library workout, UNLESS the exercises exactly match an existing one, in which case that workout is linked instead (no duplicate). For 'session'/'deload' events, required only when session_template_id is not given.",
+                            "description": "Details for a NEWLY designed session (any discipline) — creates a new library session, UNLESS the exercises exactly match an existing one, in which case that session is linked instead (no duplicate). For an outdoor session (ride, run, climb), pass ONE exercise named after the activity itself with the distance/time as its volume. For 'session'/'deload' events, required only when session_template_id is not given.",
                             "properties": {
                                 "discipline": {
                                     "type": "string",
-                                    "enum": ["strength", "cardio", "hybrid", "recovery", "hiit", "flexibility", "calisthenics", "mobility"],
-                                    "description": "Discipline of the session"
+                                    "enum": list(DISCIPLINES),
+                                    "description": "Discipline of the session — use the actual sport (a ride is 'cycling', a climb is 'climbing')"
                                 },
                                 "estimatedDuration": {
                                     "type": "integer",
@@ -53,7 +55,7 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
                                 },
                                 "exercises": {
                                     "type": "array",
-                                    "description": "Exercises for this workout",
+                                    "description": "Exercises for this session",
                                     "minItems": 1,
                                     "items": {
                                         "type": "object",
@@ -95,7 +97,7 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "get_calendar_events",
-                "description": "Get the user's scheduled calendar events for a date range. Use this to check what workouts are already planned. The result echoes `today` (the user's local date) and labels every event with `relativeDay` (today/tomorrow/yesterday/in N days) — trust those labels.",
+                "description": "Get the user's scheduled calendar events for a date range. Use this to check what sessions are already planned. The result echoes `today` (the user's local date) and labels every event with `relativeDay` (today/tomorrow/yesterday/in N days) — trust those labels.",
                 "parameters": {
                     "type": "object",
                     "properties": {
