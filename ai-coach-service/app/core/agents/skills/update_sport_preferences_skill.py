@@ -22,13 +22,15 @@ from app.core.agents.skills.registry import SkillContext, skill
 
 
 def _clean(values: Any) -> List[str]:
-    """Lowercase, keep only canonical disciplines, dedupe preserving order."""
+    """Lowercase, trim, dedupe preserving order. Free text is allowed BY
+    DESIGN — 'triathlon' or 'ninja' is a sport in its own right, not just its
+    component disciplines — so the only rejections are empty/oversized junk."""
     out: List[str] = []
     for value in values or []:
         if not isinstance(value, str):
             continue
         lower = value.strip().lower()
-        if lower in DISCIPLINES and lower not in out:
+        if lower and len(lower) <= 60 and lower not in out:
             out.append(lower)
     return out
 
@@ -38,24 +40,30 @@ def _clean(values: Any) -> List[str]:
     description=(
         "Update the athlete's Training Interests (the sports they want in their "
         "life, shown in their profile) — ONLY when they explicitly state an "
-        "interest change ('I want to get into climbing', 'I'm done with yoga'). "
-        "Add and/or remove specific sports; never rewrite the whole list, and "
-        "never call this to ask or guess. Confirm the change conversationally "
-        "afterwards. NOT for spectator sports they watch (news follows) and NOT "
-        "for logging activity."
+        "interest change ('I want to get into climbing', 'I'm training for a "
+        "triathlon', 'I'm done with yoga'). Any sport is valid, in the "
+        "athlete's own words — keep 'triathlon' as 'triathlon', don't split it "
+        "into swimming/cycling/running. Add and/or remove specific sports; "
+        "never rewrite the whole list, and never call this to ask or guess. "
+        "Confirm the change conversationally afterwards. NOT for spectator "
+        "sports they watch (news follows) and NOT for logging activity."
     ),
     parameters={
         "type": "object",
         "properties": {
             "add": {
                 "type": "array",
-                "items": {"type": "string", "enum": list(DISCIPLINES)},
-                "description": "Sports the athlete said they want in their training.",
+                "items": {"type": "string"},
+                "description": (
+                    "Sports the athlete said they want in their training, in "
+                    f"their own words. Common disciplines: {', '.join(DISCIPLINES)} "
+                    "— but any sport is valid ('triathlon', 'ninja', 'surfing')."
+                ),
             },
             "remove": {
                 "type": "array",
-                "items": {"type": "string", "enum": list(DISCIPLINES)},
-                "description": "Sports the athlete said they no longer want.",
+                "items": {"type": "string"},
+                "description": "Sports the athlete said they no longer want (match their existing list).",
             },
         },
     },
