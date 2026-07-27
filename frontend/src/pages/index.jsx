@@ -4,13 +4,13 @@ import Dashboard from "./Dashboard";
 
 import Calendar from "./Calendar";
 
-import PredefinedWorkouts from "./PredefinedWorkouts";
+import Sessions from "./Sessions";
 
-import CreatePredefinedWorkout from "./CreatePredefinedWorkout";
+import CreateSessionTemplate from "./CreateSessionTemplate";
 
 import TrainNow from "./TrainNow";
 
-import LiveWorkout from "./LiveWorkout";
+import LiveSession from "./LiveSession";
 
 import Exercises from "./Exercises";
 
@@ -48,13 +48,13 @@ const PAGES = {
     
     Calendar: Calendar,
     
-    PredefinedWorkouts: PredefinedWorkouts,
-    
-    CreatePredefinedWorkout: CreatePredefinedWorkout,
-    
+    Sessions: Sessions,
+
+    CreateSessionTemplate: CreateSessionTemplate,
+
     TrainNow: TrainNow,
-    
-    LiveWorkout: LiveWorkout,
+
+    LiveSession: LiveSession,
     
     Exercises: Exercises,
     
@@ -74,6 +74,27 @@ const PAGES = {
 
     Settings: Settings,
 
+}
+
+/**
+ * Permanent legacy page-URL redirects (workout → session rename).
+ *
+ * Page URLs are bookmarkable and get pasted into chats, so unlike the API
+ * routes (hard cutover) these keep working forever. React Router matches
+ * `path` case-insensitively by default, so `/predefinedworkouts` and
+ * `/PredefinedWorkouts` both land here.
+ */
+const LEGACY_PAGE_REDIRECTS = {
+    '/PredefinedWorkouts': '/Sessions',
+    '/CreatePredefinedWorkout': '/CreateSessionTemplate',
+    '/LiveWorkout': '/LiveSession',
+};
+
+// Redirects to `to` while carrying the query string over (LiveWorkout?id=... is
+// still a live entry point into the session hand-off).
+function LegacyRedirect({ to }) {
+    const location = useLocation();
+    return <Navigate to={`${to}${location.search}${location.hash}`} replace />;
 }
 
 function _getCurrentPage(url) {
@@ -122,14 +143,18 @@ function PagesContent() {
                 
                 <Route path="/Calendar" element={<Calendar />} />
                 
-                <Route path="/PredefinedWorkouts" element={<PredefinedWorkouts />} />
-                
-                <Route path="/CreatePredefinedWorkout" element={<CreatePredefinedWorkout />} />
-                
+                <Route path="/Sessions" element={<Sessions />} />
+
+                <Route path="/CreateSessionTemplate" element={<CreateSessionTemplate />} />
+
                 <Route path="/TrainNow" element={<TrainNow />} />
-                
-                <Route path="/LiveWorkout" element={<LiveWorkout />} />
-                
+
+                <Route path="/LiveSession" element={<LiveSession />} />
+
+                {Object.entries(LEGACY_PAGE_REDIRECTS).map(([from, to]) => (
+                    <Route key={from} path={from} element={<LegacyRedirect to={to} />} />
+                ))}
+
                 <Route path="/Exercises" element={<Exercises />} />
                 
                 <Route path="/CreateExercise" element={<CreateExercise />} />

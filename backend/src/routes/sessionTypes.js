@@ -3,31 +3,31 @@ const SessionType = require('../models/SessionType');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
 
-// GET /api/workout-types - Get all workout types with filtering
+// GET /api/v1/session-types - Get all session types with filtering
 router.get('/', async (req, res) => {
   try {
     const { fitnessLevel, goal, timeConstraint } = req.query;
 
-    let workoutTypes;
+    let sessionTypes;
     
     if (fitnessLevel) {
-      workoutTypes = await SessionType.getByFitnessLevel(fitnessLevel);
+      sessionTypes = await SessionType.getByFitnessLevel(fitnessLevel);
     } else if (goal) {
-      workoutTypes = await SessionType.getByGoal(goal);
+      sessionTypes = await SessionType.getByGoal(goal);
     } else if (timeConstraint) {
-      workoutTypes = await SessionType.getByTimeConstraint(timeConstraint);
+      sessionTypes = await SessionType.getByTimeConstraint(timeConstraint);
     } else {
-      workoutTypes = await SessionType.find({ isActive: true })
+      sessionTypes = await SessionType.find({ isActive: true })
         .sort({ displayName: 1 });
     }
 
-    res.json(workoutTypes);
+    res.json(sessionTypes);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET /api/workout-types/recommendations/:userLevel - Get workout type recommendations
+// GET /api/v1/session-types/recommendations/:userLevel - Get session type recommendations
 router.get('/recommendations/:userLevel', async (req, res) => {
   try {
     const { userLevel } = req.params;
@@ -47,29 +47,29 @@ router.get('/recommendations/:userLevel', async (req, res) => {
   }
 });
 
-// GET /api/workout-types/fitness-level/:level - Get workout types by fitness level
+// GET /api/v1/session-types/fitness-level/:level - Get session types by fitness level
 router.get('/fitness-level/:level', async (req, res) => {
   try {
     const { level } = req.params;
-    const workoutTypes = await SessionType.getByFitnessLevel(level);
-    res.json(workoutTypes);
+    const sessionTypes = await SessionType.getByFitnessLevel(level);
+    res.json(sessionTypes);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET /api/workout-types/goal/:goal - Get workout types by goal
+// GET /api/v1/session-types/goal/:goal - Get session types by goal
 router.get('/goal/:goal', async (req, res) => {
   try {
     const { goal } = req.params;
-    const workoutTypes = await SessionType.getByGoal(goal);
-    res.json(workoutTypes);
+    const sessionTypes = await SessionType.getByGoal(goal);
+    res.json(sessionTypes);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET /api/workout-types/stats/goals - Get workout type statistics by goals
+// GET /api/v1/session-types/stats/goals - Get session type statistics by goals
 router.get('/stats/goals', async (req, res) => {
   try {
     const stats = await SessionType.aggregate([
@@ -83,7 +83,7 @@ router.get('/stats/goals', async (req, res) => {
         $group: {
           _id: '$suitableFor.goals',
           count: { $sum: 1 },
-          workoutTypes: {
+          sessionTypes: {
             $push: {
               name: '$name',
               displayName: '$displayName'
@@ -102,7 +102,7 @@ router.get('/stats/goals', async (req, res) => {
   }
 });
 
-// GET /api/workout-types/stats/fitness-levels - Get workout type statistics by fitness levels
+// GET /api/v1/session-types/stats/fitness-levels - Get session type statistics by fitness levels
 router.get('/stats/fitness-levels', async (req, res) => {
   try {
     const stats = await SessionType.aggregate([
@@ -116,7 +116,7 @@ router.get('/stats/fitness-levels', async (req, res) => {
         $group: {
           _id: '$suitableFor.fitnessLevels',
           count: { $sum: 1 },
-          workoutTypes: {
+          sessionTypes: {
             $push: {
               name: '$name',
               displayName: '$displayName',
@@ -136,116 +136,116 @@ router.get('/stats/fitness-levels', async (req, res) => {
   }
 });
 
-// GET /api/workout-types/:id - Get specific workout type
+// GET /api/v1/session-types/:id - Get specific session type
 router.get('/:id', async (req, res) => {
   try {
-    const workoutType = await SessionType.findById(req.params.id);
+    const sessionType = await SessionType.findById(req.params.id);
 
-    if (!workoutType) {
-      return res.status(404).json({ error: 'Workout type not found' });
+    if (!sessionType) {
+      return res.status(404).json({ error: 'Session type not found' });
     }
 
-    res.json(workoutType);
+    res.json(sessionType);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST /api/workout-types - Create new workout type (authenticated, admin only)
+// POST /api/v1/session-types - Create new session type (authenticated, admin only)
 router.post('/', auth, async (req, res) => {
   try {
-    const workoutType = new SessionType(req.body);
-    await workoutType.save();
+    const sessionType = new SessionType(req.body);
+    await sessionType.save();
 
-    res.status(201).json(workoutType);
+    res.status(201).json(sessionType);
   } catch (error) {
     if (error.name === 'ValidationError') {
       return res.status(400).json({ error: error.message });
     }
     if (error.code === 11000) {
-      return res.status(400).json({ error: 'Workout type name already exists' });
+      return res.status(400).json({ error: 'Session type name already exists' });
     }
     res.status(500).json({ error: error.message });
   }
 });
 
-// PUT /api/workout-types/:id - Update workout type (authenticated, admin only)
+// PUT /api/v1/session-types/:id - Update session type (authenticated, admin only)
 router.put('/:id', auth, async (req, res) => {
   try {
-    const workoutType = await SessionType.findByIdAndUpdate(
+    const sessionType = await SessionType.findByIdAndUpdate(
       req.params.id,
       req.body,
       { new: true, runValidators: true }
     );
 
-    if (!workoutType) {
-      return res.status(404).json({ error: 'Workout type not found' });
+    if (!sessionType) {
+      return res.status(404).json({ error: 'Session type not found' });
     }
 
-    res.json(workoutType);
+    res.json(sessionType);
   } catch (error) {
     if (error.name === 'ValidationError') {
       return res.status(400).json({ error: error.message });
     }
     if (error.code === 11000) {
-      return res.status(400).json({ error: 'Workout type name already exists' });
+      return res.status(400).json({ error: 'Session type name already exists' });
     }
     res.status(500).json({ error: error.message });
   }
 });
 
-// DELETE /api/workout-types/:id - Delete workout type (authenticated, admin only)
+// DELETE /api/v1/session-types/:id - Delete session type (authenticated, admin only)
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const workoutType = await SessionType.findByIdAndDelete(req.params.id);
+    const sessionType = await SessionType.findByIdAndDelete(req.params.id);
 
-    if (!workoutType) {
-      return res.status(404).json({ error: 'Workout type not found' });
+    if (!sessionType) {
+      return res.status(404).json({ error: 'Session type not found' });
     }
 
-    res.json({ message: 'Workout type deleted successfully' });
+    res.json({ message: 'Session type deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// PUT /api/workout-types/:id/toggle-active - Toggle workout type active status (authenticated, admin only)
+// PUT /api/v1/session-types/:id/toggle-active - Toggle session type active status (authenticated, admin only)
 router.put('/:id/toggle-active', auth, async (req, res) => {
   try {
-    const workoutType = await SessionType.findById(req.params.id);
+    const sessionType = await SessionType.findById(req.params.id);
 
-    if (!workoutType) {
-      return res.status(404).json({ error: 'Workout type not found' });
+    if (!sessionType) {
+      return res.status(404).json({ error: 'Session type not found' });
     }
 
-    workoutType.isActive = !workoutType.isActive;
-    await workoutType.save();
+    sessionType.isActive = !sessionType.isActive;
+    await sessionType.save();
 
-    res.json(workoutType);
+    res.json(sessionType);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST /api/workout-types/:id/check-suitability - Check if workout type is suitable for user
+// POST /api/v1/session-types/:id/check-suitability - Check if session type is suitable for user
 router.post('/:id/check-suitability', async (req, res) => {
   try {
     const { userLevel, goals = [], timeConstraint } = req.body;
     
-    const workoutType = await SessionType.findById(req.params.id);
+    const sessionType = await SessionType.findById(req.params.id);
 
-    if (!workoutType) {
-      return res.status(404).json({ error: 'Workout type not found' });
+    if (!sessionType) {
+      return res.status(404).json({ error: 'Session type not found' });
     }
 
-    const isSuitable = workoutType.isSuitableFor(userLevel, goals, timeConstraint);
+    const isSuitable = sessionType.isSuitableFor(userLevel, goals, timeConstraint);
 
     res.json({
       suitable: isSuitable,
-      workoutType: {
-        name: workoutType.name,
-        displayName: workoutType.displayName,
-        suitableFor: workoutType.suitableFor
+      sessionType: {
+        name: sessionType.name,
+        displayName: sessionType.displayName,
+        suitableFor: sessionType.suitableFor
       }
     });
   } catch (error) {

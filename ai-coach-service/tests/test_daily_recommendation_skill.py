@@ -25,7 +25,7 @@ def _ctx():
 
 def _doc(name="Bodyweight Core + Mobility"):
     return {
-        "suggestion": {"type": "workout", "name": name, "blocks": []},
+        "suggestion": {"type": "session", "name": name, "blocks": []},
         "generatedAt": datetime(2026, 7, 13, 6, 32),
     }
 
@@ -80,7 +80,7 @@ class TestGetDailyRecommendation:
     @pytest.mark.asyncio
     async def test_generates_when_missing_today(self, monkeypatch, _local_date):
         _mock_recommendation_service(monkeypatch, [None, None, None])
-        generate = AsyncMock(return_value={"success": True, "suggestion": {"type": "workout", "name": "Fresh Pick"}, "cached": False})
+        generate = AsyncMock(return_value={"success": True, "suggestion": {"type": "session", "name": "Fresh Pick"}, "cached": False})
         monkeypatch.setattr(daily_pick_service, "generate_and_persist", generate)
 
         result = await get_daily_recommendation(_ctx(), USER_ID, {})
@@ -97,7 +97,7 @@ class TestGetDailyRecommendation:
     async def test_refresh_bypasses_cache_and_regenerates(self, monkeypatch, _local_date):
         # Cached doc exists, but refresh=True must skip it and regenerate.
         _mock_recommendation_service(monkeypatch, [_doc("Old Pick")] * 3)
-        generate = AsyncMock(return_value={"success": True, "suggestion": {"type": "workout", "name": "New Pick"}, "cached": False})
+        generate = AsyncMock(return_value={"success": True, "suggestion": {"type": "session", "name": "New Pick"}, "cached": False})
         monkeypatch.setattr(daily_pick_service, "generate_and_persist", generate)
 
         result = await get_daily_recommendation(_ctx(), USER_ID, {"refresh": True})
@@ -113,7 +113,7 @@ class TestGetDailyRecommendation:
         # Models routinely pass null for optionals — null must NOT disable
         # generation or trigger refresh.
         _mock_recommendation_service(monkeypatch, [None, None, None])
-        generate = AsyncMock(return_value={"success": True, "suggestion": {"type": "workout", "name": "Fresh Pick"}, "cached": False})
+        generate = AsyncMock(return_value={"success": True, "suggestion": {"type": "session", "name": "Fresh Pick"}, "cached": False})
         monkeypatch.setattr(daily_pick_service, "generate_and_persist", generate)
 
         result = await get_daily_recommendation(

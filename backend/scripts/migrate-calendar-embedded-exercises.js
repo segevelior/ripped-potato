@@ -1,21 +1,25 @@
 #!/usr/bin/env node
 
 /**
- * One-off migration: calendar events only combine a workout with a date —
+ * NOTE: this script must run BEFORE the workout→session migration in its
+ * pre-rename form — this post-rename version targets the new names
+ * (sessiontemplates / sessionTemplateId / sessionDetails / type 'session').
+ *
+ * One-off migration: calendar events only combine a session with a date —
  * they must not embed an exercise list. For every SCHEDULED/IN_PROGRESS
- * workout/deload event that carries both a workoutTemplateId and an embedded
- * workoutDetails.exercises copy, verify the linked template still holds the
+ * session/deload event that carries both a sessionTemplateId and an embedded
+ * sessionDetails.exercises copy, verify the linked template still holds the
  * exercises and $unset the embedded copy.
  *
  * Explicitly NOT touched:
- *  - completed/skipped events — their workoutDetails.exercises are ACTUAL
- *    performed sets (workout-log flow), a historical record;
- *  - events without a workoutTemplateId — run the calendar consistency job
- *    (linkOrphanWorkoutEvents) first so orphans get templates, then re-run;
+ *  - completed/skipped events — their sessionDetails.exercises are ACTUAL
+ *    performed sets (session-log flow), a historical record;
+ *  - events without a sessionTemplateId — run the calendar consistency job
+ *    (linkOrphanSessionEvents) first so orphans get templates, then re-run;
  *  - events whose template is missing or empty — the embedded copy stays as
  *    the only backstop (reported in the summary);
  *  - events whose embedded count differs from the template (pre-fix
- *    update_calendar_workout edits drifted them) — kept unless --force.
+ *    update_calendar_session edits drifted them) — kept unless --force.
  *
  * Usage:
  *   node scripts/migrate-calendar-embedded-exercises.js             # dry run (default)
@@ -42,10 +46,10 @@ async function main() {
   console.log(`Connected. Mode: ${APPLY ? 'APPLY' : 'DRY RUN'}${FORCE ? ' +force' : ''}${USER_ID ? ` user=${USER_ID}` : ''}`);
 
   const query = {
-    type: { $in: ['workout', 'deload'] },
-    workoutTemplateId: { $exists: true, $ne: null },
+    type: { $in: ['session', 'deload'] },
+    sessionTemplateId: { $exists: true, $ne: null },
     status: { $in: ['scheduled', 'in_progress'] },
-    'workoutDetails.exercises.0': { $exists: true }
+    'sessionDetails.exercises.0': { $exists: true }
   };
   if (USER_ID) query.userId = new mongoose.Types.ObjectId(USER_ID);
 
@@ -55,7 +59,7 @@ async function main() {
   const stats = { unset: 0, missingTemplate: 0, emptyTemplate: 0, countMismatch: 0 };
 
   for (const event of events) {
-    const template = await SessionTemplate.findById(event.workoutTemplateId).lean();
+    const template = await SessionTemplate.findById(event.sessionTemplateId).lean();
     const label = `${event._id} "${event.title}" (${new Date(event.date).toISOString().slice(0, 10)})`;
 
     if (!template) {
@@ -71,7 +75,7 @@ async function main() {
       continue;
     }
 
-    const embeddedCount = event.workoutDetails.exercises.length;
+    const embeddedCount = event.sessionDetails.exercises.length;
     if (flattened.length !== embeddedCount && !FORCE) {
       stats.countMismatch++;
       console.log(`  SKIP count mismatch (template ${flattened.length} vs embedded ${embeddedCount}, use --force): ${label}`);
@@ -81,7 +85,7 @@ async function main() {
     if (APPLY) {
       await CalendarEvent.updateOne(
         { _id: event._id },
-        { $unset: { 'workoutDetails.exercises': 1 } }
+        { $unset: { 'sessionDetails.exercises': 1 } }
       );
     }
     stats.unset++;
@@ -93,7 +97,7 @@ async function main() {
   console.log(`  Skipped — template empty: ${stats.emptyTemplate}`);
   console.log(`  Skipped — count mismatch: ${stats.countMismatch}`);
   if (stats.missingTemplate + stats.emptyTemplate > 0) {
-    console.log('  → run the calendar consistency job (linkOrphanWorkoutEvents) and re-check the skipped events.');
+    console.log('  → run the calendar consistency job (linkOrphanSessionEvents) and re-check the skipped events.');
   }
 
   await mongoose.disconnect();

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { WorkoutLog, Plan, UserTrainingPattern } from "@/api/entities";
+import { SessionLog, Plan, UserTrainingPattern } from "@/api/entities";
 import { TrendingUp, AlertTriangle, CheckCircle2, Clock, Target } from "lucide-react";
 import { startOfWeek, endOfWeek, format, parseISO, isAfter, isBefore } from "date-fns";
 
@@ -61,7 +61,7 @@ export default function WeeklyOptimization() {
       
       // Get this week's data
       const [logs, plans, patterns] = await Promise.all([
-        WorkoutLog.list().catch(() => []),
+        SessionLog.list().catch(() => []),
         Plan.active().catch(() => []),
         UserTrainingPattern.list().catch(() => [])
       ]);

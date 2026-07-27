@@ -245,9 +245,9 @@ def materialize_week(
                 notes_lines.append(f"{ex.get('exerciseName', 'Exercise')}: {ex['notes']}")
         workouts.append({
             "dayOfWeek": day,
-            "workoutType": "custom",
+            "sessionType": "custom",
             "notes": "\n".join(notes_lines),
-            "customWorkout": {
+            "customSession": {
                 "title": bp.get("title", "Workout"),
                 "type": bp.get("type", "strength"),
                 "durationMinutes": int(bp.get("durationMinutes", 45) or 45),
@@ -261,7 +261,7 @@ def materialize_week(
         "description": note,
         "deloadWeek": is_deload,
         "restDays": [],
-        "workouts": workouts,
+        "sessions": workouts,
         "resolved": True,
         "resolvedAt": datetime.utcnow(),
     }
@@ -276,7 +276,7 @@ def build_week_stub(skeleton: Dict[str, Any], week_number: int) -> Dict[str, Any
         "description": f"Planned ({intent.get('phase', '')}) — will be finalized from your actual training.",
         "deloadWeek": bool(intent.get("deload")),
         "restDays": [],
-        "workouts": [],
+        "sessions": [],
         "resolved": False,
     }
 
@@ -337,9 +337,9 @@ def week_summary(week: Dict[str, Any]) -> Dict[str, Any]:
         "focus": week.get("focus", ""),
         "deload": bool(week.get("deloadWeek")),
         "resolved": week.get("resolved") is not False,
-        "workoutTitles": [
-            (w.get("customWorkout") or {}).get("title", "Workout")
-            for w in week.get("workouts", []) or []
+        "sessionTitles": [
+            (w.get("customSession") or {}).get("title", "Workout")
+            for w in week.get("sessions", []) or []
         ],
     }
 
@@ -363,7 +363,7 @@ def _exercise_view(ex: Dict[str, Any]) -> Dict[str, Any]:
 def workout_detail(workout: Dict[str, Any]) -> Dict[str, Any]:
     """L3: one workout with its exercises/sets/times/notes."""
     day = workout.get("dayOfWeek")
-    custom = workout.get("customWorkout") or {}
+    custom = workout.get("customSession") or {}
     return {
         "dayOfWeek": day,
         "dayName": DAY_NAMES[day] if isinstance(day, int) and 0 <= day <= 6 else None,
@@ -382,7 +382,7 @@ def week_detail(week: Dict[str, Any]) -> Dict[str, Any]:
         "focus": week.get("focus", ""),
         "deload": bool(week.get("deloadWeek")),
         "resolved": week.get("resolved") is not False,
-        "workouts": [workout_detail(w) for w in week.get("workouts", []) or []],
+        "sessions": [workout_detail(w) for w in week.get("sessions", []) or []],
     }
 
 
@@ -396,13 +396,13 @@ def build_plan_overview(
       - "overview": phases + milestones only (L1)
       - "weeks":    L1 + per-week summaries (L2) — the generate_plan default
       - "week":     L1 + full detail for `week_number` (L3)
-      - "workout":  same as "week" (caller picks the workout to show)
+      - "session":  same as "week" (caller picks the workout to show)
     """
     weeks = weeks or []
     overview = phase_overview(skeleton)
     if level == "overview":
         return overview
-    if level in ("week", "workout"):
+    if level in ("week", "session"):
         target = next((w for w in weeks if w.get("weekNumber") == week_number), None)
         overview["week"] = week_detail(target) if target else None
         return overview

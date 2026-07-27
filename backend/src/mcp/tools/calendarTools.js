@@ -3,9 +3,9 @@ const calendarController = require('../../controllers/calendarController');
 const { runTool } = require('../invoke');
 const { withScope } = require('./util');
 
-const EVENT_TYPES = ['workout', 'rest', 'deload', 'event', 'milestone'];
+const EVENT_TYPES = ['session', 'rest', 'deload', 'event', 'milestone'];
 // Must match the CalendarEvent model enum (default 'scheduled') — NOT the
-// workout statuses.
+// session statuses.
 const EVENT_STATUSES = ['scheduled', 'in_progress', 'completed', 'skipped', 'cancelled'];
 
 /**
@@ -31,14 +31,14 @@ function register(server, ctx) {
 
   server.registerTool('create_calendar_event', {
     title: 'Create calendar event',
-    description: 'Add an event to the training calendar (a workout, rest day, deload, etc.).',
+    description: 'Add an event to the training calendar (a session, rest day, deload, etc.).',
     inputSchema: {
       date: z.string().describe('ISO date/datetime for the event'),
       title: z.string().min(1),
       type: z.enum(EVENT_TYPES),
       status: z.enum(EVENT_STATUSES).optional(),
       notes: z.string().optional(),
-      workoutTemplateId: z.string().length(24).optional().describe('Optional predefined-workout template id to attach')
+      sessionTemplateId: z.string().length(24).optional().describe('Optional session-template id to attach')
     }
   }, withScope(scopes, WRITE, (args) =>
     runTool(calendarController.createEvent, { user, body: args })

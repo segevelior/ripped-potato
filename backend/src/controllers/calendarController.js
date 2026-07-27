@@ -35,9 +35,9 @@ const getEvents = async (req, res) => {
       events = events.filter(e => e.status === status);
     }
 
-    // Populate workoutLogId for additional data
+    // Populate sessionLogId for additional data
     await CalendarEvent.populate(events, {
-      path: 'workoutLogId',
+      path: 'sessionLogId',
       select: 'actualDuration completedAt'
     });
 
@@ -61,8 +61,8 @@ const getEvent = async (req, res) => {
       _id: req.params.id,
       userId: req.user._id
     })
-    .populate('workoutTemplateId')
-    .populate('workoutLogId');
+    .populate('sessionTemplateId')
+    .populate('sessionLogId');
 
     if (!event) {
       return res.status(404).json({
@@ -102,35 +102,35 @@ const createEvent = async (req, res) => {
     };
 
     // Events only reference workouts — exercises live on the template.
-    if (req.body.workoutTemplateId) {
-      const template = await SessionTemplate.findById(req.body.workoutTemplateId);
+    if (req.body.sessionTemplateId) {
+      const template = await SessionTemplate.findById(req.body.sessionTemplateId);
       if (template) {
         eventData.title = eventData.title || template.name;
-        eventData.workoutDetails = {
-          ...(eventData.workoutDetails || {}),
-          type: template.primary_disciplines?.[0]?.toLowerCase() || 'strength',
+        eventData.sessionDetails = {
+          ...(eventData.sessionDetails || {}),
+          discipline: template.primary_disciplines?.[0]?.toLowerCase() || 'strength',
           estimatedDuration: template.estimated_duration
         };
       }
-    } else if (['workout', 'deload'].includes(eventData.type) && eventData.status !== 'completed') {
+    } else if (['session', 'deload'].includes(eventData.type) && eventData.status !== 'completed') {
       // Bare-exercises payload (chat flow, custom builds, legacy clients):
       // materialize a library template so the event can link it. Completed
       // events are historical records of performed sets and keep theirs.
       const templateId = await ensureTemplateForCustomEvent(req.user._id, eventData);
-      if (templateId) eventData.workoutTemplateId = templateId;
+      if (templateId) eventData.sessionTemplateId = templateId;
     }
 
     // Scheduled events never persist an embedded exercise list, whatever the
     // client sent. Completed events keep actual performed sets (workout-log flow).
-    if (eventData.status !== 'completed' && eventData.workoutDetails?.exercises) {
-      delete eventData.workoutDetails.exercises;
+    if (eventData.status !== 'completed' && eventData.sessionDetails?.exercises) {
+      delete eventData.sessionDetails.exercises;
     }
 
     const event = new CalendarEvent(eventData);
     await event.save();
 
     // Populate for response
-    await event.populate('workoutTemplateId', 'name goal primary_disciplines estimated_duration');
+    await event.populate('sessionTemplateId', 'name goal primary_disciplines estimated_duration');
 
     res.status(201).json({
       success: true,
@@ -163,15 +163,15 @@ const updateEvent = async (req, res) => {
     // Exercises never land on the event. If a client edits a workout's
     // exercise list, the edit goes to the linked template — copy-on-write
     // when the template is shared (common / other events reference it).
-    const incomingExercises = updateData.workoutDetails?.exercises;
+    const incomingExercises = updateData.sessionDetails?.exercises;
     if (incomingExercises) {
-      updateData.workoutDetails = { ...updateData.workoutDetails };
-      delete updateData.workoutDetails.exercises;
+      updateData.sessionDetails = { ...updateData.sessionDetails };
+      delete updateData.sessionDetails.exercises;
 
       const existing = await CalendarEvent.findOne({ _id: req.params.id, userId: req.user._id });
-      if (existing && ['workout', 'deload'].includes(existing.type) && existing.status !== 'completed') {
+      if (existing && ['session', 'deload'].includes(existing.type) && existing.status !== 'completed') {
         const templateId = await applyExercisesCopyOnWrite(req.user._id, existing, incomingExercises);
-        if (templateId) updateData.workoutTemplateId = templateId;
+        if (templateId) updateData.sessionTemplateId = templateId;
       }
     }
 
@@ -180,7 +180,7 @@ const updateEvent = async (req, res) => {
       { _id: req.params.id, userId: req.user._id },
       updateData,
       { new: true, runValidators: true }
-    ).populate('workoutTemplateId', 'name goal primary_disciplines estimated_duration');
+    ).populate('sessionTemplateId', 'name goal primary_disciplines estimated_duration');
 
     if (!updatedEvent) {
       return res.status(404).json({
@@ -247,7 +247,7 @@ const moveEvent = async (req, res) => {
       { _id: req.params.id, userId: req.user._id },
       { date: new Date(newDate) },
       { new: true }
-    ).populate('workoutTemplateId', 'name goal primary_disciplines estimated_duration');
+    ).populate('sessionTemplateId', 'name goal primary_disciplines estimated_duration');
 
     if (!event) {
       return res.status(404).json({
@@ -276,8 +276,8 @@ const startSession = async (req, res) => {
     const event = await CalendarEvent.findOne({
       _id: req.params.id,
       userId: req.user._id,
-      type: 'workout'
-    }).populate('workoutTemplateId');
+      type: 'session'
+    }).populate('sessionTemplateId');
 
     if (!event) {
       return res.status(404).json({
@@ -286,22 +286,22 @@ const startSession = async (req, res) => {
       });
     }
 
-    // Update event status (will save after linking workoutLogId to avoid double save)
+    // Update event status (will save after linking sessionLogId to avoid double save)
     event.status = 'in_progress';
 
     // The linked template is the source of truth for exercises; the embedded
     // list is a legacy fallback for unmigrated/orphan events.
-    const templateExercises = flattenTemplateExercises(event.workoutTemplateId);
+    const templateExercises = flattenTemplateExercises(event.sessionTemplateId);
     const plannedExercises = templateExercises.length
       ? templateExercises
-      : event.workoutDetails?.exercises || [];
+      : event.sessionDetails?.exercises || [];
 
     // Create a workout log entry
-    const workoutLog = new SessionLog({
+    const sessionLog = new SessionLog({
       userId: req.user._id,
       calendarEventId: event._id,
       title: event.title,
-      type: event.workoutDetails?.type || 'strength',
+      discipline: event.sessionDetails?.discipline || 'strength',
       startedAt: new Date(),
       exercises: plannedExercises.map((ex, i) => ({
         exerciseId: ex.exerciseId,
@@ -317,10 +317,10 @@ const startSession = async (req, res) => {
       }))
     });
 
-    await workoutLog.save();
+    await sessionLog.save();
 
-    // Link log to event and save (single save for both status and workoutLogId)
-    event.workoutLogId = workoutLog._id;
+    // Link log to event and save (single save for both status and sessionLogId)
+    event.sessionLogId = sessionLog._id;
     await event.save();
 
     res.json({
@@ -328,7 +328,7 @@ const startSession = async (req, res) => {
       message: 'Workout started',
       data: {
         event,
-        workoutLog
+        sessionLog
       }
     });
   } catch (error) {
@@ -346,7 +346,7 @@ const completeSession = async (req, res) => {
     const event = await CalendarEvent.findOne({
       _id: req.params.id,
       userId: req.user._id,
-      type: 'workout'
+      type: 'session'
     });
 
     if (!event) {
@@ -361,27 +361,27 @@ const completeSession = async (req, res) => {
     await event.save();
 
     // Update workout log if exists
-    if (event.workoutLogId) {
-      const workoutLog = await SessionLog.findById(event.workoutLogId);
-      if (workoutLog) {
-        workoutLog.completedAt = new Date();
-        workoutLog.actualDuration = Math.round((new Date() - workoutLog.startedAt) / 60000); // minutes
+    if (event.sessionLogId) {
+      const sessionLog = await SessionLog.findById(event.sessionLogId);
+      if (sessionLog) {
+        sessionLog.completedAt = new Date();
+        sessionLog.actualDuration = Math.round((new Date() - sessionLog.startedAt) / 60000); // minutes
 
         // Merge any additional data from request
         if (req.body.exercises) {
-          workoutLog.exercises = req.body.exercises;
+          sessionLog.exercises = req.body.exercises;
         }
         if (req.body.perceivedDifficulty) {
-          workoutLog.perceivedDifficulty = req.body.perceivedDifficulty;
+          sessionLog.perceivedDifficulty = req.body.perceivedDifficulty;
         }
         if (req.body.mood) {
-          workoutLog.mood = req.body.mood;
+          sessionLog.mood = req.body.mood;
         }
         if (req.body.notes) {
-          workoutLog.notes = req.body.notes;
+          sessionLog.notes = req.body.notes;
         }
 
-        await workoutLog.save();
+        await sessionLog.save();
       }
     }
 
@@ -408,7 +408,7 @@ const skipSession = async (req, res) => {
     const event = await CalendarEvent.findOne({
       _id: req.params.id,
       userId: req.user._id,
-      type: 'workout'
+      type: 'session'
     });
 
     if (!event) {

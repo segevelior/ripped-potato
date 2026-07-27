@@ -34,8 +34,8 @@ const STARTERS = [
  */
 export default function MiniCoachChat({
   exercise,
-  workoutTitle,
-  sourceWorkoutId,
+  sessionTitle,
+  sourceTemplateId,
   exercises,
   elapsedMinutes,
   conversationId,
@@ -117,8 +117,8 @@ export default function MiniCoachChat({
       ? typed
       : buildExerciseSwapMessage({
           exercise,
-          workoutTitle,
-          sourceWorkoutId,
+          sessionTitle,
+          sourceTemplateId,
           exercises,
           elapsedMinutes,
           text: typed,
@@ -144,7 +144,7 @@ export default function MiniCoachChat({
       setInput(typed);
       setError("Couldn't reach the Sensei. Check your connection and try again.");
     }
-  }, [isStreaming, authToken, exercise, workoutTitle, sourceWorkoutId, exercises, elapsedMinutes, sendStreamingMessage, onConversationId]);
+  }, [isStreaming, authToken, exercise, sessionTitle, sourceTemplateId, exercises, elapsedMinutes, sendStreamingMessage, onConversationId]);
 
   const openInSensei = () => {
     if (!convIdRef.current) return;

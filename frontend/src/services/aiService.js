@@ -317,14 +317,14 @@ class AIService {
   }
 
   /**
-   * Get today's workout suggestion from the server.
+   * Get today's session suggestion from the server.
    * The AI service persists one recommendation per user per day (MongoDB,
    * 30-day TTL), so after the first generation of the day this is a fast
    * read — and every surface (Dashboard, TrainNow) sees the SAME suggestion.
    * @param {boolean} refresh - force a fresh generation (replaces today's doc)
    * @returns {Promise<{suggestion: Object, source: string, cached?: boolean}|null>}
    */
-  async getTodayWorkout(refresh = false) {
+  async getTodaySession(refresh = false) {
     const token = this.getAuthToken();
     if (!token) return null;
 
@@ -340,7 +340,7 @@ class AIService {
       }
       return null;
     } catch (error) {
-      console.error('Error fetching today workout:', error);
+      console.error('Error fetching today session:', error);
       return null;
     }
   }
@@ -454,6 +454,8 @@ class AIService {
 
 // One-time cleanup: the suggestion is now persisted server-side (MongoDB),
 // remove the legacy localStorage cache left behind by older versions.
+// The key literal below is deliberately the OLD 'workout' spelling — it is the
+// key older bundles actually wrote. Renaming it would break the cleanup.
 try {
   localStorage.removeItem('todayWorkoutSuggestion');
 } catch {

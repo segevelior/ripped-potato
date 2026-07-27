@@ -31,7 +31,7 @@ class PlanService:
                 "focus": week_data.get("focus", ""),
                 "description": week_data.get("description", ""),
                 "deloadWeek": week_data.get("deloadWeek", False),
-                "workouts": [],
+                "sessions": [],
                 "restDays": []
             }
             # Rolling-materialization flags: only set when the caller provides
@@ -41,22 +41,22 @@ class PlanService:
                 if week_data.get("resolvedAt"):
                     week["resolvedAt"] = week_data["resolvedAt"]
 
-            for workout in week_data.get("workouts", []):
+            for workout in week_data.get("sessions", []):
                 weekly_workout = {
                     "_id": ObjectId(),
                     "dayOfWeek": workout.get("dayOfWeek", 1),
-                    "workoutType": workout.get("workoutType", "custom"),
+                    "sessionType": workout.get("sessionType", "custom"),
                     "notes": workout.get("notes", ""),
                     "isOptional": workout.get("isOptional", False)
                 }
 
-                if workout.get("workoutType") == "predefined" and workout.get("predefinedWorkoutId"):
+                if workout.get("sessionType") == "predefined" and workout.get("sessionTemplateId"):
                     try:
-                        weekly_workout["predefinedWorkoutId"] = ObjectId(workout["predefinedWorkoutId"])
+                        weekly_workout["sessionTemplateId"] = ObjectId(workout["sessionTemplateId"])
                     except Exception:
                         pass
-                elif workout.get("customWorkout"):
-                    custom = workout["customWorkout"]
+                elif workout.get("customSession"):
+                    custom = workout["customSession"]
                     exercises = []
                     for ex in custom.get("exercises", []):
                         ex_doc = {
@@ -66,14 +66,14 @@ class PlanService:
                         if ex.get("notes"):
                             ex_doc["notes"] = ex["notes"]
                         exercises.append(ex_doc)
-                    weekly_workout["customWorkout"] = {
+                    weekly_workout["customSession"] = {
                         "title": custom.get("title", ""),
                         "type": custom.get("type", "strength"),
                         "durationMinutes": custom.get("durationMinutes", 45),
                         "exercises": exercises
                     }
 
-                week["workouts"].append(weekly_workout)
+                week["sessions"].append(weekly_workout)
 
             weeks.append(week)
         return weeks
@@ -92,16 +92,16 @@ class PlanService:
                 "status": "draft",
                 "schedule": {
                     "weeksTotal": schedule.get("weeksTotal", 4),
-                    "workoutsPerWeek": schedule.get("workoutsPerWeek", 3),
+                    "sessionsPerWeek": schedule.get("sessionsPerWeek", 3),
                     "restDays": schedule.get("restDays", [0, 6]),
-                    "preferredWorkoutDays": schedule.get("preferredWorkoutDays", [1, 3, 5])
+                    "preferredSessionDays": schedule.get("preferredSessionDays", [1, 3, 5])
                 },
                 "weeks": weeks,
                 "progress": {
                     "currentWeek": 1,
-                    "completedWorkouts": 0,
-                    "totalWorkouts": sum(len(w.get("workouts", [])) for w in weeks),
-                    "skippedWorkouts": 0,
+                    "completedSessions": 0,
+                    "totalSessions": sum(len(w.get("sessions", [])) for w in weeks),
+                    "skippedSessions": 0,
                     "adherencePercentage": 0
                 },
                 "settings": args.get("settings", {
@@ -134,7 +134,7 @@ class PlanService:
                 logger.info(f"Created plan '{args['name']}' for user {user_id}")
                 return {
                     "success": True,
-                    "message": f"Created plan '{args['name']}' ({schedule.get('weeksTotal', 4)} weeks, {schedule.get('workoutsPerWeek', 3)} workouts/week)!",
+                    "message": f"Created plan '{args['name']}' ({schedule.get('weeksTotal', 4)} weeks, {schedule.get('sessionsPerWeek', 3)} workouts/week)!",
                     "plan_id": str(result.inserted_id)
                 }
             else:
@@ -161,9 +161,9 @@ class PlanService:
         set_doc: Dict[str, Any] = {
             "weeks": weeks,
             "updatedAt": datetime.utcnow(),
-            "progress.totalWorkouts": sum(len(w.get("workouts", []) or []) for w in weeks),
+            "progress.totalSessions": sum(len(w.get("sessions", []) or []) for w in weeks),
             "progress.currentWeek": 1,
-            "progress.completedWorkouts": 0,
+            "progress.completedSessions": 0,
         }
         if args.get("name"):
             set_doc["name"] = args["name"]
@@ -208,7 +208,7 @@ class PlanService:
                     "description": p.get("description", ""),
                     "status": p.get("status"),
                     "weeks_total": p.get("schedule", {}).get("weeksTotal"),
-                    "workouts_per_week": p.get("schedule", {}).get("workoutsPerWeek"),
+                    "workouts_per_week": p.get("schedule", {}).get("sessionsPerWeek"),
                     "current_week": p.get("progress", {}).get("currentWeek"),
                     "adherence": p.get("progress", {}).get("adherencePercentage"),
                     "start_date": p["startDate"].isoformat() if p.get("startDate") else None
@@ -254,7 +254,7 @@ class PlanService:
 
             if "schedule" in args and isinstance(args["schedule"], dict):
                 schedule_updates = {}
-                for key in ["weeksTotal", "workoutsPerWeek", "restDays", "preferredWorkoutDays"]:
+                for key in ["weeksTotal", "sessionsPerWeek", "restDays", "preferredSessionDays"]:
                     if key in args["schedule"] and args["schedule"][key] is not None:
                         schedule_updates[key] = args["schedule"][key]
                 if schedule_updates:
@@ -278,10 +278,10 @@ class PlanService:
             logger.error(f"Error updating plan: {e}")
             return {"success": False, "message": str(e)}
 
-    async def add_plan_workout(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def add_plan_session(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Add a weekly workout to a specific week in a user's plan"""
         try:
-            required = ["plan_id", "weekNumber", "dayOfWeek", "workoutType"]
+            required = ["plan_id", "weekNumber", "dayOfWeek", "sessionType"]
             for r in required:
                 if r not in args:
                     return {"success": False, "message": f"Missing required parameter: {r}"}
@@ -289,7 +289,7 @@ class PlanService:
             plan_id = args["plan_id"]
             week_number = int(args["weekNumber"])
             day_of_week = int(args["dayOfWeek"])
-            workout_type = args["workoutType"]
+            workout_type = args["sessionType"]
 
             # Load plan and verify ownership
             plan = await self.db.plans.find_one({"_id": ObjectId(plan_id), "userId": ObjectId(user_id)})
@@ -304,29 +304,29 @@ class PlanService:
                 target_week = {
                     "_id": ObjectId(),
                     "weekNumber": week_number,
-                    "workouts": [],
+                    "sessions": [],
                     "restDays": [],
                     "deloadWeek": False
                 }
                 weeks.append(target_week)
 
-            workouts = target_week.get("workouts", []) or []
+            workouts = target_week.get("sessions", []) or []
 
             weekly_workout: Dict[str, Any] = {
                 "_id": ObjectId(),
                 "dayOfWeek": day_of_week,
-                "workoutType": workout_type,
+                "sessionType": workout_type,
                 "notes": args.get("notes"),
                 "isOptional": bool(args.get("isOptional", False))
             }
 
             if workout_type == "predefined":
-                predefined_id = args.get("predefinedWorkoutId")
+                predefined_id = args.get("sessionTemplateId")
                 if not predefined_id:
-                    return {"success": False, "message": "predefinedWorkoutId is required for workoutType 'predefined'"}
-                weekly_workout["predefinedWorkoutId"] = ObjectId(predefined_id)
+                    return {"success": False, "message": "sessionTemplateId is required for sessionType 'predefined'"}
+                weekly_workout["sessionTemplateId"] = ObjectId(predefined_id)
             elif workout_type == "custom":
-                custom = args.get("customWorkout") or {}
+                custom = args.get("customSession") or {}
                 # Normalize nested exercises ObjectId fields if present
                 exercises = custom.get("exercises", [])
                 normalized_exercises = []
@@ -341,18 +341,18 @@ class PlanService:
                         # Never persist an explicit null id — the field is optional.
                         ex_copy.pop("exerciseId", None)
                     normalized_exercises.append(ex_copy)
-                weekly_workout["customWorkout"] = {
+                weekly_workout["customSession"] = {
                     "title": custom.get("title"),
                     "type": custom.get("type"),
                     "durationMinutes": custom.get("durationMinutes"),
                     "exercises": normalized_exercises
                 }
             else:
-                return {"success": False, "message": "Invalid workoutType. Expected 'predefined' or 'custom'"}
+                return {"success": False, "message": "Invalid sessionType. Expected 'predefined' or 'custom'"}
 
             # Append and persist
             workouts.append(weekly_workout)
-            target_week["workouts"] = workouts
+            target_week["sessions"] = workouts
 
             # Replace/merge week back into weeks array
             for i, w in enumerate(weeks):
@@ -378,13 +378,13 @@ class PlanService:
             logger.error(f"Error adding plan workout: {e}")
             return {"success": False, "message": str(e)}
 
-    async def remove_plan_workout(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def remove_plan_session(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Remove a weekly workout from a specific week in a user's plan"""
         try:
             plan_id = args.get("plan_id")
             week_number = args.get("weekNumber")
-            weekly_workout_id = args.get("weeklyWorkoutId")
-            workout_index = args.get("workoutIndex")
+            weekly_workout_id = args.get("weeklySessionId")
+            workout_index = args.get("sessionIndex")
 
             if not plan_id or not week_number:
                 return {"success": False, "message": "Missing required parameters: plan_id, weekNumber"}
@@ -399,7 +399,7 @@ class PlanService:
             if not target_week:
                 return {"success": False, "message": "Week not found in plan"}
 
-            workouts = target_week.get("workouts", []) or []
+            workouts = target_week.get("sessions", []) or []
 
             removed = False
             if weekly_workout_id:
@@ -415,12 +415,12 @@ class PlanService:
                 except Exception:
                     pass
             else:
-                return {"success": False, "message": "Provide either weeklyWorkoutId or workoutIndex"}
+                return {"success": False, "message": "Provide either weeklySessionId or sessionIndex"}
 
             if not removed:
                 return {"success": False, "message": "No matching workout found to remove"}
 
-            target_week["workouts"] = workouts
+            target_week["sessions"] = workouts
             for i, w in enumerate(weeks):
                 if w.get("weekNumber") == int(week_number):
                     weeks[i] = target_week

@@ -11,22 +11,22 @@ const {
   validateSessionLog
 } = require('../controllers/sessionLogController');
 
-// @route   GET /api/v1/workout-logs
+// @route   GET /api/v1/session-logs
 router.get('/', auth, getSessionLogs);
 
-// @route   GET /api/v1/workout-logs/stats
+// @route   GET /api/v1/session-logs/stats
 router.get('/stats', auth, getSessionLogStats);
 
-// @route   GET /api/v1/workout-logs/:id
+// @route   GET /api/v1/session-logs/:id
 router.get('/:id', auth, getSessionLog);
 
-// @route   POST /api/v1/workout-logs
+// @route   POST /api/v1/session-logs
 router.post('/', auth, validateSessionLog, createSessionLog);
 
-// @route   PUT /api/v1/workout-logs/:id
+// @route   PUT /api/v1/session-logs/:id
 router.put('/:id', auth, updateSessionLog);
 
-// @route   DELETE /api/v1/workout-logs/:id
+// @route   DELETE /api/v1/session-logs/:id
 router.delete('/:id', auth, deleteSessionLog);
 
 module.exports = router;

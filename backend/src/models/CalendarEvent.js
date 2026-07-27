@@ -19,8 +19,8 @@ const calendarEventSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['workout', 'rest', 'deload', 'event', 'milestone'],
-    default: 'workout'
+    enum: ['session', 'rest', 'deload', 'event', 'milestone'],
+    default: 'session'
   },
   status: {
     type: String,
@@ -28,23 +28,23 @@ const calendarEventSchema = new mongoose.Schema({
     default: 'scheduled',
     index: true
   },
-  // For workout events - reference to template
-  workoutTemplateId: {
+  // For session events - reference to template
+  sessionTemplateId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'SessionTemplate'
   },
   // Display metadata for the event. Scheduled events must NOT embed
-  // exercises — the linked workoutTemplateId is the source of truth
+  // exercises — the linked sessionTemplateId is the source of truth
   // (see templateMaterializer / migrate-calendar-embedded-exercises).
   // The exercises path stays in the schema for two reasons: completed
-  // events store ACTUAL performed sets here (workout-log flow), and
+  // events store ACTUAL performed sets here (session-log flow), and
   // legacy unmigrated events still hydrate their embedded copy.
   // NOTE: ai-coach-service (Python) writes this collection too — keep
   // its event shape (calendar_service.py, schedule_plan_skill.py) in sync.
-  workoutDetails: {
-    type: {
+  sessionDetails: {
+    discipline: {
       type: String
-      // No enum restriction - allow any workout type
+      // No enum restriction - allow any discipline
     },
     estimatedDuration: Number, // in minutes
     durationMinutes: Number, // actual duration after completion
@@ -58,7 +58,7 @@ const calendarEventSchema = new mongoose.Schema({
       targetReps: Number,
       targetWeight: Number,
       notes: String,
-      // Actual workout data (populated after completion)
+      // Actual session data (populated after completion)
       sets: [{
         weight: Number,
         actualReps: Number,
@@ -68,8 +68,8 @@ const calendarEventSchema = new mongoose.Schema({
     }]
   },
   completedAt: Date,
-  // Link to workout log after completion (from TrainNow)
-  workoutLogId: {
+  // Link to session log after completion (from TrainNow)
+  sessionLogId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'SessionLog'
   },
@@ -124,7 +124,7 @@ calendarEventSchema.statics.getByDateRange = function(userId, startDate, endDate
   // blocks included: events don't embed exercises, so range consumers
   // (calendar page, detail modal, MCP list) read them off the template.
   // isCommon included so session launches know a permanent swap will clone.
-  .populate('workoutTemplateId', 'name goal primary_disciplines estimated_duration blocks isCommon');
+  .populate('sessionTemplateId', 'name goal primary_disciplines estimated_duration blocks isCommon');
 };
 
 // Static method to get today's events
@@ -142,7 +142,7 @@ calendarEventSchema.statics.getToday = function(userId) {
       $lte: endOfDay
     },
     status: { $ne: 'cancelled' }
-  }).populate('workoutTemplateId', 'name goal primary_disciplines estimated_duration blocks isCommon');
+  }).populate('sessionTemplateId', 'name goal primary_disciplines estimated_duration blocks isCommon');
 };
 
 module.exports = mongoose.model('CalendarEvent', calendarEventSchema);

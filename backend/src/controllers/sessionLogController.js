@@ -43,15 +43,15 @@ const resolveExerciseId = async (exerciseId, exerciseName) => {
   return null;
 };
 
-// Validation for creating workout log
+// Validation for creating session log
 const validateSessionLog = [
   body('title')
     .trim()
     .isLength({ min: 1, max: 100 })
     .withMessage('Title must be between 1 and 100 characters'),
-  body('type')
+  body('discipline')
     .notEmpty()
-    .withMessage('Workout type is required'),
+    .withMessage('Session discipline is required'),
   body('startedAt')
     .isISO8601()
     .withMessage('Please provide a valid start time'),
@@ -60,14 +60,14 @@ const validateSessionLog = [
     .withMessage('Exercises must be an array')
 ];
 
-// @desc    Get user's workout logs
+// @desc    Get user's session logs
 const getSessionLogs = async (req, res) => {
   try {
-    const { days = 30, type, limit = 20 } = req.query;
+    const { days = 30, discipline, limit = 20 } = req.query;
 
     const logs = await SessionLog.getHistory(req.user._id, {
       days: parseInt(days),
-      type,
+      discipline,
       limit: parseInt(limit)
     });
 
@@ -76,15 +76,15 @@ const getSessionLogs = async (req, res) => {
       data: { logs }
     });
   } catch (error) {
-    console.error('Get workout logs error:', error);
+    console.error('Get session logs error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error getting workout logs'
+      message: 'Server error getting session logs'
     });
   }
 };
 
-// @desc    Get user workout statistics
+// @desc    Get user session statistics
 const getSessionLogStats = async (req, res) => {
   try {
     const { days = 30 } = req.query;
@@ -95,15 +95,15 @@ const getSessionLogStats = async (req, res) => {
       data: { stats }
     });
   } catch (error) {
-    console.error('Get workout stats error:', error);
+    console.error('Get session stats error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error getting workout stats'
+      message: 'Server error getting session stats'
     });
   }
 };
 
-// @desc    Get single workout log
+// @desc    Get single session log
 const getSessionLog = async (req, res) => {
   try {
     const log = await SessionLog.findOne({
@@ -114,7 +114,7 @@ const getSessionLog = async (req, res) => {
     if (!log) {
       return res.status(404).json({
         success: false,
-        message: 'Workout log not found'
+        message: 'Session log not found'
       });
     }
 
@@ -123,15 +123,15 @@ const getSessionLog = async (req, res) => {
       data: { log }
     });
   } catch (error) {
-    console.error('Get workout log error:', error);
+    console.error('Get session log error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error getting workout log'
+      message: 'Server error getting session log'
     });
   }
 };
 
-// @desc    Create workout log (TrainNow completion, MCP create tool)
+// @desc    Create session log (TrainNow completion, MCP create tool)
 const createSessionLog = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -145,7 +145,7 @@ const createSessionLog = async (req, res) => {
 
     const {
       title,
-      type,
+      discipline,
       startedAt,
       completedAt,
       actualDuration,
@@ -170,10 +170,10 @@ const createSessionLog = async (req, res) => {
       })
     );
 
-    const workoutLog = new SessionLog({
+    const sessionLog = new SessionLog({
       userId: req.user._id,
       title,
-      type: type.toLowerCase(),
+      discipline: discipline.toLowerCase(),
       startedAt: new Date(startedAt),
       completedAt: completedAt ? new Date(completedAt) : new Date(),
       actualDuration: actualDuration || Math.round((new Date(completedAt || Date.now()) - new Date(startedAt)) / 60000),
@@ -183,21 +183,21 @@ const createSessionLog = async (req, res) => {
       notes
     });
 
-    await workoutLog.save();
+    await sessionLog.save();
 
-    // Create a calendar event to show this workout on the calendar
+    // Create a calendar event to show this session on the calendar
     let calendarEvent = null;
     if (createCalendarEvent) {
       calendarEvent = new CalendarEvent({
         userId: req.user._id,
         date: new Date(startedAt),
         title,
-        type: 'workout',
+        type: 'session',
         status: 'completed',
-        workoutLogId: workoutLog._id,
-        workoutDetails: {
-          type: type.toLowerCase(),
-          durationMinutes: workoutLog.actualDuration,
+        sessionLogId: sessionLog._id,
+        sessionDetails: {
+          discipline: discipline.toLowerCase(),
+          durationMinutes: sessionLog.actualDuration,
           exercises: resolvedExercises.map(ex => ({
             exerciseId: ex.exerciseId, // Already resolved
             exerciseName: ex.exerciseName,
@@ -206,34 +206,34 @@ const createSessionLog = async (req, res) => {
           mood,
           feedback: notes
         },
-        completedAt: workoutLog.completedAt
+        completedAt: sessionLog.completedAt
       });
 
       await calendarEvent.save();
 
-      // Link the calendar event back to the workout log
-      workoutLog.calendarEventId = calendarEvent._id;
-      await workoutLog.save();
+      // Link the calendar event back to the session log
+      sessionLog.calendarEventId = calendarEvent._id;
+      await sessionLog.save();
     }
 
     res.status(201).json({
       success: true,
-      message: 'Workout logged successfully',
+      message: 'Session logged successfully',
       data: {
-        log: workoutLog,
+        log: sessionLog,
         calendarEvent
       }
     });
   } catch (error) {
-    console.error('Create workout log error:', error);
+    console.error('Create session log error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error creating workout log'
+      message: 'Server error creating session log'
     });
   }
 };
 
-// @desc    Update workout log (partial)
+// @desc    Update session log (partial)
 const updateSessionLog = async (req, res) => {
   try {
     const log = await SessionLog.findOneAndUpdate(
@@ -245,25 +245,25 @@ const updateSessionLog = async (req, res) => {
     if (!log) {
       return res.status(404).json({
         success: false,
-        message: 'Workout log not found'
+        message: 'Session log not found'
       });
     }
 
     res.json({
       success: true,
-      message: 'Workout log updated',
+      message: 'Session log updated',
       data: { log }
     });
   } catch (error) {
-    console.error('Update workout log error:', error);
+    console.error('Update session log error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error updating workout log'
+      message: 'Server error updating session log'
     });
   }
 };
 
-// @desc    Delete workout log (cascades its calendar event)
+// @desc    Delete session log (cascades its calendar event)
 const deleteSessionLog = async (req, res) => {
   try {
     const log = await SessionLog.findOneAndDelete({
@@ -274,7 +274,7 @@ const deleteSessionLog = async (req, res) => {
     if (!log) {
       return res.status(404).json({
         success: false,
-        message: 'Workout log not found'
+        message: 'Session log not found'
       });
     }
 
@@ -284,13 +284,13 @@ const deleteSessionLog = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Workout log deleted'
+      message: 'Session log deleted'
     });
   } catch (error) {
-    console.error('Delete workout log error:', error);
+    console.error('Delete session log error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error deleting workout log'
+      message: 'Server error deleting session log'
     });
   }
 };

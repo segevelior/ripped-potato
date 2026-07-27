@@ -1,5 +1,5 @@
 """
-Tests for schedule_to_calendar's reuse-first rule: inline workoutDetails whose
+Tests for schedule_to_calendar's reuse-first rule: inline sessionDetails whose
 content exactly matches an existing library workout LINK that workout instead
 of inserting a per-date duplicate. Only adjusted content creates a template —
 and the one it creates has a stable, un-dated name.
@@ -57,8 +57,8 @@ class FakeCursor:
 def _service(library=(LIBRARY_TEMPLATE,), existing_events=()):
     db = MagicMock()
     db.users.find_one = AsyncMock(return_value=None)  # get_user_today -> UTC
-    db.predefinedworkouts.find = MagicMock(return_value=FakeCursor(library))
-    db.predefinedworkouts.insert_one = AsyncMock(
+    db.sessiontemplates.find = MagicMock(return_value=FakeCursor(library))
+    db.sessiontemplates.insert_one = AsyncMock(
         return_value=MagicMock(inserted_id=ObjectId())
     )
     db.calendarevents.find = MagicMock(return_value=FakeCursor(existing_events))
@@ -91,8 +91,8 @@ def resolver(monkeypatch):
 
 
 def _schedule_args(**overrides):
-    args = {"date": "2026-07-20", "type": "workout", "title": "Push Day",
-            "workoutDetails": MATCHING_DETAILS}
+    args = {"date": "2026-07-20", "type": "session", "title": "Push Day",
+            "sessionDetails": MATCHING_DETAILS}
     args.update(overrides)
     return args
 
@@ -104,12 +104,12 @@ class TestReuseFirstWrite:
             USER_ID, _schedule_args(dry_run=False)
         )
         assert res["success"] is True
-        assert res["workout_template_id"] == str(TEMPLATE_ID)
+        assert res["session_template_id"] == str(TEMPLATE_ID)
         assert "no duplicate" in res["message"]
-        db.predefinedworkouts.insert_one.assert_not_called()
+        db.sessiontemplates.insert_one.assert_not_called()
         event_doc = db.calendarevents.insert_one.call_args[0][0]
-        assert event_doc["workoutTemplateId"] == TEMPLATE_ID
-        assert "exercises" not in event_doc["workoutDetails"]
+        assert event_doc["sessionTemplateId"] == TEMPLATE_ID
+        assert "exercises" not in event_doc["sessionDetails"]
 
     async def test_matching_common_template_links(self, resolver):
         common = dict(LIBRARY_TEMPLATE, isCommon=True, createdBy=None)
@@ -117,8 +117,8 @@ class TestReuseFirstWrite:
         res = await service.schedule_to_calendar(
             USER_ID, _schedule_args(dry_run=False)
         )
-        assert res["workout_template_id"] == str(TEMPLATE_ID)
-        db.predefinedworkouts.insert_one.assert_not_called()
+        assert res["session_template_id"] == str(TEMPLATE_ID)
+        db.sessiontemplates.insert_one.assert_not_called()
 
     async def test_no_match_inserts_with_stable_undated_name(self, resolver):
         service, db = _service(library=[])
@@ -126,8 +126,8 @@ class TestReuseFirstWrite:
             USER_ID, _schedule_args(title="Push Day (Jul 20)", dry_run=False)
         )
         assert res["success"] is True
-        db.predefinedworkouts.insert_one.assert_called_once()
-        template_doc = db.predefinedworkouts.insert_one.call_args[0][0]
+        db.sessiontemplates.insert_one.assert_called_once()
+        template_doc = db.sessiontemplates.insert_one.call_args[0][0]
         # Stable name: the next schedule of this content must collide with it.
         assert template_doc["name"] == "Push Day"
         assert template_doc["tags"] == ["ai-generated"]
@@ -143,24 +143,24 @@ class TestReuseFirstWrite:
             ],
         }
         res = await service.schedule_to_calendar(
-            USER_ID, _schedule_args(workoutDetails=adjusted, dry_run=False)
+            USER_ID, _schedule_args(sessionDetails=adjusted, dry_run=False)
         )
         assert res["success"] is True
-        db.predefinedworkouts.insert_one.assert_called_once()
-        assert res["workout_template_id"] != str(TEMPLATE_ID)
+        db.sessiontemplates.insert_one.assert_called_once()
+        assert res["session_template_id"] != str(TEMPLATE_ID)
 
     async def test_reuse_hit_refuses_same_day_duplicate_of_matched_template(self, resolver):
         """The pre-lookup same-day check runs with template_oid=None; once the
         inline content matches a template already on that day (under ANY title),
-        the write must refuse exactly like an explicit workout_template_id."""
+        the write must refuse exactly like an explicit session_template_id."""
         from datetime import datetime
         existing = {
             "_id": ObjectId(),
             "title": "Something Else Entirely",
             "date": datetime(2026, 7, 20),
-            "type": "workout",
+            "type": "session",
             "status": "scheduled",
-            "workoutTemplateId": TEMPLATE_ID,
+            "sessionTemplateId": TEMPLATE_ID,
         }
         service, db = _service(existing_events=[existing])
         res = await service.schedule_to_calendar(
@@ -180,7 +180,7 @@ class TestReuseFirstWrite:
             ],
         }
         res = await service.schedule_to_calendar(
-            USER_ID, _schedule_args(workoutDetails=details)
+            USER_ID, _schedule_args(sessionDetails=details)
         )
         assert res["dry_run"] is True
         assert "Will LINK" in res["message"]
@@ -205,10 +205,10 @@ class TestReuseFirstWrite:
             ],
         }
         res = await service.schedule_to_calendar(
-            USER_ID, _schedule_args(workoutDetails=details, dry_run=False)
+            USER_ID, _schedule_args(sessionDetails=details, dry_run=False)
         )
-        assert res["workout_template_id"] == str(TEMPLATE_ID)
-        db.predefinedworkouts.insert_one.assert_not_called()
+        assert res["session_template_id"] == str(TEMPLATE_ID)
+        db.sessiontemplates.insert_one.assert_not_called()
 
 
 class TestReuseFirstPreview:
@@ -219,7 +219,7 @@ class TestReuseFirstPreview:
         assert "Will LINK" in res["message"]
         assert "no new workout will be created" in res["message"]
         assert res["reuses_template"] == {"id": str(TEMPLATE_ID), "name": "Push Day"}
-        db.predefinedworkouts.insert_one.assert_not_called()
+        db.sessiontemplates.insert_one.assert_not_called()
         db.calendarevents.insert_one.assert_not_called()
 
     async def test_preview_announces_creation_when_no_match(self, resolver):
@@ -228,7 +228,7 @@ class TestReuseFirstPreview:
         assert res["dry_run"] is True
         assert "Will create a new library workout" in res["message"]
         assert res["reuses_template"] is None
-        db.predefinedworkouts.insert_one.assert_not_called()
+        db.sessiontemplates.insert_one.assert_not_called()
 
     async def test_preview_skips_lookup_when_exercise_is_new(self, resolver):
         """A create_pending exercise can't exist in any stored template — the

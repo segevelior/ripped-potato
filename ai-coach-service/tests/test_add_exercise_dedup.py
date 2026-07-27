@@ -5,7 +5,7 @@ Regression cover for the bug where the coach created a duplicate 'Scapula Warm U
 exercise even though a common one already existed. The guard must:
   - never insert a second exercise with an existing (case-insensitive) name,
   - report created=False so the model can't read a reuse as task-complete,
-  - surface a hint toward create_workout_template when a same-named template exists.
+  - surface a hint toward create_session_template when a same-named template exists.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock
@@ -18,7 +18,7 @@ USER_ID = "6a50b08cfc7515275d6e0e68"
 def _service(existing_exercise=None, existing_template=None):
     db = MagicMock()
     db.exercises.find_one = AsyncMock(return_value=existing_exercise)
-    db.predefinedworkouts.find_one = AsyncMock(return_value=existing_template)
+    db.sessiontemplates.find_one = AsyncMock(return_value=existing_template)
     db.exercises.insert_one = AsyncMock(
         return_value=MagicMock(inserted_id="710000000000000000000099")
     )
@@ -48,7 +48,7 @@ async def test_hint_points_to_template_when_name_matches_a_workout():
     res = await svc.add_exercise(USER_ID, {"name": "Scapula Warm Up 2", "muscles": ["Shoulders"]})
 
     assert res["created"] is False
-    assert res["hint"] and "create_workout_template" in res["hint"]
+    assert res["hint"] and "create_session_template" in res["hint"]
 
 
 @pytest.mark.asyncio

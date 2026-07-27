@@ -116,7 +116,7 @@ export default function Progressions() {
     );
   }
 
-  // If viewing a specific progression (full-screen like LiveWorkout)
+  // If viewing a specific progression (full-screen like LiveSession)
   if (selectedProgression) {
     return (
       <ProgressionDetail

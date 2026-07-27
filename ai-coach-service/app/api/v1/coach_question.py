@@ -142,7 +142,7 @@ async def get_coach_question(
         recent_workouts = data_context.get("workouts", [])[:8]
         workouts_str = ""
         for w in recent_workouts:
-            title = w.get("title") or w.get("name") or "workout"
+            title = w.get("title") or w.get("name") or "session"
             date = w.get("date") or w.get("completedAt") or ""
             wtype = w.get("type") or (w.get("primary_disciplines") or [None])[0] or ""
             note = w.get("feedback") or w.get("notes") or ""

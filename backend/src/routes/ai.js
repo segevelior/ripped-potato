@@ -160,7 +160,7 @@ router.post('/chat', authMiddleware, aiRateLimit, async (req, res) => {
 
     // Original OpenAI implementation
     let systemPrompt = `You are a helpful AI fitness coach for SynergyFit. 
-    You help users with workout planning, exercise form, nutrition advice, and fitness goals.
+    You help users with training-session planning, exercise form, nutrition advice, and fitness goals.
     Always be encouraging, knowledgeable, and safety-conscious.`;
     
     if (response_json_schema) {
@@ -215,18 +215,18 @@ router.post('/chat', authMiddleware, aiRateLimit, async (req, res) => {
   }
 });
 
-// Workout generation endpoint
-router.post('/generate-workout', authMiddleware, aiRateLimit, async (req, res) => {
+// Session generation endpoint
+router.post('/generate-session', authMiddleware, aiRateLimit, async (req, res) => {
   try {
     const { preferences, goals, constraints, duration } = req.body;
     
-    const prompt = `Generate a workout plan with these requirements:
+    const prompt = `Generate a training session with these requirements:
     - Preferences: ${JSON.stringify(preferences || {})}
     - Goals: ${JSON.stringify(goals || [])}
     - Constraints: ${JSON.stringify(constraints || {})}
     - Duration: ${duration || '45-60 minutes'}
     
-    Return a structured workout with warm-up, main exercises, and cool-down.
+    Return a structured session with warm-up, main exercises, and cool-down.
     Include sets, reps, rest times, and form tips.`;
 
     const schema = {
@@ -267,7 +267,7 @@ router.post('/generate-workout', authMiddleware, aiRateLimit, async (req, res) =
       messages: [
         { 
           role: 'system', 
-          content: `You are a professional fitness trainer. Generate detailed workout plans that are safe, effective, and tailored to the user's needs. Always respond with JSON matching the provided schema.` 
+          content: `You are a professional fitness trainer. Generate detailed training sessions that are safe, effective, and tailored to the user's needs. Always respond with JSON matching the provided schema.` 
         },
         { role: 'user', content: prompt }
       ],
@@ -275,20 +275,20 @@ router.post('/generate-workout', authMiddleware, aiRateLimit, async (req, res) =
       response_format: { type: "json_object" }
     });
 
-    const workout = parseAIResponse(completion.choices[0].message.content);
+    const session = parseAIResponse(completion.choices[0].message.content);
 
     res.json({
       success: true,
-      workout,
+      session,
       tokens: completion.usage?.total_tokens || 0
     });
 
   } catch (error) {
-    console.error('Workout generation error:', error);
+    console.error('Session generation error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to generate workout',
-      workout: null
+      message: 'Failed to generate session',
+      session: null
     });
   }
 });
@@ -296,10 +296,10 @@ router.post('/generate-workout', authMiddleware, aiRateLimit, async (req, res) =
 // Progress analysis endpoint
 router.post('/analyze-progress', authMiddleware, aiRateLimit, async (req, res) => {
   try {
-    const { workoutHistory, goals, timeframe } = req.body;
+    const { sessionHistory, goals, timeframe } = req.body;
     
     const prompt = `Analyze this fitness progress:
-    - Recent workouts: ${JSON.stringify(workoutHistory || [])}
+    - Recent sessions: ${JSON.stringify(sessionHistory || [])}
     - Goals: ${JSON.stringify(goals || [])}
     - Timeframe: ${timeframe || 'last 30 days'}
     

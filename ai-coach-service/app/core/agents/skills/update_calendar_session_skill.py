@@ -1,5 +1,5 @@
 """
-Skill: update_calendar_workout
+Skill: update_calendar_session
 
 Swap, add, or remove ONE exercise inside a scheduled calendar workout.
 Calendar events don't embed exercises — they reference a PredefinedWorkout —
@@ -169,20 +169,20 @@ async def _is_template_shared(
     if template.get("createdBy") and template["createdBy"] != user_oid:
         return True
     other_refs = await ctx.db.calendarevents.count_documents({
-        "workoutTemplateId": template["_id"],
+        "sessionTemplateId": template["_id"],
         "_id": {"$nin": exclude_event_ids},
         "status": {"$nin": ["cancelled"]},
     })
     if other_refs > 0:
         return True
     plan_refs = await ctx.db.plans.count_documents({
-        "weeks.workouts.predefinedWorkoutId": template["_id"],
+        "weeks.sessions.sessionTemplateId": template["_id"],
     })
     return plan_refs > 0
 
 
 @skill(
-    name="update_calendar_workout",
+    name="update_calendar_session",
     description=(
         "Swap, add, or remove ONE exercise inside a scheduled calendar workout. Use this to "
         "actually apply a change like 'replace Russian Twists with Dragon Flag in Sunday's "
@@ -230,7 +230,7 @@ async def _is_template_shared(
         "required": ["event_id", "operation"],
     },
 )
-async def update_calendar_workout(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+async def update_calendar_session(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
     event_id = args.get("event_id")
     if not event_id:
         return {"success": False, "message": "event_id is required."}
@@ -245,8 +245,8 @@ async def update_calendar_workout(ctx: SkillContext, user_id: str, args: Dict[st
         return {"success": False, "message": "I couldn't find that workout on your calendar."}
 
     template = None
-    if event.get("workoutTemplateId"):
-        template = await ctx.db.predefinedworkouts.find_one({"_id": event["workoutTemplateId"]})
+    if event.get("sessionTemplateId"):
+        template = await ctx.db.sessiontemplates.find_one({"_id": event["sessionTemplateId"]})
 
     operation = args.get("operation")
     target_exercise = args.get("target_exercise")
@@ -260,14 +260,14 @@ async def update_calendar_workout(ctx: SkillContext, user_id: str, args: Dict[st
             return {"success": False, "message": summary}
     else:
         # Legacy event without a template link: edit the embedded list in place.
-        exercises = (event.get("workoutDetails") or {}).get("exercises") or []
+        exercises = (event.get("sessionDetails") or {}).get("exercises") or []
         updated_exercises, summary = resolve_exercise_change(
             exercises, operation, target_exercise, new_exercise
         )
         if updated_exercises is None:
             return {"success": False, "message": summary}
 
-    title = event.get("title", "workout")
+    title = event.get("title", "session")
     date_str = event["date"].strftime("%A, %B %d") if event.get("date") else "?"
 
     # Find sibling future events with the same base title (recurring pattern).
@@ -315,21 +315,21 @@ async def update_calendar_workout(ctx: SkillContext, user_id: str, args: Dict[st
         # Legacy path: embedded lists edited per event.
         await ctx.db.calendarevents.update_one(
             {"_id": event_oid, "userId": user_oid},
-            {"$set": {"workoutDetails.exercises": updated_exercises, "updatedAt": now}},
+            {"$set": {"sessionDetails.exercises": updated_exercises, "updatedAt": now}},
         )
         changed = 1
         for sid in sibling_ids:
             sib = await ctx.db.calendarevents.find_one({"_id": sid, "userId": user_oid})
             if not sib:
                 continue
-            sib_exercises = (sib.get("workoutDetails") or {}).get("exercises") or []
+            sib_exercises = (sib.get("sessionDetails") or {}).get("exercises") or []
             sib_updated, _ = resolve_exercise_change(
                 sib_exercises, operation, target_exercise, new_exercise
             )
             if sib_updated is not None:
                 await ctx.db.calendarevents.update_one(
                     {"_id": sid, "userId": user_oid},
-                    {"$set": {"workoutDetails.exercises": sib_updated, "updatedAt": now}},
+                    {"$set": {"sessionDetails.exercises": sib_updated, "updatedAt": now}},
                 )
                 changed += 1
         return {
@@ -361,25 +361,25 @@ async def update_calendar_workout(ctx: SkillContext, user_id: str, args: Dict[st
             "createdAt": now,
             "updatedAt": now,
         }
-        insert_result = await ctx.db.predefinedworkouts.insert_one(clone)
+        insert_result = await ctx.db.sessiontemplates.insert_one(clone)
         new_template_id = insert_result.inserted_id
         relink_ids = [event_oid]
         # Only siblings that share THIS template follow the relink — a sibling
         # linked to a different workout shouldn't silently change workouts.
         for sid in sibling_ids:
             sib = await ctx.db.calendarevents.find_one({"_id": sid, "userId": user_oid})
-            if sib and sib.get("workoutTemplateId") == template["_id"]:
+            if sib and sib.get("sessionTemplateId") == template["_id"]:
                 relink_ids.append(sid)
         await ctx.db.calendarevents.update_many(
             {"_id": {"$in": relink_ids}, "userId": user_oid},
-            {"$set": {"workoutTemplateId": new_template_id, "updatedAt": now}},
+            {"$set": {"sessionTemplateId": new_template_id, "updatedAt": now}},
         )
         changed = len(relink_ids)
         note = " (personalized copy created — the shared workout is unchanged)"
     else:
         # Exclusively ours: edit the template in place. Every event linked to
         # it — including same-template siblings — sees the change automatically.
-        await ctx.db.predefinedworkouts.update_one(
+        await ctx.db.sessiontemplates.update_one(
             {"_id": template["_id"]},
             {"$set": {"blocks": resolved_blocks, "updatedAt": now}},
         )
@@ -387,7 +387,7 @@ async def update_calendar_workout(ctx: SkillContext, user_id: str, args: Dict[st
         if sibling_ids:
             changed += await ctx.db.calendarevents.count_documents({
                 "_id": {"$in": sibling_ids},
-                "workoutTemplateId": template["_id"],
+                "sessionTemplateId": template["_id"],
             })
         note = ""
 

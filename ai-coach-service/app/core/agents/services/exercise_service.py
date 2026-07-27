@@ -177,7 +177,7 @@ class ExerciseService:
             # has (a common exercise OR one they created). Prevents exact-name,
             # case-insensitive duplicates even if the model skipped the "search first"
             # step. created=False + the hint keep the model from treating a reuse as a
-            # completed request (e.g. it should still create_workout_template for a workout).
+            # completed request (e.g. it should still create_session_template for a workout).
             reuse = await existing_exercise_reuse_response(self.db, user_id, args["name"])
             if reuse:
                 logger.info(f"add_exercise dedup: reused '{args['name']}' for user {user_id}")
@@ -513,7 +513,7 @@ class ExerciseService:
             logger.error(f"Error in grep_exercises: {e}")
             return {"success": False, "message": str(e)}
 
-    async def grep_workouts(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def grep_session_templates(self, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """
         Fast pattern-matching search across workout templates using regex.
         """
@@ -557,7 +557,7 @@ class ExerciseService:
             }
 
             # Fetch matching workouts
-            workouts = await self.db.predefinedworkouts.find(
+            workouts = await self.db.sessiontemplates.find(
                 query,
                 {"name": 1, "goal": 1, "difficulty_level": 1, "estimated_duration": 1, "tags": 1, "blocks": 1, "_id": 1}
             ).to_list(None)
@@ -629,5 +629,5 @@ class ExerciseService:
             }
 
         except Exception as e:
-            logger.error(f"Error in grep_workouts: {e}")
+            logger.error(f"Error in grep_session_templates: {e}")
             return {"success": False, "message": str(e)}

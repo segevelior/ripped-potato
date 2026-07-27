@@ -131,13 +131,13 @@ class MockEntity {
 // Create entities
 const entities = {
   Exercise: new MockEntity('Exercise'),
-  Workout: new MockEntity('Workout'),
+  SessionLog: new MockEntity('SessionLog'),
   ExternalActivity: new MockEntity('ExternalActivity'),
-  WorkoutTemplate: new MockEntity('WorkoutTemplate'),
+  SessionTemplateAlias: new MockEntity('SessionTemplateAlias'),
   Discipline: new MockEntity('Discipline'),
-  WorkoutType: new MockEntity('WorkoutType'),
+  SessionType: new MockEntity('SessionType'),
   TrainingPlan: new MockEntity('TrainingPlan'),
-  PredefinedWorkout: new MockEntity('PredefinedWorkout'),
+  SessionTemplate: new MockEntity('SessionTemplate'),
   Goal: new MockEntity('Goal'),
   ProgressionPath: new MockEntity('ProgressionPath'),
   UserGoalProgress: new MockEntity('UserGoalProgress'),

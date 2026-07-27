@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const sessionTypeSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Workout type name is required'],
+    required: [true, 'Session type name is required'],
     unique: true,
     trim: true,
     lowercase: true,
@@ -185,5 +185,6 @@ sessionTypeSchema.methods.isSuitableFor = function(userLevel, goals = [], timeCo
   return true;
 };
 
-// Third arg pins the legacy collection name — Stage 3 flips it to 'sessiontypes'.
-module.exports = mongoose.model('SessionType', sessionTypeSchema, 'workouttypes');
+// Collection name pinned explicitly (renamed from the legacy 'workouttypes'
+// by scripts/migrate-workout-to-session.js).
+module.exports = mongoose.model('SessionType', sessionTypeSchema, 'sessiontypes');

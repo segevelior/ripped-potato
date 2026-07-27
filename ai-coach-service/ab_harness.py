@@ -37,14 +37,14 @@ USER_ID = "6a50b08cfc7515275d6e0e68"
 # mutate production data.
 READ_ONLY_TOOLS = {
     "get_calendar_events",
-    "list_workout_templates",
-    "get_workout_history",
+    "list_session_templates",
+    "get_session_history",
     "list_plans",
     "list_goals",
     "list_exercises",
     "list_memories",
     "grep_exercises",
-    "grep_workouts",
+    "grep_session_templates",
     "web_search",
     "read_url",
     "research",
@@ -53,10 +53,10 @@ READ_ONLY_TOOLS = {
 # Grounding = the coach actually read the user's plan/calendar/history.
 GROUNDING_TOOLS = {
     "get_calendar_events",
-    "list_workout_templates",
-    "get_workout_history",
+    "list_session_templates",
+    "get_session_history",
     "list_plans",
-    "grep_workouts",
+    "grep_session_templates",
 }
 
 # "Think like a user": the answer FAILS if it asks the user to hand over data

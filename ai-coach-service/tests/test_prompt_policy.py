@@ -26,4 +26,4 @@ def test_incident_hardened_anchors_untouched():
 
 def test_new_tools_documented():
     assert "delete_calendar_event" in SYSTEM_PROMPT
-    assert "workout_template_id" in SYSTEM_PROMPT
+    assert "session_template_id" in SYSTEM_PROMPT

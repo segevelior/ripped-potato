@@ -19,7 +19,7 @@ from bson import ObjectId
 from app.core.agents.skills.registry import SkillContext, skill
 
 # Only these event types count toward training adherence (rest days don't).
-_TRAINING_TYPES = {"workout", "deload"}
+_TRAINING_TYPES = {"session", "deload"}
 _ON_TRACK_THRESHOLD = 0.70
 
 

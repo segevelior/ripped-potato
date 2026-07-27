@@ -19,9 +19,9 @@ REFLECTION_CONFIG = {
     # Trigger conditions - tools that should trigger reflection
     "trigger_tools": [
         "create_plan",
-        "create_workout_template",
+        "create_session_template",
         "create_goal",
-        "add_plan_workout",
+        "add_plan_session",
     ],
 
     # Content-based triggers - patterns that indicate a workout/plan suggestion
@@ -34,7 +34,10 @@ REFLECTION_CONFIG = {
         "week 1", "week 2", "week 3", "week 4",
         "warm-up", "warm up",
         "cool down", "cool-down",
+        # Additive only: these match model PROSE, and "workout" stays in the
+        # vocabulary forever — the session twins were added alongside.
         "workout plan",
+        "session plan",
         "training plan",
         "progression plan",
     ],

@@ -7,7 +7,7 @@ const userSessionModificationSchema = new mongoose.Schema({
     required: true,
     index: true
   },
-  workoutId: {
+  sessionTemplateId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'SessionTemplate',
     required: true,
@@ -76,21 +76,21 @@ const userSessionModificationSchema = new mongoose.Schema({
 });
 
 // Compound index for efficient lookups
-userSessionModificationSchema.index({ userId: 1, workoutId: 1 }, { unique: true });
+userSessionModificationSchema.index({ userId: 1, sessionTemplateId: 1 }, { unique: true });
 
-// Method to apply modifications to a workout
-userSessionModificationSchema.methods.applyToWorkout = function(workout) {
-  const modifiedWorkout = workout.toObject ? workout.toObject() : workout;
+// Method to apply modifications to a session template
+userSessionModificationSchema.methods.applyToSessionTemplate = function(sessionTemplate) {
+  const modifiedTemplate = sessionTemplate.toObject ? sessionTemplate.toObject() : sessionTemplate;
 
   // Apply basic modifications
   if (this.modifications) {
     ['title', 'description', 'durationMinutes'].forEach(key => {
       if (this.modifications[key] !== undefined && this.modifications[key] !== null) {
-        modifiedWorkout[key] = this.modifications[key];
+        modifiedTemplate[key] = this.modifications[key];
       }
     });
 
-    // NEW SCHEMA: Workouts now use blocks structure
+    // NEW SCHEMA: session templates now use a blocks structure
     // For now, we'll skip applying exercise-level modifications since the schema changed
     // TODO: Migrate UserSessionModification to support block-based structure
     // The old modifications model was designed for flat exercise arrays
@@ -98,10 +98,10 @@ userSessionModificationSchema.methods.applyToWorkout = function(workout) {
   }
 
   // Add user metadata (this still works)
-  modifiedWorkout.userMetadata = this.metadata;
-  modifiedWorkout.isModified = this.modifications && Object.keys(this.modifications).length > 0;
+  modifiedTemplate.userMetadata = this.metadata;
+  modifiedTemplate.isModified = this.modifications && Object.keys(this.modifications).length > 0;
 
-  return modifiedWorkout;
+  return modifiedTemplate;
 };
 
 // Method to increment times completed
@@ -111,5 +111,6 @@ userSessionModificationSchema.methods.incrementTimesCompleted = function() {
   return this.save();
 };
 
-// Third arg pins the legacy collection name — Stage 3 flips it to 'usersessionmodifications'.
-module.exports = mongoose.model('UserSessionModification', userSessionModificationSchema, 'userworkoutmodifications');
+// Collection name pinned explicitly (renamed from the legacy
+// 'userworkoutmodifications' by scripts/migrate-workout-to-session.js).
+module.exports = mongoose.model('UserSessionModification', userSessionModificationSchema, 'usersessionmodifications');

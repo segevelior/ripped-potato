@@ -56,7 +56,7 @@ def _skeleton_plan(current_week=2, streak=0, status="active"):
         "status": status,
         "skeleton": skeleton,
         "weeks": weeks,
-        "schedule": {"weeksTotal": 8, "workoutsPerWeek": 2, "preferredWorkoutDays": [1, 3]},
+        "schedule": {"weeksTotal": 8, "sessionsPerWeek": 2, "preferredSessionDays": [1, 3]},
         "progress": {"currentWeek": current_week, "lowAdherenceStreak": streak},
     }
 
@@ -80,9 +80,9 @@ def _make_ctx(plan, events=None, memories=None):
 def _events(completed=5, missed=0, skipped=0):
     past = datetime(2020, 1, 1)
     evs = []
-    evs += [{"type": "workout", "status": "completed", "date": past}] * completed
-    evs += [{"type": "workout", "status": "scheduled", "date": past}] * missed
-    evs += [{"type": "workout", "status": "skipped", "date": past}] * skipped
+    evs += [{"type": "session", "status": "completed", "date": past}] * completed
+    evs += [{"type": "session", "status": "scheduled", "date": past}] * missed
+    evs += [{"type": "session", "status": "skipped", "date": past}] * skipped
     return evs
 
 
@@ -96,7 +96,7 @@ class TestHandler:
         assert result["week_number"] == 3
         update = ctx.db.plans.update_one.call_args.args[1]["$set"]
         week3 = next(w for w in update["weeks"] if w["weekNumber"] == 3)
-        assert week3["resolved"] is True and week3["workouts"]
+        assert week3["resolved"] is True and week3["sessions"]
 
     @pytest.mark.asyncio
     async def test_legacy_plan_noops(self):
@@ -139,10 +139,10 @@ class TestHandler:
         full = _skeleton_plan()  # reference at intent volume
         from app.core.agents.skills.plan_builder import materialize_week
         ref = materialize_week(full["skeleton"], 3, [1, 3])
-        sets_adapted = sum(len(e["sets"]) for w in week3["workouts"]
-                           for e in w["customWorkout"]["exercises"])
-        sets_ref = sum(len(e["sets"]) for w in ref["workouts"]
-                       for e in w["customWorkout"]["exercises"])
+        sets_adapted = sum(len(e["sets"]) for w in week3["sessions"]
+                           for e in w["customSession"]["exercises"])
+        sets_ref = sum(len(e["sets"]) for w in ref["sessions"]
+                       for e in w["customSession"]["exercises"])
         assert sets_adapted <= sets_ref
 
     @pytest.mark.asyncio

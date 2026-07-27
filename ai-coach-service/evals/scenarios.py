@@ -86,7 +86,7 @@ async def seed_template(db, user_id: str, name: str,
             for n in exercise_names
         ],
     }]
-    res = await db.predefinedworkouts.insert_one({
+    res = await db.sessiontemplates.insert_one({
         "name": name,
         "goal": "Aerobic conditioning",
         "primary_disciplines": ["Conditioning"],
@@ -109,16 +109,16 @@ async def seed_event(db, user_id: str, date: datetime, title: str,
         "userId": ObjectId(user_id),
         "date": date,
         "title": title,
-        "type": "workout",
+        "type": "session",
         "status": status,
         "notes": "",
         "createdAt": datetime.utcnow(),
         "updatedAt": datetime.utcnow(),
-        "workoutDetails": {"type": "strength", "estimatedDuration": 45,
+        "sessionDetails": {"discipline": "strength", "estimatedDuration": 45,
                            "exercises": exercises or []},
     }
     if template_id:
-        doc["workoutTemplateId"] = template_id
+        doc["sessionTemplateId"] = template_id
     res = await db.calendarevents.insert_one(doc)
     return res.inserted_id
 
@@ -128,18 +128,18 @@ async def _workout_events_today(db, user_id: str):
     return [e async for e in db.calendarevents.find({
         "userId": ObjectId(user_id),
         "date": {"$gte": today, "$lt": today + timedelta(days=1)},
-        "type": {"$in": ["workout", "deload"]},
+        "type": {"$in": ["session", "deload"]},
     })]
 
 
 async def _template_count(db, user_id: str) -> int:
-    return await db.predefinedworkouts.count_documents(
+    return await db.sessiontemplates.count_documents(
         {"createdBy": ObjectId(user_id)}
     )
 
 
 async def _empty_templates(db, user_id: str):
-    return [t async for t in db.predefinedworkouts.find(
+    return [t async for t in db.sessiontemplates.find(
         {"createdBy": ObjectId(user_id)}
     ) if not any((b.get("exercises") or []) for b in (t.get("blocks") or []))]
 
@@ -147,12 +147,12 @@ async def _empty_templates(db, user_id: str):
 async def _event_exercise_count(db, event) -> int:
     """Exercises of an event under the reference architecture: embedded list
     (legacy events) or the linked template's flattened blocks."""
-    embedded = (event.get("workoutDetails") or {}).get("exercises") or []
+    embedded = (event.get("sessionDetails") or {}).get("exercises") or []
     if embedded:
         return len(embedded)
-    tid = event.get("workoutTemplateId")
+    tid = event.get("sessionTemplateId")
     if tid:
-        t = await db.predefinedworkouts.find_one({"_id": tid})
+        t = await db.sessiontemplates.find_one({"_id": tid})
         if t:
             return sum(len(b.get("exercises") or []) for b in (t.get("blocks") or []))
     return 0
@@ -172,10 +172,10 @@ async def _check_schedule_existing(db, user_id, refs, trace):
     events = await _workout_events_today(db, user_id)
     if len(events) != 1:
         problems.append(f"expected exactly 1 workout event today, found {len(events)}")
-    elif events[0].get("workoutTemplateId") != refs["template_id"]:
+    elif events[0].get("sessionTemplateId") != refs["template_id"]:
         problems.append(
             f"event not linked to the existing Endurance 1 template "
-            f"(workoutTemplateId={events[0].get('workoutTemplateId')})"
+            f"(sessionTemplateId={events[0].get('sessionTemplateId')})"
         )
     elif await _event_exercise_count(db, events[0]) != len(EXERCISES):
         problems.append("event's exercises don't match the template")
@@ -289,7 +289,7 @@ DUPLICATE_CLEANUP = Scenario(
 async def _seed_correction_state(db, user_id):
     ex = await seed_exercises(db, user_id)
     real = await seed_template(db, user_id, "Endurance 1", ex)
-    empty_res = await db.predefinedworkouts.insert_one({
+    empty_res = await db.sessiontemplates.insert_one({
         "name": "Endurance 1 (Today)", "goal": "", "primary_disciplines": [],
         "estimated_duration": 45, "difficulty_level": "intermediate",
         "blocks": [], "tags": [], "isCommon": False,
@@ -350,7 +350,7 @@ async def _workout_events_on(db, user_id: str, date: datetime):
     return [e async for e in db.calendarevents.find({
         "userId": ObjectId(user_id),
         "date": {"$gte": date, "$lt": date + timedelta(days=1)},
-        "type": {"$in": ["workout", "deload"]},
+        "type": {"$in": ["session", "deload"]},
     })]
 
 
@@ -362,10 +362,10 @@ async def _check_twice_one_template(db, user_id, refs, trace):
         events = await _workout_events_on(db, user_id, date)
         if len(events) != 1:
             problems.append(f"expected exactly 1 workout event {label}, found {len(events)}")
-        elif events[0].get("workoutTemplateId") != refs["template_id"]:
+        elif events[0].get("sessionTemplateId") != refs["template_id"]:
             problems.append(
                 f"{label}'s event is not linked to the seeded Endurance 1 template "
-                f"(workoutTemplateId={events[0].get('workoutTemplateId')})"
+                f"(sessionTemplateId={events[0].get('sessionTemplateId')})"
             )
     if await _template_count(db, user_id) != refs["template_count"]:
         problems.append(
@@ -399,10 +399,10 @@ async def _check_memory_endurance2(db, user_id, refs, trace):
     endurance2 = refs["template_ids"][1]
     if len(events) != 1:
         problems.append(f"expected exactly 1 workout event today, found {len(events)}")
-    elif events[0].get("workoutTemplateId") != endurance2:
+    elif events[0].get("sessionTemplateId") != endurance2:
         problems.append(
             f"event not linked to the existing Endurance 2 template "
-            f"(workoutTemplateId={events[0].get('workoutTemplateId')})"
+            f"(sessionTemplateId={events[0].get('sessionTemplateId')})"
         )
     if await _template_count(db, user_id) != refs["template_count"]:
         problems.append("a new template was created instead of reusing Endurance 2")

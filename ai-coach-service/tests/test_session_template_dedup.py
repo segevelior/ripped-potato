@@ -1,5 +1,5 @@
 """
-Tests for the create_workout_template think-then-act guards:
+Tests for the create_session_template think-then-act guards:
 empty-blocks rejection and title dedup (normalized-exact, with the
 confirm_duplicate escape hatch).
 """
@@ -34,8 +34,8 @@ class FakeCursor:
 
 def _db_with_templates(docs):
     db = MagicMock()
-    db.predefinedworkouts.find = MagicMock(return_value=FakeCursor(docs))
-    db.predefinedworkouts.find_one = AsyncMock(
+    db.sessiontemplates.find = MagicMock(return_value=FakeCursor(docs))
+    db.sessiontemplates.find_one = AsyncMock(
         return_value=docs[0] if docs else None
     )
     return db
@@ -75,7 +75,7 @@ class TestExistingTemplateDuplicateResponse:
         assert res["existing"]["id"] == str(tid)
         assert res["existing"]["total_exercises"] == 6
         # The message must name the exact next call, with the real id inlined.
-        assert f"workout_template_id='{tid}'" in res["message"]
+        assert f"session_template_id='{tid}'" in res["message"]
         assert "confirm_duplicate=true" in res["message"]
 
     async def test_date_suffixed_variant_collides(self):
@@ -173,39 +173,39 @@ class TestFindReusableTemplate:
 class TestCreateWorkoutTemplateGuards:
     def _service(self, existing_docs):
         db = _db_with_templates(existing_docs)
-        db.predefinedworkouts.insert_one = AsyncMock(
+        db.sessiontemplates.insert_one = AsyncMock(
             return_value=MagicMock(inserted_id=ObjectId())
         )
         return SessionService(db), db
 
     async def test_empty_blocks_rejected_before_insert(self):
         service, db = self._service([])
-        res = await service.create_workout_template(
+        res = await service.create_session_template(
             USER_ID, {"name": "Endurance 1", "blocks": []}
         )
         assert res["success"] is False
         assert res["error"] == "empty_workout_template"
-        db.predefinedworkouts.insert_one.assert_not_called()
+        db.sessiontemplates.insert_one.assert_not_called()
 
     async def test_blocks_with_no_exercises_rejected(self):
         service, db = self._service([])
-        res = await service.create_workout_template(
+        res = await service.create_session_template(
             USER_ID,
             {"name": "Endurance 1", "blocks": [{"name": "Main", "exercises": []}]},
         )
         assert res["error"] == "empty_workout_template"
-        db.predefinedworkouts.insert_one.assert_not_called()
+        db.sessiontemplates.insert_one.assert_not_called()
 
     async def test_duplicate_title_blocked_before_insert(self):
         existing = {"_id": ObjectId(), "name": "Endurance 1", "blocks": []}
         service, db = self._service([existing])
-        res = await service.create_workout_template(
+        res = await service.create_session_template(
             USER_ID,
             {"name": "Endurance 1",
              "blocks": [{"name": "Main", "exercises": [{"exercise_name": "Run", "volume": "3x10"}]}]},
         )
         assert res["error"] == "duplicate_template"
-        db.predefinedworkouts.insert_one.assert_not_called()
+        db.sessiontemplates.insert_one.assert_not_called()
 
     async def test_confirm_duplicate_bypasses_dedup(self, monkeypatch):
         existing = {"_id": ObjectId(), "name": "Endurance 1", "blocks": []}
@@ -220,10 +220,10 @@ class TestCreateWorkoutTemplateGuards:
             lambda db: resolver,
         )
 
-        res = await service.create_workout_template(
+        res = await service.create_session_template(
             USER_ID,
             {"name": "Endurance 1", "confirm_duplicate": True,
              "blocks": [{"name": "Main", "exercises": [{"exercise_name": "Run", "volume": "3x10"}]}]},
         )
         assert res["success"] is True
-        db.predefinedworkouts.insert_one.assert_called_once()
+        db.sessiontemplates.insert_one.assert_called_once()

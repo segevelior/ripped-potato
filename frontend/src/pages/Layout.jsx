@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Activity, Calendar, Dumbbell, Zap, Target, FileText, Bot, TrendingUp, Settings, MessageSquare, Cog, Play, Home, User } from "lucide-react";
-import { hasActiveWorkout } from "@/utils/workoutSession";
+import { hasActiveSession } from "@/utils/liveSession";
 import {
   Sidebar,
   SidebarContent,
@@ -52,8 +52,8 @@ const navigationItems = [
     icon: Bot,
   },
   {
-    title: "Workouts",
-    url: createPageUrl("PredefinedWorkouts"),
+    title: "Sessions",
+    url: createPageUrl("Sessions"),
     icon: Dumbbell,
   },
   {
@@ -95,7 +95,7 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const [isNavVisible, setIsNavVisible] = useState(true);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [showLiveWorkoutTab, setShowLiveWorkoutTab] = useState(false);
+  const [showLiveSessionTab, setShowLiveSessionTab] = useState(false);
   const lastScrollY = useRef(0);
   const mainContentRef = useRef(null);
 
@@ -105,7 +105,7 @@ export default function Layout({ children }) {
   // Check for active workout on mount and route changes
   useEffect(() => {
     const checkActive = () => {
-      setShowLiveWorkoutTab(hasActiveWorkout());
+      setShowLiveSessionTab(hasActiveSession());
     };
 
     checkActive();
@@ -170,12 +170,12 @@ export default function Layout({ children }) {
             </SidebarHeader>
             <SidebarContent>
               <div className="flex flex-col gap-1 p-2">
-                {/* Live Workout tab - only shown when active */}
-                {showLiveWorkoutTab && (
+                {/* Live Session tab - only shown when active */}
+                {showLiveSessionTab && (
                   <Link
-                    to={createPageUrl('LiveWorkout')}
+                    to={createPageUrl('LiveSession')}
                     className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all text-sm font-medium mb-2 ${
-                      location.pathname.toLowerCase().includes('liveworkout')
+                      location.pathname.toLowerCase().includes('livesession')
                         ? 'bg-green-100 text-green-900 ring-2 ring-green-500'
                         : 'bg-green-50 text-green-700 hover:bg-green-100'
                     }`}
@@ -184,7 +184,7 @@ export default function Layout({ children }) {
                       <Play className="w-5 h-5" />
                       <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                     </div>
-                    Live Workout
+                    Live Session
                   </Link>
                 )}
                 {navigationItems.map((item, index) => {
@@ -302,12 +302,12 @@ export default function Layout({ children }) {
             `}
           >
             <div className="flex items-end justify-around h-16 px-2">
-              {/* Live Workout tab - replaces the Today slot when a workout is active */}
-              {showLiveWorkoutTab ? (
+              {/* Live Session tab - replaces the Today slot when a session is active */}
+              {showLiveSessionTab ? (
                 <Link
-                  to={createPageUrl('LiveWorkout')}
+                  to={createPageUrl('LiveSession')}
                   className={`flex flex-col items-center justify-center min-w-[56px] h-14 gap-0.5 px-1 ${
-                    location.pathname.toLowerCase().includes('liveworkout')
+                    location.pathname.toLowerCase().includes('livesession')
                       ? 'text-green-600'
                       : 'text-green-500'
                   }`}
@@ -346,10 +346,10 @@ export default function Layout({ children }) {
               </Link>
 
               <BottomNavItem
-                to={createPageUrl('PredefinedWorkouts')}
+                to={createPageUrl('Sessions')}
                 icon={Dumbbell}
-                label="Workouts"
-                active={location.pathname === createPageUrl('PredefinedWorkouts')}
+                label="Sessions"
+                active={location.pathname === createPageUrl('Sessions')}
               />
 
               <BottomNavItem

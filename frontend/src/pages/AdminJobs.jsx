@@ -91,12 +91,12 @@ const JobResultCard = ({ result, onClose }) => {
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div className="p-3 bg-white dark:bg-gray-800 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{stats.workoutLogsProcessed || 0}</div>
-              <div className="text-xs text-gray-500">WorkoutLogs Processed</div>
+              <div className="text-2xl font-bold text-blue-600">{stats.sessionLogsProcessed || 0}</div>
+              <div className="text-xs text-gray-500">Session Logs Processed</div>
             </div>
             <div className="p-3 bg-white dark:bg-gray-800 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{stats.workoutLogsFixed || 0}</div>
-              <div className="text-xs text-gray-500">WorkoutLogs Fixed</div>
+              <div className="text-2xl font-bold text-green-600">{stats.sessionLogsFixed || 0}</div>
+              <div className="text-xs text-gray-500">Session Logs Fixed</div>
             </div>
             <div className="p-3 bg-white dark:bg-gray-800 rounded-lg">
               <div className="text-2xl font-bold text-blue-600">{stats.externalActivitiesProcessed || 0}</div>
@@ -210,7 +210,7 @@ export default function AdminJobs() {
       id: 'calendar-consistency',
       name: 'Calendar Consistency Sync',
       description: 'Ensures data consistency between CalendarEvent and linked collections',
-      details: 'This job scans WorkoutLog and ExternalActivity collections to ensure each has a corresponding CalendarEvent. It also removes orphaned CalendarEvents that point to non-existent documents.',
+      details: 'This job scans SessionLog and ExternalActivity collections to ensure each has a corresponding CalendarEvent. It also removes orphaned CalendarEvents that point to non-existent documents.',
       icon: <Calendar className="w-5 h-5 text-white" />,
       color: 'bg-blue-500',
       schedule: 'Every 6 hours',

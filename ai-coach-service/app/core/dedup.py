@@ -59,7 +59,7 @@ async def find_reusable_template(
 ) -> Optional[Dict[str, Any]]:
     """Find an existing library template (the user's own OR a common one) whose
     exercise content exactly matches — the reuse-first rule for scheduling with
-    inline workoutDetails. Returns the best match, or None (caller inserts).
+    inline sessionDetails. Returns the best match, or None (caller inserts).
 
     The hard rule: content must match exactly. A same-named template with
     different exercises is an ADJUSTED workout and must NOT be linked. Name is
@@ -71,7 +71,7 @@ async def find_reusable_template(
     normalized_name = normalize_template_title(name)
     visibility = {"$or": [{"isCommon": True}, {"createdBy": ObjectId(user_id)}]}
     matches = []
-    async for doc in db.predefinedworkouts.find(visibility):
+    async for doc in db.sessiontemplates.find(visibility):
         if template_doc_signature(doc) == signature:
             matches.append(doc)
     if not matches:
@@ -91,14 +91,14 @@ async def existing_exercise_reuse_response(db, user_id: str, name: str) -> Optio
 
     ``created=False`` is deliberate: reusing an existing exercise is NOT the same as
     completing the user's request. When a workout template shares the name, the hint
-    steers a mis-classified "add my workout" request to create_workout_template.
+    steers a mis-classified "add my workout" request to create_session_template.
     """
     name_regex = {"$regex": f"^{re.escape(name)}$", "$options": "i"}
     visibility = {"$or": [{"isCommon": True}, {"createdBy": ObjectId(user_id)}]}
     existing = await db.exercises.find_one({"name": name_regex, **visibility})
     if not existing:
         return None
-    template = await db.predefinedworkouts.find_one({"name": name_regex, **visibility}, {"_id": 1})
+    template = await db.sessiontemplates.find_one({"name": name_regex, **visibility}, {"_id": 1})
     return {
         "success": True,
         "already_exists": True,
@@ -107,7 +107,7 @@ async def existing_exercise_reuse_response(db, user_id: str, name: str) -> Optio
         "message": f"'{existing['name']}' already exists — reused it, did NOT create anything new.",
         "hint": (
             "A workout template with this name also exists; if the user asked to add a "
-            "WORKOUT, call create_workout_template instead of adding an exercise."
+            "WORKOUT, call create_session_template instead of adding an exercise."
         ) if template else None,
     }
 
@@ -129,13 +129,13 @@ async def existing_template_duplicate_response(
         return None
     visibility = {"$or": [{"isCommon": True}, {"createdBy": ObjectId(user_id)}]}
     match_id = None
-    async for doc in db.predefinedworkouts.find(visibility, {"name": 1}):
+    async for doc in db.sessiontemplates.find(visibility, {"name": 1}):
         if normalize_template_title(doc.get("name", "")) == normalized:
             match_id = doc["_id"]
             break
     if match_id is None:
         return None
-    t = await db.predefinedworkouts.find_one({"_id": match_id})
+    t = await db.sessiontemplates.find_one({"_id": match_id})
     total_exercises = sum(len(b.get("exercises") or []) for b in (t.get("blocks") or []))
     return {
         "success": False,
@@ -151,8 +151,8 @@ async def existing_template_duplicate_response(
             f"A workout template named '{t.get('name', '')}' already exists "
             f"(id={t['_id']}, {total_exercises} exercises). Did NOT create anything. "
             f"If the user meant this existing workout: to put it on the calendar, call "
-            f"schedule_to_calendar with workout_template_id='{t['_id']}' — do not "
-            f"re-create it. Only retry create_workout_template with "
+            f"schedule_to_calendar with session_template_id='{t['_id']}' — do not "
+            f"re-create it. Only retry create_session_template with "
             f"confirm_duplicate=true if the user explicitly wants a second, separate "
             f"template with this name."
         ),

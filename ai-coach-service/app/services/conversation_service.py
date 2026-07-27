@@ -112,16 +112,20 @@ class ConversationService:
             name_match = re.search(r'exercise="([^"]+)"', clean_message)
             return f"Swap: {name_match.group(1)}"[:100] if name_match else "Exercise swap"
 
-        # Check if this is a workout request with hidden context
-        if clean_message.startswith("[WORKOUT REQUEST"):
+        # Check if this is a session request with hidden context.
+        # BOTH spellings are accepted forever: the frontend now emits
+        # "[SESSION REQUEST", but every conversation persisted before the
+        # workout→session rename still carries "[WORKOUT REQUEST" and would
+        # otherwise be titled with the raw marker text.
+        if clean_message.startswith(("[SESSION REQUEST", "[WORKOUT REQUEST")):
             # Try to extract the user's actual input
             # Pattern: "Here's what I'm looking for: <user input>"
             user_input_match = re.search(r"Here's what I'm looking for:\s*(.+?)(?:\n|Please)", clean_message, re.DOTALL)
             if user_input_match:
                 clean_title = user_input_match.group(1).strip()
-                return clean_title[:100] if clean_title else "Workout planning"
-            # If no specific input, use a generic workout title
-            return "Workout planning"
+                return clean_title[:100] if clean_title else "Session planning"
+            # If no specific input, use a generic session title
+            return "Session planning"
 
         # For regular messages, just use the first part
         return clean_message[:100].strip()

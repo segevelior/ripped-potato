@@ -8,7 +8,7 @@
  * response with a chainable res stub.
  *
  * `req.user` is the full Mongoose User document, so both `req.user._id`
- * (workout/calendar controllers) and `req.user.id` (exercise controller) work.
+ * (session/calendar controllers) and `req.user.id` (exercise controller) work.
  */
 
 const { validationResult } = require('express-validator');

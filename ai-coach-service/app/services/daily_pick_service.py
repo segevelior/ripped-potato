@@ -69,7 +69,7 @@ IMPORTANT RULES:
 
 IF SUGGESTING A WORKOUT, return:
 {
-  "type": "workout",
+  "type": "session",
   "name": "Workout name (e.g., 'Upper Body Strength')",
   "goal": "Brief goal description (e.g., 'Build upper body strength and muscle')",
   "primary_disciplines": ["strength"],
@@ -132,7 +132,7 @@ async def load_calendar_context(db, user_id: str, timezone: str = 'UTC') -> Dict
             "userId": user_oid,
             "date": {"$gte": start_of_today, "$lte": end_of_today},
             "status": {"$nin": ["cancelled", "skipped"]},
-            "type": "workout"
+            "type": "session"
         }).to_list(10)
 
         # Get this week's events (for context)
@@ -140,21 +140,21 @@ async def load_calendar_context(db, user_id: str, timezone: str = 'UTC') -> Dict
             "userId": user_oid,
             "date": {"$gte": start_of_today, "$lte": end_of_week},
             "status": {"$nin": ["cancelled", "skipped"]},
-            "type": "workout"
+            "type": "session"
         }).to_list(20)
 
         # Get recent completed workouts (last 14 days) — completed calendar
-        # events carry workoutDetails.exercises (ACTUAL performed sets), the
+        # events carry sessionDetails.exercises (ACTUAL performed sets), the
         # only live source of what the user actually did (the workouts
         # collection is unused). Scheduled events no longer embed exercises —
         # they reference a template — but completed history is exempt.
-        # TODO: long-term, read this from workoutlogs via workoutLogId.
+        # TODO: long-term, read this from sessionlogs via sessionLogId.
         two_weeks_ago = start_of_today - timedelta(days=14)
         recent_workouts = await db.calendarevents.find({
             "userId": user_oid,
             "date": {"$gte": two_weeks_ago, "$lt": start_of_today},
             "status": "completed",
-            "type": "workout"
+            "type": "session"
         }).sort("date", -1).to_list(20)
 
         # Yesterday's workout events with their outcome — a still-'scheduled'
@@ -164,7 +164,7 @@ async def load_calendar_context(db, user_id: str, timezone: str = 'UTC') -> Dict
             "userId": user_oid,
             "date": {"$gte": start_of_yesterday, "$lt": start_of_today},
             "status": {"$ne": "cancelled"},
-            "type": "workout"
+            "type": "session"
         }).to_list(10)
 
         return {
@@ -193,12 +193,12 @@ def format_plan_week(plan: Dict[str, Any]) -> Optional[str]:
     progress = plan.get("progress") or {}
     current_week = progress.get("currentWeek", 1)
     week = next((w for w in (plan.get("weeks") or []) if w.get("weekNumber") == current_week), None)
-    if not week or week.get("resolved") is False or not (week.get("workouts") or []):
+    if not week or week.get("resolved") is False or not (week.get("sessions") or []):
         return None
     day_names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
     lines = [f"  Week {current_week}" + (f" ({week.get('focus')})" if week.get("focus") else "") + ":"]
-    for wo in week["workouts"]:
-        custom = wo.get("customWorkout") or {}
+    for wo in week["sessions"]:
+        custom = wo.get("customSession") or {}
         day = day_names[wo.get("dayOfWeek", 0) % 7]
         title = custom.get("title") or "Workout"
         ex_count = len(custom.get("exercises") or [])
@@ -257,7 +257,7 @@ async def load_training_plans(db, user_id: str) -> List[Dict[str, Any]]:
                 "status": plan.get("status"),
                 "current_week": progress.get("currentWeek", 1),
                 "total_weeks": schedule.get("weeksTotal"),
-                "days_per_week": schedule.get("workoutsPerWeek"),
+                "days_per_week": schedule.get("sessionsPerWeek"),
                 "current_week_detail": format_plan_week(plan),
             })
         return formatted
@@ -304,8 +304,8 @@ def format_calendar_for_llm(calendar_data: Dict[str, Any]) -> str:
         lines.append("\nCOMPLETED WORKOUTS (last 14 days, actual exercises):")
         for workout in calendar_data['recent_workouts'][:8]:
             date_str = workout.get('date', datetime.min).strftime('%A, %b %d')
-            details = workout.get('workoutDetails') or {}
-            workout_type = details.get('type', 'workout')
+            details = workout.get('sessionDetails') or {}
+            workout_type = details.get('discipline', 'session')
             lines.append(f"- {date_str}: {workout.get('title')} ({workout_type})")
             names = [ex.get('exerciseName') for ex in (details.get('exercises') or []) if ex.get('exerciseName')]
             if names:
@@ -441,8 +441,8 @@ USER PROFILE:
 - Height: {height_str}
 - Units: {units}
 - Available Equipment: {', '.join(user_profile.get('equipment', [])) or 'bodyweight only'}
-- Preferred Workout Duration: {user_profile.get('workoutDuration', 45)} minutes
-- Workout Days per Week: {len(user_profile.get('workoutDays', []))}
+- Preferred Workout Duration: {user_profile.get('sessionDuration', 45)} minutes
+- Workout Days per Week: {len(user_profile.get('sessionDays', []))}
 - Goals: {', '.join(user_profile.get('goals', [])) or 'general fitness'}
 - Injuries / Limitations (profile): {', '.join(user_profile.get('injuries', [])) or 'none listed'}
 
@@ -553,7 +553,7 @@ CALENDAR CONTEXT:
         suggestion = json.loads(response_text)
 
         # Determine if it's a rest day or workout suggestion
-        suggestion_type = suggestion.get("type", "workout")
+        suggestion_type = suggestion.get("type", "session")
 
         if suggestion_type == "rest":
             # Validate rest day response
@@ -571,7 +571,7 @@ CALENDAR CONTEXT:
                     raise ValueError(f"Missing required field: {field}")
 
             # Ensure type is set
-            suggestion["type"] = "workout"
+            suggestion["type"] = "session"
 
             # Resolve exercise names to real catalog ids AT GENERATION TIME so
             # the persisted pick materializes into a valid PredefinedWorkout

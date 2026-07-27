@@ -106,7 +106,7 @@ const findMatchingTemplate = async (userId, name, blockExercises) => {
 // return its id, or null when there is nothing to materialize. Identical
 // content reuses an existing library workout instead of minting a copy.
 const ensureTemplateForCustomEvent = async (userId, eventData) => {
-  const exercises = eventData.workoutDetails?.exercises;
+  const exercises = eventData.sessionDetails?.exercises;
   if (!exercises?.length) return null;
 
   const name = (eventData.title || 'Workout')
@@ -122,8 +122,8 @@ const ensureTemplateForCustomEvent = async (userId, eventData) => {
   const template = await SessionTemplate.create({
     name,
     goal: '',
-    primary_disciplines: [eventData.workoutDetails?.type || 'strength'],
-    estimated_duration: eventData.workoutDetails?.estimatedDuration || 45,
+    primary_disciplines: [eventData.sessionDetails?.discipline || 'strength'],
+    estimated_duration: eventData.sessionDetails?.estimatedDuration || 45,
     difficulty_level: 'intermediate',
     blocks,
     tags: ['user-created'],
@@ -141,13 +141,13 @@ const isTemplateShared = async (userId, template, excludeEventId) => {
   if (template.isCommon) return true;
   if (template.createdBy && String(template.createdBy) !== String(userId)) return true;
   const otherRefs = await CalendarEvent.countDocuments({
-    workoutTemplateId: template._id,
+    sessionTemplateId: template._id,
     _id: { $ne: excludeEventId },
     status: { $nin: ['cancelled'] }
   });
   if (otherRefs > 0) return true;
   const planRefs = await Plan.countDocuments({
-    'weeks.workouts.predefinedWorkoutId': template._id
+    'weeks.sessions.sessionTemplateId': template._id
   });
   return planRefs > 0;
 };
@@ -165,16 +165,16 @@ const isMaterializedCopy = (template) =>
 // its blocks in place. Returns the template id the event should reference.
 const applyExercisesCopyOnWrite = async (userId, event, exercises) => {
   const blocks = await buildBlocks(userId, exercises);
-  if (!blocks[0].exercises.length) return event.workoutTemplateId || null;
+  if (!blocks[0].exercises.length) return event.sessionTemplateId || null;
 
-  const template = event.workoutTemplateId
-    ? await SessionTemplate.findById(event.workoutTemplateId)
+  const template = event.sessionTemplateId
+    ? await SessionTemplate.findById(event.sessionTemplateId)
     : null;
 
   if (!template) {
     return ensureTemplateForCustomEvent(userId, {
       title: event.title,
-      workoutDetails: { ...(event.workoutDetails || {}), exercises }
+      sessionDetails: { ...(event.sessionDetails || {}), exercises }
     });
   }
 

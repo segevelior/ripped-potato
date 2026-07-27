@@ -25,7 +25,9 @@ function formatDate(isoDate) {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-const TYPE_LABELS = { workout: 'Workout', deload: 'Deload', rest: 'Rest day' };
+// Keys are calendarevents `type` enum values. `workout` is kept alongside
+// `session` because chat history persisted before the rename still carries it.
+const TYPE_LABELS = { session: 'Workout', workout: 'Workout', deload: 'Deload', rest: 'Rest day' };
 
 export default function CalendarPreviewCard({ payload }) {
   const card = decodePayload(payload);

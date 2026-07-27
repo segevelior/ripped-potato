@@ -47,7 +47,7 @@ async def _resolve_plan(ctx: SkillContext, user_oid: ObjectId, plan_id: str = No
         "user wants to SEE a plan they already have — 'show me the draft/plan', 'what's in "
         "week 3', 'see the workouts'. Read-only. Defaults to the user's most recent plan when "
         "no plan_id is given. Levels: 'overview' (phases + milestones), 'weeks' (each week's "
-        "focus + workout titles), 'week' (one week's full workouts/exercises/sets), 'workout' "
+        "focus + workout titles), 'week' (one week's full workouts/exercises/sets), 'session' "
         "(a single day in detail)."
     ),
     parameters={
@@ -56,11 +56,11 @@ async def _resolve_plan(ctx: SkillContext, user_oid: ObjectId, plan_id: str = No
             "plan_id": {"type": "string", "description": "Plan to show (default: the user's most recent draft/active plan)."},
             "level": {
                 "type": "string",
-                "enum": ["overview", "weeks", "week", "workout"],
-                "description": "Disclosure depth (default 'weeks'). Use 'week'/'workout' with week_number to drill into exercises.",
+                "enum": ["overview", "weeks", "week", "session"],
+                "description": "Disclosure depth (default 'weeks'). Use 'week'/'session' with week_number to drill into exercises.",
             },
-            "week_number": {"type": "integer", "minimum": 1, "description": "Required for level 'week' or 'workout'."},
-            "day_of_week": {"type": "integer", "minimum": 0, "maximum": 6, "description": "For level 'workout': 0=Sun..6=Sat."},
+            "week_number": {"type": "integer", "minimum": 1, "description": "Required for level 'week' or 'session'."},
+            "day_of_week": {"type": "integer", "minimum": 0, "maximum": 6, "description": "For level 'session': 0=Sun..6=Sat."},
         },
     },
 )
@@ -77,7 +77,7 @@ async def show_plan(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -> Di
 
     level = args.get("level") or "weeks"
     week_number = args.get("week_number")
-    if level in ("week", "workout") and week_number is None:
+    if level in ("week", "session") and week_number is None:
         # Nothing specified to drill into — fall back to the week list so the
         # coach can ask which week rather than erroring.
         level = "weeks"
@@ -93,22 +93,22 @@ async def show_plan(ctx: SkillContext, user_id: str, args: Dict[str, Any]) -> Di
         "name": plan.get("name", ""),
         "status": plan.get("status"),
         "weeks_total": schedule.get("weeksTotal") or len(weeks),
-        "days_per_week": schedule.get("workoutsPerWeek"),
+        "days_per_week": schedule.get("sessionsPerWeek"),
         "level": level,
         "overview": overview,
     }
 
     # For a single-day request, narrow the week's workouts to the chosen day.
-    if level == "workout" and overview.get("week"):
+    if level == "session" and overview.get("week"):
         day = args.get("day_of_week")
-        workouts = overview["week"].get("workouts", [])
+        workouts = overview["week"].get("sessions", [])
         if day is not None:
             workouts = [w for w in workouts if w.get("dayOfWeek") == day]
         if not workouts:
             result["message"] = f"No workout found for that day in week {week_number}."
             return result
-        result["overview"]["week"]["workouts"] = workouts
+        result["overview"]["week"]["sessions"] = workouts
 
-    if level in ("week", "workout") and not (overview.get("week")):
+    if level in ("week", "session") and not (overview.get("week")):
         result["message"] = f"Week {week_number} isn't in this plan."
     return result

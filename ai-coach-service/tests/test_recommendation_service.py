@@ -12,14 +12,14 @@ TODAY = "2026-07-13"
 YESTERDAY = "2026-07-12"
 
 
-def _rec(local_date=TODAY, rec_type="workout", blocks=True, name="Bodyweight Core + Mobility"):
+def _rec(local_date=TODAY, rec_type="session", blocks=True, name="Bodyweight Core + Mobility"):
     suggestion = {
         "type": rec_type,
-        "name": name if rec_type == "workout" else "Rest Day",
+        "name": name if rec_type == "session" else "Rest Day",
         "estimated_duration": 30,
         "difficulty_level": "beginner",
     }
-    if rec_type == "workout" and blocks:
+    if rec_type == "session" and blocks:
         suggestion["blocks"] = [
             {"name": "Warm-up", "exercises": [{"exercise_name": "Cat-Cow"}, {"exercise_name": "90/90 Shoulder Rotation"}]},
             {"name": "Main Work", "exercises": [{"exercise_name": "Dead Bug"}, {"exercise_name": "Forearm Plank"}]},
@@ -60,7 +60,7 @@ class TestFormatForPrompt:
             "localDate": TODAY,
             "reasoning": "",
             "suggestion": {
-                "type": "workout",
+                "type": "session",
                 "name": "Mega Session",
                 "blocks": [{
                     "name": "Main Work",
@@ -80,7 +80,7 @@ class TestFormatForPrompt:
             "localDate": TODAY,
             "reasoning": "",
             "suggestion": {
-                "type": "workout",
+                "type": "session",
                 "name": "Exact Session",
                 "blocks": [{
                     "name": "Main Work",
@@ -99,7 +99,7 @@ class TestFormatForPrompt:
             "localDate": TODAY,
             "reasoning": "",
             "suggestion": {
-                "type": "workout",
+                "type": "session",
                 "name": "Long Session",
                 "blocks": [
                     {"name": "Main Work",

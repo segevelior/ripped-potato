@@ -97,10 +97,10 @@ from app.core.agents.volume_utils import parse_volume as _parse_volume  # noqa: 
 
 
 def _resolve_workout_content(workout: Dict[str, Any], template_map: Dict[str, Any]) -> Dict[str, Any]:
-    """Resolve a plan workout (predefined or custom) into title + workoutDetails
-    fields. `template_map` maps str(predefinedWorkoutId) -> template document."""
-    if workout.get("workoutType") == "predefined":
-        tmpl = template_map.get(str(workout.get("predefinedWorkoutId")))
+    """Resolve a plan workout (predefined or custom) into title + sessionDetails
+    fields. `template_map` maps str(sessionTemplateId) -> template document."""
+    if workout.get("sessionType") == "predefined":
+        tmpl = template_map.get(str(workout.get("sessionTemplateId")))
         if tmpl:
             exercises = []
             for block in tmpl.get("blocks", []) or []:
@@ -127,7 +127,7 @@ def _resolve_workout_content(workout: Dict[str, Any], template_map: Dict[str, An
                 "type": "strength",
                 "duration": tmpl.get("estimated_duration", 45),
                 "exercises": exercises,
-                "template_id": workout.get("predefinedWorkoutId"),
+                "template_id": workout.get("sessionTemplateId"),
             }
         # Referenced template is missing — nothing to schedule. Flagged so
         # _build_events drops the slot instead of inserting an orphan event
@@ -136,7 +136,7 @@ def _resolve_workout_content(workout: Dict[str, Any], template_map: Dict[str, An
                 "template_id": None, "missing_template": True}
 
     # Custom inline workout
-    custom = workout.get("customWorkout") or {}
+    custom = workout.get("customSession") or {}
     exercises = []
     for ex in custom.get("exercises", []) or []:
         sets_arr = ex.get("sets", []) or []
@@ -183,7 +183,7 @@ def _build_events(
 ) -> List[Dict[str, Any]]:
     """Expand a plan into calendar-event documents (ready for insert_many).
 
-    Emits workout events (type 'deload' for deload weeks, else 'workout') plus a
+    Emits workout events (type 'deload' for deload weeks, else 'session') plus a
     'rest' event for each restDays entry. Each event carries planId/planWeek/
     planDay for back-linking and idempotency.
 
@@ -201,7 +201,7 @@ def _build_events(
         week_number = week.get("weekNumber", 1)
         is_deload = bool(week.get("deloadWeek", False))
 
-        for workout in week.get("workouts", []) or []:
+        for workout in week.get("sessions", []) or []:
             day = workout.get("dayOfWeek", 1)
             date = _compute_event_date(start_date, week_number, day)
             content = _resolve_workout_content(workout, template_map)
@@ -216,14 +216,14 @@ def _build_events(
                 "planDay": day,
                 "date": date,
                 "title": f"{content['title']} ({date.strftime('%b %d')})",
-                "type": "deload" if is_deload else "workout",
+                "type": "deload" if is_deload else "session",
                 "status": "scheduled",
                 "notes": workout.get("notes") or "",
                 # Events only carry display scalars — the exercises live on
                 # the linked template. _exerciseCount is transient (popped
                 # before insert) so previews can still show counts.
-                "workoutDetails": {
-                    "type": content["type"],
+                "sessionDetails": {
+                    "discipline": content["type"],
                     "estimatedDuration": content["duration"],
                 },
                 "_exerciseCount": len(content["exercises"]),
@@ -231,7 +231,7 @@ def _build_events(
                 "updatedAt": now,
             }
             if content.get("template_id"):
-                event["workoutTemplateId"] = content["template_id"]
+                event["sessionTemplateId"] = content["template_id"]
             elif content["exercises"]:
                 # Custom plan workout — needs a library template created and
                 # linked on the write path (see _ensure_templates).
@@ -287,7 +287,7 @@ def _slot_key(event: Dict[str, Any]) -> tuple:
     etype = event.get("type")
     # Missing type (legacy events) defaults to the workout class; workout and
     # deload share it (a re-planned deload week moves the session, no duplicate).
-    type_class = "workout" if etype in ("workout", "deload", None) else etype
+    type_class = "session" if etype in ("session", "deload", None) else etype
     return (event.get("planWeek"), event.get("planDay"), type_class)
 
 
@@ -320,7 +320,7 @@ async def _ensure_templates(
     ctx: SkillContext, user_id: str, plan: Dict[str, Any], events: List[Dict[str, Any]]
 ) -> int:
     """Create (or reuse) a PredefinedWorkout for every event carrying a
-    `_pendingTemplate` marker and link it via workoutTemplateId (events don't
+    `_pendingTemplate` marker and link it via sessionTemplateId (events don't
     embed exercises — the template is the only copy).
 
     Dedupe is by content key, both within the run (a workout repeated across
@@ -341,7 +341,7 @@ async def _ensure_templates(
     plan_tag = f"plan-{plan['_id']}"
     # key -> (template_id, ordered exercise ids)
     known: Dict[tuple, tuple] = {}
-    async for doc in ctx.db.predefinedworkouts.find({"createdBy": user_oid, "tags": plan_tag}):
+    async for doc in ctx.db.sessiontemplates.find({"createdBy": user_oid, "tags": plan_tag}):
         known[_template_doc_key(doc)] = (doc["_id"], _template_doc_exercise_ids(doc))
 
     created = 0
@@ -384,12 +384,12 @@ async def _ensure_templates(
                 "createdAt": now,
                 "updatedAt": now,
             }
-            result = await ctx.db.predefinedworkouts.insert_one(template_doc)
+            result = await ctx.db.sessiontemplates.insert_one(template_doc)
             known[key] = (result.inserted_id, _template_doc_exercise_ids(template_doc))
             created += 1
 
         template_id, _exercise_ids = known[key]
-        event["workoutTemplateId"] = template_id
+        event["sessionTemplateId"] = template_id
 
     if created:
         logger.info("created plan workout templates",
@@ -418,7 +418,7 @@ def _format_preview(
     conflicts: List[Dict[str, Any]],
     start_date: datetime,
 ) -> str:
-    workouts = [e for e in proposed if e["type"] in ("workout", "deload")]
+    workouts = [e for e in proposed if e["type"] in ("session", "deload")]
     rests = [e for e in proposed if e["type"] == "rest"]
     first, last = proposed[0]["date"], proposed[-1]["date"]
     lines = [
@@ -511,14 +511,14 @@ async def schedule_plan_to_calendar(ctx: SkillContext, user_id: str, args: Dict[
 
     # Batch-fetch referenced predefined templates (avoid N queries).
     predefined_ids = [
-        wk["predefinedWorkoutId"]
+        wk["sessionTemplateId"]
         for w in (plan.get("weeks") or [])
-        for wk in (w.get("workouts") or [])
-        if wk.get("workoutType") == "predefined" and wk.get("predefinedWorkoutId")
+        for wk in (w.get("sessions") or [])
+        if wk.get("sessionType") == "predefined" and wk.get("sessionTemplateId")
     ]
     template_map: Dict[str, Any] = {}
     if predefined_ids:
-        async for tmpl in ctx.db.predefinedworkouts.find({"_id": {"$in": predefined_ids}}):
+        async for tmpl in ctx.db.sessiontemplates.find({"_id": {"$in": predefined_ids}}):
             template_map[str(tmpl["_id"])] = tmpl
 
     now = datetime.utcnow()
@@ -529,9 +529,9 @@ async def schedule_plan_to_calendar(ctx: SkillContext, user_id: str, args: Dict[
     skipped_missing = sum(
         1
         for w in _included_weeks(plan, weeks_cap)
-        for wk in (w.get("workouts") or [])
-        if wk.get("workoutType") == "predefined"
-        and str(wk.get("predefinedWorkoutId")) not in template_map
+        for wk in (w.get("sessions") or [])
+        if wk.get("sessionType") == "predefined"
+        and str(wk.get("sessionTemplateId")) not in template_map
     )
 
     if not proposed:
@@ -650,14 +650,14 @@ async def schedule_plan_to_calendar(ctx: SkillContext, user_id: str, args: Dict[
 
     # Activate the plan (mirrors Plan.startPlan()).
     weeks_total = (plan.get("schedule") or {}).get("weeksTotal") or len(plan.get("weeks") or [])
-    total_workouts = sum(len(w.get("workouts", []) or []) for w in (plan.get("weeks") or []))
+    total_workouts = sum(len(w.get("sessions", []) or []) for w in (plan.get("weeks") or []))
     await ctx.db.plans.update_one(
         {"_id": plan_oid, "userId": user_oid},
         {"$set": {
             "startDate": start_date,
             "status": "active",
             "endDate": start_date + timedelta(days=weeks_total * 7),
-            "progress.totalWorkouts": total_workouts,
+            "progress.totalSessions": total_workouts,
             "updatedAt": now,
         }},
     )

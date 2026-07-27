@@ -121,7 +121,7 @@ async def resolve_week(ctx: SkillContext, user_id: str, args: Dict[str, Any]) ->
 
     # --- Inputs: schedule days, adherence, safety ---
     schedule = plan.get("schedule") or {}
-    workout_days = schedule.get("preferredWorkoutDays") or [1, 3, 5]
+    workout_days = schedule.get("preferredSessionDays") or [1, 3, 5]
 
     now = datetime.utcnow()
     events = await ctx.db.calendarevents.find({
@@ -161,14 +161,14 @@ async def resolve_week(ctx: SkillContext, user_id: str, args: Dict[str, Any]) ->
         week["focus"] = week.get("focus") or "Deload"
 
     # --- Validate the materialized horizon including the new week ---
-    resolved_weeks = [w for w in weeks if week_is_resolved(w) and (w.get("workouts") or [])]
+    resolved_weeks = [w for w in weeks if week_is_resolved(w) and (w.get("sessions") or [])]
     resolved_weeks = [w for w in resolved_weeks if w.get("weekNumber") != target] + [week]
     report = validate_plan_doc(
         {"schedule": {**schedule, "weeksTotal": len(resolved_weeks)}, "weeks": resolved_weeks},
         "general",
     )
 
-    session_count = len(week.get("workouts") or [])
+    session_count = len(week.get("sessions") or [])
     msg = f"Week {target} is now written out: {session_count} session(s), focus: {week.get('focus') or intent.get('phase', '')}."
     if note:
         msg += f"\n{note}"
@@ -182,12 +182,12 @@ async def resolve_week(ctx: SkillContext, user_id: str, args: Dict[str, Any]) ->
 
     # --- Write: replace the week element in place ---
     new_weeks = [week if w.get("weekNumber") == target else w for w in weeks]
-    total_workouts = sum(len(w.get("workouts", []) or []) for w in new_weeks)
+    total_workouts = sum(len(w.get("sessions", []) or []) for w in new_weeks)
     await ctx.db.plans.update_one(
         {"_id": plan_oid, "userId": user_oid},
         {"$set": {
             "weeks": new_weeks,
-            "progress.totalWorkouts": total_workouts,
+            "progress.totalSessions": total_workouts,
             "progress.lowAdherenceStreak": 0 if converted_deload else new_streak,
             "updatedAt": now,
         }},

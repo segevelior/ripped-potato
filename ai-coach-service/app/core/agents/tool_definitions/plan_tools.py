@@ -39,7 +39,7 @@ def get_plan_tools() -> List[Dict[str, Any]]:
                                     "maximum": 52,
                                     "description": "Total number of weeks"
                                 },
-                                "workoutsPerWeek": {
+                                "sessionsPerWeek": {
                                     "type": "integer",
                                     "minimum": 1,
                                     "maximum": 7,
@@ -50,13 +50,13 @@ def get_plan_tools() -> List[Dict[str, Any]]:
                                     "items": {"type": "integer", "minimum": 0, "maximum": 6},
                                     "description": "Preferred rest days (0=Sunday, 6=Saturday)"
                                 },
-                                "preferredWorkoutDays": {
+                                "preferredSessionDays": {
                                     "type": "array",
                                     "items": {"type": "integer", "minimum": 0, "maximum": 6},
                                     "description": "Preferred workout days"
                                 }
                             },
-                            "required": ["weeksTotal", "workoutsPerWeek"]
+                            "required": ["weeksTotal", "sessionsPerWeek"]
                         },
                         "weeks": {
                             "type": "array",
@@ -68,15 +68,15 @@ def get_plan_tools() -> List[Dict[str, Any]]:
                                     "focus": {"type": "string", "description": "Weekly focus (e.g., 'Volume', 'Intensity', 'Deload')"},
                                     "description": {"type": "string"},
                                     "deloadWeek": {"type": "boolean", "description": "Is this a deload/recovery week?"},
-                                    "workouts": {
+                                    "sessions": {
                                         "type": "array",
                                         "items": {
                                             "type": "object",
                                             "properties": {
                                                 "dayOfWeek": {"type": "integer", "minimum": 0, "maximum": 6},
-                                                "workoutType": {"type": "string", "enum": ["predefined", "custom"]},
-                                                "predefinedWorkoutId": {"type": "string"},
-                                                "customWorkout": {
+                                                "sessionType": {"type": "string", "enum": ["predefined", "custom"]},
+                                                "sessionTemplateId": {"type": "string"},
+                                                "customSession": {
                                                     "type": "object",
                                                     "properties": {
                                                         "title": {"type": "string"},
@@ -108,7 +108,7 @@ def get_plan_tools() -> List[Dict[str, Any]]:
                                                 "notes": {"type": "string"},
                                                 "isOptional": {"type": "boolean"}
                                             },
-                                            "required": ["dayOfWeek", "workoutType"]
+                                            "required": ["dayOfWeek", "sessionType"]
                                         }
                                     }
                                 },
@@ -172,9 +172,9 @@ def get_plan_tools() -> List[Dict[str, Any]]:
                             "type": "object",
                             "properties": {
                                 "weeksTotal": {"type": "integer", "minimum": 1, "maximum": 52},
-                                "workoutsPerWeek": {"type": "integer", "minimum": 1, "maximum": 7},
+                                "sessionsPerWeek": {"type": "integer", "minimum": 1, "maximum": 7},
                                 "restDays": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 6}},
-                                "preferredWorkoutDays": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 6}}
+                                "preferredSessionDays": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 6}}
                             }
                         }
                     },
@@ -185,7 +185,7 @@ def get_plan_tools() -> List[Dict[str, Any]]:
         {
             "type": "function",
             "function": {
-                "name": "add_plan_workout",
+                "name": "add_plan_session",
                 "description": "Add a workout to a specific week and day in a training plan.",
                 "parameters": {
                     "type": "object",
@@ -193,9 +193,9 @@ def get_plan_tools() -> List[Dict[str, Any]]:
                         "plan_id": {"type": "string"},
                         "weekNumber": {"type": "integer", "minimum": 1},
                         "dayOfWeek": {"type": "integer", "minimum": 0, "maximum": 6, "description": "0=Sunday, 6=Saturday"},
-                        "workoutType": {"type": "string", "enum": ["predefined", "custom"]},
-                        "predefinedWorkoutId": {"type": "string", "description": "Required if workoutType is 'predefined'"},
-                        "customWorkout": {
+                        "sessionType": {"type": "string", "enum": ["predefined", "custom"]},
+                        "sessionTemplateId": {"type": "string", "description": "Required if sessionType is 'predefined'"},
+                        "customSession": {
                             "type": "object",
                             "properties": {
                                 "title": {"type": "string"},
@@ -227,22 +227,22 @@ def get_plan_tools() -> List[Dict[str, Any]]:
                         "notes": {"type": "string"},
                         "isOptional": {"type": "boolean"}
                     },
-                    "required": ["plan_id", "weekNumber", "dayOfWeek", "workoutType"]
+                    "required": ["plan_id", "weekNumber", "dayOfWeek", "sessionType"]
                 }
             }
         },
         {
             "type": "function",
             "function": {
-                "name": "remove_plan_workout",
+                "name": "remove_plan_session",
                 "description": "Remove a workout from a specific week in a training plan.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "plan_id": {"type": "string"},
                         "weekNumber": {"type": "integer", "minimum": 1},
-                        "workoutIndex": {"type": "integer", "description": "Index of workout in the week's workouts array"},
-                        "weeklyWorkoutId": {"type": "string", "description": "Or the _id of the workout subdocument"}
+                        "sessionIndex": {"type": "integer", "description": "Index of the session in the week's sessions array"},
+                        "weeklySessionId": {"type": "string", "description": "Or the _id of the workout subdocument"}
                     },
                     "required": ["plan_id", "weekNumber"]
                 }

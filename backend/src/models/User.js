@@ -77,10 +77,10 @@ const userSchema = new mongoose.Schema({
     sportPreferences: [String], // e.g., ['running', 'weightlifting', 'yoga', 'cycling']
     injuries: [String], // any injuries to be aware of
     preferences: {
-      workoutDuration: Number, // preferred minutes
-      workoutDays: [Number], // 0-6 for days of week
+      sessionDuration: Number, // preferred minutes
+      sessionDays: [Number], // 0-6 for days of week
       equipment: [String],
-      preferredWorkoutTime: {
+      preferredSessionTime: {
         type: String,
         enum: ['morning', 'afternoon', 'evening', 'night']
       }

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Plan, Goal, PredefinedWorkout, UserGoalProgress } from "@/api/entities";
+import { Plan, Goal, SessionTemplate, UserGoalProgress } from "@/api/entities";
 import { Calendar, Target, Plus, Play, Pause, CheckCircle2, Clock, ArrowRight, MoreVertical, Edit3, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";

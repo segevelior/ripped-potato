@@ -2,13 +2,13 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { X, Search, ChevronRight, Clock, Target, Sparkles } from "lucide-react";
 import { format } from "date-fns";
-import { PredefinedWorkout } from "@/api/entities";
+import { SessionTemplate } from "@/api/entities";
 import { createPageUrl } from "@/utils";
 import { disciplineToType } from "@/utils/disciplineToType";
 
 export default function SessionSelectionModal({ date, onClose, onApplyWorkout }) {
   const navigate = useNavigate();
-  const [predefinedWorkouts, setPredefinedWorkouts] = useState([]);
+  const [sessionTemplates, setSessionTemplates] = useState([]);
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -16,17 +16,17 @@ export default function SessionSelectionModal({ date, onClose, onApplyWorkout })
   const [filteredWorkouts, setFilteredWorkouts] = useState([]);
 
   useEffect(() => {
-    loadPredefinedWorkouts();
+    loadSessionTemplates();
   }, []);
 
   useEffect(() => {
     filterWorkouts();
-  }, [predefinedWorkouts, searchTerm]);
+  }, [sessionTemplates, searchTerm]);
 
-  const loadPredefinedWorkouts = async () => {
+  const loadSessionTemplates = async () => {
     try {
-      const workouts = await PredefinedWorkout.list();
-      setPredefinedWorkouts(workouts);
+      const workouts = await SessionTemplate.list();
+      setSessionTemplates(workouts);
       setFilteredWorkouts(workouts);
     } catch (error) {
       console.error("Error loading predefined workouts:", error);
@@ -35,11 +35,11 @@ export default function SessionSelectionModal({ date, onClose, onApplyWorkout })
 
   const filterWorkouts = () => {
     if (!searchTerm.trim()) {
-      setFilteredWorkouts(predefinedWorkouts);
+      setFilteredWorkouts(sessionTemplates);
       return;
     }
 
-    const filtered = predefinedWorkouts.filter(workout => {
+    const filtered = sessionTemplates.filter(workout => {
       const searchLower = searchTerm.toLowerCase();
       return workout.name?.toLowerCase().includes(searchLower) ||
              workout.goal?.toLowerCase().includes(searchLower) ||
@@ -60,13 +60,13 @@ export default function SessionSelectionModal({ date, onClose, onApplyWorkout })
 
     let prompt;
     if (coachPrompt.trim()) {
-      prompt = `[WORKOUT REQUEST for ${dateStr} (${isoDate})${isToday ? ' - TODAY' : ''}]
+      prompt = `[SESSION REQUEST for ${dateStr} (${isoDate})${isToday ? ' - TODAY' : ''}]
 
 I want to add a workout to my calendar for ${dateStr}. Here's what I'm looking for: ${coachPrompt}
 
 Please suggest exercises that fit this request, estimate the duration, and create a workout for me. After I approve, add it to my calendar for this date.${isToday ? ' Since this is for today, ask me if I want to start training now after adding it.' : ''}`;
     } else {
-      prompt = `[WORKOUT REQUEST for ${dateStr} (${isoDate})${isToday ? ' - TODAY' : ''}]
+      prompt = `[SESSION REQUEST for ${dateStr} (${isoDate})${isToday ? ' - TODAY' : ''}]
 
 I want to add a workout to my calendar for ${dateStr}. Please help me decide what to train. Ask me a quick question about what I'm in the mood for, or suggest a few options based on my training history and goals.${isToday ? ' Since this is for today, if I confirm a workout, ask me if I want to start training now.' : ''}`;
     }
@@ -138,7 +138,7 @@ I want to add a workout to my calendar for ${dateStr}. Please help me decide wha
       durationMinutes: selectedWorkout.estimated_duration || selectedWorkout.duration_minutes || 60,
       // The library workout's id: the calendar event links to it instead of
       // carrying its own exercise copy (exercises stay for local preview).
-      workoutTemplateId: selectedWorkout._id || selectedWorkout.id,
+      sessionTemplateId: selectedWorkout._id || selectedWorkout.id,
       exercises: workoutExercises,
       notes: `Applied from: ${selectedWorkout.name}\n\nGoal: ${selectedWorkout.goal || "No goal specified"}`,
       totalStrain: 0,

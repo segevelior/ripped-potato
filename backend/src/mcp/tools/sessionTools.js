@@ -23,50 +23,50 @@ const exerciseSchema = z.object({
 });
 
 /**
- * Register workout tools over the user's workout log (performed sessions).
+ * Register session tools over the user's session log (performed sessions).
  * `ctx` = { user, scopes }.
  */
 function register(server, ctx) {
   const { user, scopes } = ctx;
-  const READ = 'workouts:read';
-  const WRITE = 'workouts:write';
+  const READ = 'sessions:read';
+  const WRITE = 'sessions:write';
 
-  server.registerTool('list_workouts', {
-    title: 'List workouts',
-    description: "List the user's logged workouts (performed sessions), most recent first. Optionally filter by look-back window or type.",
+  server.registerTool('list_sessions', {
+    title: 'List sessions',
+    description: "List the user's logged training sessions, most recent first. Optionally filter by look-back window or discipline.",
     inputSchema: {
       days: z.number().int().min(1).max(365).optional().describe('Look-back window in days, default 30'),
-      type: z.string().optional().describe('Workout type, e.g. strength, cardio, hiit'),
+      discipline: z.string().optional().describe('Session discipline, e.g. strength, cardio, hiit'),
       limit: z.number().int().min(1).max(50).optional().describe('Max results, default 20')
     }
   }, withScope(scopes, READ, (args) =>
     runTool(sessionLogController.getSessionLogs, { user, query: args })
   ));
 
-  server.registerTool('get_workout', {
-    title: 'Get workout',
-    description: 'Get a single logged workout by its id, including exercises and sets.',
-    inputSchema: { id: z.string().length(24).describe('Workout log id') }
+  server.registerTool('get_session', {
+    title: 'Get session',
+    description: 'Get a single logged session by its id, including exercises and sets.',
+    inputSchema: { id: z.string().length(24).describe('Session log id') }
   }, withScope(scopes, READ, (args) =>
     runTool(sessionLogController.getSessionLog, { user, params: { id: args.id } })
   ));
 
-  server.registerTool('get_workout_stats', {
-    title: 'Get workout stats',
-    description: 'Aggregate statistics over logged workouts (totals, duration, strain) for the last N days.',
+  server.registerTool('get_session_stats', {
+    title: 'Get session stats',
+    description: 'Aggregate statistics over logged sessions (totals, duration, strain) for the last N days.',
     inputSchema: { days: z.number().int().min(1).max(365).optional().describe('Look-back window, default 30') }
   }, withScope(scopes, READ, (args) =>
     runTool(sessionLogController.getSessionLogStats, { user, query: args })
   ));
 
-  server.registerTool('create_workout', {
-    title: 'Log workout',
-    description: 'Log a performed workout for the user (it appears in their history and on their calendar). Use search_exercises to find exerciseIds; exerciseName is required per exercise.',
+  server.registerTool('create_session', {
+    title: 'Log session',
+    description: 'Log a performed training session for the user (it appears in their history and on their calendar). Use search_exercises to find exerciseIds; exerciseName is required per exercise.',
     inputSchema: {
       title: z.string().min(1).max(100),
-      type: z.string().describe('Workout type, e.g. strength, cardio, hiit, climbing'),
-      startedAt: z.string().describe('ISO datetime the workout started'),
-      completedAt: z.string().optional().describe('ISO datetime the workout ended (defaults to now)'),
+      discipline: z.string().describe('Session discipline, e.g. strength, cardio, hiit, climbing'),
+      startedAt: z.string().describe('ISO datetime the session started'),
+      completedAt: z.string().optional().describe('ISO datetime the session ended (defaults to now)'),
       durationMinutes: z.number().optional().describe('Actual duration in minutes (derived from start/end when omitted)'),
       notes: z.string().optional(),
       exercises: z.array(exerciseSchema).optional()
@@ -81,13 +81,13 @@ function register(server, ctx) {
     return runTool(sessionLogController.createSessionLog, { user, body }, { validators: sessionLogController.validateSessionLog });
   }));
 
-  server.registerTool('update_workout', {
-    title: 'Update workout',
-    description: 'Update a logged workout by id. Provide only the fields to change.',
+  server.registerTool('update_session', {
+    title: 'Update session',
+    description: 'Update a logged session by id. Provide only the fields to change.',
     inputSchema: {
       id: z.string().length(24),
       title: z.string().min(1).max(100).optional(),
-      type: z.string().optional(),
+      discipline: z.string().optional(),
       startedAt: z.string().optional().describe('ISO datetime'),
       completedAt: z.string().optional().describe('ISO datetime'),
       durationMinutes: z.number().optional(),
@@ -96,16 +96,16 @@ function register(server, ctx) {
     }
   }, withScope(scopes, WRITE, (args) => {
     // Partial findOneAndUpdate with mongoose runValidators; the create-time
-    // validator chain would wrongly require title/type/startedAt here.
+    // validator chain would wrongly require title/discipline/startedAt here.
     const { id, durationMinutes, ...rest } = args;
     const body = { ...rest };
     if (durationMinutes !== undefined) body.actualDuration = durationMinutes;
     return runTool(sessionLogController.updateSessionLog, { user, params: { id }, body });
   }));
 
-  server.registerTool('delete_workout', {
-    title: 'Delete workout',
-    description: 'Delete a logged workout by id (also removes its calendar entry).',
+  server.registerTool('delete_session', {
+    title: 'Delete session',
+    description: 'Delete a logged session by id (also removes its calendar entry).',
     inputSchema: { id: z.string().length(24) }
   }, withScope(scopes, WRITE, (args) =>
     runTool(sessionLogController.deleteSessionLog, { user, params: { id: args.id } })

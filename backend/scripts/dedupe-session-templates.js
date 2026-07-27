@@ -3,8 +3,8 @@
 /**
  * One-off cleanup: schedule_to_calendar used to mint a new date-suffixed
  * SessionTemplate per scheduled date ("Push Day (Jul 07)", "Push Day
- * (Jul 14)", ...), so a twice-a-week workout left 8 copies/month in the
- * Workouts tab. Creation is reuse-first now; this script merges the copies
+ * (Jul 14)", ...), so a twice-a-week session left 8 copies/month in the
+ * Sessions tab. Creation is reuse-first now; this script merges the copies
  * that already exist.
  *
  * Groups user-owned templates by (createdBy, normalized name, exercise
@@ -13,23 +13,23 @@
  * nothing still references the duplicates, then deletes them.
  *
  * Re-pointed collections:
- *  - calendarevents.workoutTemplateId — ALL statuses including completed
+ *  - calendarevents.sessionTemplateId — ALL statuses including completed
  *    (completed events keep their actual performed sets embedded; the link is
  *    a display affordance, and content-identical re-pointing is lossless —
  *    leaving it dangling after deletion would degrade history views);
- *  - plans.weeks[].workouts[].predefinedWorkoutId — a deleted id here breaks
+ *  - plans.weeks[].sessions[].sessionTemplateId — a deleted id here breaks
  *    future schedule_plan_to_calendar runs;
- *  - userworkoutmodifications.workoutId — unless the canonical already has a
- *    modification for the same user (unique userId+workoutId index): then the
+ *  - usersessionmodifications.sessionTemplateId — unless the canonical already has a
+ *    modification for the same user (unique userId+sessionTemplateId index): then the
  *    duplicate is kept and reported instead of merged.
  *
  * Explicitly NOT touched: common templates, and same-content templates the
  * user deliberately named differently (reported as info, never merged).
  *
  * Usage:
- *   node scripts/dedupe-predefined-workouts.js             # dry run (default)
- *   node scripts/dedupe-predefined-workouts.js --apply     # write
- *   node scripts/dedupe-predefined-workouts.js --user <id> # limit to one user
+ *   node scripts/dedupe-session-templates.js             # dry run (default)
+ *   node scripts/dedupe-session-templates.js --apply     # write
+ *   node scripts/dedupe-session-templates.js --user <id> # limit to one user
  */
 
 const mongoose = require('mongoose');
@@ -60,7 +60,7 @@ const DATE_SUFFIX_RE = /\s*\((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \
 
 async function eventCounts(templateId) {
   const rows = await CalendarEvent.aggregate([
-    { $match: { workoutTemplateId: templateId } },
+    { $match: { sessionTemplateId: templateId } },
     { $group: { _id: '$status', n: { $sum: 1 } } }
   ]);
   const byStatus = Object.fromEntries(rows.map((r) => [r._id, r.n]));
@@ -69,20 +69,20 @@ async function eventCounts(templateId) {
 
 async function refCount(templateId) {
   const [events, plans, mods] = await Promise.all([
-    CalendarEvent.countDocuments({ workoutTemplateId: templateId }),
-    Plan.countDocuments({ 'weeks.workouts.predefinedWorkoutId': templateId }),
-    UserSessionModification.countDocuments({ workoutId: templateId })
+    CalendarEvent.countDocuments({ sessionTemplateId: templateId }),
+    Plan.countDocuments({ 'weeks.sessions.sessionTemplateId': templateId }),
+    UserSessionModification.countDocuments({ sessionTemplateId: templateId })
   ]);
   return { events, plans, mods, total: events + plans + mods };
 }
 
 async function repointPlans(dupId, canonicalId) {
-  const plans = await Plan.find({ 'weeks.workouts.predefinedWorkoutId': dupId });
+  const plans = await Plan.find({ 'weeks.sessions.sessionTemplateId': dupId });
   for (const plan of plans) {
     for (const week of plan.weeks || []) {
-      for (const workout of week.workouts || []) {
-        if (String(workout.predefinedWorkoutId) === String(dupId)) {
-          workout.predefinedWorkoutId = canonicalId;
+      for (const session of week.sessions || []) {
+        if (String(session.sessionTemplateId) === String(dupId)) {
+          session.sessionTemplateId = canonicalId;
         }
       }
     }
@@ -155,13 +155,13 @@ async function main() {
 
     for (const dup of dups) {
       const [planRefs, modDoc, canonicalMod] = await Promise.all([
-        Plan.countDocuments({ 'weeks.workouts.predefinedWorkoutId': dup.t._id }),
-        UserSessionModification.findOne({ workoutId: dup.t._id }).lean(),
-        UserSessionModification.findOne({ workoutId: canonical.t._id }).lean()
+        Plan.countDocuments({ 'weeks.sessions.sessionTemplateId': dup.t._id }),
+        UserSessionModification.findOne({ sessionTemplateId: dup.t._id }).lean(),
+        UserSessionModification.findOne({ sessionTemplateId: canonical.t._id }).lean()
       ]);
 
       // Both the dup and the canonical carry a user modification: merging is
-      // out of scope (unique userId+workoutId index), keep the dup.
+      // out of scope (unique userId+sessionTemplateId index), keep the dup.
       if (modDoc && canonicalMod && String(modDoc.userId) === String(canonicalMod.userId)) {
         stats.skippedConflicts++;
         console.log(`  SKIP   ${dup.t._id} "${dup.t.name}" — both it and the canonical have a user modification`);
@@ -172,15 +172,15 @@ async function main() {
 
       if (APPLY) {
         const { modifiedCount } = await CalendarEvent.updateMany(
-          { workoutTemplateId: dup.t._id },
-          { $set: { workoutTemplateId: canonical.t._id } }
+          { sessionTemplateId: dup.t._id },
+          { $set: { sessionTemplateId: canonical.t._id } }
         );
         stats.eventsRepointed += modifiedCount;
         stats.plansRepointed += await repointPlans(dup.t._id, canonical.t._id);
         if (modDoc) {
           await UserSessionModification.updateOne(
             { _id: modDoc._id },
-            { $set: { workoutId: canonical.t._id } }
+            { $set: { sessionTemplateId: canonical.t._id } }
           );
           stats.modsRepointed++;
         }

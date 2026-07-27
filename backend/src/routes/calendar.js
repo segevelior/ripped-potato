@@ -26,7 +26,7 @@ const validateEvent = [
     .withMessage('Title must be between 1 and 100 characters'),
   body('type')
     .optional()
-    .isIn(['workout', 'rest', 'deload', 'event', 'milestone'])
+    .isIn(['session', 'rest', 'deload', 'event', 'milestone'])
     .withMessage('Invalid event type'),
   body('status')
     .optional()
@@ -47,7 +47,7 @@ const validateEventUpdate = [
     .withMessage('Title must be between 1 and 100 characters'),
   body('type')
     .optional()
-    .isIn(['workout', 'rest', 'deload', 'event', 'milestone'])
+    .isIn(['session', 'rest', 'deload', 'event', 'milestone'])
     .withMessage('Invalid event type'),
   body('status')
     .optional()
@@ -91,17 +91,17 @@ router.delete('/:id', auth, deleteEvent);
 router.patch('/:id/move', auth, moveEvent);
 
 // @route   POST /api/v1/calendar/:id/start
-// @desc    Start a workout (creates workout log)
+// @desc    Start a session (creates session log)
 // @access  Private
 router.post('/:id/start', auth, startSession);
 
 // @route   POST /api/v1/calendar/:id/complete
-// @desc    Complete a workout
+// @desc    Complete a session
 // @access  Private
 router.post('/:id/complete', auth, completeSession);
 
 // @route   POST /api/v1/calendar/:id/skip
-// @desc    Skip a workout
+// @desc    Skip a session
 // @access  Private
 router.post('/:id/skip', auth, skipSession);
 

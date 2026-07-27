@@ -25,7 +25,7 @@ const blockSchema = new mongoose.Schema({
 const sessionTemplateSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Workout name is required'],
+    required: [true, 'Session name is required'],
     trim: true,
     index: true
   },
@@ -155,5 +155,6 @@ sessionTemplateSchema.virtual('isPrivate').get(function () {
   return !this.isCommon;
 });
 
-// Third arg pins the legacy collection name — Stage 3 flips it to 'sessiontemplates'.
-module.exports = mongoose.model('SessionTemplate', sessionTemplateSchema, 'predefinedworkouts');
+// Collection name pinned explicitly (renamed from the legacy
+// 'predefinedworkouts' by scripts/migrate-workout-to-session.js).
+module.exports = mongoose.model('SessionTemplate', sessionTemplateSchema, 'sessiontemplates');

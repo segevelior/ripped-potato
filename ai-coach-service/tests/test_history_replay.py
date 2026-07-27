@@ -4,6 +4,7 @@ tool_rounds, the write-aware grounding relaxation, and storage truncation."""
 import json
 
 from app.core.agents.orchestrator import (
+    LEGACY_TOOL_ALIASES,
     REPLAY_TOOL_CHARS_BUDGET,
     REPLAY_TOOL_ROUNDS_LAST_K,
     _call_is_write,
@@ -74,11 +75,11 @@ def test_multi_call_round_keeps_call_order():
     round_ = {
         "tool_calls": [
             {"id": "a", "name": "get_calendar_events", "arguments": "{}"},
-            {"id": "b", "name": "grep_workouts", "arguments": "{}"},
+            {"id": "b", "name": "grep_session_templates", "arguments": "{}"},
         ],
         "results": [
             # persisted out of order on purpose
-            {"tool_call_id": "b", "name": "grep_workouts", "content": "B"},
+            {"tool_call_id": "b", "name": "grep_session_templates", "content": "B"},
             {"tool_call_id": "a", "name": "get_calendar_events", "content": "A"},
         ],
     }
@@ -100,7 +101,7 @@ def test_orphaned_round_is_skipped_whole():
     orphan = {
         "tool_calls": [
             {"id": "a", "name": "get_calendar_events", "arguments": "{}"},
-            {"id": "b", "name": "grep_workouts", "arguments": "{}"},
+            {"id": "b", "name": "grep_session_templates", "arguments": "{}"},
         ],
         "results": [{"tool_call_id": "a", "name": "get_calendar_events", "content": "A"}],
     }
@@ -173,12 +174,12 @@ def test_calendar_preview_payload_stripped_on_replay():
 
 def test_reads_are_not_writes():
     assert _call_is_write("get_calendar_events", "{}") is False
-    assert _call_is_write("grep_workouts", '{"pattern": "x"}') is False
+    assert _call_is_write("grep_session_templates", '{"pattern": "x"}') is False
 
 
 def test_always_write_tools():
     assert _call_is_write("save_memory", "{}") is True
-    assert _call_is_write("log_workout", None) is True
+    assert _call_is_write("log_session", None) is True
 
 
 def test_dry_run_preview_is_read_and_confirmed_write_is_write():
@@ -215,6 +216,53 @@ def test_write_in_replay_window_detection():
     assert _history_write_in_replay_window(history) is False
 
 
+# --- legacy (pre workout→session rename) tool vocabulary ----------------------
+# Conversations persisted before the rename carry the old tool names in their
+# tool_rounds forever; the alias map is the only mechanism that keeps them
+# classified and replayed correctly.
+
+def test_legacy_tool_names_are_rewritten_on_replay():
+    history = [
+        _human("log yesterday's session"),
+        _ai("logged it", [
+            _round(call_id="a", name="log_workout", args='{"title": "Push Day"}'),
+        ]),
+    ]
+    expanded = _expand_tool_rounds(history[1]["tool_rounds"])
+    assert expanded[0]["tool_calls"][0]["function"]["name"] == "log_session"
+    # Arguments are untouched — they are opaque JSON in Mongo.
+    assert expanded[0]["tool_calls"][0]["function"]["arguments"] == '{"title": "Push Day"}'
+
+
+def test_every_legacy_alias_target_is_a_live_tool_name():
+    from app.core.agents.orchestrator import resolve_tool_name
+
+    for old, new in LEGACY_TOOL_ALIASES.items():
+        assert resolve_tool_name(old) == new
+        assert resolve_tool_name(new) == new  # idempotent
+    assert resolve_tool_name(None) == ""
+
+
+def test_legacy_write_names_still_classify_as_writes():
+    assert _call_is_write("log_workout", None) is True
+    assert _call_is_write("create_workout_template", "{}") is True
+    assert _call_is_write("add_plan_workout", "{}") is True
+    assert _call_is_write("delete_workout_template", '{"confirm": true}') is True
+    assert _call_is_write("delete_workout_template", "{}") is False
+    assert _call_is_write("update_calendar_workout", '{"dry_run": false}') is True
+    # legacy reads stay reads
+    assert _call_is_write("grep_workouts", "{}") is False
+    assert _call_is_write("get_workout_history", "{}") is False
+
+
+def test_legacy_write_in_replay_window_still_detected():
+    history = [
+        _human("q"),
+        _ai("a", [_round(name="log_workout", args="{}")]),
+    ]
+    assert _history_write_in_replay_window(history) is True
+
+
 # --- storage truncation -------------------------------------------------------
 
 def test_small_result_untouched():
@@ -246,8 +294,8 @@ def test_non_json_truncation_slices():
 def test_bound_tool_rounds_caps_results():
     big = json.dumps({"success": True, "items": [{"n": i, "pad": "p" * 300} for i in range(200)]})
     rounds = [{
-        "tool_calls": [{"id": "a", "name": "grep_workouts", "arguments": "{}"}],
-        "results": [{"tool_call_id": "a", "name": "grep_workouts", "content": big}],
+        "tool_calls": [{"id": "a", "name": "grep_session_templates", "arguments": "{}"}],
+        "results": [{"tool_call_id": "a", "name": "grep_session_templates", "content": big}],
     }]
     bounded = ConversationService._bound_tool_rounds(rounds)
     result = bounded[0]["results"][0]

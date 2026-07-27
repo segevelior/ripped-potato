@@ -1,19 +1,19 @@
 """
-Workout tool definitions for the AI fitness coach
+Session tool definitions for the AI fitness coach
 """
 
 from typing import Dict, Any, List
 
 
-def get_workout_tools() -> List[Dict[str, Any]]:
-    """Return workout-related tool definitions"""
+def get_session_tools() -> List[Dict[str, Any]]:
+    """Return session-related tool definitions"""
     return [
-        # ==================== WORKOUT TEMPLATE TOOLS ====================
+        # ==================== SESSION TEMPLATE TOOLS ====================
         {
             "type": "function",
             "function": {
-                "name": "create_workout_template",
-                "description": "Create a reusable workout template (PredefinedWorkout). THIS is what appears under the user's 'Workouts' tab / workout library. Use it whenever the user wants to add or save a whole WORKOUT — one made of multiple exercises/drills — including a workout they upload as an image/screenshot or paste as a list. Do NOT use add_exercise for a multi-exercise workout. Workouts are organized into blocks (Warm-up, Main Work, Finisher, etc.). Refer to exercises by NAME only — ids are resolved server-side against the exercise catalog (close name matches are reused; genuinely new exercises are auto-created). If a name is ambiguous the tool returns candidate matches: ask the user which they meant, then call again with the chosen exact name — or, if the user wants it as a new exercise, call add_exercise for it first and then retry (never repeat the identical call). If a template with the same name already exists the tool refuses and returns its id — reuse that template (schedule it with schedule_to_calendar + workout_template_id) instead of creating a copy. Every block must contain at least one exercise — never create an empty/placeholder template.",
+                "name": "create_session_template",
+                "description": "Create a reusable workout template (PredefinedWorkout). THIS is what appears under the user's 'Workouts' tab / workout library. Use it whenever the user wants to add or save a whole WORKOUT — one made of multiple exercises/drills — including a workout they upload as an image/screenshot or paste as a list. Do NOT use add_exercise for a multi-exercise workout. Workouts are organized into blocks (Warm-up, Main Work, Finisher, etc.). Refer to exercises by NAME only — ids are resolved server-side against the exercise catalog (close name matches are reused; genuinely new exercises are auto-created). If a name is ambiguous the tool returns candidate matches: ask the user which they meant, then call again with the chosen exact name — or, if the user wants it as a new exercise, call add_exercise for it first and then retry (never repeat the identical call). If a template with the same name already exists the tool refuses and returns its id — reuse that template (schedule it with schedule_to_calendar + session_template_id) instead of creating a copy. Every block must contain at least one exercise — never create an empty/placeholder template.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -107,7 +107,7 @@ def get_workout_tools() -> List[Dict[str, Any]]:
         {
             "type": "function",
             "function": {
-                "name": "list_workout_templates",
+                "name": "list_session_templates",
                 "description": "List available workout templates (PredefinedWorkouts) that can be used in training plans. Returns each template's full exercise list (block, name, volume, rest) — you do NOT need to ask the user what's in a workout.",
                 "parameters": {
                     "type": "object",
@@ -135,7 +135,7 @@ def get_workout_tools() -> List[Dict[str, Any]]:
         {
             "type": "function",
             "function": {
-                "name": "delete_workout_template",
+                "name": "delete_session_template",
                 "description": (
                     "Delete the user's OWN workout templates (never common/public ones). "
                     "Use when the user asks to remove/clean up templates. Previews first; "
@@ -166,11 +166,11 @@ def get_workout_tools() -> List[Dict[str, Any]]:
                 }
             }
         },
-        # ==================== WORKOUT LOG TOOLS ====================
+        # ==================== SESSION LOG TOOLS ====================
         {
             "type": "function",
             "function": {
-                "name": "log_workout",
+                "name": "log_session",
                 "description": "Log a completed or planned workout to the user's workout history. Use this to record actual training sessions with sets, reps, weights, and RPE.",
                 "parameters": {
                     "type": "object",
@@ -244,7 +244,7 @@ def get_workout_tools() -> List[Dict[str, Any]]:
         {
             "type": "function",
             "function": {
-                "name": "get_workout_history",
+                "name": "get_session_history",
                 "description": "Get the user's recent workout history to analyze progress and patterns. Returns each workout's full exercise list with sets (target/actual reps, weight, RPE).",
                 "parameters": {
                     "type": "object",

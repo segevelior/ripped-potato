@@ -43,7 +43,7 @@ from app.core.agents.skills.registry import SkillContext, skill
             },
             "type": {
                 "type": "string",
-                "enum": ["workout", "rest", "deload", "event"],
+                "enum": ["session", "rest", "deload", "event"],
                 "description": "Filter by event type",
             },
         },

@@ -21,6 +21,7 @@ const crypto = require('crypto');
 const {
   InvalidTokenError,
   InvalidGrantError,
+  InvalidScopeError,
   InvalidClientMetadataError
 } = require('@modelcontextprotocol/sdk/server/auth/errors.js');
 
@@ -31,8 +32,8 @@ const OAuthPendingAuthorization = require('../models/OAuthPendingAuthorization')
 const { renderLoginConsent } = require('./consentPage');
 
 const SCOPES = [
-  'workouts:read',
-  'workouts:write',
+  'sessions:read',
+  'sessions:write',
   'calendar:read',
   'calendar:write',
   'exercises:read'
@@ -61,10 +62,25 @@ function isAllowedRedirectUri(uri) {
   }
 }
 
-// Restrict requested scopes to the ones we support; default to all if none asked.
+// Resolve the scopes to grant for an authorize request.
+//
+// Two deliberately different behaviours:
+//  - NO scopes requested → grant the full supported set. This is how Claude
+//    connects (it sends no `scope` parameter) and the re-consent runbook
+//    depends on it; do not tighten it.
+//  - Scopes requested → every one must be supported. Silently dropping the
+//    unknown ones (the pre-rename behaviour) would upgrade a stale client
+//    asking for `workouts:read` into a full grant of the new scope set. An
+//    unknown scope is an error, per RFC 6749 §4.1.2.1 `invalid_scope`.
 function normalizeScopes(requested) {
-  const filtered = (requested || []).filter((s) => SCOPES.includes(s));
-  return filtered.length ? filtered : SCOPES.slice();
+  const asked = requested || [];
+  if (!asked.length) return SCOPES.slice();
+
+  const unknown = asked.filter((s) => !SCOPES.includes(s));
+  if (unknown.length) {
+    throw new InvalidScopeError(`Unsupported scope(s): ${unknown.join(', ')}`);
+  }
+  return asked.slice();
 }
 
 /**

@@ -151,8 +151,8 @@ class DataReaderAgent(BaseAgent):
                 "preferences": profile.get("preferences", user.get("preferences", {})),
                 "available_equipment": profile.get("preferences", {}).get("equipment", user.get("availableEquipment", [])),
                 "equipment": profile.get("preferences", {}).get("equipment", user.get("availableEquipment", [])),
-                "workoutDuration": profile.get("preferences", {}).get("workoutDuration"),
-                "workoutDays": profile.get("preferences", {}).get("workoutDays", []),
+                "sessionDuration": profile.get("preferences", {}).get("sessionDuration"),
+                "sessionDays": profile.get("preferences", {}).get("sessionDays", []),
                 "injuries": profile.get("injuries", []),
                 "goals": profile.get("goals", [])
             }
@@ -222,7 +222,7 @@ class DataReaderAgent(BaseAgent):
             user_oid = ObjectId(user_id)
             cutoff_date = datetime.utcnow() - timedelta(days=days)
             
-            workouts = await self.db.predefinedworkouts.find(
+            workouts = await self.db.sessiontemplates.find(
                 {
                     "userId": user_oid,
                     "date": {"$gte": cutoff_date}

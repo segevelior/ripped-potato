@@ -3,7 +3,7 @@ const exerciseController = require('../../controllers/exerciseController');
 const { runTool } = require('../invoke');
 const { withScope } = require('./util');
 
-// Trim exercise docs to the fields Claude needs to reference/build workouts,
+// Trim exercise docs to the fields Claude needs to reference/build sessions,
 // keeping tool output token-efficient.
 function trimExercise(ex) {
   if (!ex || typeof ex !== 'object') return ex;
@@ -20,7 +20,7 @@ function register(server, ctx) {
 
   server.registerTool('search_exercises', {
     title: 'Search exercises',
-    description: 'Search the exercise library by name, muscle group, discipline, equipment or difficulty. Returns exerciseIds usable in create_workout.',
+    description: 'Search the exercise library by name, muscle group, discipline, equipment or difficulty. Returns exerciseIds usable in create_session.',
     inputSchema: {
       search: z.string().optional().describe('Free-text match on exercise name'),
       muscle: z.string().optional().describe('Comma-separated muscle groups, e.g. "chest,triceps"'),

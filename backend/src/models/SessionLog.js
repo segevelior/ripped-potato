@@ -56,10 +56,10 @@ const sessionLogSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  type: {
+  discipline: {
     type: String,
     required: true
-    // No enum restriction - allow any workout type
+    // No enum restriction - allow any discipline (strength, climbing, cycling, …)
   },
   // Timing
   startedAt: {
@@ -104,7 +104,7 @@ const sessionLogSchema = new mongoose.Schema({
 
 // Indexes
 sessionLogSchema.index({ userId: 1, startedAt: -1 });
-sessionLogSchema.index({ userId: 1, type: 1 });
+sessionLogSchema.index({ userId: 1, discipline: 1 });
 sessionLogSchema.index({ calendarEventId: 1 });
 
 // Calculate metrics before saving
@@ -154,9 +154,9 @@ sessionLogSchema.virtual('completionPercentage').get(function() {
   return Math.round((completedSets / totalSets) * 100);
 });
 
-// Static method to get user's workout history
+// Static method to get user's session history
 sessionLogSchema.statics.getHistory = function(userId, options = {}) {
-  const { days = 30, type, limit = 20 } = options;
+  const { days = 30, discipline, limit = 20 } = options;
 
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
@@ -166,8 +166,8 @@ sessionLogSchema.statics.getHistory = function(userId, options = {}) {
     startedAt: { $gte: startDate }
   };
 
-  if (type) {
-    query.type = type;
+  if (discipline) {
+    query.discipline = discipline;
   }
 
   return this.find(query)
@@ -192,23 +192,24 @@ sessionLogSchema.statics.getUserStats = async function(userId, days = 30) {
     {
       $group: {
         _id: null,
-        totalWorkouts: { $sum: 1 },
+        totalSessions: { $sum: 1 },
         totalDuration: { $sum: '$actualDuration' },
         avgDuration: { $avg: '$actualDuration' },
         avgStrain: { $avg: '$totalStrain' },
-        workoutTypes: { $push: '$type' }
+        disciplines: { $push: '$discipline' }
       }
     }
   ]);
 
   return stats[0] || {
-    totalWorkouts: 0,
+    totalSessions: 0,
     totalDuration: 0,
     avgDuration: 0,
     avgStrain: 0,
-    workoutTypes: []
+    disciplines: []
   };
 };
 
-// Third arg pins the legacy collection name — Stage 3 flips it to 'sessionlogs'.
-module.exports = mongoose.model('SessionLog', sessionLogSchema, 'workoutlogs');
+// Collection name pinned explicitly (renamed from the legacy 'workoutlogs'
+// by scripts/migrate-workout-to-session.js).
+module.exports = mongoose.model('SessionLog', sessionLogSchema, 'sessionlogs');

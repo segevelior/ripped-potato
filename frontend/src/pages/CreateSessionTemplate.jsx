@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { PredefinedWorkout, Exercise } from "@/api/entities";
+import { SessionTemplate, Exercise } from "@/api/entities";
 import { Plus, Save, Trash2, ArrowLeft, GripVertical, Search, X, Clock, Activity, Dumbbell, Image as ImageIcon, ChevronDown, ChevronUp } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -70,7 +70,7 @@ const BlockSearch = ({ allExercises, onSelect }) => {
   );
 };
 
-export default function CreatePredefinedWorkout() {
+export default function CreateSessionTemplate() {
   const navigate = useNavigate();
   const location = useLocation();
   const [allExercises, setAllExercises] = useState([]);
@@ -106,12 +106,12 @@ export default function CreatePredefinedWorkout() {
 
   const loadWorkoutForEditing = async (id) => {
     try {
-      const workoutToEdit = await PredefinedWorkout.get(id);
+      const workoutToEdit = await SessionTemplate.get(id);
       setWorkout(workoutToEdit);
     } catch (error) {
       console.error("Error loading workout for editing:", error);
       alert("Error loading workout. Redirecting to create new workout.");
-      navigate(createPageUrl("CreatePredefinedWorkout"));
+      navigate(createPageUrl("CreateSessionTemplate"));
     }
   };
 
@@ -195,13 +195,13 @@ export default function CreatePredefinedWorkout() {
     setIsSaving(true);
     try {
       if (isEditing && editingId) {
-        await PredefinedWorkout.update(editingId, workout);
+        await SessionTemplate.update(editingId, workout);
         alert("Workout updated successfully!");
       } else {
-        await PredefinedWorkout.create(workout);
+        await SessionTemplate.create(workout);
         alert("Workout created successfully!");
       }
-      navigate(createPageUrl("PredefinedWorkouts"));
+      navigate(createPageUrl("Sessions"));
     } catch (error) {
       console.error("Failed to save workout:", error);
       alert("Failed to save workout. Please try again.");

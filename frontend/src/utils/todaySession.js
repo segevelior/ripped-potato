@@ -9,10 +9,10 @@ const DONE_STATUSES = ["completed", "cancelled", "skipped"];
 /**
  * @param {Array} events - today's calendar events
  * @returns {{ scheduledEvent: Object|null, completedToday: boolean }}
- *   scheduledEvent — the pending event to surface: prefers a workout, but
+ *   scheduledEvent — the pending event to surface: prefers a session, but
  *   falls back to any other pending event (e.g. a race/competition day) so
  *   it isn't hidden behind an AI suggestion.
- *   completedToday — whether a workout was already completed today.
+ *   completedToday — whether a session was already completed today.
  */
 export function pickTodaySession(events) {
   const list = Array.isArray(events) ? events : [];
@@ -22,13 +22,13 @@ export function pickTodaySession(events) {
   );
 
   const scheduledEvent =
-    pending.find((e) => e.type === "workout" || e.type === "deload") ||
+    pending.find((e) => e.type === "session" || e.type === "deload") ||
     pending[0] ||
     null;
 
   const completedToday = list.some(
     (e) =>
-      (e.type === "workout" || e.type === "deload") && e.status === "completed"
+      (e.type === "session" || e.type === "deload") && e.status === "completed"
   );
 
   return { scheduledEvent, completedToday };

@@ -13,7 +13,7 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "schedule_to_calendar",
-                "description": "Schedule a workout or event to the user's calendar for a specific date. A calendar event only combines a workout with a date — it never carries its own exercise list. For 'workout' and 'deload' events, EITHER pass workout_template_id for an existing library workout (find it with list_workout_templates / grep_workouts — ALWAYS prefer this; it links the event without creating anything new), OR plan a brand-new session and pass workoutDetails.exercises (this creates a new library workout and links it). Reuse-first is enforced in code: if the passed workoutDetails exactly match an existing library workout, the tool LINKS that workout instead of creating a duplicate — the preview and result say which happened; report that accurately. Never schedule a bare title. Refuses to double-book: if an equivalent event already exists on that date it returns already_scheduled instead of writing. Defaults to a dry-run PREVIEW that writes nothing. Present the preview to the user; ONLY after they confirm, call again with the same arguments plus dry_run=false to actually write. If the user declines the preview, do NOT call again.",
+                "description": "Schedule a workout or event to the user's calendar for a specific date. A calendar event only combines a workout with a date — it never carries its own exercise list. For 'session' and 'deload' events, EITHER pass session_template_id for an existing library workout (find it with list_session_templates / grep_session_templates — ALWAYS prefer this; it links the event without creating anything new), OR plan a brand-new session and pass sessionDetails.exercises (this creates a new library workout and links it). Reuse-first is enforced in code: if the passed sessionDetails exactly match an existing library workout, the tool LINKS that workout instead of creating a duplicate — the preview and result say which happened; report that accurately. Never schedule a bare title. Refuses to double-book: if an equivalent event already exists on that date it returns already_scheduled instead of writing. Defaults to a dry-run PREVIEW that writes nothing. Present the preview to the user; ONLY after they confirm, call again with the same arguments plus dry_run=false to actually write. If the user declines the preview, do NOT call again.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -23,29 +23,29 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
                         },
                         "title": {
                             "type": "string",
-                            "description": "Title for the calendar event (e.g., 'Upper Body Strength', 'Active Recovery', 'Rest Day'). When linking a library workout via workout_template_id, omit to default to the workout's name."
+                            "description": "Title for the calendar event (e.g., 'Upper Body Strength', 'Active Recovery', 'Rest Day'). When linking a library workout via session_template_id, omit to default to the workout's name."
                         },
                         "type": {
                             "type": "string",
-                            "enum": ["workout", "rest", "deload", "event"],
+                            "enum": ["session", "rest", "deload", "event"],
                             "description": "Type of calendar event"
                         },
-                        "workout_template_id": {
+                        "session_template_id": {
                             "type": "string",
-                            "description": "ID of an existing library workout to schedule (take it from a list_workout_templates / grep_workouts result in THIS conversation — never invent one). ALWAYS pass this instead of workoutDetails when the workout already exists — do NOT resend its exercises."
+                            "description": "ID of an existing library workout to schedule (take it from a list_session_templates / grep_session_templates result in THIS conversation — never invent one). ALWAYS pass this instead of sessionDetails when the workout already exists — do NOT resend its exercises."
                         },
                         "allow_duplicate": {
                             "type": "boolean",
                             "description": "Default false: if a same-titled or same-template event already exists on the target date the tool refuses with already_scheduled. Set true ONLY if the user explicitly wants a second session of the same workout that day."
                         },
-                        "workoutDetails": {
+                        "sessionDetails": {
                             "type": "object",
-                            "description": "Details for a NEWLY designed workout session — creates a new library workout, UNLESS the exercises exactly match an existing one, in which case that workout is linked instead (no duplicate). For 'workout'/'deload' events, required only when workout_template_id is not given.",
+                            "description": "Details for a NEWLY designed workout session — creates a new library workout, UNLESS the exercises exactly match an existing one, in which case that workout is linked instead (no duplicate). For 'session'/'deload' events, required only when session_template_id is not given.",
                             "properties": {
-                                "workoutType": {
+                                "discipline": {
                                     "type": "string",
                                     "enum": ["strength", "cardio", "hybrid", "recovery", "hiit", "flexibility", "calisthenics", "mobility"],
-                                    "description": "Type of workout"
+                                    "description": "Discipline of the session"
                                 },
                                 "estimatedDuration": {
                                     "type": "integer",
@@ -109,7 +109,7 @@ def get_calendar_tools() -> List[Dict[str, Any]]:
                         },
                         "type": {
                             "type": "string",
-                            "enum": ["workout", "rest", "deload", "event"],
+                            "enum": ["session", "rest", "deload", "event"],
                             "description": "Filter by event type"
                         }
                     }
