@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
-import { Workout, UserGoalProgress, Plan } from "@/api/entities";
+import { CalendarEvent, WorkoutLog, UserGoalProgress, Plan } from "@/api/entities";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Calendar, Target, ChevronRight, Activity, Trophy, Clock, Play, Users, MoreVertical, Trash2, FileText, Plus } from "lucide-react";
 import { format, startOfWeek, addDays, isToday, parseISO, isValid, isAfter } from "date-fns";
@@ -160,7 +160,8 @@ const ActivePlanCard = ({ plan, onPlanClick }) => {
 };
 
 export default function Dashboard() {
-  const [workouts, setWorkouts] = useState([]);
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [recentLogs, setRecentLogs] = useState([]);
   const [goals, setGoals] = useState([]);
   const [plans, setPlans] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -182,12 +183,16 @@ export default function Dashboard() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [workoutData, goalsData, plansData] = await Promise.all([
-        Workout.list().catch(() => []),
+      const rangeStart = format(new Date(), 'yyyy-MM-dd');
+      const rangeEnd = format(addDays(new Date(), 14), 'yyyy-MM-dd');
+      const [eventsData, logsData, goalsData, plansData] = await Promise.all([
+        CalendarEvent.list(rangeStart, rangeEnd).catch(() => []),
+        WorkoutLog.list().catch(() => []),
         UserGoalProgress.list().catch(() => []),
         Plan.active().catch(() => []),
       ]);
-      setWorkouts(Array.isArray(workoutData) ? workoutData : []);
+      setUpcomingEvents(Array.isArray(eventsData) ? eventsData : []);
+      setRecentLogs(Array.isArray(logsData) ? logsData : []);
       // Filter active goals in JS
       const activeGoals = Array.isArray(goalsData) ? goalsData.filter(g => g.is_active) : [];
       setGoals(activeGoals);
@@ -198,13 +203,21 @@ export default function Dashboard() {
     setIsLoading(false);
   };
 
-  const upcomingWorkouts = workouts
-    .filter(w => isValid(parseISO(w.date)) && isAfter(parseISO(w.date), addDays(new Date(), -1)))
+  const upcomingWorkouts = upcomingEvents
+    .filter(e => e.type === 'workout' && !['completed', 'skipped', 'cancelled'].includes(e.status))
+    .filter(e => isValid(parseISO(e.date)) && isAfter(parseISO(e.date), addDays(new Date(), -1)))
     .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .slice(0, 5);
+    .slice(0, 5)
+    .map(e => ({
+      id: e.id,
+      title: e.title,
+      date: e.date,
+      duration_minutes: e.workoutDetails?.durationMinutes || e.workoutDetails?.estimatedDuration || 0,
+      exercises: e.workoutDetails?.exercises || [],
+    }));
 
-  const completedWorkoutsThisWeek = workouts.filter(w => {
-    const date = parseISO(w.date);
+  const completedWorkoutsThisWeek = recentLogs.filter(l => {
+    const date = parseISO(l.startedAt);
     return isValid(date) && date >= startOfWeek(new Date(), { weekStartsOn: 1 });
   }).length;
 
@@ -350,7 +363,7 @@ export default function Dashboard() {
                 {upcomingWorkouts.length > 0 ? (
                   <div className="space-y-3">
                     {upcomingWorkouts.map(workout => (
-                      <Link to={createPageUrl(`LiveWorkout?id=${workout.id}`)} key={workout.id} className="block p-4 rounded-lg hover:bg-gray-50 border border-gray-200 transition-colors">
+                      <Link to={createPageUrl('Calendar')} key={workout.id} className="block p-4 rounded-lg hover:bg-gray-50 border border-gray-200 transition-colors">
                         <div className="flex justify-between items-center">
                           <div>
                             <p className="font-bold text-lg">{workout.title}</p>
@@ -377,7 +390,7 @@ export default function Dashboard() {
               </div>
 
               {/* Body Region Chart */}
-              <BodyRegionChart workouts={workouts} activities={[]} />
+              <BodyRegionChart workouts={recentLogs.map(l => ({ ...l, muscle_strain: l.muscleStrain }))} activities={[]} />
 
               {/* Weekly Optimization - NEW */}
               <WeeklyOptimization />
@@ -533,7 +546,7 @@ export default function Dashboard() {
                         <Clock className="w-4 h-4 inline mr-1" />
                         {workout.duration_minutes}min
                       </div>
-                      <Link to={createPageUrl(`LiveWorkout?id=${workout.id}`)}>
+                      <Link to={createPageUrl('Calendar')}>
                         <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors">
                           <Play className="w-4 h-4" />
                           Start

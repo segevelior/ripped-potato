@@ -36,7 +36,6 @@ logger.add(new winston.transports.Console({
 // Import routes
 const authRoutes = require('./routes/auth');
 const exerciseRoutes = require('./routes/exercises');
-const workoutRoutes = require('./routes/workouts');
 const goalRoutes = require('./routes/goals');
 const planRoutes = require('./routes/plans');
 const predefinedWorkoutRoutes = require('./routes/predefinedWorkouts');
@@ -270,7 +269,6 @@ mongoose.connection.on('reconnected', () => {
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/exercises', exerciseRoutes);
-app.use('/api/v1/workouts', workoutRoutes);
 app.use('/api/v1/goals', goalRoutes);
 app.use('/api/v1/plans', planRoutes);
 app.use('/api/v1/predefined-workouts', predefinedWorkoutRoutes);

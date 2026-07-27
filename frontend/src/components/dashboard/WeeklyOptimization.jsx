@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Workout, Plan, UserTrainingPattern } from "@/api/entities";
+import { WorkoutLog, Plan, UserTrainingPattern } from "@/api/entities";
 import { TrendingUp, AlertTriangle, CheckCircle2, Clock, Target } from "lucide-react";
 import { startOfWeek, endOfWeek, format, parseISO, isAfter, isBefore } from "date-fns";
 
@@ -60,11 +60,18 @@ export default function WeeklyOptimization() {
       const currentWeekEnd = endOfWeek(new Date());
       
       // Get this week's data
-      const [workouts, plans, patterns] = await Promise.all([
-        Workout.list().catch(() => []),
+      const [logs, plans, patterns] = await Promise.all([
+        WorkoutLog.list().catch(() => []),
         Plan.active().catch(() => []),
         UserTrainingPattern.list().catch(() => [])
       ]);
+      // Map logs to the legacy shape the analysis below expects
+      const workouts = logs.map(l => ({
+        ...l,
+        date: l.startedAt,
+        duration_minutes: l.actualDuration,
+        muscle_strain: l.muscleStrain,
+      }));
 
       const thisWeekWorkouts = workouts.filter(w => {
         const workoutDate = parseISO(w.date);
