@@ -106,7 +106,11 @@ export default function Sessions() {
     setIsLoading(true);
     try {
       const [workoutData, exerciseData] = await Promise.all([
-        SessionTemplate.list(allSports ? { allSports: 'true' } : {}),
+        // High limit: the route defaults to 20 newest-first, which would let
+        // freshly seeded commons displace the user's own older templates out
+        // of view (and make the All-sports toggle look like it shuffles the
+        // library instead of expanding it).
+        SessionTemplate.list({ limit: 200, ...(allSports ? { allSports: 'true' } : {}) }),
         Exercise.list()
       ]);
       setSessionTemplates(workoutData || []);

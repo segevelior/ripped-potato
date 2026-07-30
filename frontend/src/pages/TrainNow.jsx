@@ -346,7 +346,9 @@ export default function TrainNow() {
     setIsLoading(true);
     try {
       const [workoutData, exerciseData] = await Promise.all([
-        SessionTemplate.list(),
+        // High limit — the route's default 20 newest-first would starve the
+        // per-discipline rows of the user's older templates.
+        SessionTemplate.list({ limit: 200 }),
         Exercise.list()
       ]);
       setWorkouts(workoutData || []);
