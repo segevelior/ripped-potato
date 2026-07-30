@@ -90,4 +90,13 @@ describe('isHiddenSportTemplate', () => {
     expect(isHiddenSportTemplate(common(['climbing'], { userMetadata: { isFavorite: true } }), none)).toBe(false);
     expect(isHiddenSportTemplate(common(['climbing'], { isModified: true }), none)).toBe(false);
   });
+
+  test('ANY modification doc counts as opt-in, not just favorites', () => {
+    // A user who completed a template (timesCompleted metadata) but never
+    // favorited it has expressed interest too — the overlay attaches
+    // userMetadata whenever a UserSessionModification doc exists.
+    expect(isHiddenSportTemplate(
+      common(['running'], { userMetadata: { timesCompleted: 3, isFavorite: false } }), none
+    )).toBe(false);
+  });
 });

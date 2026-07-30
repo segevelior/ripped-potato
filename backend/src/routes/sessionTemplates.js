@@ -35,9 +35,18 @@ router.get('/', optionalAuth, async (req, res) => {
 
     // Interest-based visibility: common templates whose disciplines are all
     // sport-specific (running/cycling/climbing/swimming) are hidden unless
-    // the user lists that sport in their interests, favorited/modified the
-    // template, or asked for everything via ?allSports=true. Any failure
-    // skips the filter entirely — never blank the catalog over it.
+    // the user lists that sport in their interests, has a modification doc
+    // for the template (favorite/completion/rename — any engagement), or
+    // asked for everything via ?allSports=true. Any failure skips the filter
+    // entirely — never blank the catalog over it.
+    //
+    // Deliberate scope choices:
+    // - Users with EMPTY sportPreferences get generic commons only ("hasn't
+    //   added biking → no biking sessions"). If sport commons should instead
+    //   launch visible to everyone until interests are set, gate this filter
+    //   on prefs.length > 0.
+    // - GET /search/:term is NOT filtered — searching by name is an explicit
+    //   act, so it doubles as an escape hatch (and has no auth context).
     if (allSports !== 'true') {
       try {
         const userDisciplines = await resolveInterestDisciplines(
