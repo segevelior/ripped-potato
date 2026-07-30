@@ -100,13 +100,33 @@ class APIService {
     // typeahead does not download the whole catalog. Falls back to substring today;
     // upgrades to Atlas $search transparently once the search index lands.
     list: async (params = {}) => {
-      const query = new URLSearchParams(
-        Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
+      const buildQuery = (p) => new URLSearchParams(
+        Object.entries(p).filter(([, v]) => v !== undefined && v !== null && v !== '')
       ).toString();
-      const response = await this.request(`/exercises${query ? `?${query}` : ''}`);
-      // Backend returns { exercises: [...], pagination: {...} }
-      // Extract just the exercises array
-      return response.exercises || response;
+
+      // Callers that page explicitly (typeahead search with { search, limit })
+      // get exactly the page they asked for.
+      if (params.page !== undefined || params.limit !== undefined) {
+        const query = buildQuery(params);
+        const response = await this.request(`/exercises${query ? `?${query}` : ''}`);
+        return response.exercises || response;
+      }
+
+      // Catalog callers (Exercise.list()) get the WHOLE catalog: the backend
+      // always paginates (default limit 50), so follow the pagination metadata
+      // until every page is fetched — otherwise the library, pickers and the
+      // Exercise.get fallback only ever see the first 50 exercises.
+      const limit = 200;
+      const all = [];
+      for (let page = 1; page <= 50; page++) {
+        const response = await this.request(`/exercises?${buildQuery({ ...params, page, limit })}`);
+        const batch = response.exercises || response;
+        if (!Array.isArray(batch)) return batch;
+        all.push(...batch);
+        const pagination = response.pagination;
+        if (!pagination || page >= pagination.pages || batch.length === 0) break;
+      }
+      return all;
     },
     get: (id) => this.request(`/exercises/${id}`),
     // Semantically similar exercises (swap/alternative suggestions) via vector search.

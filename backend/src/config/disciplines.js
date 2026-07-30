@@ -29,6 +29,16 @@ const DISCIPLINES = [
 const DISCIPLINE_SET = new Set(DISCIPLINES);
 
 /**
+ * Disciplines that imply a dedicated sport commitment (gear, venue, skill):
+ * common session templates whose disciplines are ALL in this list are hidden
+ * from users who don't list that sport in profile.sportPreferences. Walking
+ * is deliberately generic — it's a zero-gear recovery/health activity
+ * prescribed across all training styles.
+ */
+const SPORT_SPECIFIC_DISCIPLINES = ['running', 'cycling', 'climbing', 'swimming'];
+const SPORT_SPECIFIC_DISCIPLINE_SET = new Set(SPORT_SPECIFIC_DISCIPLINES);
+
+/**
  * Known legacy synonyms → canonical values. This is the single pinned list;
  * the discipline-classification script's deterministic pass uses the same
  * semantics. Legacy values that need per-document judgment (warm_up, core,
@@ -65,6 +75,8 @@ const normalizeDisciplines = (values) => {
 module.exports = {
   DISCIPLINES,
   DISCIPLINE_SET,
+  SPORT_SPECIFIC_DISCIPLINES,
+  SPORT_SPECIFIC_DISCIPLINE_SET,
   LEGACY_DISCIPLINE_MAP,
   normalizeDisciplines,
 };

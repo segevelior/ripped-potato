@@ -1,10 +1,10 @@
-
+/* eslint-disable react/prop-types -- repo convention: components don't declare PropTypes */
 import React, { useState, useEffect } from "react";
 import { Plan, Goal, SessionTemplate, UserGoalProgress } from "@/api/entities";
 import { Calendar, Target, Plus, Play, Pause, CheckCircle2, Clock, ArrowRight, MoreVertical, Edit3, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { format, parseISO, differenceInDays, isAfter, isBefore } from "date-fns";
+import { parseISO, differenceInDays, isAfter, isBefore } from "date-fns";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,38 +26,27 @@ const PlanCard = ({ plan, onEdit, onDelete, onToggleStatus, goals }) => {
     }
   };
 
-  const getNextWorkout = () => {
-    if (!plan.linked_workouts || !Array.isArray(plan.linked_workouts)) return null;
-    
-    try {
-      const upcoming = plan.linked_workouts
-        .filter(w => !w.is_completed && w.scheduled_date)
-        .sort((a, b) => new Date(a.scheduled_date) - new Date(b.scheduled_date));
-      return upcoming[0];
-    } catch (error) {
-      console.warn('Error processing linked workouts:', error);
-      return null;
-    }
-  };
-
   const getProgress = () => {
-    if (!plan.progress_metrics) return { completed: 0, total: 0, percentage: 0 };
-    return {
-      completed: plan.progress_metrics.completed_workouts || 0,
-      total: plan.progress_metrics.total_workouts || 0,
-      percentage: plan.progress_metrics.completion_percentage || 0
-    };
+    const completed = plan.progress?.completedSessions || 0;
+    // totalSessions is only stamped by startPlan()/the AI service — for other
+    // drafts derive it from the weeks themselves so cards never show 0/0.
+    const total = plan.progress?.totalSessions
+      || (plan.weeks || []).reduce((sum, week) => sum + (week.sessions?.length || 0), 0);
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { completed, total, percentage };
   };
 
   const getDaysInfo = () => {
-    // Check if dates are valid before parsing
-    if (!plan.start_date || !plan.end_date) {
-      return { label: 'Duration', value: 'Not set' };
+    // Drafts have no dates until activation — show the planned length instead.
+    if (!plan.startDate || !plan.endDate) {
+      return plan.schedule?.weeksTotal
+        ? { label: 'Duration', value: `${plan.schedule.weeksTotal} weeks` }
+        : { label: 'Duration', value: 'Not set' };
     }
-    
+
     try {
-      const start = parseISO(plan.start_date);
-      const end = parseISO(plan.end_date);
+      const start = parseISO(plan.startDate);
+      const end = parseISO(plan.endDate);
       const now = new Date();
       
       if (isBefore(now, start)) {
@@ -75,10 +64,16 @@ const PlanCard = ({ plan, onEdit, onDelete, onToggleStatus, goals }) => {
 
   const statusInfo = getStatusInfo();
   const StatusIcon = statusInfo.icon;
-  const nextWorkout = getNextWorkout();
   const progress = getProgress();
   const daysInfo = getDaysInfo();
-  const linkedGoals = goals.filter(g => (plan.linked_goals || []).includes(g.id));
+  // goalId is populated ({_id, name, ...}) by the list endpoint, but fall back
+  // to the goals list in case it arrives as a plain id.
+  const goalIdValue = plan.goalId && typeof plan.goalId === 'object'
+    ? (plan.goalId._id || plan.goalId.id)
+    : plan.goalId;
+  const linkedGoal = (plan.goalId && typeof plan.goalId === 'object' && plan.goalId.name)
+    ? { id: goalIdValue, name: plan.goalId.name }
+    : goals.find(g => String(g.id) === String(goalIdValue || ''));
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-200 group">
@@ -135,33 +130,14 @@ const PlanCard = ({ plan, onEdit, onDelete, onToggleStatus, goals }) => {
           </div>
         </div>
 
-        {/* Linked Goals */}
-        {linkedGoals.length > 0 && (
+        {/* Linked Goal */}
+        {linkedGoal && (
           <div className="mb-4">
             <div className="text-xs text-gray-500 mb-2">Working toward:</div>
             <div className="flex flex-wrap gap-1">
-              {linkedGoals.map(goal => (
-                <span key={goal.id} className="px-2 py-1 text-xs rounded-full bg-primary-50 text-orange-800">
-                  {goal.name}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Next Workout */}
-        {nextWorkout && nextWorkout.scheduled_date && (
-          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-            <div className="text-xs text-blue-600 font-medium mb-1">Next Session</div>
-            <div className="text-sm text-blue-800">
-              {(() => {
-                try {
-                  return format(parseISO(nextWorkout.scheduled_date), 'EEEE, MMM d');
-                } catch (error) {
-                  console.warn('Error formatting workout date:', error);
-                  return 'Date not available';
-                }
-              })()}
+              <span className="px-2 py-1 text-xs rounded-full bg-primary-50 text-orange-800">
+                {linkedGoal.name}
+              </span>
             </div>
           </div>
         )}
@@ -197,8 +173,18 @@ export default function Plans() {
 
   const handleToggleStatus = async (plan) => {
     try {
-      const newStatus = plan.status === 'active' ? 'paused' : 'active';
-      await Plan.update(plan.id, { status: newStatus });
+      // Go through the lifecycle endpoints — starting a draft runs the
+      // server's startPlan(), which stamps dates and session totals.
+      if (plan.status === 'active') {
+        await Plan.pause(plan.id);
+      } else if (plan.status === 'paused') {
+        await Plan.resume(plan.id);
+      } else if (plan.status === 'draft') {
+        await Plan.start(plan.id);
+      } else {
+        // completed/abandoned plans have no lifecycle route back to active
+        await Plan.update(plan.id, { status: 'active' });
+      }
       loadData();
     } catch (error) {
       console.error("Error updating plan status:", error);

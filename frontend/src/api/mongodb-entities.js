@@ -69,7 +69,12 @@ export const Plan = {
   create: async (data) => normalizeId(await apiService.plans.create(data)),
   update: async (id, data) => normalizeId(await apiService.plans.update(id, data)),
   delete: async (id) => apiService.plans.delete(id),
-  active: async () => normalizeArray(await apiService.plans.active())
+  active: async () => normalizeArray(await apiService.plans.active()),
+  // Lifecycle endpoints — start populates dates + session totals server-side,
+  // so activation must go through here rather than a raw status update.
+  start: async (id) => normalizeId(await apiService.plans.start(id)),
+  pause: async (id) => normalizeId(await apiService.plans.pause(id)),
+  resume: async (id) => normalizeId(await apiService.plans.resume(id))
 };
 
 // SessionTemplate entity
