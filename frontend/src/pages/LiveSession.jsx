@@ -7,8 +7,10 @@ import {
   saveSessionProgress,
   clearActiveSession,
   startLiveSession,
-  buildSessionExercise
+  buildSessionExercise,
+  groupExercisesByBlock
 } from "@/utils/liveSession";
+import BlockHeader from "@/components/livesession/BlockHeader";
 import {
   Drawer,
   DrawerContent,
@@ -428,6 +430,9 @@ function SwipeableExerciseCard({ exercise, exerciseIndex, onSetUpdate, onSetComp
               <MoreVertical className="w-5 h-5" />
             </button>
           </div>
+          {exercise.volume_label && (
+            <p className="text-sm font-medium text-primary-600">{exercise.volume_label}</p>
+          )}
           {exercise.notes && (
             <p className="text-sm text-gray-500">{exercise.notes}</p>
           )}
@@ -629,6 +634,78 @@ export default function LiveSession() {
     setWorkout(newWorkout);
   };
 
+  // --- Block round handlers (typed blocks: circuit / tabata / emom / interval / amrap) ---
+
+  // One round done = the next uncompleted set of every exercise in the block.
+  const handleCompleteRound = (blockIndex) => {
+    setWorkout(w => ({
+      ...w,
+      exercises: w.exercises.map(ex => {
+        if (ex.block_index !== blockIndex) return ex;
+        const nextIdx = ex.sets.findIndex(s => !s.is_completed);
+        if (nextIdx === -1) return ex;
+        return {
+          ...ex,
+          sets: ex.sets.map((s, i) => (
+            i === nextIdx ? { ...s, is_completed: true, reps: s.reps || s.target_reps || 0 } : s
+          ))
+        };
+      })
+    }));
+    if (navigator.vibrate) navigator.vibrate(40);
+  };
+
+  // Adjust a block's round count mid-session: one set per exercise is added
+  // or removed at the tail. Completed sets are never removed, so rounds can't
+  // drop below what's already been done. AMRAP has no set-backed rounds — the
+  // +/- drives its rounds_completed counter instead.
+  const handleAdjustRounds = (blockIndex, delta) => {
+    setWorkout(w => {
+      const block = w.blocks?.[blockIndex];
+      if (!block) return w;
+
+      if (block.type === 'amrap') {
+        const blocks = w.blocks.map((b, i) => (
+          i === blockIndex ? { ...b, rounds_completed: Math.max(0, (b.rounds_completed || 0) + delta) } : b
+        ));
+        return { ...w, blocks };
+      }
+
+      const inBlock = w.exercises.filter(e => e.block_index === blockIndex);
+      const maxCompleted = inBlock.reduce(
+        (m, e) => Math.max(m, e.sets.filter(s => s.is_completed).length), 0
+      );
+      const nextRounds = Math.max(1, maxCompleted, (block.rounds || 1) + delta);
+      if (nextRounds === (block.rounds || 1)) return w;
+
+      const growing = nextRounds > (block.rounds || 1);
+      const blocks = w.blocks.map((b, i) => (i === blockIndex ? { ...b, rounds: nextRounds } : b));
+      const exercises = w.exercises.map(ex => {
+        if (ex.block_index !== blockIndex) return ex;
+        if (growing) {
+          const last = ex.sets[ex.sets.length - 1];
+          return {
+            ...ex,
+            sets: [...ex.sets, {
+              target_reps: last?.target_reps ?? null,
+              reps: 0,
+              weight: last?.weight || 0,
+              rest_seconds: last?.rest_seconds ?? null,
+              is_completed: false
+            }]
+          };
+        }
+        const lastSet = ex.sets[ex.sets.length - 1];
+        if (ex.sets.length > 1 && lastSet && !lastSet.is_completed) {
+          return { ...ex, sets: ex.sets.slice(0, -1) };
+        }
+        return ex;
+      });
+      return { ...w, blocks, exercises };
+    });
+    if (navigator.vibrate) navigator.vibrate(30);
+  };
+
   // --- Exercise modification handlers ---
 
   // Re-normalize the cosmetic `order` field to match array position.
@@ -739,8 +816,15 @@ export default function LiveSession() {
   // sets array (counts + completion). Only when the old exercise had no sets do we
   // regenerate defaults from the new exercise's strain.
   const handleReplaceExercise = (exIndex, picked, opts = {}) => {
-    const built = buildSessionExercise(picked, exIndex);
     const old = workout.exercises[exIndex];
+    // The replacement stays in the block it replaces from, and its default
+    // sets are generated from that block's structure (a tabata replacement
+    // gets `rounds` sets, not the catalog's 3x12).
+    const oldBlockIndex = Number.isInteger(old.block_index) ? old.block_index : null;
+    const built = buildSessionExercise(picked, exIndex, {
+      blockIndex: oldBlockIndex,
+      block: oldBlockIndex === null ? null : workout.blocks?.[oldBlockIndex] ?? null,
+    });
     // Session exercises ALWAYS have a sets array, so "has sets" is always true.
     // We only want to preserve actually-logged work; otherwise adopt the new
     // exercise's own generated defaults (e.g. swapping Plank 3×60s → Bench Press
@@ -802,9 +886,17 @@ export default function LiveSession() {
 
   const handleAddExercise = (exIndex, position, picked) => {
     const insertAt = position === 'above' ? exIndex : exIndex + 1;
+    // Inherit the anchor exercise's block so an insert mid-block stays in it,
+    // and generate block-shaped sets (rounds count) to keep the round counter
+    // coherent.
+    const rawAnchor = workout.exercises[exIndex]?.block_index;
+    const anchorBlockIndex = Number.isInteger(rawAnchor) ? rawAnchor : null;
     const nextExercises = withOrder([
       ...workout.exercises.slice(0, insertAt),
-      buildSessionExercise(picked, insertAt),
+      buildSessionExercise(picked, insertAt, {
+        blockIndex: anchorBlockIndex,
+        block: anchorBlockIndex === null ? null : workout.blocks?.[anchorBlockIndex] ?? null,
+      }),
       ...workout.exercises.slice(insertAt),
     ]);
     setWorkout({ ...workout, exercises: nextExercises });
@@ -827,12 +919,35 @@ export default function LiveSession() {
     setIsSaving(true);
 
     try {
+      // Typed-block summary for history/stats: what the structure was and how
+      // many rounds actually got done. rounds_completed is derived the same
+      // way the header does it (min completed sets across the block), except
+      // AMRAP where the user counts rounds explicitly.
+      const blocksSummary = (workout.blocks || []).map((block, blockIndex) => {
+        const inBlock = workout.exercises.filter(e => e.block_index === blockIndex);
+        const roundsCompleted = block.type === 'amrap'
+          ? (block.rounds_completed || 0)
+          : inBlock.length > 0
+            ? Math.min(...inBlock.map(e => e.sets.filter(s => s.is_completed).length))
+            : 0;
+        return {
+          name: block.name,
+          type: block.type,
+          rounds: block.rounds,
+          rounds_completed: roundsCompleted,
+          ...(block.work_seconds ? { work_seconds: block.work_seconds } : {}),
+          ...(Number.isFinite(block.rest_seconds) ? { rest_seconds: block.rest_seconds } : {}),
+          ...(block.duration_seconds ? { duration_seconds: block.duration_seconds } : {})
+        };
+      });
+
       const sessionLogData = {
         title: workout.title || 'Session',
         discipline: getDiscipline(workout.type),
         startedAt: workoutStartTime.toISOString(),
         completedAt: new Date().toISOString(),
         actualDuration: Math.ceil(totalSessionTime / 60) || workout.duration_minutes || 60,
+        ...(blocksSummary.length > 0 ? { blocks: blocksSummary } : {}),
         exercises: workout.exercises.map((ex, i) => ({
           exerciseId: ex.exercise_id,
           exerciseName: ex.exercise_name,
@@ -921,20 +1036,40 @@ export default function LiveSession() {
         />
       </div>
 
-      {/* Exercise Cards List */}
+      {/* Exercise Cards List — grouped into block sections. Legacy sessions
+          (no blocks / no block_index) yield one null-block section and render
+          exactly like the old flat list. Cards keep their true flat index so
+          every set/swap/delete handler is untouched. */}
       <div className="px-4 space-y-4">
-        {workout.exercises.map((exercise, index) => (
-          <SwipeableExerciseCard
-            key={index}
-            exercise={exercise}
-            exerciseIndex={index}
-            onSetUpdate={handleSetUpdate}
-            onSetComplete={handleSetComplete}
-            onCompleteAll={handleCompleteAllSets}
-            onOpenMenu={setMenuIndex}
-            onReplace={setReplaceIndex}
-            onDelete={requestDeleteExercise}
-          />
+        {groupExercisesByBlock(workout).map((section, sectionIdx) => (
+          <div key={sectionIdx} className="space-y-4">
+            {section.block && section.block.type !== 'straight_sets' && (
+              <BlockHeader
+                block={section.block}
+                items={section.items}
+                onCompleteRound={() => handleCompleteRound(section.blockIndex)}
+                onAdjustRounds={(delta) => handleAdjustRounds(section.blockIndex, delta)}
+              />
+            )}
+            {section.block && section.block.type === 'straight_sets' && workout.blocks?.length > 1 && (
+              <h2 className="font-bold text-gray-500 text-sm uppercase tracking-wide px-1">
+                {section.block.name}
+              </h2>
+            )}
+            {section.items.map(({ exercise, index }) => (
+              <SwipeableExerciseCard
+                key={index}
+                exercise={exercise}
+                exerciseIndex={index}
+                onSetUpdate={handleSetUpdate}
+                onSetComplete={handleSetComplete}
+                onCompleteAll={handleCompleteAllSets}
+                onOpenMenu={setMenuIndex}
+                onReplace={setReplaceIndex}
+                onDelete={requestDeleteExercise}
+              />
+            ))}
+          </div>
         ))}
       </div>
 
