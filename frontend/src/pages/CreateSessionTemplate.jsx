@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { DISCIPLINES } from "@/constants/disciplines";
+import BlockStructureControls from "@/components/predefined/BlockStructureControls";
 
 // Inline Search Component for "Spotlight" feel
 const BlockSearch = ({ allExercises, onSelect }) => {
@@ -126,8 +127,17 @@ export default function CreateSessionTemplate() {
     setWorkout(prev => ({ ...prev, blocks: newBlocks }));
   };
 
+  // Merge several structural fields in one update (a type switch patches
+  // type + defaults together).
+  const updateBlockStructure = (index, patch) => {
+    setWorkout(prev => ({
+      ...prev,
+      blocks: prev.blocks.map((b, i) => (i === index ? { ...b, ...patch } : b))
+    }));
+  };
+
   const addBlock = () => {
-    const newBlocks = [...workout.blocks, { name: `Block ${workout.blocks.length + 1}`, exercises: [] }];
+    const newBlocks = [...workout.blocks, { name: `Block ${workout.blocks.length + 1}`, type: "straight_sets", rounds: 1, exercises: [] }];
     setWorkout(prev => ({ ...prev, blocks: newBlocks }));
   };
 
@@ -364,6 +374,12 @@ export default function CreateSessionTemplate() {
                                 <Trash2 className="w-5 h-5" />
                               </button>
                             </div>
+
+                            {/* Block structure (type / rounds / work / rest) */}
+                            <BlockStructureControls
+                              block={block}
+                              onUpdate={(patch) => updateBlockStructure(index, patch)}
+                            />
 
                             {/* Exercises List */}
                             <div className="p-4 space-y-2">
