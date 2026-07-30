@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { X, Plus, Trash2, GripVertical, Search, Clock, Activity, Dumbbell, ChevronDown, ChevronUp, Save } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Exercise } from "@/api/entities";
+import BlockStructureControls from "@/components/predefined/BlockStructureControls";
 
 // Inline Search Component for "Spotlight" feel
 const BlockSearch = ({ allExercises, onSelect }) => {
@@ -115,6 +116,13 @@ export default function CreateSessionModal({ exercises, onClose, onSave, editWor
         blocks: editWorkout.blocks?.length > 0
           ? editWorkout.blocks.map(block => ({
               name: block.name || "Block",
+              // Structural fields must ride along or editing would strip them.
+              type: block.type || "straight_sets",
+              rounds: block.rounds || 1,
+              work_seconds: block.work_seconds ?? null,
+              rest_seconds: block.rest_seconds ?? null,
+              duration_seconds: block.duration_seconds ?? null,
+              instructions: block.instructions || "",
               exercises: block.exercises?.map(ex => ({
                 exercise_id: ex.exercise_id?._id || ex.exercise_id || ex.exercise?.id,
                 exercise_name: ex.exercise_name || ex.exercise?.name || "Unknown Exercise",
@@ -123,7 +131,7 @@ export default function CreateSessionModal({ exercises, onClose, onSave, editWor
                 notes: ex.notes || ""
               })) || []
             }))
-          : [{ name: "Main Block", exercises: [] }]
+          : [{ name: "Main Block", type: "straight_sets", rounds: 1, exercises: [] }]
       };
     }
     return {
@@ -133,7 +141,7 @@ export default function CreateSessionModal({ exercises, onClose, onSave, editWor
       duration_minutes: 45,
       primary_disciplines: [],
       isCommon: false,
-      blocks: [{ name: "Main Block", exercises: [] }]
+      blocks: [{ name: "Main Block", type: "straight_sets", rounds: 1, exercises: [] }]
     };
   };
 
@@ -149,7 +157,7 @@ export default function CreateSessionModal({ exercises, onClose, onSave, editWor
   const handleAddBlock = () => {
     setWorkout(prev => ({
       ...prev,
-      blocks: [...prev.blocks, { name: `Block ${prev.blocks.length + 1}`, exercises: [] }]
+      blocks: [...prev.blocks, { name: `Block ${prev.blocks.length + 1}`, type: "straight_sets", rounds: 1, exercises: [] }]
     }));
   };
 
@@ -166,6 +174,15 @@ export default function CreateSessionModal({ exercises, onClose, onSave, editWor
     const newBlocks = [...workout.blocks];
     newBlocks[index][field] = value;
     setWorkout(prev => ({ ...prev, blocks: newBlocks }));
+  };
+
+  // Merge several structural fields in one update (a type switch patches
+  // type + defaults together).
+  const updateBlockStructure = (index, patch) => {
+    setWorkout(prev => ({
+      ...prev,
+      blocks: prev.blocks.map((b, i) => (i === index ? { ...b, ...patch } : b))
+    }));
   };
 
   const handleSelectExercise = (blockIndex, exercise) => {
@@ -395,6 +412,12 @@ export default function CreateSessionModal({ exercises, onClose, onSave, editWor
                                 <Trash2 className="w-5 h-5" />
                               </button>
                             </div>
+
+                            {/* Block structure (type / rounds / work / rest) */}
+                            <BlockStructureControls
+                              block={block}
+                              onUpdate={(patch) => updateBlockStructure(index, patch)}
+                            />
 
                             {/* Exercises List */}
                             <div className="p-4 space-y-2">

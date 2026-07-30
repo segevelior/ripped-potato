@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, Clock, Target, Calendar, MoreVertical, ChevronDown, ChevronUp, Dumbbell, Zap, Users, Timer, Star, Bookmark, Pencil, Trash2, Play } from "lucide-react";
+import { formatBlockSummary } from "@/constants/blocks";
 
 const intensityColors = {
   low: "bg-green-100 text-green-800",
@@ -366,7 +367,10 @@ export default function SessionDetailModal({ workout, exercises, onClose, onAppl
                         </div>
                         <div className="flex-1">
                           <p className="text-sm font-bold text-gray-900">{block.name}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">{block.exercises.length} exercises</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {block.exercises.length} exercises
+                            {formatBlockSummary(block) ? ` · ${formatBlockSummary(block)}` : ''}
+                          </p>
                         </div>
                         {isExpanded ? (
                           <ChevronUp className="w-5 h-5 text-gray-400" />
