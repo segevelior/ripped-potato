@@ -38,6 +38,18 @@ const exerciseLogSchema = new mongoose.Schema({
   avgRpe: Number
 }, { _id: false });
 
+// Summary of a typed session block as it was actually trained (rounds done,
+// structure). Absent for flat/legacy sessions.
+const blockLogSchema = new mongoose.Schema({
+  name: String,
+  type: String, // straight_sets|circuit|tabata|amrap|emom|interval|duration
+  rounds: Number, // planned rounds
+  rounds_completed: Number, // rounds actually finished (AMRAP: user-counted)
+  work_seconds: Number,
+  rest_seconds: Number,
+  duration_seconds: Number
+}, { _id: false });
+
 const sessionLogSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -70,6 +82,9 @@ const sessionLogSchema = new mongoose.Schema({
   actualDuration: Number, // in minutes
   // Exercises performed
   exercises: [exerciseLogSchema],
+  // Typed-block structure summary (how the session was organized and how many
+  // rounds were done). Optional — flat sessions have none.
+  blocks: [blockLogSchema],
   // Strain/intensity metrics
   totalStrain: {
     type: Number,

@@ -150,6 +150,7 @@ const createSessionLog = async (req, res) => {
       completedAt,
       actualDuration,
       exercises,
+      blocks,
       perceivedDifficulty,
       mood,
       notes,
@@ -197,6 +198,8 @@ const createSessionLog = async (req, res) => {
       completedAt: completedAtDate,
       actualDuration: resolvedDuration,
       exercises: resolvedExercises,
+      // Typed-block summary; blockLogSchema casts and drops unknown keys.
+      ...(Array.isArray(blocks) && blocks.length > 0 ? { blocks } : {}),
       perceivedDifficulty,
       mood,
       notes

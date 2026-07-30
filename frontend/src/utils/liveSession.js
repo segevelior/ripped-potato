@@ -471,25 +471,61 @@ export function groupExercisesByBlock(sessionData) {
  * @param {number} [order=0]
  * @param {Object} [options]
  * @param {number|null} [options.blockIndex=null] - block the exercise joins (inherit the neighbor's when inserting mid-block)
+ * @param {SessionBlock|null} [options.block=null] - that block's metadata. REQUIRED for multi-round
+ *   blocks: set counts must match the block's rounds, or the derived round counter
+ *   (min completed sets across the block) would cap at this exercise's count forever.
  * @returns {SessionExercise}
  */
-export function buildSessionExercise(exercise, order = 0, { blockIndex = null } = {}) {
+export function buildSessionExercise(exercise, order = 0, { blockIndex = null, block = null } = {}) {
   const rawId = exercise?.id || exercise?._id;
   const typicalVolume = exercise?.strain?.typicalVolume;
   const parsedVolume = parseVolume(typicalVolume);
+  const blockType = block?.type || 'straight_sets';
 
-  const numSets = parsedVolume?.numSets || 3;
-  const numReps = parsedVolume?.numReps || 10;
-
+  let volumeLabel = null;
   const sets = [];
-  for (let i = 0; i < numSets; i++) {
+
+  if (block && (blockType === 'duration' || blockType === 'amrap')) {
+    // Continuous / open blocks: one set, no rep target.
+    volumeLabel = !parsedVolume && typeof typicalVolume === 'string' && typicalVolume ? typicalVolume : null;
     sets.push({
-      target_reps: numReps,
+      target_reps: null,
       reps: 0,
       weight: 0,
-      rest_seconds: 90,
+      rest_seconds: Number.isFinite(block.rest_seconds) ? block.rest_seconds : null,
       is_completed: false
     });
+  } else if (block && blockType !== 'straight_sets') {
+    // circuit / tabata / emom / interval: one set per round, same as
+    // parseTemplateToSessionData, so the new exercise stays round-coherent
+    // with its block neighbors.
+    const rounds = Math.max(1, block.rounds || 1);
+    const targetReps = parsedVolume?.numReps ?? null;
+    if (targetReps === null) {
+      volumeLabel = typeof typicalVolume === 'string' && typicalVolume ? typicalVolume : null;
+    }
+    const restSeconds = Number.isFinite(block.rest_seconds) ? block.rest_seconds : 90;
+    for (let i = 0; i < rounds; i++) {
+      sets.push({
+        target_reps: targetReps,
+        reps: 0,
+        weight: 0,
+        rest_seconds: restSeconds,
+        is_completed: false
+      });
+    }
+  } else {
+    const numSets = parsedVolume?.numSets || 3;
+    const numReps = parsedVolume?.numReps || 10;
+    for (let i = 0; i < numSets; i++) {
+      sets.push({
+        target_reps: numReps,
+        reps: 0,
+        weight: 0,
+        rest_seconds: 90,
+        is_completed: false
+      });
+    }
   }
 
   return {
@@ -497,7 +533,7 @@ export function buildSessionExercise(exercise, order = 0, { blockIndex = null } 
     exercise_name: exercise?.name || exercise?.exercise_name || 'Exercise',
     notes: '',
     block_index: Number.isInteger(blockIndex) ? blockIndex : null,
-    volume_label: null,
+    volume_label: volumeLabel,
     order,
     sets
   };
