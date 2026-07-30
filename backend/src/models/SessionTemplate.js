@@ -14,12 +14,49 @@ const blockExerciseSchema = new mongoose.Schema({
   notes: String
 }, { _id: false });
 
+// Structured block types. Missing `type` (all pre-existing docs) is treated
+// as 'straight_sets' by every reader. There is deliberately no 'distance'
+// type: distance targets live in the exercise `volume` string ("400m @ 5k
+// pace") and run with duration/interval semantics.
+const BLOCK_TYPES = [
+  'straight_sets', // classic sets x reps; rounds ignored
+  'circuit',       // exercise list repeats `rounds` times, `rest_seconds` between rounds
+  'tabata',        // `rounds` x `work_seconds` on / `rest_seconds` off (convention 8x20/10)
+  'amrap',         // as many rounds as possible within `duration_seconds`
+  'emom',          // `rounds` minute-slots, `work_seconds` of work per slot
+  'interval',      // run/bike/climb repeats: `rounds` x work bout with `rest_seconds` recovery
+  'duration',      // one continuous effort of `duration_seconds` (tempo run, endurance ride, ARC)
+];
+
 // Block schema (like "Warm-up", "Main Work", etc.)
 const blockSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true
   },
+  type: {
+    type: String,
+    enum: BLOCK_TYPES,
+    default: 'straight_sets'
+  },
+  rounds: {
+    type: Number,
+    min: 1,
+    default: 1
+  },
+  work_seconds: {
+    type: Number,
+    min: 1
+  },
+  rest_seconds: {
+    type: Number,
+    min: 0
+  },
+  duration_seconds: {
+    type: Number,
+    min: 1
+  },
+  instructions: String, // block-level coaching text
   exercises: [blockExerciseSchema]
 }, { _id: false });
 
@@ -162,3 +199,4 @@ sessionTemplateSchema.virtual('isPrivate').get(function () {
 // Collection name pinned explicitly (renamed from the legacy
 // 'predefinedworkouts' by scripts/migrate-workout-to-session.js).
 module.exports = mongoose.model('SessionTemplate', sessionTemplateSchema, 'sessiontemplates');
+module.exports.BLOCK_TYPES = BLOCK_TYPES;

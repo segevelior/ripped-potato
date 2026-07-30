@@ -52,3 +52,16 @@ DISCIPLINES: Tuple[str, ...] = (
 
 # Convenience for prompts that list the vocabulary inline.
 DISCIPLINES_LIST = ", ".join(DISCIPLINES)
+
+# Disciplines that imply a dedicated sport commitment (gear, venue, skill).
+# The backend hides common session templates whose disciplines are ALL in
+# this set from users who don't list that sport in profile.sportPreferences.
+# Walking is deliberately generic — zero-gear recovery prescribed across all
+# training styles. Keep identical to backend/src/config/disciplines.js and
+# frontend/src/constants/disciplines.js.
+SPORT_SPECIFIC_DISCIPLINES: Tuple[str, ...] = (
+    "running",
+    "cycling",
+    "climbing",
+    "swimming",
+)
