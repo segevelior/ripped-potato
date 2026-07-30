@@ -7,8 +7,10 @@
  *   never overwritten. Embeddings come from the Exercise pre-save hook
  *   (OPENAI_API_KEY, fail-soft) — run scripts/backfillEmbeddings.js after if
  *   the key wasn't available.
- * - Templates: idempotent delete-by-name-then-create, scoped to
- *   { isCommon: true } so a user's same-named private template is untouched.
+ * - Templates: idempotent UPSERT-BY-NAME scoped to { isCommon: true } — an
+ *   existing template's _id is preserved on re-run, because calendar events
+ *   and UserSessionModification docs reference templates by _id; a
+ *   delete-and-recreate would orphan every link and favorite.
  * - Prints INSERTED_EXERCISE_IDS=[...] at the end — the rollback artifact
  *   (db.exercises.deleteMany({_id: {$in: [...]}})). Templates roll back by
  *   name.
@@ -288,6 +290,13 @@ async function seedSportTemplates() {
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ripped-potato');
     console.log(`Connected to ${mongoose.connection.name}`);
 
+    if (!process.env.OPENAI_API_KEY) {
+      console.warn(
+        '⚠ OPENAI_API_KEY is not set: new exercises will be created WITHOUT embeddings '
+        + '(semantic matching degraded). Run scripts/backfillEmbeddings.js with a valid key afterwards.'
+      );
+    }
+
     // Phase 1: find-or-create exercises
     const exerciseMap = {};
     const insertedExerciseIds = [];
@@ -317,20 +326,26 @@ async function seedSportTemplates() {
       }
     }
 
-    // Phase 2: recreate the templates
+    // Phase 2: upsert the templates by name, preserving _id on re-runs.
     const templates = buildTemplates(exerciseMap);
-    const names = templates.map((t) => t.name);
-    const { deletedCount } = await SessionTemplate.deleteMany({ name: { $in: names }, isCommon: true });
-    if (deletedCount) console.log(`Deleted ${deletedCount} existing common template(s) for re-seed`);
-
     for (const template of templates) {
       const emptyBlocks = template.blocks.filter((b) => b.exercises.length === 0);
       if (emptyBlocks.length > 0) {
         console.warn(`  ! skipping "${template.name}" — empty block(s): ${emptyBlocks.map((b) => b.name).join(', ')}`);
         continue;
       }
-      const created = await SessionTemplate.create(template);
-      console.log(`  + template created: ${created.name} (${created.blocks.length} blocks, ${created.totalExercises} exercises)`);
+      const existing = await SessionTemplate.findOne({ name: template.name, isCommon: true });
+      if (existing) {
+        // Update in place: calendar events and favorites reference this _id.
+        // popularity/ratings are user-earned — leave them alone.
+        const { popularity, ratings, ...fields } = template;
+        Object.assign(existing, fields);
+        await existing.save();
+        console.log(`  ~ template updated in place: ${existing.name} (${existing.blocks.length} blocks, ${existing.totalExercises} exercises)`);
+      } else {
+        const created = await SessionTemplate.create(template);
+        console.log(`  + template created: ${created.name} (${created.blocks.length} blocks, ${created.totalExercises} exercises)`);
+      }
     }
 
     console.log(`\nINSERTED_EXERCISE_IDS=${JSON.stringify(insertedExerciseIds)}`);
