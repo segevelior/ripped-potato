@@ -35,6 +35,7 @@ from app.core.agents.skills import show_plan_skill  # noqa: F401,E402
 from app.core.agents.skills import daily_recommendation_skill  # noqa: F401,E402
 from app.core.agents.skills import propose_exercise_swap_skill  # noqa: F401,E402
 from app.core.agents.skills import update_sport_preferences_skill  # noqa: F401,E402
+from app.core.agents.skills import resolve_activity_match_skill  # noqa: F401,E402
 
 __all__ = [
     "SkillContext",

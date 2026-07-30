@@ -334,6 +334,9 @@ class DataReaderAgent(BaseAgent):
                 date_str = start_date.strftime("%Y-%m-%d") if start_date else None
 
                 formatted.append({
+                    # id + match fields feed the resolve_activity_match tool
+                    # and the UNRESOLVED STRAVA MATCHES anchors block.
+                    "id": str(activity["_id"]),
                     "date": date_str,
                     "name": activity.get("name"),
                     "sport_type": activity.get("sportType"),
@@ -345,7 +348,9 @@ class DataReaderAgent(BaseAgent):
                     "elevation_gain": activity.get("elevationGain"),
                     "calories": activity.get("calories"),
                     "avg_speed": activity.get("avgSpeed"),
-                    "avg_power": activity.get("avgPower")
+                    "avg_power": activity.get("avgPower"),
+                    "match_status": activity.get("matchStatus"),
+                    "match_candidate_ids": [str(c) for c in activity.get("matchCandidateIds") or []]
                 })
 
             return formatted

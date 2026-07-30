@@ -75,3 +75,26 @@ class TestDeleteCalendarEvent:
         ctx = _ctx(_event(planId=ObjectId()))
         res = await delete_calendar_event(ctx, USER_ID, {"event_id": str(EVENT_ID)})
         assert "training plan" in res["message"]
+
+    async def test_strava_linked_delete_pins_activity_separate(self):
+        # Deleting a Strava-linked event must pin the activity 'separate'
+        # (else the nightly job can resurrect the deletion as an auto-merge)
+        # and write a coach_event_delete audit row.
+        activity_id = ObjectId()
+        ctx = _ctx(_event(externalActivityId=activity_id))
+        ctx.db.externalactivities.find_one = AsyncMock(
+            return_value={"_id": activity_id, "matchStatus": "auto", "matchedEventId": EVENT_ID}
+        )
+        ctx.db.externalactivities.update_one = AsyncMock()
+        ctx.db.activitymatchaudits.insert_one = AsyncMock()
+
+        res = await delete_calendar_event(
+            ctx, USER_ID, {"event_id": str(EVENT_ID), "confirm": True}
+        )
+        assert res["success"] is True
+        update = ctx.db.externalactivities.update_one.call_args[0][1]
+        assert update["$set"] == {"matchStatus": "separate"}
+        assert "matchedEventId" in update["$unset"]
+        audit = ctx.db.activitymatchaudits.insert_one.call_args[0][0]
+        assert audit["action"] == "coach_event_delete"
+        assert audit["previous"]["matchStatus"] == "auto"

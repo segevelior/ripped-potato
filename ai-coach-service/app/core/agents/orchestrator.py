@@ -184,7 +184,7 @@ _WRITE_PREVIEW_DEFAULT_TRUE = {  # dry_run defaults true → write only on expli
     "schedule_to_calendar", "schedule_plan_to_calendar", "reschedule_session",
     "update_calendar_session", "adjust_plan",
 }
-_WRITE_CONFIRM_TOOLS = {"delete_calendar_event", "delete_session_template"}  # write only on confirm=true
+_WRITE_CONFIRM_TOOLS = {"delete_calendar_event", "delete_session_template", "resolve_activity_match"}  # write only on confirm=true
 _WRITE_PREVIEW_DEFAULT_FALSE = {"resolve_week"}  # writes unless dry_run=true
 _WRITE_ALWAYS = {
     "add_exercise", "add_plan_session", "create_goal", "create_plan",
@@ -922,6 +922,15 @@ USER DATA:
                 "Removing event from your calendar"
                 if function_args.get("confirm") is True
                 else "Previewing calendar event removal"
+            ),
+            "resolve_activity_match": (
+                {
+                    "merge": "Merging your tracked activity with the planned session",
+                    "separate": "Keeping your tracked activity as its own workout",
+                    "unmerge": "Un-merging your tracked activity from the planned session",
+                }.get(function_args.get("resolution"), "Resolving activity match")
+                if function_args.get("confirm") is True
+                else "Previewing activity match resolution"
             ),
             # Daily suggestion
             "get_daily_recommendation": "Checking your Today's Pick",
