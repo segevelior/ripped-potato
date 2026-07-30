@@ -223,6 +223,44 @@ def test_text_budget_drains_newest_first():
     assert by_id["old"] == "honest"    # budget exhausted
 
 
+def test_pdf_over_byte_cap_degrades_at_materialisation():
+    """The byte cap applies to PDFs too: a scanned 20-pager passes the page
+    cap (pages track tokens, not bytes) but must not re-send tens of MB of
+    base64 every in-window turn."""
+    from app.core.agents.orchestrator import REPLAY_ATTACHMENT_BYTES_MAX
+
+    history = _history_with_attachment(trailing_humans=1)
+    huge = b"x" * (REPLAY_ATTACHMENT_BYTES_MAX + 1)
+
+    # Text-rich over-cap PDF → text floor
+    plan = _attachment_replay_plan(history, {"a1": _doc()})
+    parts = _attachment_parts_from_plan(plan, {"a1": huge})
+    assert parts[0][0]["type"] == "text"
+
+    # Scanned over-cap PDF → no floor → honest
+    plan = _attachment_replay_plan(history, {"a1": _doc(text="", extractable=False)})
+    # (scanned is already "honest" at plan time out-of-window; in-window with a
+    # blob it plans "file" and must degrade at materialisation)
+    assert plan[0]["action"] == "file"
+    parts = _attachment_parts_from_plan(plan, {"a1": huge})
+    assert "no longer available" in parts[0][0]["text"]
+
+
+def test_multi_attachment_message_keeps_ref_order():
+    """Two refs on ONE message must materialise in ref order (a reversal here
+    would silently mislabel which file is which once multi-attach ships)."""
+    refs = [
+        _ref(aid="first", filename="first.pdf"),
+        _ref(aid="second", filename="second.pdf"),
+    ]
+    history = _history_with_attachment(trailing_humans=1, attachments=refs)
+    docs = {"first": _doc(), "second": _doc()}
+    plan = _attachment_replay_plan(history, docs)
+    parts = _attachment_parts_from_plan(plan, {"first": b"%PDF-1", "second": b"%PDF-2"})
+    names = [p["file"]["filename"] for p in parts[0]]
+    assert names == ["first.pdf", "second.pdf"]
+
+
 def test_missing_blob_degrades_at_materialisation():
     history = _history_with_attachment(trailing_humans=1)
     plan = _attachment_replay_plan(history, {"a1": _doc()})

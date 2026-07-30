@@ -425,9 +425,11 @@ def _attachment_parts_from_plan(
         part = None
         if action == "file":
             blob = blobs.get(ref.get("attachment_id") or "")
-            if blob is None or (
-                doc.get("kind") == "image" and len(blob) > REPLAY_ATTACHMENT_BYTES_MAX
-            ):
+            # The byte cap applies to BOTH kinds: a 30MB scanned PDF passes the
+            # page cap (pages track tokens, not bytes) yet would re-send ~40MB
+            # of base64 every in-window turn. Over-cap PDFs fall to the text
+            # floor if they have one; scanned ones go honest.
+            if blob is None or len(blob) > REPLAY_ATTACHMENT_BYTES_MAX:
                 action = "text" if (doc.get("kind") == "pdf" and doc.get("text_extractable")) else "honest"
             else:
                 b64 = base64.b64encode(blob).decode("utf-8")
@@ -466,8 +468,10 @@ def _attachment_parts_from_plan(
             }
         if part is None:
             part = _attachment_unavailable_part(filename)
-        # plan is newest-first; parts within a message keep ref order via insert
-        parts_by_idx.setdefault(entry["msg_idx"], []).insert(0, part)
+        # Plan order is newest-first across MESSAGES, but refs within a single
+        # message were appended in ref order — append preserves that order
+        # (insert(0) would reverse a multi-attachment message's parts).
+        parts_by_idx.setdefault(entry["msg_idx"], []).append(part)
     return parts_by_idx
 
 

@@ -166,6 +166,8 @@ async def chat_stream(
                 "filename": doc.get("filename"),
                 "mime_type": doc.get("mime_type"),
                 "kind": doc.get("kind"),
+                # For the UI card on reload (type · size line)
+                "size_bytes": doc.get("size_bytes"),
             }
             for aid, doc in attachment_docs.items()
         ] or None

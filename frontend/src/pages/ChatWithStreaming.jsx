@@ -377,6 +377,7 @@ export default function ChatWithStreaming() {
               baseMsg.attachment = {
                 name: savedAttachment.filename,
                 type: savedAttachment.mime_type,
+                size: savedAttachment.size_bytes,
                 previewUrl: null // blob URLs don't survive reload
               };
             }

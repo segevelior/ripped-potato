@@ -59,8 +59,9 @@ class ConversationMessage(BaseModel):
     # replayed into model context on later turns, never rendered by the UI.
     tool_rounds: Optional[List[Dict[str, Any]]] = None
     # Attachment refs on human turns: [{attachment_id, filename, mime_type,
-    # kind}] — metadata only, never bytes/text. Content is resolved from
-    # chatAttachments at replay time; the chat UI renders the card from these.
+    # kind, size_bytes}] — metadata only, never bytes/text. Content is resolved
+    # from chatAttachments at replay time; the chat UI renders the card from
+    # these.
     attachments: Optional[List[Dict[str, Any]]] = None
 
 

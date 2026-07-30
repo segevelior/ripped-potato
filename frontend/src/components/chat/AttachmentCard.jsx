@@ -78,7 +78,7 @@ export function AttachmentCard({
           disabled={isUploading}
           aria-label="Remove attached file"
           className={cn(
-            'absolute top-1 right-1 flex items-center justify-center w-8 h-8 rounded-full transition-colors',
+            'absolute top-1 right-1 flex items-center justify-center w-9 h-9 rounded-full transition-colors',
             isUploading
               ? 'text-gray-300 cursor-not-allowed'
               : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'
