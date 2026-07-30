@@ -25,6 +25,12 @@ export const DISCIPLINES = [
   'meditation',
 ];
 
+// Disciplines that imply a dedicated sport commitment (gear, venue, skill).
+// Mirror of backend/src/config/disciplines.js SPORT_SPECIFIC_DISCIPLINES —
+// the backend uses it to hide sport-specific common templates from users who
+// don't list that sport in their interests. Walking is deliberately generic.
+export const SPORT_SPECIFIC_DISCIPLINES = ['running', 'cycling', 'climbing', 'swimming'];
+
 // Grouping for the Settings "Training Interests" picker — presentation only.
 export const DISCIPLINE_GROUPS = [
   { label: 'Gym & strength', disciplines: ['strength', 'calisthenics', 'hiit', 'hybrid'] },
