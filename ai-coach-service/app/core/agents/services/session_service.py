@@ -16,6 +16,23 @@ from app.core.dedup import existing_template_duplicate_response
 
 logger = structlog.get_logger()
 
+# Mirror of BLOCK_TYPES in backend/src/models/SessionTemplate.js. Raw motor
+# inserts bypass Mongoose validation, so this whitelist is the enforcement
+# point: an off-vocab type is dropped (block falls back to straight_sets)
+# rather than persisted.
+BLOCK_TYPES = {
+    "straight_sets", "circuit", "tabata", "amrap", "emom", "interval", "duration",
+}
+
+
+def _positive_int(value, minimum=1):
+    """Coerce to int >= minimum; None when absent or junk."""
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number >= minimum else None
+
 
 class SessionService:
     """Service for session-related operations"""
@@ -58,20 +75,39 @@ class SessionService:
             # strips them before anything is persisted.
             blocks = []
             for block in args.get("blocks", []):
-                blocks.append({
+                # Typed-block structure (tabata / circuit / interval / ...) —
+                # optional, sanitized here because nothing downstream validates.
+                block_type = block.get("type")
+                if block_type not in BLOCK_TYPES:
+                    block_type = "straight_sets"
+                normalized = {
                     "name": block.get("name", "Main Work"),
-                    "exercises": [
-                        {
-                            "exercise_name": ex.get("exercise_name", ""),
-                            "volume": ex.get("volume", "3x10"),
-                            "rest": ex.get("rest", "60s"),
-                            "notes": ex.get("notes", ""),
-                            "muscles": ex.get("muscles"),
-                            "discipline": ex.get("discipline") or args.get("primary_disciplines"),
-                        }
-                        for ex in block.get("exercises", [])
-                    ]
-                })
+                    "type": block_type,
+                    "rounds": _positive_int(block.get("rounds")) or 1,
+                }
+                for field, minimum in (
+                    ("work_seconds", 1),
+                    ("rest_seconds", 0),
+                    ("duration_seconds", 1),
+                ):
+                    value = _positive_int(block.get(field), minimum)
+                    if value is not None:
+                        normalized[field] = value
+                instructions = block.get("instructions")
+                if isinstance(instructions, str) and instructions.strip():
+                    normalized["instructions"] = instructions.strip()
+                normalized["exercises"] = [
+                    {
+                        "exercise_name": ex.get("exercise_name", ""),
+                        "volume": ex.get("volume", "3x10"),
+                        "rest": ex.get("rest", "60s"),
+                        "notes": ex.get("notes", ""),
+                        "muscles": ex.get("muscles"),
+                        "discipline": ex.get("discipline") or args.get("primary_disciplines"),
+                    }
+                    for ex in block.get("exercises", [])
+                ]
+                blocks.append(normalized)
 
             # Resolve every exercise name to a real catalog id (verified id →
             # exact → fuzzy → vector → create). exercise_id must never be null:
