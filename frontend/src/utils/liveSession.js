@@ -24,7 +24,21 @@ const ACTIVE_SESSION_TTL = 24 * 60 * 60 * 1000; // 24 hours
  * @property {string} exercise_id
  * @property {string} exercise_name
  * @property {string} notes
+ * @property {number|null} block_index - index into SessionData.blocks (null for ad-hoc / legacy sessions)
+ * @property {string|null} volume_label - raw volume text shown when sets aren't a parseable NxM ("400m @ 5k pace")
  * @property {SessionSet[]} sets
+ */
+
+/**
+ * @typedef {Object} SessionBlock - structural metadata mirrored from the template's typed blocks
+ * @property {string} name
+ * @property {string} type - straight_sets|circuit|tabata|amrap|emom|interval|duration
+ * @property {number} rounds
+ * @property {number} [work_seconds]
+ * @property {number} [rest_seconds]
+ * @property {number} [duration_seconds]
+ * @property {string} [instructions]
+ * @property {number} rounds_completed - runtime counter (AMRAP)
  */
 
 /**
@@ -34,6 +48,7 @@ const ACTIVE_SESSION_TTL = 24 * 60 * 60 * 1000; // 24 hours
  * @property {number} duration_minutes
  * @property {string|null} sourceTemplateId - SessionTemplate this session started from (null for ad-hoc sessions)
  * @property {boolean} sourceTemplateIsCommon - whether that template is shared/common (permanent edits clone it)
+ * @property {SessionBlock[]} [blocks] - absent on ad-hoc sessions and blobs written before typed blocks
  * @property {SessionExercise[]} exercises
  */
 
@@ -271,29 +286,47 @@ export function parseTemplateToSessionData(workout, { sourceTemplateId, sourceTe
     duration_minutes: workout.estimated_duration || workout.duration_minutes || null,
     sourceTemplateId: isValidObjectId(String(sourceTemplateId || '')) ? String(sourceTemplateId) : null,
     sourceTemplateIsCommon: sourceTemplateIsCommon === true,
+    blocks: [],
     exercises: []
   };
 
-  // Handle both blocks format and flat exercises array
+  // Handle both blocks format and flat exercises array. Exercises keep a
+  // pointer to their block (block_index) instead of nesting, so set logging,
+  // swap/delete and the SessionLog mapping stay flat-index based.
   const exerciseList = [];
 
   if (workout.blocks && Array.isArray(workout.blocks)) {
     workout.blocks.forEach(block => {
+      const blockIndex = sessionData.blocks.length;
+      sessionData.blocks.push({
+        name: block.name || `Block ${blockIndex + 1}`,
+        // Missing type = every pre-typed-blocks template = classic sets x reps.
+        type: block.type || 'straight_sets',
+        rounds: Math.max(1, block.rounds || 1),
+        work_seconds: block.work_seconds || null,
+        rest_seconds: Number.isFinite(block.rest_seconds) ? block.rest_seconds : null,
+        duration_seconds: block.duration_seconds || null,
+        instructions: block.instructions || '',
+        rounds_completed: 0
+      });
       if (block.exercises && Array.isArray(block.exercises)) {
-        block.exercises.forEach(ex => exerciseList.push(ex));
+        block.exercises.forEach(ex => exerciseList.push({ ex, blockIndex }));
       }
     });
   }
 
   if (workout.exercises && Array.isArray(workout.exercises)) {
-    workout.exercises.forEach(ex => exerciseList.push(ex));
+    workout.exercises.forEach(ex => exerciseList.push({ ex, blockIndex: null }));
   }
 
-  exerciseList.forEach((ex, index) => {
+  exerciseList.forEach(({ ex, blockIndex }, index) => {
     if (!ex.exercise_name && !ex.exerciseName && !ex.name) {
       console.warn(`[LiveSession] Skipping exercise at index ${index}: missing name`);
       return;
     }
+
+    const block = blockIndex === null ? null : sessionData.blocks[blockIndex];
+    const blockType = block?.type || 'straight_sets';
 
     // exercise_id may arrive populated as an object ({_id, name, ...}) — the
     // Sessions-page list populates it — or as a plain id string.
@@ -305,9 +338,14 @@ export function parseTemplateToSessionData(workout, { sourceTemplateId, sourceTe
       exercise_id: isValidObjectId(rawExerciseId) ? rawExerciseId : null,
       exercise_name: ex.exercise_name || ex.exerciseName || ex.name,
       notes: ex.notes || '',
+      block_index: blockIndex,
+      volume_label: null,
       order: index,
       sets: []
     };
+
+    const volume = ex.volume || ex.sets_reps;
+    const parsedVolume = parseVolume(volume);
 
     // If exercise already has a sets array, use it
     if (ex.sets && Array.isArray(ex.sets) && ex.sets.length > 0) {
@@ -318,12 +356,41 @@ export function parseTemplateToSessionData(workout, { sourceTemplateId, sourceTe
         rest_seconds: set.rest_seconds || set.restSeconds || null,
         is_completed: false
       }));
+    } else if (blockType === 'duration' || blockType === 'amrap') {
+      // One continuous effort (tempo run, ARC climb) or an open AMRAP: one
+      // set, no rep target — the raw volume text is the target.
+      newExercise.volume_label = typeof volume === 'string' && volume ? volume : null;
+      newExercise.sets = [{
+        target_reps: null,
+        reps: 0,
+        weight: 0,
+        rest_seconds: Number.isFinite(block?.rest_seconds) ? block.rest_seconds : (parseRest(ex.rest) || null),
+        is_completed: false
+      }];
+    } else if (block && blockType !== 'straight_sets') {
+      // circuit / tabata / emom / interval: one set per round. Rep targets
+      // come from an NxM volume when present; otherwise the raw volume text
+      // ("400m @ 5k pace", "30s hard") is carried as a label instead of
+      // faking a 3x10.
+      const targetReps = parsedVolume?.numReps ?? null;
+      if (targetReps === null) {
+        newExercise.volume_label = typeof volume === 'string' && volume ? volume : null;
+      }
+      const restSeconds = Number.isFinite(block.rest_seconds)
+        ? block.rest_seconds
+        : (parseRest(ex.rest) || 90);
+      for (let i = 0; i < block.rounds; i++) {
+        newExercise.sets.push({
+          target_reps: targetReps,
+          reps: 0,
+          weight: 0,
+          rest_seconds: restSeconds,
+          is_completed: false
+        });
+      }
     } else {
-      // Parse from volume string or numeric fields
-      const volume = ex.volume || ex.sets_reps;
-      const parsedVolume = parseVolume(volume);
-
-      // Check for numeric sets/reps fields (from calendar format)
+      // straight_sets / typeless legacy blocks / flat calendar exercises:
+      // parse from volume string or numeric fields (unchanged behavior).
       const numericSets = typeof ex.sets === 'number' && ex.sets > 0 ? ex.sets : null;
       const numericReps = typeof ex.reps === 'number' && ex.reps > 0 ? ex.reps : null;
 
@@ -334,6 +401,7 @@ export function parseTemplateToSessionData(workout, { sourceTemplateId, sourceTe
 
       if (!parsedVolume && !numericSets && !numericReps) {
         console.warn(`[LiveSession] Exercise "${newExercise.exercise_name}" has no valid volume data (got: "${volume}"). Using defaults: ${numSets}x${numReps}`);
+        newExercise.volume_label = typeof volume === 'string' && volume ? volume : null;
       }
 
       for (let i = 0; i < numSets; i++) {
@@ -360,6 +428,35 @@ export function parseTemplateToSessionData(workout, { sourceTemplateId, sourceTe
 }
 
 /**
+ * Group a session's flat exercise list into renderable block sections.
+ *
+ * Groups CONSECUTIVE exercises sharing a block_index; ad-hoc additions and
+ * legacy blobs (no blocks array / no block_index) fall into null-block
+ * sections that render exactly like the pre-blocks flat list. Each item keeps
+ * its true flat index so set-logging/swap/delete handlers stay untouched.
+ *
+ * @param {SessionData} sessionData
+ * @returns {Array<{block: SessionBlock|null, blockIndex: number|null, items: Array<{exercise: SessionExercise, index: number}>}>}
+ */
+export function groupExercisesByBlock(sessionData) {
+  const exercises = sessionData?.exercises || [];
+  const blocks = Array.isArray(sessionData?.blocks) ? sessionData.blocks : [];
+
+  const sections = [];
+  let current = null;
+  exercises.forEach((exercise, index) => {
+    const rawIndex = exercise.block_index;
+    const blockIndex = Number.isInteger(rawIndex) && blocks[rawIndex] ? rawIndex : null;
+    if (!current || current.blockIndex !== blockIndex) {
+      current = { block: blockIndex === null ? null : blocks[blockIndex], blockIndex, items: [] };
+      sections.push(current);
+    }
+    current.items.push({ exercise, index });
+  });
+  return sections;
+}
+
+/**
  * Build a single live-session exercise from a catalog/generated exercise object.
  * Used when replacing or inserting an exercise mid-workout.
  *
@@ -372,9 +469,11 @@ export function parseTemplateToSessionData(workout, { sourceTemplateId, sourceTe
  *
  * @param {Object} exercise - a catalog exercise ({ id|_id, name, strain })
  * @param {number} [order=0]
+ * @param {Object} [options]
+ * @param {number|null} [options.blockIndex=null] - block the exercise joins (inherit the neighbor's when inserting mid-block)
  * @returns {SessionExercise}
  */
-export function buildSessionExercise(exercise, order = 0) {
+export function buildSessionExercise(exercise, order = 0, { blockIndex = null } = {}) {
   const rawId = exercise?.id || exercise?._id;
   const typicalVolume = exercise?.strain?.typicalVolume;
   const parsedVolume = parseVolume(typicalVolume);
@@ -397,6 +496,8 @@ export function buildSessionExercise(exercise, order = 0) {
     exercise_id: isValidObjectId(rawId) ? rawId : null,
     exercise_name: exercise?.name || exercise?.exercise_name || 'Exercise',
     notes: '',
+    block_index: Number.isInteger(blockIndex) ? blockIndex : null,
+    volume_label: null,
     order,
     sets
   };
