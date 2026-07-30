@@ -265,9 +265,15 @@ const buildTemplates = (map) => [
     tags: ['climbing', 'endurance', 'arc'],
     blocks: [
       {
+        // Typed interval, not a '2x5 min' volume string — parseVolume's NxM
+        // regex would read that as 2 sets of 5 REPS and show a bogus target.
         name: 'Technique Warm-Up',
+        type: 'interval',
+        rounds: 2,
+        work_seconds: 300,
+        rest_seconds: 60,
         exercises: [
-          ex(map, 'Climbing Technique Drills', '2x5 min', '1 min', 'Silent feet, straight arms, hip positioning.'),
+          ex(map, 'Climbing Technique Drills', '5 min of drills', '1 min', 'Silent feet, straight arms, hip positioning.'),
         ].filter(Boolean),
       },
       {
