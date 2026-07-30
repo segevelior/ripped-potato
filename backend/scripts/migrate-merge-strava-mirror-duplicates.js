@@ -78,13 +78,23 @@ async function main() {
         if (!mirror) stats.noMirror++;
         console.log(`${matchStatus.toUpperCase().padEnd(9)} ${localDay} ${activity.name} (${candidateIds.length} candidate(s))`);
         if (APPLY) {
-          // Backfill the mirror's stripped source/stravaData; creates the
-          // mirror if the consistency job hasn't yet.
-          await ActivityMatchingService.upsertMirrorEvent(activity, activity.userId, discipline);
+          // Status first (crash-safe, matches classifyAndApply), then the
+          // mirror backfill of stripped source/stravaData.
           await ExternalActivity.updateOne(
             { _id: activity._id },
             { $set: { matchStatus, matchCandidateIds: decision === 'pending' ? candidateIds : [] } }
           );
+          await ActivityMatchingService.upsertMirrorEvent(activity, activity.userId, discipline);
+          // Same audit rows the live path writes — migrated classifications
+          // must count in the matcher-quality denominator too.
+          await ActivityMatchingService.writeAudit({
+            userId: activity.userId,
+            activityId: activity._id,
+            action: decision === 'pending' ? 'auto_pending' : 'auto_unmatched',
+            actor: 'system',
+            previous: { matchStatus: null, matchedEventId: null },
+            context: { candidateIds, discipline, localDay, decision }
+          });
         }
       }
     } catch (error) {

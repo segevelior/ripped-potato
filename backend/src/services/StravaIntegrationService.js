@@ -380,14 +380,16 @@ class StravaIntegrationService {
 
   /**
    * The activity was deleted (Strava webhook or app DELETE): mirrors are
-   * removed, merged planned events survive with the link severed.
+   * removed, merged planned events survive with the link severed. Pass the
+   * deleted activity doc when available — it lets the unlink revert only
+   * merge-set completion (a manual pre-merge completion is preserved).
    */
-  static async deleteCalendarEventForActivity(externalActivityId, userId) {
+  static async deleteCalendarEventForActivity(externalActivityId, userId, activity = null) {
     const query = { externalActivityId };
     if (userId) query.userId = userId;
     const event = await CalendarEvent.findOne(query).lean();
     if (!event) return;
-    await ActivityMatchingService.unlinkOrDeleteStravaEvent(event, event.userId);
+    await ActivityMatchingService.unlinkOrDeleteStravaEvent(event, event.userId, activity);
   }
 
   /**
@@ -559,7 +561,7 @@ class StravaIntegrationService {
 
           // Also delete/unlink the associated CalendarEvent
           if (deletedActivity) {
-            await this.deleteCalendarEventForActivity(deletedActivity._id, credential.userId);
+            await this.deleteCalendarEventForActivity(deletedActivity._id, credential.userId, deletedActivity);
           }
 
           return { handled: true, action: 'delete', activityId: object_id };

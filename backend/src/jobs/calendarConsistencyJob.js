@@ -254,9 +254,9 @@ class CalendarConsistencyJob {
         const externalActivity = await ExternalActivity.findById(event.externalActivityId);
         if (!externalActivity) {
           // Mirrors are deleted; merged planned events survive with the link severed
-          await ActivityMatchingService.unlinkOrDeleteStravaEvent(event, event.userId);
-          this.stats.orphanedCalendarEventsDeleted++;
-          this.logger.info(`[CalendarConsistencyJob] Cleaned Strava-linked CalendarEvent ${event._id} (ExternalActivity ${event.externalActivityId} not found)`);
+          const outcome = await ActivityMatchingService.unlinkOrDeleteStravaEvent(event, event.userId);
+          if (outcome === 'deleted') this.stats.orphanedCalendarEventsDeleted++;
+          this.logger.info(`[CalendarConsistencyJob] ${outcome === 'deleted' ? 'Deleted' : 'Unlinked'} Strava-linked CalendarEvent ${event._id} (ExternalActivity ${event.externalActivityId} not found)`);
         }
       }
 
@@ -556,8 +556,8 @@ class CalendarConsistencyJob {
     for (const event of eventsWithExternalActivityId) {
       const externalActivity = await ExternalActivity.findById(event.externalActivityId);
       if (!externalActivity) {
-        await ActivityMatchingService.unlinkOrDeleteStravaEvent(event, event.userId);
-        this.stats.orphanedCalendarEventsDeleted++;
+        const outcome = await ActivityMatchingService.unlinkOrDeleteStravaEvent(event, event.userId);
+        if (outcome === 'deleted') this.stats.orphanedCalendarEventsDeleted++;
       }
     }
   }
