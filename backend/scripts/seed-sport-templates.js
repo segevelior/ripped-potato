@@ -307,8 +307,12 @@ async function seedSportTemplates() {
     const exerciseMap = {};
     const insertedExerciseIds = [];
     for (const def of NEW_EXERCISES) {
+      // Only reuse COMMON exercises — a common template must never reference
+      // a user's private exercise doc (matching a private "Easy Run" by name
+      // would leak it into every user's template views).
       const existing = await Exercise.findOne({
         name: { $regex: `^${escapeRegex(def.name)}$`, $options: 'i' },
+        isCommon: true,
       });
       if (existing) {
         exerciseMap[def.name] = existing._id;
