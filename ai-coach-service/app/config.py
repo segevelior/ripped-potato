@@ -99,8 +99,15 @@ class Settings(BaseSettings):
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
     # Shared secret for internal (cron-invoked) endpoints — X-Internal-Key
-    # header. Unset = internal endpoints disabled (403).
+    # header. Unset = internal endpoints disabled (403). The SAME secret
+    # authenticates our outbound calls to the backend's /internal/v1 routes
+    # (deliberate: one secret, both directions — see backend internalAuth.js).
     internal_api_key: Optional[str] = None
+
+    # Base URL of the Node backend for internal (coach → backend) writes,
+    # e.g. https://synergyfit-api.onrender.com. Unset = internal writes
+    # disabled (skills report the capability as unavailable).
+    backend_internal_url: Optional[str] = None
 
     # CORS
     allowed_origins: str = "http://localhost:5173,http://localhost:5001"

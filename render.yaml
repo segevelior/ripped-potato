@@ -69,6 +69,11 @@ services:
         sync: false  # Target Linear team UUID
       - key: LINEAR_FEEDBACK_PROJECT_ID
         sync: false  # "Feedback Inbox" project UUID (optional)
+      # Internal API (ai-coach → backend, X-Internal-Key). Deliberately the
+      # SAME secret as the ai-coach service's INTERNAL_API_KEY — one secret
+      # authenticates both directions.
+      - key: INTERNAL_API_KEY
+        sync: false  # must match the ai-coach service's INTERNAL_API_KEY
 
   # Frontend Static Site
   - type: static

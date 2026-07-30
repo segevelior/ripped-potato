@@ -81,6 +81,31 @@ def format_calendar_anchors(
     block += last_done_line or " none recently"
     block += "\nNEXT UPCOMING EVENT:"
     block += fmt_event(next_up) if next_up else " nothing scheduled in the next 14 days"
+
+    # Tracker activities the sync couldn't confidently match to a planned
+    # session (matchStatus 'pending'). The coach should ask about these at a
+    # natural moment and resolve via resolve_activity_match — never silently.
+    pending = [
+        a for a in (external_activities or [])
+        if a.get("match_status") == "pending" and a.get("id")
+    ]
+    if pending:
+        block += "\nUNRESOLVED STRAVA MATCHES (ask the user, then resolve_activity_match):"
+        for act in pending[:3]:
+            line = (
+                f"\n- activity_id={act['id']} {act.get('date')} "
+                f"{act.get('sport_type') or 'activity'} \"{act.get('name') or 'activity'}\""
+            )
+            if act.get("duration_mins"):
+                line += f", {act['duration_mins']} min"
+            n_candidates = len(act.get("match_candidate_ids") or [])
+            line += (
+                f" — may be one of {n_candidates} planned session(s) that day"
+                if n_candidates
+                else " — a session was planned that day"
+            )
+            line += " (get_calendar_events for that date to see them)"
+            block += line
     return block
 
 

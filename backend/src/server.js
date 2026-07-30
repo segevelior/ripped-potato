@@ -58,6 +58,7 @@ const trainNowRoutes = require('./routes/trainNow');
 const coachQuestionRoutes = require('./routes/coachQuestion');
 const newsRoutes = require('./routes/news');
 const mcpAuthRoutes = require('./routes/mcpAuth');
+const internalActivityMatchRoutes = require('./routes/internal/activityMatch');
 const mcpRoutes = require('./routes/mcp');
 
 // Log Strava config on startup (helps debug production issues)
@@ -290,6 +291,10 @@ app.use('/api/v1/session-logs', sessionLogRoutes);
 app.use('/api/v1/train-now', trainNowRoutes);
 app.use('/api/v1/coach-question', coachQuestionRoutes);
 app.use('/api/v1/news', newsRoutes);
+
+// Internal service-to-service endpoints (ai-coach → backend, X-Internal-Key).
+// Mounted outside /api/ so the public rate limiter doesn't apply.
+app.use('/internal/v1/activity-match', internalActivityMatchRoutes);
 
 // MCP connector: OAuth authorization-server routes (mounted at root — the
 // `.well-known` discovery documents are origin-rooted) and the /mcp endpoint.
