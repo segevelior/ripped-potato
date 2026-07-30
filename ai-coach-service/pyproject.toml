@@ -22,6 +22,8 @@ openai = "^1.10.0"
 tavily-python = "^0.7.0"
 # Document processing
 pypdf = "^4.0.0"
+# Image normalization at upload (downscale, EXIF-orient) — chat attachments
+pillow = "^12.0.0"
 # Observability
 structlog = "^24.1.0"
 

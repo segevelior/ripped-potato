@@ -8,6 +8,7 @@ import redis.asyncio as redis
 
 from app.config import get_settings, Settings
 from app.api.v1 import health, chat, chat_stream, conversations, documents, exercises, internal, league_map, progressions, suggestions, train_now, coach_question
+from app.services.attachment_service import AttachmentService
 from app.services.coach_question_service import CoachQuestionService
 from app.services.conversation_service import ConversationService
 from app.services.recommendation_service import RecommendationService
@@ -44,6 +45,7 @@ async def lifespan(app: FastAPI):
     await RecommendationService(db).ensure_indexes()
     await ShortTermContextService(db).ensure_indexes()
     await CoachQuestionService(db).ensure_indexes()
+    await AttachmentService(db).ensure_indexes()
     
     # Connect to Redis
     try:
