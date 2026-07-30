@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { User } from "@/api/entities";
-import { Send, Sparkles, Menu, ArrowLeft, Square, Globe, Brain, FileText, Image as ImageIcon } from "lucide-react";
+import { Send, Sparkles, Menu, ArrowLeft, Square, Globe, Brain } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { FileUpload } from "@/components/chat/FileUpload";
+import { AttachmentCard } from "@/components/chat/AttachmentCard";
 import { uploadDocument } from "@/api/documents";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
@@ -118,38 +119,15 @@ const MessageItem = React.memo(function MessageItem({
           })()
         ) : (
           <div className="space-y-2">
-            {/* Image preview for user messages */}
-            {msg.imagePreview && (
-              <div className={`relative ${msg.imagePreview.failed ? 'opacity-50' : ''}`}>
-                {msg.imagePreview.url ? (
-                  // Live preview (current session)
-                  <img
-                    src={msg.imagePreview.url}
-                    alt={msg.imagePreview.name}
-                    className="max-w-full max-h-64 rounded-lg object-contain"
-                  />
-                ) : (
-                  // Placeholder for loaded conversations (image not available)
-                  <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg">
-                    <ImageIcon className="w-5 h-5 text-blue-500" />
-                    <span className="text-sm text-gray-600">{msg.imagePreview.name}</span>
-                    <span className="text-xs text-gray-400">(image sent)</span>
-                  </div>
-                )}
-                {msg.imagePreview.failed && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg">
-                    <span className="text-xs text-red-600 bg-white px-2 py-1 rounded">Upload failed</span>
-                  </div>
-                )}
-              </div>
-            )}
-            {/* PDF/file attachment indicator */}
+            {/* Attachment card (same component as the composer, read-only) */}
             {msg.attachment && (
-              <div className={`flex items-center gap-2 text-sm ${msg.attachment.failed ? 'text-red-500' : 'text-gray-600'}`}>
-                <FileText className="w-4 h-4" />
-                <span>{msg.attachment.name}</span>
-                {msg.attachment.failed && <span className="text-xs">(upload failed)</span>}
-              </div>
+              <AttachmentCard
+                name={msg.attachment.name}
+                mimeType={msg.attachment.type}
+                sizeBytes={msg.attachment.size}
+                failed={msg.attachment.failed}
+                previewUrl={msg.attachment.previewUrl}
+              />
             )}
             {/* Message text */}
             {msg.content && <div className="whitespace-pre-wrap">{msg.content}</div>}
@@ -391,20 +369,32 @@ export default function ChatWithStreaming() {
             timestamp: msg.timestamp
           };
 
-          // Parse attachment markers from saved messages (user messages only)
+          // Attachment refs from saved messages (user messages only)
           if (baseMsg.role === 'user') {
+            // New path: server-side attachment metadata on the message
+            const savedAttachment = msg.attachments?.[0];
+            if (savedAttachment) {
+              baseMsg.attachment = {
+                name: savedAttachment.filename,
+                type: savedAttachment.mime_type,
+                previewUrl: null // blob URLs don't survive reload
+              };
+            }
+
+            // Legacy path — KEEP FOREVER: conversations persisted before
+            // attachment_ids carry an [ATTACHMENT:...] marker inside content
+            // (same reasoning as the backend's LEGACY_TOOL_ALIASES).
             const attachmentMatch = msg.content.match(/^\[ATTACHMENT:(IMAGE|FILE):([^\]]+)\]\n/);
             if (attachmentMatch) {
               const [, type, name] = attachmentMatch;
               // Remove the attachment marker from displayed content
               baseMsg.content = msg.content.replace(/^\[ATTACHMENT:[^\]]+\]\n/, '');
-
-              if (type === 'IMAGE') {
-                // For images, we can't restore the preview (blob URLs don't persist)
-                // Show a placeholder indicating an image was attached
-                baseMsg.imagePreview = { name, type: 'image/*', url: null };
-              } else {
-                baseMsg.attachment = { name, type: 'application/pdf' };
+              if (!baseMsg.attachment) {
+                baseMsg.attachment = {
+                  name,
+                  type: type === 'IMAGE' ? 'image/*' : 'application/pdf',
+                  previewUrl: null
+                };
               }
             }
 
@@ -520,20 +510,16 @@ export default function ChatWithStreaming() {
     e.preventDefault();
     if (!input.trim() || isStreaming || isUploadingFile) return;
 
-    // Build user message with optional image preview
+    // Build user message with optional attachment card data
     const userMessage = {
       role: "user",
       content: input,
-      // Include image data for display if it's an image file
-      imagePreview: selectedFile?.type.startsWith('image/') ? {
-        url: filePreviewUrl,
+      attachment: selectedFile ? {
         name: selectedFile.name,
-        type: selectedFile.type
-      } : null,
-      // Include PDF indicator if it's a PDF
-      attachment: selectedFile && !selectedFile.type.startsWith('image/') ? {
-        name: selectedFile.name,
-        type: selectedFile.type
+        type: selectedFile.type,
+        size: selectedFile.size,
+        // Local blob URL for an image thumbnail (current session only)
+        previewUrl: selectedFile.type.startsWith('image/') ? filePreviewUrl : null
       } : null
     };
     setMessages(prev => [...prev, userMessage]);
@@ -546,11 +532,10 @@ export default function ChatWithStreaming() {
       messageToSend = `[WEB_SEARCH] ${messageToSend}`;
     }
 
-    // Add attachment marker for persistence (parsed when loading old conversations)
-    if (selectedFile) {
-      const attachmentType = selectedFile.type.startsWith('image/') ? 'IMAGE' : 'FILE';
-      messageToSend = `[ATTACHMENT:${attachmentType}:${selectedFile.name}]\n${messageToSend}`;
-    }
+    // NOTE: no [ATTACHMENT:...] marker anymore — it used to be persisted into
+    // the LLM-visible message, telling the model on every later turn that a
+    // file existed which it could not see. Attachment identity now travels as
+    // attachment_ids and is persisted server-side on the message.
 
     const messageInput = input;
     const fileToUpload = selectedFile;
@@ -576,11 +561,17 @@ export default function ChatWithStreaming() {
 
       // If there's a file, upload it first
       let uploadedFileContent = null;
+      let uploadedAttachmentIds = null;
       if (fileToUpload) {
         setIsUploadingFile(true);
         try {
           const uploadResult = await uploadDocument(fileToUpload, messageInput);
           uploadedFileContent = uploadResult.file_content;
+          // Persisted server-side artifact ref — lets the coach keep the file
+          // in context on later turns.
+          if (uploadResult.attachment_id) {
+            uploadedAttachmentIds = [uploadResult.attachment_id];
+          }
         } catch (uploadError) {
           console.error("File upload error:", uploadError);
           toast.error(uploadError.message || "Failed to upload file");
@@ -592,9 +583,6 @@ export default function ChatWithStreaming() {
             if (userMsgIndex >= 0 && newMessages[userMsgIndex].role === 'user') {
               newMessages[userMsgIndex] = {
                 ...newMessages[userMsgIndex],
-                imagePreview: newMessages[userMsgIndex].imagePreview
-                  ? { ...newMessages[userMsgIndex].imagePreview, failed: true }
-                  : null,
                 attachment: newMessages[userMsgIndex].attachment
                   ? { ...newMessages[userMsgIndex].attachment, failed: true }
                   : null
@@ -611,7 +599,8 @@ export default function ChatWithStreaming() {
         messageToSend,
         authToken,
         currentConversationId,
-        uploadedFileContent
+        uploadedFileContent,
+        uploadedAttachmentIds
       );
 
       // If we started a new conversation, refresh history and set ID
@@ -773,8 +762,10 @@ export default function ChatWithStreaming() {
         {/* Input Area */}
         <div className="bg-white border-t border-gray-100 p-4 md:p-6">
           <div className="max-w-3xl mx-auto relative">
-            {/* Web Search / Deep Research Toggle Buttons */}
-            <div className="flex items-center gap-2 mb-3">
+            {/* Web Search / Deep Research Toggle Buttons + paperclip.
+                flex-wrap + shrink-0: on narrow viewports the row wraps instead
+                of pushing content past the (overflow-hidden) viewport edge. */}
+            <div className="flex flex-wrap items-center gap-2 mb-3">
               <button
                 type="button"
                 onClick={() => {
@@ -783,7 +774,7 @@ export default function ChatWithStreaming() {
                 }}
                 disabled={isStreaming}
                 className={`
-                  inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all
+                  shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all
                   ${webSearchEnabled
                     ? 'bg-green-100 text-green-700 border border-green-300'
                     : 'bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200'
@@ -803,7 +794,7 @@ export default function ChatWithStreaming() {
                 }}
                 disabled={isStreaming}
                 className={`
-                  inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all
+                  shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all
                   ${deepResearchEnabled
                     ? 'bg-purple-100 text-purple-700 border border-purple-300'
                     : 'bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200'
@@ -815,14 +806,30 @@ export default function ChatWithStreaming() {
                 <span>Deep research</span>
               </button>
 
-              {/* File Upload */}
+              {/* File picker trigger (controlled — the page owns the file) */}
               <FileUpload
                 onFileSelect={handleFileSelect}
-                onFileRemove={handleFileRemove}
                 disabled={isStreaming}
                 isUploading={isUploadingFile}
+                hasFile={!!selectedFile}
               />
             </div>
+
+            {/* Selected attachment — its own full-width row (Claude-desktop
+                placement): never competes with the pills for horizontal space,
+                so the remove X can't be pushed off-screen. */}
+            {selectedFile && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                <AttachmentCard
+                  name={selectedFile.name}
+                  mimeType={selectedFile.type}
+                  sizeBytes={selectedFile.size}
+                  isUploading={isUploadingFile}
+                  previewUrl={selectedFile.type.startsWith('image/') ? filePreviewUrl : null}
+                  onRemove={handleFileRemove}
+                />
+              </div>
+            )}
 
             <form onSubmit={handleSendMessage} className="relative">
               <textarea
