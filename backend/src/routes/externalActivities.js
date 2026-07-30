@@ -1,6 +1,9 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const ExternalActivity = require('../models/ExternalActivity');
+const CalendarEvent = require('../models/CalendarEvent');
+const StravaIntegrationService = require('../services/StravaIntegrationService');
+const ActivityMatchingService = require('../services/activityMatchingService');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -225,6 +228,102 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 /**
+ * POST /api/v1/external-activities/:id/match
+ * Merge this activity into a calendar event the user picked. Completed
+ * events are allowed on purpose — attaching Strava evidence to an
+ * app-logged session is the legitimate double-record resolution.
+ */
+router.post('/:id/match', auth, async (req, res) => {
+  try {
+    const { eventId } = req.body;
+    if (!eventId || !mongoose.Types.ObjectId.isValid(eventId)) {
+      return res.status(400).json({ success: false, message: 'eventId is required' });
+    }
+
+    const activity = await ExternalActivity.findOne({
+      _id: req.params.id,
+      userId: req.user.id
+    }).lean();
+    if (!activity) {
+      return res.status(404).json({ success: false, message: 'Activity not found' });
+    }
+
+    const event = await CalendarEvent.findOne({
+      _id: eventId,
+      userId: req.user.id,
+      type: 'session'
+    }).lean();
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Calendar event not found' });
+    }
+    if (event.externalActivityId && String(event.externalActivityId) !== String(activity._id)) {
+      return res.status(409).json({
+        success: false,
+        message: 'That event is already linked to another activity'
+      });
+    }
+
+    await ActivityMatchingService.mergeActivityIntoEvent(activity, event, {
+      actor: 'user',
+      matchStatus: 'confirmed',
+      action: 'user_merge'
+    });
+
+    res.json({ success: true, message: 'Activity merged into event', data: { eventId: event._id } });
+  } catch (error) {
+    console.error('Match activity error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to merge activity',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/v1/external-activities/:id/unmatch
+ * Undo a merge: restore the planned event, put the activity back on the
+ * calendar as its own entry, and pin it 'separate' so it is never re-matched.
+ */
+router.post('/:id/unmatch', auth, async (req, res) => {
+  try {
+    const activity = await ExternalActivity.findOne({
+      _id: req.params.id,
+      userId: req.user.id
+    }).lean();
+    if (!activity) {
+      return res.status(404).json({ success: false, message: 'Activity not found' });
+    }
+
+    const linked = await CalendarEvent.findOne({
+      userId: req.user.id,
+      externalActivityId: activity._id
+    }).lean();
+    if (!linked || linked.sessionDetails?.source !== 'strava-matched') {
+      return res.status(400).json({
+        success: false,
+        message: 'Activity is not merged into a planned event'
+      });
+    }
+
+    const discipline = StravaIntegrationService.mapStravaTypeToDiscipline(activity.sportType);
+    await ActivityMatchingService.unmergeActivity(activity, discipline, {
+      actor: 'user',
+      action: 'user_unmerge'
+    });
+
+    res.json({ success: true, message: 'Activity un-merged' });
+  } catch (error) {
+    console.error('Unmatch activity error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to un-merge activity',
+      error: error.message
+    });
+  }
+});
+
+/**
  * DELETE /api/v1/external-activities/:id
  * Delete an activity
  */
@@ -241,6 +340,11 @@ router.delete('/:id', auth, async (req, res) => {
         message: 'Activity not found'
       });
     }
+
+    // Clean up the calendar side immediately (mirrors deleted, merged
+    // planned events survive with the link severed) instead of waiting for
+    // the consistency job.
+    await StravaIntegrationService.deleteCalendarEventForActivity(activity._id, req.user.id);
 
     res.json({
       success: true,

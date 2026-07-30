@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const StravaCredential = require('../models/StravaCredential');
 const ExternalActivity = require('../models/ExternalActivity');
 const CalendarEvent = require('../models/CalendarEvent');
+const ActivityMatchingService = require('./activityMatchingService');
 
 const STRAVA_API_BASE = 'https://www.strava.com/api/v3';
 const STRAVA_OAUTH_BASE = 'https://www.strava.com/oauth';
@@ -345,45 +346,48 @@ class StravaIntegrationService {
   }
 
   /**
-   * Create or update CalendarEvent from Strava activity
+   * Reflect an activity on the calendar: refresh its linked event if one
+   * exists, otherwise classify it against planned events (auto-merge /
+   * pending / mirror). Decision rules and their invariants live in
+   * activityMatchingService.
    */
   static async syncCalendarEvent(externalActivity, userId) {
-    const eventData = {
-      userId,
-      date: externalActivity.startDate,
-      title: externalActivity.name,
-      type: 'session',
-      status: 'completed',
-      externalActivityId: externalActivity._id,
-      sessionDetails: {
-        discipline: this.mapStravaTypeToDiscipline(externalActivity.sportType),
-        durationMinutes: Math.round((externalActivity.movingTime || externalActivity.elapsedTime || 0) / 60),
-        source: 'strava',
-        stravaData: {
-          sportType: externalActivity.sportType,
-          distance: externalActivity.distance,
-          elevationGain: externalActivity.elevationGain,
-          avgHeartRate: externalActivity.avgHeartRate,
-          calories: externalActivity.calories,
-          stravaUrl: externalActivity.stravaUrl
-        }
-      },
-      completedAt: externalActivity.startDate
-    };
+    const discipline = this.mapStravaTypeToDiscipline(externalActivity.sportType);
 
-    // Upsert based on externalActivityId
-    await CalendarEvent.findOneAndUpdate(
-      { userId, externalActivityId: externalActivity._id },
-      eventData,
-      { upsert: true, new: true }
-    );
+    const linked = await CalendarEvent.findOne({
+      userId,
+      externalActivityId: externalActivity._id
+    }).lean();
+    if (linked) {
+      if (linked.sessionDetails?.source === 'strava-matched') {
+        await ActivityMatchingService.refreshMergedEvent(externalActivity, linked);
+      } else {
+        await ActivityMatchingService.upsertMirrorEvent(externalActivity, userId, discipline);
+      }
+      return;
+    }
+
+    // Resolved (or already-flagged) activities are never re-classified; they
+    // just get their mirror maintained.
+    const matchStatus = externalActivity.matchStatus;
+    if (matchStatus === 'separate' || matchStatus === 'confirmed' || matchStatus === 'pending') {
+      await ActivityMatchingService.upsertMirrorEvent(externalActivity, userId, discipline);
+      return;
+    }
+
+    await ActivityMatchingService.classifyAndApply(externalActivity, userId, discipline);
   }
 
   /**
-   * Delete CalendarEvent when Strava activity is deleted
+   * The activity was deleted (Strava webhook or app DELETE): mirrors are
+   * removed, merged planned events survive with the link severed.
    */
-  static async deleteCalendarEventForActivity(externalActivityId) {
-    await CalendarEvent.findOneAndDelete({ externalActivityId });
+  static async deleteCalendarEventForActivity(externalActivityId, userId) {
+    const query = { externalActivityId };
+    if (userId) query.userId = userId;
+    const event = await CalendarEvent.findOne(query).lean();
+    if (!event) return;
+    await ActivityMatchingService.unlinkOrDeleteStravaEvent(event, event.userId);
   }
 
   /**
@@ -553,9 +557,9 @@ class StravaIntegrationService {
             externalId: object_id.toString()
           });
 
-          // Also delete the associated CalendarEvent
+          // Also delete/unlink the associated CalendarEvent
           if (deletedActivity) {
-            await this.deleteCalendarEventForActivity(deletedActivity._id);
+            await this.deleteCalendarEventForActivity(deletedActivity._id, credential.userId);
           }
 
           return { handled: true, action: 'delete', activityId: object_id };

@@ -5,6 +5,7 @@ const ExternalActivity = require('../models/ExternalActivity');
 const Exercise = require('../models/Exercise');
 const SessionTemplate = require('../models/SessionTemplate');
 const StravaIntegrationService = require('../services/StravaIntegrationService');
+const ActivityMatchingService = require('../services/activityMatchingService');
 
 /**
  * Calendar Consistency Job
@@ -232,9 +233,15 @@ class CalendarConsistencyJob {
       for (const event of eventsWithSessionLogId) {
         const sessionLog = await SessionLog.findById(event.sessionLogId);
         if (!sessionLog) {
-          await CalendarEvent.findByIdAndDelete(event._id);
-          this.stats.orphanedCalendarEventsDeleted++;
-          this.logger.info(`[CalendarConsistencyJob] Deleted orphaned CalendarEvent ${event._id} (SessionLog ${event.sessionLogId} not found)`);
+          if (event.externalActivityId) {
+            // Strava evidence remains — keep the event, drop the dead link
+            await CalendarEvent.updateOne({ _id: event._id }, { $unset: { sessionLogId: 1 } });
+            this.logger.info(`[CalendarConsistencyJob] Unset dead SessionLog link on CalendarEvent ${event._id} (has externalActivityId)`);
+          } else {
+            await CalendarEvent.findByIdAndDelete(event._id);
+            this.stats.orphanedCalendarEventsDeleted++;
+            this.logger.info(`[CalendarConsistencyJob] Deleted orphaned CalendarEvent ${event._id} (SessionLog ${event.sessionLogId} not found)`);
+          }
         }
       }
 
@@ -246,9 +253,10 @@ class CalendarConsistencyJob {
       for (const event of eventsWithExternalActivityId) {
         const externalActivity = await ExternalActivity.findById(event.externalActivityId);
         if (!externalActivity) {
-          await CalendarEvent.findByIdAndDelete(event._id);
+          // Mirrors are deleted; merged planned events survive with the link severed
+          await ActivityMatchingService.unlinkOrDeleteStravaEvent(event, event.userId);
           this.stats.orphanedCalendarEventsDeleted++;
-          this.logger.info(`[CalendarConsistencyJob] Deleted orphaned CalendarEvent ${event._id} (ExternalActivity ${event.externalActivityId} not found)`);
+          this.logger.info(`[CalendarConsistencyJob] Cleaned Strava-linked CalendarEvent ${event._id} (ExternalActivity ${event.externalActivityId} not found)`);
         }
       }
 
@@ -531,8 +539,12 @@ class CalendarConsistencyJob {
     for (const event of eventsWithSessionLogId) {
       const sessionLog = await SessionLog.findById(event.sessionLogId);
       if (!sessionLog) {
-        await CalendarEvent.findByIdAndDelete(event._id);
-        this.stats.orphanedCalendarEventsDeleted++;
+        if (event.externalActivityId) {
+          await CalendarEvent.updateOne({ _id: event._id }, { $unset: { sessionLogId: 1 } });
+        } else {
+          await CalendarEvent.findByIdAndDelete(event._id);
+          this.stats.orphanedCalendarEventsDeleted++;
+        }
       }
     }
 
@@ -544,7 +556,7 @@ class CalendarConsistencyJob {
     for (const event of eventsWithExternalActivityId) {
       const externalActivity = await ExternalActivity.findById(event.externalActivityId);
       if (!externalActivity) {
-        await CalendarEvent.findByIdAndDelete(event._id);
+        await ActivityMatchingService.unlinkOrDeleteStravaEvent(event, event.userId);
         this.stats.orphanedCalendarEventsDeleted++;
       }
     }

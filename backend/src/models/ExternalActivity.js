@@ -100,7 +100,24 @@ const externalActivitySchema = new mongoose.Schema({
   // Store raw response for future use
   rawData: {
     type: mongoose.Schema.Types.Mixed
-  }
+  },
+
+  // Matching against planned calendar events (activityMatchingService).
+  // No default: null means "synced before matching existed" — the migration
+  // backfills. 'separate'/'confirmed' are user/coach decisions and are never
+  // re-classified by sync or the consistency job.
+  matchStatus: {
+    type: String,
+    enum: ['auto', 'confirmed', 'pending', 'separate', 'unmatched']
+  },
+  matchedEventId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CalendarEvent'
+  },
+  matchCandidateIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CalendarEvent'
+  }]
 
 }, { timestamps: true });
 

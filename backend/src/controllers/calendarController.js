@@ -1,6 +1,7 @@
 const CalendarEvent = require('../models/CalendarEvent');
 const SessionLog = require('../models/SessionLog');
 const SessionTemplate = require('../models/SessionTemplate');
+const ActivityMatchingService = require('../services/activityMatchingService');
 const { validationResult } = require('express-validator');
 const { flattenTemplateExercises } = require('../utils/volume');
 const {
@@ -216,6 +217,12 @@ const deleteEvent = async (req, res) => {
         success: false,
         message: 'Calendar event not found'
       });
+    }
+
+    // Deleting a Strava-linked event is a match correction: pin the activity
+    // 'separate' so the consistency job can't resurrect it as an auto-merge.
+    if (event.externalActivityId) {
+      await ActivityMatchingService.handleLinkedEventDeletion(event, req.user._id);
     }
 
     res.json({

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CalendarEvent, Plan } from "@/api/entities";
+import { CalendarEvent, ExternalActivity, Plan } from "@/api/entities";
 import { ChevronLeft, ChevronRight, Plus, Check } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, startOfWeek, endOfWeek, parseISO, isValid, isToday, isSameDay } from "date-fns";
 
@@ -88,7 +88,7 @@ const getEventTypeColor = (eventType) => {
 };
 
 // Figma-style Calendar View Component (Month View Only)
-const CalendarView = ({ events, activePlans, currentDate, onDateChange, onAddEvent, onEditEvent, onDeleteEvent, onMoveEvent, weekStartDay }) => {
+const CalendarView = ({ events, activePlans, currentDate, onDateChange, onAddEvent, onEditEvent, onDeleteEvent, onMoveEvent, onMatchActivity, onUnmatchActivity, weekStartDay }) => {
   const [selectedDate, setSelectedDate] = useState(new Date()); // Default to today
   const [showWorkoutModal, setShowWorkoutModal] = useState(false);
   const [showEventDetailModal, setShowEventDetailModal] = useState(false);
@@ -362,14 +362,17 @@ const CalendarView = ({ events, activePlans, currentDate, onDateChange, onAddEve
                         const isCompleted = status === 'completed';
                         const isSkipped = status === 'skipped';
                         const isPastAndNotDone = !isCompleted && !isSkipped && new Date(event.date) < new Date().setHours(0,0,0,0);
-                        const isStrava = event.externalActivityId || event.sessionDetails?.source === 'strava';
+                        // Mirrors (standalone Strava imports) render orange; planned
+                        // events a Strava activity was merged into keep their own color.
+                        const isStravaMirror = event.sessionDetails?.source === 'strava'
+                          || (event.externalActivityId && event.sessionDetails?.source !== 'strava-matched');
                         return (
                           <div
                             key={event.id || idx}
                             className={`pointer-events-none ${isSkipped || isPastAndNotDone ? 'opacity-40' : ''}`}
                             title={`${event.title} (${STATUS_STYLES[status]?.label || 'Scheduled'})`}
                           >
-                            <div className={`h-1 rounded-full ${isStrava ? 'bg-[#FC4C02]' : colors.dot}`} />
+                            <div className={`h-1 rounded-full ${isStravaMirror ? 'bg-[#FC4C02]' : colors.dot}`} />
                           </div>
                         );
                       })}
@@ -414,13 +417,18 @@ const CalendarView = ({ events, activePlans, currentDate, onDateChange, onAddEve
                 const isCompleted = status === 'completed';
                 const isSkipped = status === 'skipped';
                 const isPastAndNotDone = !isCompleted && !isSkipped && new Date(event.date) < new Date().setHours(0,0,0,0);
-                const isStrava = event.externalActivityId || event.sessionDetails?.source === 'strava';
+                // Mirror = standalone Strava import (orange card). Merged = planned
+                // event completed by a Strava activity: keeps its planned styling,
+                // gains the Strava glyph + distance line.
+                const isStravaMirror = event.sessionDetails?.source === 'strava'
+                  || (event.externalActivityId && event.sessionDetails?.source !== 'strava-matched');
+                const isStravaMerged = event.sessionDetails?.source === 'strava-matched';
                 const stravaData = event.sessionDetails?.stravaData;
                 return (
                   <div
                     key={event.id || idx}
                     className={`group bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden border ${
-                      isStrava
+                      isStravaMirror
                         ? 'border-l-4 border-l-[#FC4C02] border-t-orange-100 border-r-orange-100 border-b-orange-100'
                         : isCompleted
                           ? 'border-l-4 border-l-emerald-500 border-t-gray-100 border-r-gray-100 border-b-gray-100'
@@ -433,38 +441,38 @@ const CalendarView = ({ events, activePlans, currentDate, onDateChange, onAddEve
                     <div className="p-3">
                       {/* Type Badge */}
                       <div className="flex items-center gap-1.5 mb-1.5">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold text-white ${isStrava ? 'bg-[#FC4C02]' : colors.dot}`}>
-                          {isStrava ? (stravaData?.sportType || workoutType) : (workoutType.charAt(0).toUpperCase() + workoutType.slice(1))}
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold text-white ${isStravaMirror ? 'bg-[#FC4C02]' : colors.dot}`}>
+                          {isStravaMirror ? (stravaData?.sportType || workoutType) : (workoutType.charAt(0).toUpperCase() + workoutType.slice(1))}
                         </span>
-                        {isStrava && (
+                        {(isStravaMirror || isStravaMerged) && (
                           <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="#FC4C02">
                             <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
                           </svg>
                         )}
-                        {isCompleted && !isStrava && (
+                        {isCompleted && !isStravaMirror && (
                           <span className="flex items-center gap-0.5 text-emerald-600">
                             <Check className="w-3 h-3" />
                           </span>
                         )}
-                        {isPastAndNotDone && !isStrava && (
+                        {isPastAndNotDone && !isStravaMirror && (
                           <span className="text-[10px] text-gray-400 font-medium">Missed</span>
                         )}
                       </div>
 
                       {/* Title and Status */}
                       <div className="flex items-start justify-between gap-2">
-                        <h4 className={`text-sm font-bold text-gray-900 line-clamp-1 ${isSkipped ? 'line-through opacity-60' : ''} ${isPastAndNotDone && !isStrava ? 'text-gray-500' : ''}`}>
+                        <h4 className={`text-sm font-bold text-gray-900 line-clamp-1 ${isSkipped ? 'line-through opacity-60' : ''} ${isPastAndNotDone && !isStravaMirror ? 'text-gray-500' : ''}`}>
                           {event.title}
                         </h4>
                         <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                          isStrava ? 'bg-orange-100 text-orange-700' : isPastAndNotDone ? 'bg-gray-100 text-gray-400' : statusStyle.badge
+                          isStravaMirror ? 'bg-orange-100 text-orange-700' : isPastAndNotDone ? 'bg-gray-100 text-gray-400' : statusStyle.badge
                         }`}>
-                          {isStrava ? 'Synced' : isPastAndNotDone ? 'Missed' : statusStyle.label}
+                          {isStravaMirror ? 'Synced' : isPastAndNotDone ? 'Missed' : statusStyle.label}
                         </span>
                       </div>
 
                       {/* Duration */}
-                      <p className={`text-xs mt-1 ${isPastAndNotDone && !isStrava ? 'text-gray-400' : 'text-gray-500'}`}>
+                      <p className={`text-xs mt-1 ${isPastAndNotDone && !isStravaMirror ? 'text-gray-400' : 'text-gray-500'}`}>
                         {event.sessionDetails?.durationMinutes || event.sessionDetails?.estimatedDuration || 60} min
                         {stravaData?.distance && ` • ${(stravaData.distance / 1000).toFixed(1)} km`}
                       </p>
@@ -506,12 +514,28 @@ const CalendarView = ({ events, activePlans, currentDate, onDateChange, onAddEve
       {showEventDetailModal && viewingEvent && (
         <CalendarEventDetailModal
           event={viewingEvent}
+          matchCandidates={events.filter(e =>
+            e.id !== viewingEvent.id
+            && !e.externalActivityId
+            && (e.type || 'session') === 'session'
+            && isSameDay(new Date(e.date), new Date(viewingEvent.date))
+          )}
           onClose={() => {
             setShowEventDetailModal(false);
             setViewingEvent(null);
           }}
           onDelete={(eventId) => {
             onDeleteEvent(eventId);
+            setShowEventDetailModal(false);
+            setViewingEvent(null);
+          }}
+          onMatch={(activityId, eventId) => {
+            onMatchActivity(activityId, eventId);
+            setShowEventDetailModal(false);
+            setViewingEvent(null);
+          }}
+          onUnmatch={(activityId) => {
+            onUnmatchActivity(activityId);
             setShowEventDetailModal(false);
             setViewingEvent(null);
           }}
@@ -640,6 +664,26 @@ export default function CalendarPage() {
     }
   };
 
+  const handleMatchActivity = async (activityId, eventId) => {
+    try {
+      await ExternalActivity.match(activityId, eventId);
+      loadData();
+    } catch (error) {
+      console.error("Error merging activity:", error);
+      alert(`Failed to merge: ${error.message}`);
+    }
+  };
+
+  const handleUnmatchActivity = async (activityId) => {
+    try {
+      await ExternalActivity.unmatch(activityId);
+      loadData();
+    } catch (error) {
+      console.error("Error un-merging activity:", error);
+      alert(`Failed to un-merge: ${error.message}`);
+    }
+  };
+
   const goToToday = () => {
     setCurrentDate(new Date());
   };
@@ -671,6 +715,8 @@ export default function CalendarPage() {
         onEditEvent={handleEditEvent}
         onDeleteEvent={handleDeleteEvent}
         onMoveEvent={handleMoveEvent}
+        onMatchActivity={handleMatchActivity}
+        onUnmatchActivity={handleUnmatchActivity}
         weekStartDay={weekStartDay}
       />
     </div>
