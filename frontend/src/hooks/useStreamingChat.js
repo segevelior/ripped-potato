@@ -34,7 +34,7 @@ export function useStreamingChat() {
     setActiveTools([]);
   }, []);
 
-  const sendStreamingMessage = useCallback(async (message, authToken, conversationId = null, fileContent = null) => {
+  const sendStreamingMessage = useCallback(async (message, authToken, conversationId = null, fileContent = null, attachmentIds = null) => {
     // Cancel any existing stream
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -75,7 +75,10 @@ export function useStreamingChat() {
         body: JSON.stringify({
           message,
           conversation_id: conversationId,
-          file_content: fileContent
+          file_content: fileContent,
+          // Persisted attachment refs — must also survive the Node proxy's
+          // field whitelist (backend/src/routes/ai.js).
+          attachment_ids: attachmentIds
         }),
         signal: abortControllerRef.current.signal
       });

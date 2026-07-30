@@ -168,6 +168,15 @@ class TestRateLimiter:
         assert "rate_limit:document_upload:recent_user" in _rate_limit_storage
 
 
+def make_mock_request():
+    """Request whose app.state.db is a MagicMock — AttachmentService
+    construction fails on it, exercising the persistence-is-best-effort path
+    (upload must still succeed with attachment_id=None)."""
+    request = MagicMock()
+    request.app.state.db = MagicMock()
+    return request
+
+
 class TestUploadDocument:
     """Tests for the upload_document endpoint."""
 
@@ -193,6 +202,7 @@ class TestUploadDocument:
 
         with pytest.raises(HTTPException) as exc_info:
             await upload_document(
+                http_request=make_mock_request(),
                 file=file,
                 extraction_prompt="Extract info",
                 current_user=mock_user,
@@ -212,6 +222,7 @@ class TestUploadDocument:
 
         with pytest.raises(HTTPException) as exc_info:
             await upload_document(
+                http_request=make_mock_request(),
                 file=file,
                 extraction_prompt="Extract info",
                 current_user=mock_user,
@@ -243,6 +254,7 @@ class TestUploadDocument:
 
         with pytest.raises(HTTPException) as exc_info:
             await upload_document(
+                http_request=make_mock_request(),
                 file=file,
                 extraction_prompt="Extract info",
                 current_user=mock_user,
@@ -261,6 +273,7 @@ class TestUploadDocument:
         file.read = AsyncMock(side_effect=[png_content, b""])
 
         result = await upload_document(
+            http_request=make_mock_request(),
             file=file,
             extraction_prompt="Analyze this image",
             current_user=mock_user,
@@ -285,6 +298,7 @@ class TestUploadDocument:
         file.read = AsyncMock(side_effect=[pdf_content, b""])
 
         result = await upload_document(
+            http_request=make_mock_request(),
             file=file,
             extraction_prompt="Extract workout info",
             current_user=mock_user,
@@ -316,6 +330,7 @@ class TestUploadDocument:
 
             with pytest.raises(HTTPException) as exc_info:
                 await upload_document(
+                    http_request=make_mock_request(),
                     file=file,
                     extraction_prompt="Extract info",
                     current_user=mock_user,
@@ -340,6 +355,7 @@ class TestUploadDocument:
 
             with pytest.raises(HTTPException) as exc_info:
                 await upload_document(
+                    http_request=make_mock_request(),
                     file=file,
                     extraction_prompt="Extract info",
                     current_user=mock_user,
@@ -358,6 +374,7 @@ class TestUploadDocument:
         file.read = AsyncMock(side_effect=[jpeg_content, b""])
 
         result = await upload_document(
+            http_request=make_mock_request(),
             file=file,
             extraction_prompt="Analyze progress photo",
             current_user=mock_user,
@@ -377,6 +394,7 @@ class TestUploadDocument:
         file.read = AsyncMock(side_effect=[gif_content, b""])
 
         result = await upload_document(
+            http_request=make_mock_request(),
             file=file,
             extraction_prompt="Analyze form",
             current_user=mock_user,
@@ -396,6 +414,7 @@ class TestUploadDocument:
         file.read = AsyncMock(side_effect=[webp_content, b""])
 
         result = await upload_document(
+            http_request=make_mock_request(),
             file=file,
             extraction_prompt="Analyze image",
             current_user=mock_user,
@@ -415,6 +434,7 @@ class TestUploadDocument:
         file.read = AsyncMock(side_effect=[png_content, b""])
 
         result = await upload_document(
+            http_request=make_mock_request(),
             file=file,
             extraction_prompt="Test",
             current_user=mock_user,
@@ -433,6 +453,7 @@ class TestUploadDocument:
         file.read = AsyncMock(side_effect=[png_content, b""])
 
         result = await upload_document(
+            http_request=make_mock_request(),
             file=file,
             extraction_prompt="Test",
             current_user=mock_user,
@@ -453,6 +474,7 @@ class TestUploadDocument:
             file.read = AsyncMock(side_effect=[png_content, b""])
 
             await upload_document(
+                http_request=make_mock_request(),
                 file=file,
                 extraction_prompt="Test",
                 current_user=mock_user,
@@ -466,6 +488,7 @@ class TestUploadDocument:
 
         with pytest.raises(HTTPException) as exc_info:
             await upload_document(
+                http_request=make_mock_request(),
                 file=file,
                 extraction_prompt="Test",
                 current_user=mock_user,

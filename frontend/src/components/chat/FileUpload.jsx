@@ -1,82 +1,62 @@
-import { useState, useRef } from 'react';
-import { Paperclip, X, FileText, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { useRef } from 'react';
+import { Paperclip } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ACCEPTED_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 const MAX_SIZE = 32 * 1024 * 1024; // 32MB
 
-export function FileUpload({ onFileSelect, onFileRemove, disabled, isUploading }) {
-  const [selectedFile, setSelectedFile] = useState(null);
+/**
+ * CONTROLLED paperclip trigger + validation only. The page owns the selected
+ * file (single source of truth) — this component holds no file state of its
+ * own. The old version kept a private `selectedFile` copy that was never reset
+ * after send, leaving the chip stuck on screen and the paperclip disabled.
+ * The selected-file card itself is rendered by the page via <AttachmentCard>.
+ */
+export function FileUpload({ onFileSelect, disabled, isUploading, hasFile }) {
   const inputRef = useRef(null);
 
   const handleChange = (e) => {
     const file = e.target.files[0];
+    // Always clear the input so re-selecting the same file re-fires onChange.
+    e.target.value = '';
     if (!file) return;
 
-    // Validate file type
     if (!ACCEPTED_TYPES.includes(file.type)) {
       toast.error('Unsupported file type. Please upload PDF, PNG, JPEG, WebP, or GIF.');
       return;
     }
-
-    // Validate file size
     if (file.size > MAX_SIZE) {
       toast.error('File too large. Maximum size is 32MB.');
       return;
     }
-
-    // Validate empty file
     if (file.size === 0) {
       toast.error('File appears to be empty.');
       return;
     }
 
-    setSelectedFile(file);
     onFileSelect(file);
   };
 
-  const handleClear = () => {
-    setSelectedFile(null);
-    onFileRemove?.();
-    if (inputRef.current) {
-      inputRef.current.value = '';
-    }
-  };
-
-  const getFileIcon = () => {
-    if (!selectedFile) return null;
-    if (selectedFile.type === 'application/pdf') {
-      return <FileText className="w-4 h-4 text-red-500" />;
-    }
-    return <ImageIcon className="w-4 h-4 text-blue-500" />;
-  };
-
-  const formatFileSize = (bytes) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
+  const isDisabled = disabled || isUploading || hasFile;
 
   return (
-    <div className="flex items-center gap-2">
+    <>
       <input
         ref={inputRef}
         type="file"
         accept=".pdf,.png,.jpg,.jpeg,.webp,.gif"
         onChange={handleChange}
         className="hidden"
-        disabled={disabled || isUploading}
+        disabled={isDisabled}
       />
-
-      {/* Attach button */}
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        disabled={disabled || isUploading || selectedFile}
+        disabled={isDisabled}
         aria-label="Attach file (PDF or image)"
         className={`
-          p-2 rounded-full transition-colors
-          ${disabled || isUploading || selectedFile
+          shrink-0 p-2 rounded-full transition-colors
+          ${isDisabled
             ? 'text-gray-300 cursor-not-allowed'
             : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
           }
@@ -85,41 +65,7 @@ export function FileUpload({ onFileSelect, onFileRemove, disabled, isUploading }
       >
         <Paperclip className="w-5 h-5" />
       </button>
-
-      {/* Selected file display */}
-      {selectedFile && (
-        <div className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-lg max-w-xs">
-          {isUploading ? (
-            <Loader2 className="w-4 h-4 text-primary-500 animate-spin" />
-          ) : (
-            getFileIcon()
-          )}
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-medium text-gray-700 truncate max-w-[150px]">
-              {selectedFile.name}
-            </span>
-            <span className="text-xs text-gray-500">
-              {formatFileSize(selectedFile.size)}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={handleClear}
-            disabled={isUploading}
-            aria-label="Remove attached file"
-            className={`
-              p-1 rounded-full transition-colors
-              ${isUploading
-                ? 'text-gray-300 cursor-not-allowed'
-                : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'
-              }
-            `}
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-    </div>
+    </>
   );
 }
 

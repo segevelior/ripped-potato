@@ -466,11 +466,15 @@ router.post('/stream', authMiddleware, aiRateLimit, async (req, res) => {
       res.end();
     });
 
-    // Send the request body - include conversation_id and file_content for multimodal messages
+    // Send the request body - include conversation_id and file_content for multimodal messages.
+    // NOTE: this is a field WHITELIST, not a passthrough — any new ChatRequest
+    // field the Python service grows must be added here too, or it is silently
+    // dropped at this hop (attachment_ids nearly died here once).
     const requestBody = JSON.stringify({
       message,
       conversation_id: req.body.conversation_id || null,
-      file_content: req.body.file_content || null
+      file_content: req.body.file_content || null,
+      attachment_ids: req.body.attachment_ids || null
     });
     proxyReq.write(requestBody);
     proxyReq.end();

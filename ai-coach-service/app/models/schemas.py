@@ -19,6 +19,12 @@ class ChatRequest(BaseModel):
     conversation_history: Optional[List[ChatMessage]] = []
     conversation_id: Optional[str] = None  # For continuing existing conversations
     file_content: Optional[Dict[str, Any]] = None  # For multimodal messages (PDF/image)
+    # chatAttachments ids persisted by /documents/upload. v1 sends at most ONE
+    # (the composer allows a single file per message); the wire shape is plural
+    # so multi-attach needs no schema change later. NOTE: this field must also
+    # be whitelisted in the Node proxy (backend/src/routes/ai.js) — the proxy
+    # reconstructs the body field-by-field and silently drops anything else.
+    attachment_ids: Optional[List[str]] = None
 
 
 class ChatResponse(BaseModel):
@@ -52,6 +58,11 @@ class ConversationMessage(BaseModel):
     # Structured tool exchange for this AI turn (see conversation_service);
     # replayed into model context on later turns, never rendered by the UI.
     tool_rounds: Optional[List[Dict[str, Any]]] = None
+    # Attachment refs on human turns: [{attachment_id, filename, mime_type,
+    # kind, size_bytes}] — metadata only, never bytes/text. Content is resolved
+    # from chatAttachments at replay time; the chat UI renders the card from
+    # these.
+    attachments: Optional[List[Dict[str, Any]]] = None
 
 
 class ModelInfo(BaseModel):

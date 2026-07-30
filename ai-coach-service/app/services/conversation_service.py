@@ -104,8 +104,13 @@ class ConversationService:
         if not message:
             return "New Conversation"
 
+        # Strip the attachment marker FIRST: the frontend used to prepend it
+        # outermost, so it also shielded the force-flag regex below. Old
+        # conversations (and any stale frontend) still carry it.
+        clean_message = re.sub(r'^\[ATTACHMENT:[^\]]+\]\s*', '', message)
+
         # Strip force flags from title (but keep in message for AI context)
-        clean_message = re.sub(r'^\[(WEB_SEARCH|DEEP_RESEARCH)\]\s*', '', message)
+        clean_message = re.sub(r'^\[(WEB_SEARCH|DEEP_RESEARCH)\]\s*', '', clean_message)
 
         # Mid-workout swap chat: title by the target exercise, not the marker.
         if clean_message.startswith("[EXERCISE SWAP"):
@@ -127,15 +132,18 @@ class ConversationService:
             # If no specific input, use a generic session title
             return "Session planning"
 
-        # For regular messages, just use the first part
-        return clean_message[:100].strip()
+        # For regular messages, just use the first part. A message that was
+        # ONLY an attachment marker strips to empty — fall back rather than
+        # titling the conversation "".
+        return clean_message[:100].strip() or "New Conversation"
 
     async def create_conversation(
         self,
         user_id: str,
         title: Optional[str] = None,
         initial_message: Optional[str] = None,
-        model_info: Optional[Dict[str, Any]] = None
+        model_info: Optional[Dict[str, Any]] = None,
+        attachments: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
         """Create a new conversation"""
         try:
@@ -167,11 +175,16 @@ class ConversationService:
 
             # Add initial message if provided
             if initial_message:
-                conversation_doc["messages"].append({
+                first_message = {
                     "role": "human",
                     "content": initial_message,
                     "timestamp": now.isoformat() + "+00:00"
-                })
+                }
+                if attachments:
+                    # Metadata refs only ({attachment_id, filename, mime_type,
+                    # kind}) — bytes/text live in chatAttachments.
+                    first_message["attachments"] = attachments
+                conversation_doc["messages"].append(first_message)
 
             result = await self.collection.insert_one(conversation_doc)
 
@@ -285,7 +298,8 @@ class ConversationService:
         content: str,
         response_time_ms: Optional[int] = None,
         user_id: Optional[str] = None,
-        tool_rounds: Optional[List[Dict[str, Any]]] = None
+        tool_rounds: Optional[List[Dict[str, Any]]] = None,
+        attachments: Optional[List[Dict[str, Any]]] = None
     ) -> bool:
         """Add a message to a conversation"""
         try:
@@ -301,6 +315,10 @@ class ConversationService:
 
             if tool_rounds:
                 message["tool_rounds"] = self._bound_tool_rounds(tool_rounds)
+
+            if attachments:
+                # Metadata refs only — see AttachmentService for the artifacts.
+                message["attachments"] = attachments
 
             query = {"conversation_id": conversation_id}
             if user_id:
