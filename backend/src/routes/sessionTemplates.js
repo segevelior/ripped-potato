@@ -33,28 +33,30 @@ router.get('/', optionalAuth, async (req, res) => {
     // Apply filters
     let filteredWorkouts = workouts;
 
-    // Interest-based visibility: common templates whose disciplines are all
-    // sport-specific (running/cycling/climbing/swimming) are hidden unless
-    // the user lists that sport in their interests, has a modification doc
-    // for the template (favorite/completion/rename — any engagement), or
+    // Interest-based visibility: once a user has EXPRESSED interests
+    // (non-empty sportPreferences), common templates whose disciplines are
+    // all sport-specific (running/cycling/climbing/swimming) are hidden
+    // unless one of their sports matches, they have a modification doc for
+    // the template (favorite/completion/rename — any engagement), or they
     // asked for everything via ?allSports=true. Any failure skips the filter
     // entirely — never blank the catalog over it.
     //
     // Deliberate scope choices:
-    // - Users with EMPTY sportPreferences get generic commons only ("hasn't
-    //   added biking → no biking sessions"). If sport commons should instead
-    //   launch visible to everyone until interests are set, gate this filter
-    //   on prefs.length > 0.
+    // - EMPTY sportPreferences (and anonymous users) see EVERYTHING: no
+    //   signal means "hasn't told us yet", not "not interested" — otherwise
+    //   sport commons would launch invisible to everyone who never opened
+    //   the interests picker.
     // - GET /search/:term is NOT filtered — searching by name is an explicit
     //   act, so it doubles as an escape hatch (and has no auth context).
     if (allSports !== 'true') {
       try {
-        const userDisciplines = await resolveInterestDisciplines(
-          req.user?.profile?.sportPreferences || []
-        );
-        filteredWorkouts = filteredWorkouts.filter(
-          (w) => !isHiddenSportTemplate(w, userDisciplines)
-        );
+        const prefs = req.user?.profile?.sportPreferences || [];
+        if (prefs.length > 0) {
+          const userDisciplines = await resolveInterestDisciplines(prefs);
+          filteredWorkouts = filteredWorkouts.filter(
+            (w) => !isHiddenSportTemplate(w, userDisciplines)
+          );
+        }
       } catch (error) {
         console.error('[sessionTemplates] Interest filter failed, showing all:', error.message);
       }
