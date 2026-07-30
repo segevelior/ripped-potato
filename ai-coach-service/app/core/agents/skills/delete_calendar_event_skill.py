@@ -7,7 +7,7 @@ skip, which only marks status and leaves the event visible. Two-step confirm
 matching delete_session_template: preview first, delete only on confirm=true.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict
 
 from bson import ObjectId
@@ -74,6 +74,11 @@ async def delete_calendar_event(ctx: SkillContext, user_id: str, args: Dict[str,
                 " Note: this session belongs to a training plan — deleting removes it "
                 "from the calendar only, the plan itself is unchanged."
             )
+        if event.get("externalActivityId"):
+            plan_warning += (
+                " Note: this event is linked to a synced tracker activity — the "
+                "activity record itself is kept and won't be re-matched."
+            )
         return {
             "success": True,
             "needs_confirmation": True,
@@ -97,6 +102,37 @@ async def delete_calendar_event(ctx: SkillContext, user_id: str, args: Dict[str,
     result = await ctx.db.calendarevents.delete_one({"_id": event_oid, "userId": user_oid})
     if result.deleted_count != 1:
         return {"success": False, "message": "The event could not be deleted — it may already be gone."}
+
+    # Deleting a Strava-linked event is a match correction (mirrors the
+    # backend controller's handleLinkedEventDeletion): pin the activity
+    # 'separate' so the nightly consistency job can never resurrect this
+    # deletion as an auto-merge into another event. Direct writes here are
+    # the skill's existing (pre-§8) pattern; migrating this whole skill to
+    # the backend internal API is the tracked follow-up.
+    if event.get("externalActivityId"):
+        activity = await ctx.db.externalactivities.find_one(
+            {"_id": event["externalActivityId"], "userId": user_oid}
+        )
+        if activity:
+            await ctx.db.externalactivities.update_one(
+                {"_id": activity["_id"]},
+                {"$set": {"matchStatus": "separate"}, "$unset": {"matchedEventId": ""}},
+            )
+            await ctx.db.activitymatchaudits.insert_one({
+                "userId": user_oid,
+                "activityId": activity["_id"],
+                "eventId": event_oid,
+                "action": "coach_event_delete",
+                "actor": "coach",
+                "previous": {
+                    "matchStatus": activity.get("matchStatus"),
+                    "matchedEventId": activity.get("matchedEventId"),
+                },
+                "expiresAt": datetime.utcnow() + timedelta(days=180),
+                "createdAt": datetime.utcnow(),
+                "updatedAt": datetime.utcnow(),
+            })
+
     return {
         "success": True,
         "deleted": 1,

@@ -125,6 +125,53 @@ class TestResolveActivityMatch:
             event_id=None,
         )
 
+    async def test_unmerge_preview_checks_actual_state(self):
+        # Not merged, no matchedEventId → corrective at PREVIEW time
+        ctx = _ctx(_activity(matchStatus="pending"))
+        res = await resolve_activity_match(
+            ctx, USER_ID, {"activity_id": str(ACTIVITY_ID), "resolution": "unmerge"}
+        )
+        assert res["success"] is False
+        assert res["error"] == "not_merged"
+
+    async def test_unmerge_preview_on_merged_activity(self):
+        merged_event = _event(
+            externalActivityId=ACTIVITY_ID,
+            sessionDetails={"source": "strava-matched"},
+            status="completed",
+        )
+        ctx = _ctx(_activity(matchStatus="auto", matchedEventId=EVENT_ID), merged_event)
+        res = await resolve_activity_match(
+            ctx, USER_ID, {"activity_id": str(ACTIVITY_ID), "resolution": "unmerge"}
+        )
+        assert res["success"] is True
+        assert res["needs_confirmation"] is True
+
+    async def test_separate_on_merged_activity_is_corrective(self):
+        merged_event = _event(
+            externalActivityId=ACTIVITY_ID,
+            sessionDetails={"source": "strava-matched"},
+        )
+        ctx = _ctx(_activity(matchStatus="auto", matchedEventId=EVENT_ID), merged_event)
+        res = await resolve_activity_match(
+            ctx, USER_ID, {"activity_id": str(ACTIVITY_ID), "resolution": "separate"}
+        )
+        assert res["success"] is False
+        assert res["error"] == "is_merged_use_unmerge"
+
+    async def test_merge_on_already_merged_activity_is_corrective(self):
+        merged_event = _event(
+            externalActivityId=ACTIVITY_ID,
+            sessionDetails={"source": "strava-matched"},
+        )
+        ctx = _ctx(_activity(matchStatus="auto", matchedEventId=EVENT_ID), merged_event)
+        res = await resolve_activity_match(
+            ctx, USER_ID,
+            {"activity_id": str(ACTIVITY_ID), "resolution": "merge", "event_id": str(ObjectId())},
+        )
+        assert res["success"] is False
+        assert res["error"] == "already_merged"
+
     async def test_unknown_activity(self):
         ctx = _ctx(activity=None)
         res = await resolve_activity_match(

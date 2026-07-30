@@ -73,8 +73,11 @@ async def resolve_activity_match(ctx: SkillContext, user_id: str, args: Dict[str
             "message": "resolution must be one of merge / separate / unmerge.",
         }
     try:
-        activity_oid = ObjectId(activity_id)
         user_oid = ObjectId(user_id)
+    except Exception:
+        return {"success": False, "error": "invalid_user", "message": "Internal error: bad user id."}
+    try:
+        activity_oid = ObjectId(activity_id)
     except Exception:
         return {
             "success": False,
@@ -88,6 +91,40 @@ async def resolve_activity_match(ctx: SkillContext, user_id: str, args: Dict[str
     activity = await ctx.db.externalactivities.find_one({"_id": activity_oid, "userId": user_oid})
     if not activity:
         return {"success": False, "message": "I couldn't find that synced activity."}
+
+    # Check actual match state up front so the PREVIEW is honest — never show
+    # a confident "this will un-merge…" for an activity that isn't merged and
+    # only find out after the user confirmed.
+    linked = await ctx.db.calendarevents.find_one(
+        {"userId": user_oid, "externalActivityId": activity_oid}
+    )
+    linked_merged = bool(
+        linked and (linked.get("sessionDetails") or {}).get("source") == "strava-matched"
+    )
+    if resolution == "merge" and linked_merged:
+        return {
+            "success": False,
+            "error": "already_merged",
+            "message": (
+                f"That activity is already merged into \"{linked.get('title', '')}\". "
+                f"Un-merge it first if the user wants it matched elsewhere."
+            ),
+        }
+    if resolution == "unmerge" and not linked_merged and not activity.get("matchedEventId"):
+        return {
+            "success": False,
+            "error": "not_merged",
+            "message": "That activity isn't merged into any planned session — nothing to un-merge.",
+        }
+    if resolution == "separate" and linked_merged:
+        return {
+            "success": False,
+            "error": "is_merged_use_unmerge",
+            "message": (
+                f"That activity is merged into \"{linked.get('title', '')}\" — use "
+                f"resolution='unmerge' to undo that instead."
+            ),
+        }
 
     activity_label = (
         f"{activity.get('sportType', 'activity')} \"{activity.get('name', 'activity')}\""
