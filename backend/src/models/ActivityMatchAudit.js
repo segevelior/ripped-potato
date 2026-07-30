@@ -28,7 +28,7 @@ const activityMatchAuditSchema = new mongoose.Schema({
     enum: [
       'auto_merge', 'auto_pending', 'auto_unmatched',
       'user_merge', 'user_unmerge', 'user_event_delete',
-      'coach_merge', 'coach_separate', 'coach_unmerge'
+      'coach_merge', 'coach_separate', 'coach_unmerge', 'coach_event_delete'
     ],
     required: true
   },

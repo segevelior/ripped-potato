@@ -344,7 +344,7 @@ router.delete('/:id', auth, async (req, res) => {
     // Clean up the calendar side immediately (mirrors deleted, merged
     // planned events survive with the link severed) instead of waiting for
     // the consistency job.
-    await StravaIntegrationService.deleteCalendarEventForActivity(activity._id, req.user.id);
+    await StravaIntegrationService.deleteCalendarEventForActivity(activity._id, req.user.id, activity);
 
     res.json({
       success: true,

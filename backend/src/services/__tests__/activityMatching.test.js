@@ -10,7 +10,8 @@ const {
   eventLocalDay,
   disciplinesCompatible,
   classifyCandidates,
-  shouldUnlinkNotDelete
+  shouldUnlinkNotDelete,
+  mergeSetCompletion
 } = require('../activityMatchingService');
 const CalendarEvent = require('../../models/CalendarEvent');
 const ExternalActivity = require('../../models/ExternalActivity');
@@ -168,6 +169,18 @@ describe('classifyCandidates decision matrix', () => {
     expect(classifyCandidates(activity, 'running', [logged]).decision).toBe('pending');
   });
 
+  test('skipped discipline-match → pending (the "skipped but actually done" question)', () => {
+    const skipped = makeEvent({ status: 'skipped' });
+    const result = classifyCandidates(activity, 'running', [skipped]);
+    expect(result.decision).toBe('pending');
+    expect(result.candidateIds).toEqual([skipped._id]);
+  });
+
+  test('skipped non-matching event alone does not trigger pending', () => {
+    const skipped = makeEvent({ status: 'skipped', sessionDetails: { discipline: 'strength' } });
+    expect(classifyCandidates(activity, 'running', [skipped]).decision).toBe('none');
+  });
+
   test('open candidates but no discipline match → pending with those candidates', () => {
     const strengthPlan = makeEvent({ sessionDetails: { discipline: 'strength' } });
     const result = classifyCandidates(activity, 'running', [strengthPlan]);
@@ -227,6 +240,27 @@ describe('shouldUnlinkNotDelete', () => {
   test('mirrors delete — including legacy events with stripped source', () => {
     expect(shouldUnlinkNotDelete({ sessionDetails: { source: 'strava' } })).toBe(false);
     expect(shouldUnlinkNotDelete({ sessionDetails: {} })).toBe(false);
+  });
+});
+
+describe('mergeSetCompletion (un-merge revert guard)', () => {
+  const start = new Date('2026-07-29T18:30:00Z');
+  const act = { startDate: start };
+
+  test('merge-stamped completion (completedAt === activity start) → revert allowed', () => {
+    expect(mergeSetCompletion({ completedAt: new Date(start) }, act)).toBe(true);
+  });
+
+  test('manual pre-merge completion (different completedAt) is preserved', () => {
+    expect(mergeSetCompletion({ completedAt: new Date('2026-07-29T20:00:00Z') }, act)).toBe(false);
+  });
+
+  test('unknown activity (orphan cleanup) never reverts', () => {
+    expect(mergeSetCompletion({ completedAt: new Date(start) }, null)).toBe(false);
+  });
+
+  test('no completedAt → nothing to revert', () => {
+    expect(mergeSetCompletion({}, act)).toBe(false);
   });
 });
 

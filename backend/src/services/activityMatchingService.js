@@ -207,7 +207,9 @@ async function findCandidateEvents(userId, activity) {
   return CalendarEvent.find({
     userId,
     type: 'session',
-    status: { $in: ['scheduled', 'in_progress', 'completed'] },
+    // 'skipped' included: a skipped plan the tracker shows was actually done
+    // is a textbook pending question (it can never auto-merge — see pool).
+    status: { $in: ['scheduled', 'in_progress', 'completed', 'skipped'] },
     externalActivityId: null,
     date: {
       $gte: new Date(dayStart.getTime() - DAY_MS),
@@ -289,15 +291,31 @@ async function mergeActivityIntoEvent(activity, event, { actor = 'system', match
   });
 }
 
-/** Sever a merged event's Strava link, reverting app-untouched events to scheduled. */
-async function unlinkEvent(event) {
+/**
+ * Did the MERGE set this event's completion (as opposed to the user completing
+ * it in-app before the merge)? The merge stamps completedAt = activity
+ * startDate and never touches an already-completed event, so equality is the
+ * marker. Unknown activity (orphan cleanup) → false: severing links must not
+ * risk wiping a manual completion.
+ */
+function mergeSetCompletion(event, activity) {
+  if (!activity || !event.completedAt || !activity.startDate) return false;
+  return new Date(event.completedAt).getTime() === new Date(activity.startDate).getTime();
+}
+
+/**
+ * Sever a merged event's Strava link. Status/completedAt/durationMinutes are
+ * reverted ONLY when the merge itself set them — an event the user completed
+ * in-app (with or without a session log) keeps its completion.
+ */
+async function unlinkEvent(event, activity = null) {
   const unset = {
     externalActivityId: 1,
     'sessionDetails.source': 1,
     'sessionDetails.stravaData': 1
   };
   const update = { $unset: unset };
-  if (!event.sessionLogId) {
+  if (!event.sessionLogId && mergeSetCompletion(event, activity)) {
     unset.completedAt = 1;
     unset['sessionDetails.durationMinutes'] = 1;
     update.$set = { status: 'scheduled' };
@@ -314,7 +332,12 @@ async function unmergeActivity(activity, discipline, { actor = 'user', action = 
     userId: activity.userId,
     externalActivityId: activity._id
   }).lean();
-  if (event) await unlinkEvent(event);
+  // Only unlink actual merged events. With a dangling matchedEventId the
+  // linked event can be a recreated MIRROR — unlinking that would strand a
+  // fake scheduled event; the mirror already IS the desired end state.
+  if (event && event.sessionDetails?.source === 'strava-matched') {
+    await unlinkEvent(event, activity);
+  }
 
   const previous = { matchStatus: activity.matchStatus, matchedEventId: activity.matchedEventId };
   await ExternalActivity.updateOne(
@@ -337,12 +360,13 @@ async function unmergeActivity(activity, discipline, { actor = 'user', action = 
  * external-activities DELETE): merged/planned events survive with the link
  * severed; pure mirrors are deleted.
  */
-async function unlinkOrDeleteStravaEvent(event, userId) {
+async function unlinkOrDeleteStravaEvent(event, userId, activity = null) {
   if (shouldUnlinkNotDelete(event)) {
-    await unlinkEvent(event);
-  } else {
-    await CalendarEvent.deleteOne({ _id: event._id, userId });
+    await unlinkEvent(event, activity);
+    return 'unlinked';
   }
+  await CalendarEvent.deleteOne({ _id: event._id, userId });
+  return 'deleted';
 }
 
 /**
@@ -387,12 +411,15 @@ async function classifyAndApply(activity, userId, discipline) {
     return;
   }
 
-  await upsertMirrorEvent(activity, userId, discipline);
+  // matchStatus BEFORE the mirror upsert: a crash in between self-heals (the
+  // skip-list path recreates the mirror next sync), whereas a linked mirror
+  // with no status would never be re-classified or flagged.
   const matchStatus = decision === 'pending' ? 'pending' : 'unmatched';
   await ExternalActivity.updateOne(
     { _id: activity._id },
     { $set: { matchStatus, matchCandidateIds: decision === 'pending' ? candidateIds : [] } }
   );
+  await upsertMirrorEvent(activity, userId, discipline);
   await writeAudit({
     userId,
     activityId: activity._id,
@@ -403,10 +430,19 @@ async function classifyAndApply(activity, userId, discipline) {
   });
 }
 
-/** Refresh Strava-derived details on a merged event after an activity update. */
+/**
+ * Refresh Strava-derived details on a merged event after an activity update.
+ * Completion metadata is refreshed only when the merge owns it
+ * (mergeSetCompletion) — a pre-merge manual completion is never overwritten.
+ * Caveat: a Strava edit that changes the START TIME breaks the equality
+ * marker, so that event's completion metadata goes stale; accepted.
+ */
 async function refreshMergedEvent(activity, event) {
   const set = { 'sessionDetails.stravaData': stravaDataFor(activity) };
-  if (!event.sessionLogId) set.completedAt = activity.startDate;
+  if (!event.sessionLogId && mergeSetCompletion(event, activity)) {
+    set.completedAt = activity.startDate;
+    set['sessionDetails.durationMinutes'] = activityDurationMinutes(activity);
+  }
   await CalendarEvent.updateOne({ _id: event._id }, { $set: set });
 }
 
@@ -421,6 +457,7 @@ module.exports = {
   durationInTolerance,
   classifyCandidates,
   shouldUnlinkNotDelete,
+  mergeSetCompletion,
   findCandidateEvents,
   upsertMirrorEvent,
   mergeActivityIntoEvent,
