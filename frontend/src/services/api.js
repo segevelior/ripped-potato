@@ -343,6 +343,13 @@ class APIService {
     delete: (id) => this.request(`/external-activities/${id}`, {
       method: 'DELETE'
     }),
+    match: (id, eventId) => this.request(`/external-activities/${id}/match`, {
+      method: 'POST',
+      body: JSON.stringify({ eventId })
+    }),
+    unmatch: (id) => this.request(`/external-activities/${id}/unmatch`, {
+      method: 'POST'
+    }),
     stats: (days = 30) => this.request(`/external-activities/stats?days=${days}`),
     byDateRange: (startDate, endDate) => this.request(`/external-activities?startDate=${startDate}&endDate=${endDate}`),
     recent: (limit = 20) => this.request(`/external-activities/recent?limit=${limit}`),

@@ -1,5 +1,5 @@
-import React from "react";
-import { X, Clock, Dumbbell, CheckCircle, Calendar, Play, SkipForward, Target } from "lucide-react";
+import React, { useState } from "react";
+import { X, Clock, Dumbbell, CheckCircle, Calendar, Play, SkipForward, Target, Link2, Unlink } from "lucide-react";
 import { format } from "date-fns";
 
 const STATUS_CONFIG = {
@@ -58,10 +58,16 @@ const flattenTemplateBlocks = (blocks) => {
   );
 };
 
-export default function CalendarEventDetailModal({ event, onClose, onStartWorkout, onDelete }) {
+export default function CalendarEventDetailModal({ event, onClose, onStartWorkout, onDelete, onMatch, onUnmatch, matchCandidates = [] }) {
+  const [showMergePicker, setShowMergePicker] = useState(false);
   if (!event) return null;
 
   const status = event.status || "scheduled";
+  // Mirror = standalone Strava import; merged = planned event a Strava
+  // activity was merged into. Both carry externalActivityId (the activity id
+  // the match/unmatch endpoints take).
+  const isStravaMirror = event.externalActivityId && event.sessionDetails?.source !== 'strava-matched';
+  const isStravaMerged = event.sessionDetails?.source === 'strava-matched';
   const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.scheduled;
   const StatusIcon = statusConfig.icon;
 
@@ -219,7 +225,51 @@ export default function CalendarEventDetailModal({ event, onClose, onStartWorkou
 
         {/* Footer Actions */}
         <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 flex-shrink-0">
+          {/* Merge picker: same-day sessions this Strava import can complete */}
+          {showMergePicker && (
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-gray-500 mb-2">Merge into which session?</p>
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                {matchCandidates.map((candidate) => (
+                  <button
+                    key={candidate.id}
+                    onClick={() => onMatch(event.externalActivityId, candidate.id)}
+                    className="w-full flex items-center justify-between px-3 py-2 bg-white border border-gray-200 rounded-xl hover:border-[#FE5334] transition-colors text-left"
+                  >
+                    <span className="text-sm font-medium text-gray-900 truncate">{candidate.title}</span>
+                    <span className="flex-shrink-0 ml-2 text-[10px] font-semibold text-gray-400">
+                      {(STATUS_CONFIG[candidate.status]?.label || 'Scheduled')}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-3">
+            {isStravaMirror && matchCandidates.length > 0 && onMatch && (
+              <button
+                onClick={() => setShowMergePicker(!showMergePicker)}
+                className="flex-1 flex items-center justify-center gap-1.5 px-4 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium text-sm"
+              >
+                <Link2 className="w-4 h-4 text-[#FC4C02]" />
+                {showMergePicker ? 'Cancel merge' : 'Merge into session…'}
+              </button>
+            )}
+
+            {isStravaMerged && onUnmatch && (
+              <button
+                onClick={() => {
+                  if (confirm('Un-merge this Strava activity? The planned session goes back to scheduled and the activity gets its own entry.')) {
+                    onUnmatch(event.externalActivityId);
+                  }
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 px-4 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium text-sm"
+              >
+                <Unlink className="w-4 h-4 text-[#FC4C02]" />
+                Not the same? Un-merge
+              </button>
+            )}
             {status === 'scheduled' && onStartWorkout && (
               <button
                 onClick={() => onStartWorkout(event)}

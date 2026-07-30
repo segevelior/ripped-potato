@@ -65,7 +65,20 @@ const calendarEventSchema = new mongoose.Schema({
         targetReps: Number,
         isCompleted: Boolean
       }]
-    }]
+    }],
+    // 'strava' = mirror event created for an unmatched external activity;
+    // 'strava-matched' = pre-existing planned event a Strava activity was
+    // merged into. The distinction drives unlink-vs-delete on activity
+    // deletion (see activityMatchingService.unlinkOrDeleteStravaEvent).
+    source: String,
+    stravaData: {
+      sportType: String,
+      distance: Number,
+      elevationGain: Number,
+      avgHeartRate: Number,
+      calories: Number,
+      stravaUrl: String
+    }
   },
   completedAt: Date,
   // Link to session log after completion (from TrainNow)

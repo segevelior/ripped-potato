@@ -112,7 +112,9 @@ export const ExternalActivity = {
   },
   stats: async (days = 30) => apiService.externalActivities.stats(days),
   recent: async (limit = 20) => normalizeArray(await apiService.externalActivities.recent(limit)),
-  sportTypes: async () => apiService.externalActivities.sportTypes()
+  sportTypes: async () => apiService.externalActivities.sportTypes(),
+  match: async (id, eventId) => apiService.externalActivities.match(id, eventId),
+  unmatch: async (id) => apiService.externalActivities.unmatch(id)
 };
 
 // Strava Integration entity
