@@ -2,6 +2,7 @@ const express = require('express');
 const SessionTemplate = require('../models/SessionTemplate');
 const CalendarEvent = require('../models/CalendarEvent');
 const SessionService = require('../services/SessionService');
+const { resolveInterestDisciplines, isHiddenSportTemplate } = require('../services/interestDisciplines');
 const { auth, optionalAuth } = require('../middleware/auth');
 const router = express.Router();
 
@@ -12,6 +13,7 @@ router.get('/', optionalAuth, async (req, res) => {
       difficulty,
       tags,
       popular,
+      allSports,
       limit = 20,
       page = 1
     } = req.query;
@@ -30,6 +32,24 @@ router.get('/', optionalAuth, async (req, res) => {
 
     // Apply filters
     let filteredWorkouts = workouts;
+
+    // Interest-based visibility: common templates whose disciplines are all
+    // sport-specific (running/cycling/climbing/swimming) are hidden unless
+    // the user lists that sport in their interests, favorited/modified the
+    // template, or asked for everything via ?allSports=true. Any failure
+    // skips the filter entirely — never blank the catalog over it.
+    if (allSports !== 'true') {
+      try {
+        const userDisciplines = await resolveInterestDisciplines(
+          req.user?.profile?.sportPreferences || []
+        );
+        filteredWorkouts = filteredWorkouts.filter(
+          (w) => !isHiddenSportTemplate(w, userDisciplines)
+        );
+      } catch (error) {
+        console.error('[sessionTemplates] Interest filter failed, showing all:', error.message);
+      }
+    }
 
     if (difficulty) {
       filteredWorkouts = filteredWorkouts.filter(w => w.difficulty_level === difficulty);

@@ -66,6 +66,9 @@ export default function Sessions() {
   // New state for search and filters
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  // Escape hatch for the server's interest filter: common templates for
+  // sports outside the user's interests are hidden unless this is on.
+  const [showAllSports, setShowAllSports] = useState(false);
   const [bookmarkedSessions, setBookmarkedSessions] = useState(() => {
     // Load bookmarks from localStorage. Plain key shim for the workout→session
     // rename: read the pre-rename key when the new one is missing, then rewrite
@@ -94,14 +97,16 @@ export default function Sessions() {
   useEffect(() => {
     // Check for active workout on mount
     setActiveSession(getActiveSession());
-    loadData();
-  }, []);
+    loadData(showAllSports);
+  }, [showAllSports]);
 
-  const loadData = async () => {
+  // Refresh callers (duplicate/delete/save) omit the arg and keep the
+  // current toggle state.
+  const loadData = async (allSports = showAllSports) => {
     setIsLoading(true);
     try {
       const [workoutData, exerciseData] = await Promise.all([
-        SessionTemplate.list(),
+        SessionTemplate.list(allSports ? { allSports: 'true' } : {}),
         Exercise.list()
       ]);
       setSessionTemplates(workoutData || []);
@@ -386,6 +391,16 @@ export default function Sessions() {
             {category.label}
           </button>
         ))}
+        <button
+          onClick={() => setShowAllSports(prev => !prev)}
+          title="Include common sessions for sports outside your interests"
+          className={`px-5 py-2.5 rounded-xl font-semibold text-sm whitespace-nowrap transition-all border ${showAllSports
+            ? 'bg-accent/10 text-accent border-accent'
+            : 'bg-white text-gray-500 hover:bg-gray-50 border-dashed border-gray-300'
+            }`}
+        >
+          All sports
+        </button>
       </div>
 
       {/* Workouts Grid */}

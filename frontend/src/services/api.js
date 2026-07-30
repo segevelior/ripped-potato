@@ -237,7 +237,13 @@ class APIService {
 
   // SessionTemplate endpoints
   sessionTemplates = {
-    list: () => this.request('/session-templates'),
+    // Optional params: { allSports, difficulty, tags, popular, page, limit }.
+    list: (params = {}) => {
+      const query = new URLSearchParams(
+        Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
+      ).toString();
+      return this.request(`/session-templates${query ? `?${query}` : ''}`);
+    },
     get: (id) => this.request(`/session-templates/${id}`),
     create: (data) => this.request('/session-templates', {
       method: 'POST',

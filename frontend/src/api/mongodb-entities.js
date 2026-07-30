@@ -74,7 +74,7 @@ export const Plan = {
 
 // SessionTemplate entity
 export const SessionTemplate = {
-  list: async () => normalizeArray(await apiService.sessionTemplates.list()),
+  list: async (params = {}) => normalizeArray(await apiService.sessionTemplates.list(params)),
   create: async (data) => normalizeId(await apiService.sessionTemplates.create(data)),
   update: async (id, data) => normalizeId(await apiService.sessionTemplates.update(id, data)),
   delete: async (id) => apiService.sessionTemplates.delete(id)
