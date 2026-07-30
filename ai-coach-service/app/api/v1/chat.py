@@ -19,6 +19,12 @@ async def chat(
 ) -> ChatResponse:
     """
     Main chat endpoint - uses agent orchestrator for intelligent responses with CRUD support
+
+    EFFECTIVELY DEAD IN PRODUCTION: only reachable via `x-stream: false` on
+    /chat/stream, which no caller sends (the Node proxy hardcodes 'true').
+    It persists no messages, passes no history, and ignores `attachment_ids` —
+    attachment memory is a streaming-path feature. If this endpoint is ever
+    revived, wire it through the same persistence path as chat_stream.py.
     """
     
     # Get database and Redis connections

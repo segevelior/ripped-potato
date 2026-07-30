@@ -15,6 +15,7 @@ from app.middleware.auth import get_current_user
 from app.core.agents.orchestrator import AgentOrchestrator
 from app.services.short_term_context_service import ShortTermContextService, spawn_background
 from app.core.agents.text_utils import dedupe_repeated_response
+from app.services.attachment_service import AttachmentService
 from app.services.conversation_service import ConversationService
 
 router = APIRouter()
@@ -153,6 +154,28 @@ async def chat_stream(
 
     is_new_conversation = False
 
+    # Attachment refs persisted on the human message ({attachment_id, filename,
+    # mime_type, kind} — metadata only; artifacts live in chatAttachments).
+    message_attachments = None
+    attachment_service = AttachmentService(db)
+    if request.attachment_ids:
+        attachment_docs = await attachment_service.get_many(request.attachment_ids, user_id)
+        message_attachments = [
+            {
+                "attachment_id": aid,
+                "filename": doc.get("filename"),
+                "mime_type": doc.get("mime_type"),
+                "kind": doc.get("kind"),
+            }
+            for aid, doc in attachment_docs.items()
+        ] or None
+        if len(attachment_docs) != len(request.attachment_ids):
+            logger.warning(
+                "Some attachment_ids did not resolve",
+                requested=request.attachment_ids,
+                resolved=list(attachment_docs.keys()),
+            )
+
     if conversation_id:
         # Verify conversation exists and belongs to user
         existing = await conversation_service.get_conversation(conversation_id, user_id)
@@ -160,12 +183,17 @@ async def chat_stream(
             # Create new if not found
             result = await conversation_service.create_conversation(
                 user_id=user_id,
-                initial_message=request.message
+                initial_message=request.message,
+                attachments=message_attachments
             )
             conversation_id = result["conversation_id"]
             is_new_conversation = True
         else:
-            # Get existing conversation history for context
+            # ORDER IS LOAD-BEARING: history is read BEFORE add_message appends
+            # the current turn. The current turn's attachment is sent inline via
+            # file_content; the replay path only serves attachments found in
+            # `conversation_history`. Swap these two calls and turn 1 sends the
+            # attachment twice — once inline, once via replay.
             conversation_history = existing.get("messages", [])
             logger.info(f"Loaded {len(conversation_history)} previous messages for context")
 
@@ -173,16 +201,24 @@ async def chat_stream(
             await conversation_service.add_message(
                 conversation_id=conversation_id,
                 role="human",
-                content=request.message
+                content=request.message,
+                attachments=message_attachments
             )
     else:
         # Create new conversation with initial message
         result = await conversation_service.create_conversation(
             user_id=user_id,
-            initial_message=request.message
+            initial_message=request.message,
+            attachments=message_attachments
         )
         conversation_id = result["conversation_id"]
         is_new_conversation = True
+
+    if message_attachments:
+        # A referenced attachment must never be swept by the orphan TTL.
+        await attachment_service.mark_sent(
+            [a["attachment_id"] for a in message_attachments], user_id
+        )
 
     if is_new_conversation:
         # A new conversation just started — lazily summarize recently-ended
