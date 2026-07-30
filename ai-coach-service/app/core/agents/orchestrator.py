@@ -135,6 +135,22 @@ def _model_facing_result(result: Any) -> Any:
 REPLAY_TOOL_ROUNDS_LAST_K = 2
 REPLAY_TOOL_CHARS_BUDGET = 24_000
 
+# Per-round output ceiling for the chat tool loop. Must fit an entire
+# multi-create round (e.g. 3 full create_session_template calls + several
+# add_exercise calls ≈ well over 2500 tokens of JSON args): a round cut by
+# this cap arrives with finish_reason="length" and its tool calls cannot be
+# executed (the tail call's args are truncated mid-JSON). 2026-07-30 prod
+# incident: cap 2500 silently evaporated a whole turn.
+ROUND_MAX_COMPLETION_TOKENS = 8000
+
+# What the athlete sees when a round still hits the cap. Streamed as normal
+# tokens so the turn persists — a silent empty turn teaches the model (via
+# replayed history) that "tools are broken" and it starts refusing work.
+TRUNCATED_ROUND_MESSAGE = (
+    "That change was too large to apply in one step — tell me to continue "
+    "and I'll do it in smaller batches."
+)
+
 # ---- Attachment replay (chatAttachments) ----------------------------------
 # Representation rule: IN-WINDOW the original file alone (byte-identical to
 # turn 1 — table-cell fidelity comes from OpenAI's page images, which pypdf
@@ -1140,7 +1156,11 @@ USER DATA:
                 messages=messages,
                 tools=self.get_tools(),
                 tool_choice=first_tool_choice,
-                max_completion_tokens=2500,
+                # Room for a full multi-create round: 3 rich session templates
+                # + several add_exercise calls exceed 2500 tokens of JSON args,
+                # and a round cut by the cap is DISCARDED (finish_reason=length,
+                # 2026-07-30 prod incident). Billing is on actual usage.
+                max_completion_tokens=ROUND_MAX_COMPLETION_TOKENS,
                 stream=True,
                 **self.settings.llm_tuning_params(temperature=0.7)
             )
@@ -1178,6 +1198,27 @@ USER DATA:
                             if tool_call_chunk.function.arguments:
                                 tool_calls_data[index]["function"]["arguments"] += tool_call_chunk.function.arguments
 
+                # A round cut by the output cap arrives as finish_reason="length".
+                # Its accumulated tool calls CANNOT run — the tail call's args are
+                # truncated mid-JSON, and executing a partial write set is worse
+                # than none. Say so out loud: a silently empty turn gets replayed
+                # to the model as evidence that "tools are broken" (2026-07-30
+                # prod incident) and poisons the rest of the conversation.
+                if choice.finish_reason == "length" and tool_calls_data:
+                    args_chars = sum(
+                        len(t["function"]["arguments"]) for t in tool_calls_data.values()
+                    )
+                    logger.error(
+                        f"finish_reason=length: DISCARDING {len(tool_calls_data)} accumulated "
+                        f"tool call(s) ({args_chars} args chars) — round exceeded "
+                        f"{ROUND_MAX_COMPLETION_TOKENS} output tokens"
+                    )
+                    notice = ("\n\n" if full_response else "") + TRUNCATED_ROUND_MESSAGE
+                    full_response.append(notice)
+                    yield {"type": "token", "content": notice}
+                    tool_calls_data = {}
+                    continue
+
                 # Check for finish reason
                 if choice.finish_reason == "tool_calls" and tool_calls_data:
                     logger.info(f"Executing {len(tool_calls_data)} tool calls...")
@@ -1190,7 +1231,31 @@ USER DATA:
                     for index in sorted(tool_calls_data.keys()):
                         tool_data = tool_calls_data[index]
                         function_name = tool_data["function"]["name"]
-                        function_args = json.loads(tool_data["function"]["arguments"])
+                        try:
+                            function_args = json.loads(tool_data["function"]["arguments"])
+                        except (ValueError, TypeError):
+                            # Malformed args must not kill the stream. Every call in
+                            # the assistant tool_calls message needs a matching tool
+                            # reply, so feed an error result instead of skipping.
+                            logger.error(
+                                f"Malformed args for {function_name} "
+                                f"({len(tool_data['function']['arguments'])} chars) — not executing"
+                            )
+                            tool_results.append({
+                                "tool_call_id": tool_data["id"],
+                                "role": "tool",
+                                "content": json.dumps({
+                                    "success": False,
+                                    "error": "Tool call arguments were truncated — retry this action as a smaller step.",
+                                }),
+                            })
+                            yield {
+                                "type": "tool_complete",
+                                "tool": function_name,
+                                "success": False,
+                                "message": "arguments truncated",
+                            }
+                            continue
 
                         logger.info(f"Executing {function_name} with args: {function_args}")
                         tools_used.append(function_name)  # Track for reflection
@@ -1294,7 +1359,9 @@ USER DATA:
                             messages=messages,
                             tools=self.get_tools(),  # Keep tools available for chaining
                             tool_choice="auto",
-                            max_completion_tokens=1500,
+                            # Chained rounds emit tool-call JSON too — same
+                            # truncation cliff as the first round.
+                            max_completion_tokens=ROUND_MAX_COMPLETION_TOKENS,
                             stream=True,
                             **self.settings.llm_tuning_params(temperature=0.7)
                         )
@@ -1331,6 +1398,26 @@ USER DATA:
                                         if tool_call_chunk.function.arguments:
                                             follow_up_tool_calls[index]["function"]["arguments"] += tool_call_chunk.function.arguments
 
+                            # Same length-cut handling as the first round: a
+                            # truncated follow-up round must not execute partial
+                            # calls, and must not end the turn silently.
+                            if final_choice.finish_reason == "length" and follow_up_tool_calls:
+                                args_chars = sum(
+                                    len(t["function"]["arguments"])
+                                    for t in follow_up_tool_calls.values()
+                                )
+                                logger.error(
+                                    f"Follow-up round {tool_round}: finish_reason=length, "
+                                    f"DISCARDING {len(follow_up_tool_calls)} tool call(s) "
+                                    f"({args_chars} args chars)"
+                                )
+                                notice = ("\n\n" if full_response else "") + TRUNCATED_ROUND_MESSAGE
+                                full_response.append(notice)
+                                yield {"type": "token", "content": notice}
+                                follow_up_tool_calls = {}
+                                tool_round = max_tool_rounds  # Exit the loop
+                                break
+
                             # Check for finish reason
                             if final_choice.finish_reason == "tool_calls" and follow_up_tool_calls:
                                 logger.info(f"Follow-up round {tool_round}: Executing {len(follow_up_tool_calls)} additional tool calls...")
@@ -1343,7 +1430,30 @@ USER DATA:
                                 for idx in sorted(follow_up_tool_calls.keys()):
                                     tool_data = follow_up_tool_calls[idx]
                                     function_name = tool_data["function"]["name"]
-                                    function_args = json.loads(tool_data["function"]["arguments"])
+                                    try:
+                                        function_args = json.loads(tool_data["function"]["arguments"])
+                                    except (ValueError, TypeError):
+                                        # Same guard as the first round: error result
+                                        # instead of a stream-killing exception.
+                                        logger.error(
+                                            f"Malformed args for {function_name} "
+                                            f"({len(tool_data['function']['arguments'])} chars) — not executing"
+                                        )
+                                        follow_up_results.append({
+                                            "tool_call_id": tool_data["id"],
+                                            "role": "tool",
+                                            "content": json.dumps({
+                                                "success": False,
+                                                "error": "Tool call arguments were truncated — retry this action as a smaller step.",
+                                            }),
+                                        })
+                                        yield {
+                                            "type": "tool_complete",
+                                            "tool": function_name,
+                                            "success": False,
+                                            "message": "arguments truncated",
+                                        }
+                                        continue
 
                                     logger.info(f"Follow-up executing {function_name} with args: {function_args}")
                                     tools_used.append(function_name)  # Track for reflection
