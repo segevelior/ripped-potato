@@ -23,20 +23,23 @@ const TYPE_LABELS = {
   duration: "Continuous",
 };
 
-const numberOrNull = (raw) => {
+// Values below the schema's floor are coerced to null (field omitted) rather
+// than saved and rejected: work_seconds/duration_seconds require >= 1,
+// rest_seconds legitimately allows 0.
+const numberOrNull = (raw, minimum) => {
   const value = parseInt(raw, 10);
-  return Number.isFinite(value) && value >= 0 ? value : null;
+  return Number.isFinite(value) && value >= minimum ? value : null;
 };
 
-const SecondsField = ({ label, value, onChange }) => (
+const SecondsField = ({ label, value, onChange, minimum = 1 }) => (
   <div className="w-24">
     <label className="text-[10px] font-semibold text-gray-400 uppercase mb-1 block">{label}</label>
     <div className="relative">
       <input
         type="number"
-        min="0"
+        min={minimum}
         value={value ?? ""}
-        onChange={(e) => onChange(numberOrNull(e.target.value))}
+        onChange={(e) => onChange(numberOrNull(e.target.value, minimum))}
         className="w-full bg-white border-none rounded-lg text-sm py-2 pl-3 pr-7 font-medium text-gray-700 focus:ring-2 focus:ring-[#FE755D]/20 shadow-sm"
         placeholder="—"
       />
@@ -62,6 +65,14 @@ export default function BlockStructureControls({ block, onUpdate }) {
 
   const handleTypeChange = (nextType) => {
     const patch = { type: nextType };
+    // Null out fields the new type doesn't use so stale values (tabata's
+    // 8x20/10 after switching to duration) don't linger in the saved doc.
+    const nextFields = BLOCK_TYPE_META[nextType]?.fields || [];
+    for (const field of ["rounds", "work_seconds", "rest_seconds", "duration_seconds"]) {
+      if (!nextFields.includes(field)) {
+        patch[field] = field === "rounds" ? 1 : null;
+      }
+    }
     const defaults = TYPE_DEFAULTS[nextType] || {};
     for (const [field, value] of Object.entries(defaults)) {
       if (block[field] == null || (field === "rounds" && (block.rounds || 1) <= 1)) {
@@ -114,6 +125,7 @@ export default function BlockStructureControls({ block, onUpdate }) {
           <SecondsField
             label="Rest"
             value={block.rest_seconds}
+            minimum={0}
             onChange={(value) => onUpdate({ rest_seconds: value })}
           />
         )}
