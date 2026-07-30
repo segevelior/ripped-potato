@@ -82,15 +82,30 @@ async def generate_sse_stream(
                 # Save AI response to conversation (includes tool markers).
                 # A tool-only turn with empty final text must still save, or
                 # the human message is orphaned and the tool context lost.
-                if full_response.strip() or tool_rounds:
-                    await conversation_service.add_message(
-                        conversation_id=conversation_id,
-                        role="ai",
-                        content=full_response,
-                        response_time_ms=response_time_ms,
-                        tool_rounds=tool_rounds
+                if not full_response.strip() and not tool_rounds:
+                    # A truly empty completion is always a failure (tool-only
+                    # turns carry tool_rounds). Never let the turn vanish: an
+                    # orphaned human message replays to the model as evidence
+                    # its earlier promises silently succeeded-or-broke, and it
+                    # starts claiming "the tool connection is unavailable"
+                    # (2026-07-30 prod incident).
+                    logger.error(
+                        f"Empty completion for conversation {conversation_id} — "
+                        "saving fallback message instead of dropping the turn"
                     )
-                    logger.info(f"Saved AI response to conversation {conversation_id}")
+                    full_response = (
+                        "Something went wrong generating this reply — please try again."
+                    )
+                    yield f"data: {json.dumps({'type': 'token', 'content': full_response})}\n\n"
+
+                await conversation_service.add_message(
+                    conversation_id=conversation_id,
+                    role="ai",
+                    content=full_response,
+                    response_time_ms=response_time_ms,
+                    tool_rounds=tool_rounds
+                )
+                logger.info(f"Saved AI response to conversation {conversation_id}")
 
                 # Send completion event with conversation_id
                 yield f"data: {json.dumps({'type': 'complete', 'conversation_id': conversation_id})}\n\n"
