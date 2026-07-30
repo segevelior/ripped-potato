@@ -16,6 +16,7 @@ from app.models.schemas import (
     PaginatedFeedbackResponse
 )
 from app.middleware.auth import get_current_user, require_admin
+from app.services.attachment_service import AttachmentService
 from app.services.conversation_service import ConversationService
 
 router = APIRouter()
@@ -120,6 +121,9 @@ async def get_conversation(
 
         # tool_rounds is model-replay context only — the chat UI never renders
         # it, so don't ship potentially large tool payloads to the browser.
+        # `attachments` DELIBERATELY passes through: it is small metadata and
+        # the chat UI's attachment cards on reload depend on it (the frontend
+        # no longer embeds an [ATTACHMENT:...] marker in message content).
         for msg in conversation.get("messages", []):
             msg.pop("tool_rounds", None)
 
@@ -145,13 +149,33 @@ async def delete_conversation(
     """
     try:
         service = get_conversation_service(request)
+        user_id = current_user["user_id"]
+
+        # Snapshot attachment refs BEFORE the delete — the cascade needs them,
+        # and afterwards the messages are gone.
+        conversation = await service.get_conversation(conversation_id, user_id)
+        attachment_ids = list({
+            ref.get("attachment_id")
+            for msg in (conversation or {}).get("messages", [])
+            for ref in msg.get("attachments") or []
+            if ref.get("attachment_id")
+        })
+
         deleted = await service.delete_conversation(
             conversation_id=conversation_id,
-            user_id=current_user["user_id"]
+            user_id=user_id
         )
 
         if not deleted:
             raise HTTPException(status_code=404, detail="Conversation not found")
+
+        if attachment_ids:
+            # Refcount-by-query cascade: drops doc + blob only when no other
+            # conversation still references the attachment (dedupe can share
+            # one doc across conversations).
+            await AttachmentService(request.app.state.db).delete_for_conversation_cascade(
+                attachment_ids, user_id, conversation_id
+            )
 
         logger.info(f"Deleted conversation {conversation_id}")
         return {"status": "success", "message": "Conversation deleted"}

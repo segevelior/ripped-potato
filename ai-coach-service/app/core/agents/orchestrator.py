@@ -36,6 +36,7 @@ from app.core.agents.interest_mix import (
     load_recent_discipline_counts,
     resolve_interest_disciplines,
 )
+from app.services.attachment_service import AttachmentService
 from app.services.coach_question_service import CoachQuestionService
 from app.services.recommendation_service import RecommendationService
 from app.services.short_term_context_service import ShortTermContextService
@@ -133,6 +134,32 @@ def _model_facing_result(result: Any) -> Any:
 # beyond either cap replays as text only.
 REPLAY_TOOL_ROUNDS_LAST_K = 2
 REPLAY_TOOL_CHARS_BUDGET = 24_000
+
+# ---- Attachment replay (chatAttachments) ----------------------------------
+# Representation rule: IN-WINDOW the original file alone (byte-identical to
+# turn 1 — table-cell fidelity comes from OpenAI's page images, which pypdf
+# cannot reproduce); OUT-OF-WINDOW the extracted text alone (the permanent
+# floor — content never vanishes, though the shape changes at the boundary).
+# Never both at once: two renderings of the same table, one known-garbled,
+# with nothing telling the model which to trust.
+#
+# The window is measured in TURNS, not attachments — with an attachment-count
+# window, a conversation with a single attachment (the dominant case) would
+# never leave the window and the text floor would be dead code. 10 is a
+# starting value, tuned via the replay-cost log line, chosen large enough to
+# cover a realistic working session (~$1.25 worst case per conversation on
+# Terra at the 20-page cap).
+REPLAY_ATTACHMENT_TURNS = 10
+# Out-of-window text budget, drawn down newest-first. Deliberately 2x the
+# per-attachment persist cap (ATTACHMENT_TEXT_PERSIST_MAX_CHARS = 60k) so two
+# max-size documents can coexist on replay.
+REPLAY_ATTACHMENT_TEXT_BUDGET = 120_000
+# In-window admission caps, in the unit that tracks cost per type: PDFs cost
+# ~2.5k tokens per PAGE (page images at detail=high) regardless of bytes;
+# for images, post-normalization bytes and tokens correlate, so bytes guard
+# request size. Over-cap falls through to the text floor / honest line.
+REPLAY_PDF_PAGES_MAX = 20  # == documents.MAX_PDF_PAGES today; tighten independently
+REPLAY_ATTACHMENT_BYTES_MAX = 5 * 1024 * 1024
 
 # Write classification, used to decide when forced grounding may relax:
 # after a write, replayed read results may be stale, so re-reads are correct.
@@ -275,17 +302,34 @@ def _expand_tool_rounds(tool_rounds: List[Dict[str, Any]]) -> List[Dict[str, Any
     return expanded
 
 
-def _history_to_openai_messages(conversation_history: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _history_to_openai_messages(
+    conversation_history: List[Dict[str, Any]],
+    attachment_parts: Dict[int, List[Dict[str, Any]]] = None,
+) -> List[Dict[str, Any]]:
     """Rebuild OpenAI messages from stored history. Recent assistant turns
     replay their structured tool exchange (within caps); older or legacy
     turns replay as text only. Note this is a collapse, not a byte-faithful
     reproduction: prose streamed between tool rounds lives only in the final
-    saved content, so it folds into the trailing assistant message."""
+    saved content, so it folds into the trailing assistant message.
+
+    attachment_parts maps a HISTORY INDEX of a human message to the OpenAI
+    content parts standing in for its attachments (file / image_url / text
+    floor / honest marker). Resolved by the async caller so this function
+    stays pure and synchronous — replay tests need no DB fixture."""
     replay_at = _replayable_indexes(conversation_history)
+    attachment_parts = attachment_parts or {}
     messages = []
     for idx, hist_msg in enumerate(conversation_history):
         if hist_msg.get("role") == "human":
-            messages.append({"role": "user", "content": hist_msg.get("content", "")})
+            text = hist_msg.get("content", "")
+            parts = attachment_parts.get(idx)
+            if parts:
+                messages.append({
+                    "role": "user",
+                    "content": [{"type": "text", "text": text}] + parts,
+                })
+            else:
+                messages.append({"role": "user", "content": text})
             continue
         content = _sanitize_replayed_content(hist_msg.get("content", ""))
         if idx in replay_at:
@@ -295,6 +339,136 @@ def _history_to_openai_messages(conversation_history: List[Dict[str, Any]]) -> L
         else:
             messages.append({"role": "assistant", "content": content})
     return messages
+
+
+def _attachment_unavailable_part(filename: str) -> Dict[str, Any]:
+    # Honest beats the silent lie: the old marker told the model a file
+    # existed that it could not see, inviting confused self-contradiction.
+    return {
+        "type": "text",
+        "text": (
+            f'[Attachment "{filename}" is no longer available in this '
+            "conversation's context — ask the athlete to re-send it if its "
+            "contents are needed.]"
+        ),
+    }
+
+
+def _attachment_replay_plan(
+    conversation_history: List[Dict[str, Any]],
+    docs: Dict[str, Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Decide, per attachment reference in history, how it replays.
+
+    Pure planning half of attachment replay (blob reads happen in the caller):
+    returns [{msg_idx, ref, doc, action}] with action in {"file", "text",
+    "honest"}, ordered NEWEST-FIRST so the text budget drains newest-first.
+
+    In-window (message within the last REPLAY_ATTACHMENT_TURNS human turns):
+    the original file, admitted per type in the unit that tracks its cost —
+    pages for PDFs, bytes (checked at read time) for images. Out-of-window:
+    the extracted-text floor for PDFs; images have no floor. Anything
+    inadmissible falls through text-if-possible, else the honest marker.
+    """
+    human_indexes = [
+        i for i, m in enumerate(conversation_history) if m.get("role") == "human"
+    ]
+    total_humans = len(human_indexes)
+
+    plan = []
+    text_budget = REPLAY_ATTACHMENT_TEXT_BUDGET
+    # Newest-first so the budget favours what the athlete referenced last.
+    for pos in range(total_humans - 1, -1, -1):
+        idx = human_indexes[pos]
+        age = total_humans - pos  # last history human turn has age 1
+        in_window = age <= REPLAY_ATTACHMENT_TURNS
+        for ref in conversation_history[idx].get("attachments") or []:
+            doc = docs.get(ref.get("attachment_id") or "")
+            filename = ref.get("filename") or "file"
+            entry = {"msg_idx": idx, "ref": ref, "doc": doc, "action": "honest"}
+            if doc:
+                is_pdf = doc.get("kind") == "pdf"
+                file_ok = doc.get("gridfs_id") is not None and (
+                    not is_pdf or (doc.get("page_count") or 0) <= REPLAY_PDF_PAGES_MAX
+                )
+                text_len = len(doc.get("extracted_text") or "")
+                text_ok = (
+                    is_pdf
+                    and doc.get("text_extractable")
+                    and text_len <= text_budget
+                )
+                if in_window and file_ok:
+                    entry["action"] = "file"
+                elif text_ok:
+                    entry["action"] = "text"
+                    text_budget -= text_len
+            if entry["action"] == "honest":
+                entry["ref"] = {**ref, "filename": filename}
+            plan.append(entry)
+    return plan
+
+
+def _attachment_parts_from_plan(
+    plan: List[Dict[str, Any]],
+    blobs: Dict[str, bytes],
+) -> Dict[int, List[Dict[str, Any]]]:
+    """Materialise the plan into OpenAI content parts keyed by history index.
+
+    An in-window "file" whose blob is missing or over the byte cap degrades
+    here (text floor if the doc has one, else honest) — the byte check can
+    only happen after the read.
+    """
+    parts_by_idx: Dict[int, List[Dict[str, Any]]] = {}
+    for entry in plan:
+        ref, doc, action = entry["ref"], entry["doc"], entry["action"]
+        filename = ref.get("filename") or "file"
+        part = None
+        if action == "file":
+            blob = blobs.get(ref.get("attachment_id") or "")
+            if blob is None or (
+                doc.get("kind") == "image" and len(blob) > REPLAY_ATTACHMENT_BYTES_MAX
+            ):
+                action = "text" if (doc.get("kind") == "pdf" and doc.get("text_extractable")) else "honest"
+            else:
+                b64 = base64.b64encode(blob).decode("utf-8")
+                if doc.get("kind") == "pdf":
+                    # Byte-identical to the part turn 1 sent (see documents.py).
+                    part = {
+                        "type": "file",
+                        "file": {
+                            "filename": filename,
+                            "file_data": f"data:{doc.get('mime_type')};base64,{b64}",
+                        },
+                    }
+                else:
+                    part = {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{doc.get('mime_type')};base64,{b64}",
+                            "detail": "high",  # must match turn 1
+                        },
+                    }
+        if part is None and action == "text":
+            kept = doc.get("pages_kept") or 0
+            total = doc.get("page_count") or kept
+            dropped_note = (
+                f" (pages {kept + 1}-{total} omitted for length)"
+                if (doc.get("pages_dropped") or 0) > 0
+                else ""
+            )
+            part = {
+                "type": "text",
+                "text": (
+                    f'[Attached file "{filename}" — extracted text of pages '
+                    f"1-{kept} of {total}{dropped_note}]\n"
+                    f"{doc.get('extracted_text') or ''}"
+                ),
+            }
+        if part is None:
+            part = _attachment_unavailable_part(filename)
+        # plan is newest-first; parts within a message keep ref order via insert
+        parts_by_idx.setdefault(entry["msg_idx"], []).insert(0, part)
+    return parts_by_idx
 
 
 def _history_write_in_replay_window(conversation_history: List[Dict[str, Any]]) -> bool:
@@ -332,6 +506,7 @@ class AgentOrchestrator:
             db=db,
         )
         self.memory_service = MemoryService(db)
+        self.attachment_service = AttachmentService(db)
         self.recommendation_service = RecommendationService(db)
         self.short_term_context = ShortTermContextService(db)
 
@@ -747,6 +922,63 @@ USER DATA:
         }
         return descriptions.get(function_name, f"Processing {function_name}")
 
+    async def _resolve_attachment_parts(
+        self, conversation_history: List[Dict[str, Any]], user_id: str
+    ) -> Dict[int, List[Dict[str, Any]]]:
+        """Resolve history attachments to OpenAI content parts (async half).
+
+        Fetches chatAttachments docs and — for in-window entries only — the
+        stored blobs, then hands both to the pure planners so
+        _history_to_openai_messages stays synchronous and DB-free.
+        """
+        all_ids = list({
+            ref.get("attachment_id")
+            for msg in conversation_history
+            if msg.get("role") == "human"
+            for ref in msg.get("attachments") or []
+            if ref.get("attachment_id")
+        })
+        if not all_ids:
+            return {}
+
+        docs = await self.attachment_service.get_many(all_ids, user_id)
+
+        plan = _attachment_replay_plan(conversation_history, docs)
+
+        blobs: Dict[str, bytes] = {}
+        for entry in plan:
+            if entry["action"] != "file":
+                continue
+            aid = entry["ref"].get("attachment_id")
+            doc = entry["doc"]
+            if aid in blobs or not doc:
+                continue
+            blob = await self.attachment_service.read_blob(doc.get("gridfs_id"))
+            if blob is not None:
+                blobs[aid] = blob
+
+        parts = _attachment_parts_from_plan(plan, blobs)
+
+        # Cost visibility: this is the tuning instrument for
+        # REPLAY_ATTACHMENT_TURNS and the text budget.
+        replayed_chars = sum(
+            len(p.get("text") or "")
+            for plist in parts.values()
+            for p in plist
+            if p.get("type") == "text"
+        )
+        replayed_files = sum(
+            1
+            for plist in parts.values()
+            for p in plist
+            if p.get("type") in ("file", "image_url")
+        )
+        logger.info(
+            f"[ATTACHMENT REPLAY] {replayed_files} file part(s), "
+            f"{replayed_chars} text chars across {len(parts)} message(s)"
+        )
+        return parts
+
     async def process_request_streaming(
         self,
         message: str,
@@ -854,7 +1086,12 @@ USER DATA:
         # Add conversation history if available
         if conversation_history:
             logger.info(f"[SENSEI DEBUG STREAMING] Has conversation history ({len(conversation_history)} messages)")
-            messages.extend(_history_to_openai_messages(conversation_history))
+            attachment_parts = await self._resolve_attachment_parts(
+                conversation_history, user_id
+            )
+            messages.extend(
+                _history_to_openai_messages(conversation_history, attachment_parts)
+            )
             # Add current message (context is already in system prompt)
             messages.append({"role": "user", "content": current_user_message})
         else:
