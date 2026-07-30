@@ -274,7 +274,10 @@ export function parseTemplateToSessionData(workout, { sourceTemplateId, sourceTe
     exercises: []
   };
 
-  // Handle both blocks format and flat exercises array
+  // Handle both blocks format and flat exercises array. Blocks win when they
+  // yield exercises — some callers carry both shapes at once (e.g. a calendar
+  // event with a populated template's blocks AND embedded sessionDetails
+  // exercises), and appending both renders every exercise twice.
   const exerciseList = [];
 
   if (workout.blocks && Array.isArray(workout.blocks)) {
@@ -285,7 +288,7 @@ export function parseTemplateToSessionData(workout, { sourceTemplateId, sourceTe
     });
   }
 
-  if (workout.exercises && Array.isArray(workout.exercises)) {
+  if (exerciseList.length === 0 && workout.exercises && Array.isArray(workout.exercises)) {
     workout.exercises.forEach(ex => exerciseList.push(ex));
   }
 

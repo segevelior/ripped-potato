@@ -415,11 +415,10 @@ export default function TrainNow() {
               name: scheduledEvent.title,
               estimated_duration: scheduledEvent.sessionDetails?.estimatedDuration || 45,
               primary_disciplines: [scheduledEvent.sessionDetails?.discipline || 'strength'],
-              // parseTemplateToSessionData concatenates blocks and exercises,
-              // so exactly one of the two may be non-empty or every exercise
-              // duplicates.
+              // parseTemplateToSessionData prefers blocks and only falls back
+              // to the flat exercises list when the blocks yield nothing.
               blocks: templateBlocks,
-              exercises: templateBlocks.length > 0 ? [] : convertedExercises,
+              exercises: convertedExercises,
               calendarEventId: scheduledEvent._id,
               sourceTemplateId: scheduledEvent.sessionTemplateId?._id,
               isCommon: scheduledEvent.sessionTemplateId?.isCommon
