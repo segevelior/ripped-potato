@@ -817,8 +817,14 @@ export default function LiveSession() {
   // regenerate defaults from the new exercise's strain.
   const handleReplaceExercise = (exIndex, picked, opts = {}) => {
     const old = workout.exercises[exIndex];
-    // The replacement stays in the block it replaces from.
-    const built = buildSessionExercise(picked, exIndex, { blockIndex: old.block_index ?? null });
+    // The replacement stays in the block it replaces from, and its default
+    // sets are generated from that block's structure (a tabata replacement
+    // gets `rounds` sets, not the catalog's 3x12).
+    const oldBlockIndex = Number.isInteger(old.block_index) ? old.block_index : null;
+    const built = buildSessionExercise(picked, exIndex, {
+      blockIndex: oldBlockIndex,
+      block: oldBlockIndex === null ? null : workout.blocks?.[oldBlockIndex] ?? null,
+    });
     // Session exercises ALWAYS have a sets array, so "has sets" is always true.
     // We only want to preserve actually-logged work; otherwise adopt the new
     // exercise's own generated defaults (e.g. swapping Plank 3×60s → Bench Press
@@ -880,11 +886,17 @@ export default function LiveSession() {
 
   const handleAddExercise = (exIndex, position, picked) => {
     const insertAt = position === 'above' ? exIndex : exIndex + 1;
-    // Inherit the anchor exercise's block so an insert mid-block stays in it.
-    const anchorBlockIndex = workout.exercises[exIndex]?.block_index ?? null;
+    // Inherit the anchor exercise's block so an insert mid-block stays in it,
+    // and generate block-shaped sets (rounds count) to keep the round counter
+    // coherent.
+    const rawAnchor = workout.exercises[exIndex]?.block_index;
+    const anchorBlockIndex = Number.isInteger(rawAnchor) ? rawAnchor : null;
     const nextExercises = withOrder([
       ...workout.exercises.slice(0, insertAt),
-      buildSessionExercise(picked, insertAt, { blockIndex: anchorBlockIndex }),
+      buildSessionExercise(picked, insertAt, {
+        blockIndex: anchorBlockIndex,
+        block: anchorBlockIndex === null ? null : workout.blocks?.[anchorBlockIndex] ?? null,
+      }),
       ...workout.exercises.slice(insertAt),
     ]);
     setWorkout({ ...workout, exercises: nextExercises });
@@ -907,12 +919,35 @@ export default function LiveSession() {
     setIsSaving(true);
 
     try {
+      // Typed-block summary for history/stats: what the structure was and how
+      // many rounds actually got done. rounds_completed is derived the same
+      // way the header does it (min completed sets across the block), except
+      // AMRAP where the user counts rounds explicitly.
+      const blocksSummary = (workout.blocks || []).map((block, blockIndex) => {
+        const inBlock = workout.exercises.filter(e => e.block_index === blockIndex);
+        const roundsCompleted = block.type === 'amrap'
+          ? (block.rounds_completed || 0)
+          : inBlock.length > 0
+            ? Math.min(...inBlock.map(e => e.sets.filter(s => s.is_completed).length))
+            : 0;
+        return {
+          name: block.name,
+          type: block.type,
+          rounds: block.rounds,
+          rounds_completed: roundsCompleted,
+          ...(block.work_seconds ? { work_seconds: block.work_seconds } : {}),
+          ...(Number.isFinite(block.rest_seconds) ? { rest_seconds: block.rest_seconds } : {}),
+          ...(block.duration_seconds ? { duration_seconds: block.duration_seconds } : {})
+        };
+      });
+
       const sessionLogData = {
         title: workout.title || 'Session',
         discipline: getDiscipline(workout.type),
         startedAt: workoutStartTime.toISOString(),
         completedAt: new Date().toISOString(),
         actualDuration: Math.ceil(totalSessionTime / 60) || workout.duration_minutes || 60,
+        ...(blocksSummary.length > 0 ? { blocks: blocksSummary } : {}),
         exercises: workout.exercises.map((ex, i) => ({
           exerciseId: ex.exercise_id,
           exerciseName: ex.exercise_name,
