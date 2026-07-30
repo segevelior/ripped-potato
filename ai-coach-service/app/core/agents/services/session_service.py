@@ -80,6 +80,13 @@ class SessionService:
                 block_type = block.get("type")
                 if block_type not in BLOCK_TYPES:
                     block_type = "straight_sets"
+                if block_type == "emom" and len(block.get("exercises") or []) > 1:
+                    # The tool schema pins EMOM to one exercise per block; if
+                    # the model sends more anyway, demote to circuit — the
+                    # runtime generates identical sets for both, so this only
+                    # fixes the label ("EMOM 10" over 2 exercises would imply
+                    # double the work).
+                    block_type = "circuit"
                 normalized = {
                     "name": block.get("name", "Main Work"),
                     "type": block_type,
