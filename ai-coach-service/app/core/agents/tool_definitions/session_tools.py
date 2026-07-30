@@ -93,7 +93,7 @@ def get_session_tools() -> List[Dict[str, Any]]:
                                     "type": {
                                         "type": "string",
                                         "enum": ["straight_sets", "circuit", "tabata", "amrap", "emom", "interval", "duration"],
-                                        "description": "Block structure. straight_sets (default): classic sets x reps. circuit/interval: exercise list repeats `rounds` times with `rest_seconds` between. tabata: `rounds` x `work_seconds` on / `rest_seconds` off (convention 8x20/10). amrap: as many rounds as possible in `duration_seconds`. emom: `rounds` minute-slots of `work_seconds` work. duration: one continuous effort of `duration_seconds` (tempo run, endurance ride, ARC climb)."
+                                        "description": "Block structure. straight_sets (default): classic sets x reps. circuit/interval: exercise list repeats `rounds` times with `rest_seconds` between. tabata: `rounds` x `work_seconds` on / `rest_seconds` off (convention 8x20/10). amrap: as many rounds as possible in `duration_seconds`. emom: `rounds` minute-slots of `work_seconds` work — EVERY exercise in the block performs `rounds` slots, so an emom block must contain EXACTLY ONE exercise (an alternating EMOM is one block per movement, e.g. odd minutes = block A rounds:5, even minutes = block B rounds:5 — never one 10-round block with 2 exercises, which would double the work). duration: one continuous effort of `duration_seconds` (tempo run, endurance ride, ARC climb)."
                                     },
                                     "rounds": {
                                         "type": "integer",
