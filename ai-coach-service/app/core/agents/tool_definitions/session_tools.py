@@ -32,7 +32,8 @@ def get_session_tools() -> List[Dict[str, Any]]:
                     "NON-GYM / OUTDOOR SESSIONS (rides, runs, climbs, swims, hikes): they use the SAME shape — "
                     "exercises[] can never be empty, so express the activity itself as one entry. The minimal VALID "
                     "shape is exactly one block with one exercise: "
-                    "blocks=[{name:'Main Work', exercises:[{exercise_name:'Outdoor Cycling', volume:'60km', "
+                    "blocks=[{name:'Main Work', type:'duration', duration_seconds:3600, "
+                    "exercises:[{exercise_name:'Outdoor Cycling', volume:'60km', "
                     "rest:'none', notes:'Rolling terrain, steady zone 2', muscles:['Legs'], discipline:['cycling']}]}] "
                     "— the exercise_name IS the activity ('Outdoor Cycling', 'Trail Run', 'Sport Climbing', "
                     "'Bouldering', 'Open Water Swim'), `volume` carries the dose (distance, time, number of routes: "
@@ -40,7 +41,14 @@ def get_session_tools() -> List[Dict[str, Any]]:
                     "intensity). Set primary_disciplines to the sport (e.g. ['cycling'], ['climbing']). Add more "
                     "blocks only when the session really has them (e.g. 'Warm-up' easy spinning, 'Main Work' "
                     "intervals). Every block must contain at least one exercise — an empty/placeholder template is "
-                    "rejected by the server, so never send one."
+                    "rejected by the server, so never send one. "
+                    "STRUCTURED BLOCKS: when the session has real structure, say so with the block-level `type` "
+                    "field instead of encoding it in the block name — tabata (type:'tabata', rounds:8, "
+                    "work_seconds:20, rest_seconds:10), interval repeats (type:'interval', rounds:8, "
+                    "rest_seconds:90, exercise volume '400m @ 5k pace'), circuits (type:'circuit', rounds:3, "
+                    "rest_seconds:60), AMRAP/EMOM caps via duration_seconds, and continuous efforts (tempo run, "
+                    "endurance ride, ARC climbing) as type:'duration' with duration_seconds. Plain sets x reps "
+                    "blocks need no type."
                 ),
                 "parameters": {
                     "type": "object",
@@ -81,6 +89,35 @@ def get_session_tools() -> List[Dict[str, Any]]:
                                     "name": {
                                         "type": "string",
                                         "description": "Block name (e.g., 'Warm-up', 'Main Work', 'Finisher', 'Cool-down')"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["straight_sets", "circuit", "tabata", "amrap", "emom", "interval", "duration"],
+                                        "description": "Block structure. straight_sets (default): classic sets x reps. circuit/interval: exercise list repeats `rounds` times with `rest_seconds` between. tabata: `rounds` x `work_seconds` on / `rest_seconds` off (convention 8x20/10). amrap: as many rounds as possible in `duration_seconds`. emom: `rounds` minute-slots of `work_seconds` work — EVERY exercise in the block performs `rounds` slots, so an emom block must contain EXACTLY ONE exercise (an alternating EMOM is one block per movement, e.g. odd minutes = block A rounds:5, even minutes = block B rounds:5 — never one 10-round block with 2 exercises, which would double the work). duration: one continuous effort of `duration_seconds` (tempo run, endurance ride, ARC climb)."
+                                    },
+                                    "rounds": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "description": "How many times the block repeats (circuit/tabata/interval rounds, emom minutes). Omit for straight_sets/duration."
+                                    },
+                                    "work_seconds": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "description": "Work window per round in seconds (tabata/interval/emom)."
+                                    },
+                                    "rest_seconds": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "description": "Rest between rounds/intervals in seconds. 0 is valid (back-to-back)."
+                                    },
+                                    "duration_seconds": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "description": "Total block duration in seconds: the amrap/emom time cap, or the length of a `duration` block."
+                                    },
+                                    "instructions": {
+                                        "type": "string",
+                                        "description": "Block-level coaching text (e.g. 'stay below the pump', 'all-out on work intervals')."
                                     },
                                     "exercises": {
                                         "type": "array",
