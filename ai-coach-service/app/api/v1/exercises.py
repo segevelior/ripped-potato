@@ -737,3 +737,233 @@ async def substitute_chat(
             reply="I couldn't come up with suggestions right now — try the Browse tab.",
             fallback=True,
         )
+
+
+# ---------------------------------------------------------------------------
+# Describe an exercise (live session "Describe it")
+# ---------------------------------------------------------------------------
+# The athlete writes ONE exercise in free text mid-session ("bench 60kg x10,
+# 70 x8, 75 x6"); one fast-model call extracts name + sets, and the
+# ExerciseResolver maps the name onto the catalog as a preview (create=False:
+# nothing is written until the athlete confirms). A genuinely new exercise is
+# only created via /describe/commit, so a cancelled preview leaves no phantom
+# catalog entries behind.
+
+MAX_DESCRIBED_SETS = 15
+MAX_CATALOG_NAMES = 400  # ~3k tokens on the fast model; the shared catalog is ~190
+MAX_REPS = 200
+MAX_WEIGHT_KG = 500
+LB_TO_KG = 0.45359237
+
+
+class DescribeExerciseRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=500)
+
+
+class DescribedSet(BaseModel):
+    weight_kg: float = 0
+    reps: int = 0
+
+
+class DescribedCandidate(BaseModel):
+    id: str
+    name: str
+
+
+class DescribeExerciseResponse(BaseModel):
+    # matched: exercise_id is set. ambiguous: pick from candidates or add as
+    # new. new: nothing close in the catalog. unreadable: no exercise found in
+    # the note (or the LLM failed) — message says what to do.
+    status: Literal["matched", "ambiguous", "new", "unreadable"]
+    name: str = ""
+    exercise_id: Optional[str] = None
+    candidates: List[DescribedCandidate] = []
+    notes: str = ""
+    sets: List[DescribedSet] = []
+    muscles: List[str] = []
+    discipline: List[str] = []
+    equipment: List[str] = []
+    multiple_exercises: bool = False
+    message: Optional[str] = None
+
+
+class CommitDescribedExerciseRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    muscles: List[str] = []
+    discipline: List[str] = []
+    equipment: List[str] = []
+
+
+class CommitDescribedExerciseResponse(BaseModel):
+    exercise_id: str
+    name: str
+
+
+UNREADABLE_MESSAGE = "I couldn't find an exercise in that. Try something like \"pull-ups 3x8\", or search the catalog instead."
+
+DESCRIBE_EXERCISE_PROMPT = """An athlete is logging ONE exercise they did, written in their own words:
+
+"{text}"
+
+Their exercise catalog:
+{catalog}
+
+Extract it as a JSON object:
+{{"name": "<if the exercise is in their catalog, its catalog name EXACTLY as listed; otherwise its common gym name, singular, Title Case, e.g. \\"Pull-up\\">",
+  "notes": "<short qualifiers worth keeping, e.g. \\"each leg\\", \\"slow eccentric\\"; \\"\\" if none>",
+  "sets": [{{"weight": <number, 0 for bodyweight>, "unit": "kg" | "lb", "reps": <integer>}}],
+  "muscles": [<primary muscles, from: {muscles}>],
+  "discipline": [<from: {disciplines}>],
+  "equipment": [<e.g. "barbell", "dumbbell", "kettlebell"; [] for none>],
+  "multiple_exercises": <true if the note describes more than one distinct exercise>}}
+
+Rules:
+- One entry in "sets" per set performed. "3x10" means 3 sets of 10. "did 8, 7, 6" means 3 sets with those reps.
+- "60kg x10, 70 x8" is a weight per set; a weight given once applies to every set.
+- For a rep range like "8-10", use the lower number.
+- Added load on a bodyweight movement ("+10kg") is the weight. Dumbbell weights are per dumbbell.
+- No unit given: assume kg.
+- Only use a catalog name when it is the SAME movement, not a variation of it: "bench" is "Barbell Bench Press" when that is listed, but plain pull-ups are NOT "Pull-Ups + Top Hold" or "Explosive Pull Ups", a Zercher carry is NOT "Farmer's Walk", and a "landmine twist" is NOT a "Landmine Press". When no entry is the same movement, use the common gym name.
+- If no sets or reps are mentioned, return "sets": [].
+- Reps only count repetitions. For distance or time ("40m", "30 seconds"), set "reps": 0 and put the distance or time in "notes".
+- If several exercises are described, extract only the FIRST and set "multiple_exercises": true.
+- If the text is not a physical exercise, return "name": "".
+Respond with ONLY the JSON object."""
+
+
+def _normalize_sets(raw_sets: Any) -> List[Dict[str, Any]]:
+    """Clamp LLM-extracted sets to sane bounds and convert pounds to kg."""
+    sets: List[Dict[str, Any]] = []
+    for s in raw_sets if isinstance(raw_sets, list) else []:
+        if not isinstance(s, dict):
+            continue
+        try:
+            weight = float(s.get("weight") or 0)
+            reps = int(round(float(s.get("reps") or 0)))
+        except (TypeError, ValueError):
+            continue
+        if str(s.get("unit") or "kg").strip().lower() in ("lb", "lbs", "pound", "pounds"):
+            weight *= LB_TO_KG
+        # Quarter-kg precision: plates go to 1.25kg, converted pounds needn't
+        # show 22.679845.
+        weight = round(min(max(weight, 0.0), MAX_WEIGHT_KG) * 4) / 4
+        sets.append({"weight_kg": weight, "reps": min(max(reps, 0), MAX_REPS)})
+        if len(sets) >= MAX_DESCRIBED_SETS:
+            break
+    return sets
+
+
+@router.post("/describe", response_model=DescribeExerciseResponse)
+async def describe_exercise(
+    request: DescribeExerciseRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> DescribeExerciseResponse:
+    """Parse one free-text exercise into a name + sets and preview its catalog match."""
+    from app.main import db
+    from app.core.agents.services.exercise_resolver import ExerciseResolver
+
+    try:
+        ObjectId(current_user["user_id"])
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid user.")
+
+    # Ground the name on what the resolver will search, so "bench" comes back
+    # as the catalog's "Barbell Bench Press" (an exact match) instead of a
+    # generic name that lands in the "did you mean" zone.
+    user_oid = ObjectId(current_user["user_id"])
+    catalog_docs = await db.exercises.find(
+        {"$or": [{"isCommon": True}, {"createdBy": user_oid}]}, {"name": 1}
+    ).to_list(MAX_CATALOG_NAMES)
+    catalog_names = sorted({d["name"] for d in catalog_docs if d.get("name")})
+
+    settings = get_settings()
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    prompt = DESCRIBE_EXERCISE_PROMPT.format(
+        text=request.text.strip(),
+        catalog="\n".join(catalog_names) or "(empty)",
+        muscles=", ".join(VALID_MUSCLES),
+        disciplines=", ".join(VALID_DISCIPLINES),
+    )
+    try:
+        response = await client.chat.completions.create(
+            model=settings.openai_model_fast,
+            messages=[
+                {"role": "system", "content": "You extract workout logs. Respond only with valid JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            max_completion_tokens=1200,
+            **settings.llm_tuning_params(temperature=0.1),
+        )
+        data = json.loads(_strip_json_fences(response.choices[0].message.content or ""))
+        if not isinstance(data, dict):
+            raise ValueError("LLM returned a non-object")
+    except Exception as e:
+        # Never 500 mid-workout — the athlete can rephrase or use search.
+        logger.error(f"describe_exercise LLM failure: {e}")
+        return DescribeExerciseResponse(
+            status="unreadable",
+            message="Sensei couldn't read that just now. Try again, or search the catalog instead.",
+        )
+
+    name = str(data.get("name") or "").strip()[:100]
+    if not name:
+        return DescribeExerciseResponse(status="unreadable", message=UNREADABLE_MESSAGE)
+
+    muscles = [m for m in data.get("muscles") or [] if m in VALID_MUSCLES]
+    discipline = [d for d in data.get("discipline") or [] if d in VALID_DISCIPLINES]
+    equipment = [str(e)[:40] for e in data.get("equipment") or [] if isinstance(e, str)][:5]
+    base = dict(
+        name=name,
+        notes=str(data.get("notes") or "").strip()[:200],
+        sets=_normalize_sets(data.get("sets")),
+        muscles=muscles,
+        discipline=discipline,
+        equipment=equipment,
+        multiple_exercises=bool(data.get("multiple_exercises")),
+    )
+
+    # Preview probe only: create=False writes nothing to the catalog.
+    [res] = await ExerciseResolver(db).resolve(
+        current_user["user_id"],
+        [{"exercise_name": name, "muscles": muscles, "discipline": discipline, "equipment": equipment}],
+        on_ambiguous="ask",
+        create=False,
+    )
+    if res["status"] == "resolved":
+        return DescribeExerciseResponse(
+            status="matched", exercise_id=str(res["exercise_id"]),
+            **{**base, "name": res["matched_name"] or name},
+        )
+    if res["status"] == "ambiguous":
+        return DescribeExerciseResponse(
+            status="ambiguous",
+            candidates=[DescribedCandidate(id=c["id"], name=c["name"]) for c in res["candidates"][:3]],
+            **base,
+        )
+    return DescribeExerciseResponse(status="new", **base)
+
+
+@router.post("/describe/commit", response_model=CommitDescribedExerciseResponse)
+async def commit_described_exercise(
+    request: CommitDescribedExerciseRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> CommitDescribedExerciseResponse:
+    """Create the athlete's own exercise for a confirmed "new" description.
+
+    Reuses an existing exercise with the exact same name (the resolver's race
+    guard), so double-taps and re-adds never duplicate."""
+    from app.main import db
+    from app.core.agents.services.exercise_resolver import ExerciseResolver
+
+    try:
+        ObjectId(current_user["user_id"])
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid user.")
+
+    doc = await ExerciseResolver(db).create_private(current_user["user_id"], {
+        "exercise_name": request.name.strip(),
+        "muscles": [m for m in request.muscles if m in VALID_MUSCLES],
+        "discipline": [d for d in request.discipline if d in VALID_DISCIPLINES],
+        "equipment": [e[:40] for e in request.equipment][:5],
+    })
+    return CommitDescribedExerciseResponse(exercise_id=str(doc["_id"]), name=doc["name"])

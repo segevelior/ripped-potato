@@ -3,7 +3,7 @@ import { SessionTemplate, Exercise } from "@/api/entities";
 import { format } from "date-fns";
 import {
   Play, Clock, ChevronRight, Dumbbell, Calendar,
-  Search, Sparkles, X, Flame, Moon, Coffee
+  Search, Sparkles, X, Flame, Moon, Coffee, Plus
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -15,7 +15,8 @@ import {
   getActiveSession,
   startLiveSession,
   clearActiveSession,
-  parseTemplateToSessionData
+  parseTemplateToSessionData,
+  createBlankSessionData
 } from "@/utils/liveSession";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
@@ -499,10 +500,12 @@ export default function TrainNow() {
       // sourceTemplateId is set explicitly on the calendar suggestion; library
       // cards carry _id. AI-generated suggestions have neither (no template).
       // Never fall back to .id here — on the calendar path it's the event id.
-      const sessionData = parseTemplateToSessionData(workout, {
-        sourceTemplateId: workout.sourceTemplateId || workout._id,
-        sourceTemplateIsCommon: workout.isCommon
-      });
+      const sessionData = workout.isBlank
+        ? createBlankSessionData()
+        : parseTemplateToSessionData(workout, {
+          sourceTemplateId: workout.sourceTemplateId || workout._id,
+          sourceTemplateIsCommon: workout.isCommon
+        });
       startLiveSession(sessionData);
       navigate(createPageUrl('LiveSession')); // No ID param needed
     } catch (error) {
@@ -719,6 +722,21 @@ I want to start training RIGHT NOW but I'm not sure what to do. Help me decide w
             completedToday={completedToday}
             onRegenerate={regenerateSuggestion}
           />
+
+          {/* Blank session — log exercise by exercise with "Describe it" */}
+          <button
+            onClick={() => startSession({ isBlank: true, title: 'Blank Session' })}
+            className="w-full flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-3 text-left hover:bg-gray-50 transition-colors"
+          >
+            <span className="w-9 h-9 rounded-lg bg-gray-900 text-white flex items-center justify-center flex-shrink-0">
+              <Plus className="w-5 h-5" />
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block font-semibold text-gray-900 text-sm">Blank session</span>
+              <span className="block text-xs text-gray-500">Doing your own thing? Log it exercise by exercise.</span>
+            </span>
+            <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          </button>
 
           {/* Ask Sensei Section - Compact */}
           <div className="bg-gradient-to-br from-primary-50 to-red-50 rounded-xl p-3 border border-primary-100">

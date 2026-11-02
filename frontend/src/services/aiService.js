@@ -443,6 +443,35 @@ class AIService {
     });
   }
 
+  /**
+   * Live session "Describe it": parse ONE free-text exercise into a name +
+   * sets and preview its catalog match. Nothing is written to the catalog.
+   * @param {string} text
+   * @returns {Promise<{ status: 'matched'|'ambiguous'|'new'|'unreadable', name: string,
+   *   exercise_id?: string, candidates: Array<{id: string, name: string}>, notes: string,
+   *   sets: Array<{weight_kg: number, reps: number}>, muscles: string[], discipline: string[],
+   *   equipment: string[], multiple_exercises: boolean, message?: string }>}
+   */
+  async describeExercise(text, signal) {
+    return this.request('/api/v1/ai/exercises/describe', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+      ...(signal ? { signal } : {})
+    });
+  }
+
+  /**
+   * Create (or reuse by exact name) the athlete's own exercise for a
+   * confirmed "new" description.
+   * @returns {Promise<{ exercise_id: string, name: string }>}
+   */
+  async commitDescribedExercise({ name, muscles = [], discipline = [], equipment = [] }) {
+    return this.request('/api/v1/ai/exercises/describe/commit', {
+      method: 'POST',
+      body: JSON.stringify({ name, muscles, discipline, equipment })
+    });
+  }
+
 
   /**
    * Clear all cached data (call on logout)

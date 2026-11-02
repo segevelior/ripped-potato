@@ -166,7 +166,8 @@ const createSessionLog = async (req, res) => {
           exerciseName: ex.exerciseName,
           order: i,
           sets: ex.sets || [],
-          notes: ex.notes
+          notes: ex.notes,
+          ...(typeof ex.rawNote === 'string' && ex.rawNote ? { rawNote: ex.rawNote.slice(0, 500) } : {})
         };
       })
     );
@@ -280,7 +281,8 @@ const updateSessionLog = async (req, res) => {
           exerciseName: ex.exerciseName,
           order: ex.order !== undefined ? ex.order : i,
           sets: ex.sets || [],
-          notes: ex.notes
+          notes: ex.notes,
+          ...(typeof ex.rawNote === 'string' && ex.rawNote ? { rawNote: ex.rawNote.slice(0, 500) } : {})
         }))
       );
     }

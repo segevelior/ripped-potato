@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { SessionLog } from "@/api/entities";
-import { ArrowLeft, Square, Play, Pause, Plus, Minus, Check, X, Save, Trash2, MoreVertical, RefreshCw, ArrowUp, ArrowDown, Undo2 } from "lucide-react";
+import { ArrowLeft, Square, Play, Pause, Plus, Minus, Check, X, Save, Trash2, MoreVertical, RefreshCw, ArrowUp, ArrowDown, Undo2, Sparkles, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   getActiveSession,
@@ -8,6 +8,7 @@ import {
   clearActiveSession,
   startLiveSession,
   buildSessionExercise,
+  buildLoggedExercise,
   groupExercisesByBlock
 } from "@/utils/liveSession";
 import BlockHeader from "@/components/livesession/BlockHeader";
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/drawer";
 import ReplaceExerciseModal from "@/components/exercise/ReplaceExerciseModal";
 import ExerciseSearchInput from "@/components/exercise/ExerciseSearchInput";
+import DescribeExercisePanel from "@/components/exercise/DescribeExercisePanel";
 import { ExerciseSwapContext } from "@/contexts/ExerciseSwapContext";
 import { materializeExercise } from "@/utils/materializeExercise";
 import { apiService } from "@/services/api";
@@ -41,7 +43,7 @@ const MOOD_OPTIONS = [
 ];
 
 // Workout Feedback Modal Component
-function FeedbackModal({ onSubmit, onDiscard, onCancel, workoutStats, isSaving }) {
+function FeedbackModal({ onSubmit, onDiscard, onCancel, workoutStats, isSaving, canSave = true }) {
   const [selectedMood, setSelectedMood] = useState(null);
   const [notes, setNotes] = useState('');
 
@@ -106,9 +108,14 @@ function FeedbackModal({ onSubmit, onDiscard, onCancel, workoutStats, isSaving }
 
         {/* Buttons */}
         <div className="space-y-3">
+          {!canSave && (
+            <p className="text-sm text-gray-500 text-center">
+              Nothing logged yet. Add an exercise to save this session.
+            </p>
+          )}
           <button
             onClick={() => onSubmit(selectedMood, notes)}
-            disabled={isSaving}
+            disabled={isSaving || !canSave}
             className="w-full py-3 rounded-xl font-semibold bg-green-600 text-white flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isSaving ? (
@@ -495,7 +502,8 @@ export default function LiveSession() {
   // Exercise-modification UI state
   const [menuIndex, setMenuIndex] = useState(null);        // action sheet target
   const [replaceIndex, setReplaceIndex] = useState(null);  // Replace modal target
-  const [addContext, setAddContext] = useState(null);      // { index, position } for Add above/below
+  const [addContext, setAddContext] = useState(null);      // { index, position, atEnd? } for Add above/below/at end
+  const [addTab, setAddTab] = useState('describe');        // add drawer tab: describe | search
   const [confirmDelete, setConfirmDelete] = useState(null); // { index, exercise } pending delete confirm
   const [undoState, setUndoState] = useState(null);        // { exercise, index } for the undo snackbar
   const undoTimerRef = useRef(null);
@@ -904,8 +912,48 @@ export default function LiveSession() {
     if (navigator.vibrate) navigator.vibrate(30);
   };
 
+  // Insert a "Describe it" exercise. Straight-sets blocks are joined like any
+  // added exercise; a multi-round block (circuit, emom, ...) is stepped around
+  // instead — the note's set count would break its round counter — so the new
+  // exercise lands just before/after the whole block, keeping it contiguous.
+  const handleAddDescribedExercise = ({ index, position }, parsed) => {
+    const exercises = workout.exercises;
+    const anchor = exercises[index];
+    const rawAnchor = anchor?.block_index;
+    const anchorBlockIndex = Number.isInteger(rawAnchor) ? rawAnchor : null;
+    const anchorBlock = anchorBlockIndex === null ? null : workout.blocks?.[anchorBlockIndex] ?? null;
+
+    let insertAt = position === 'above' ? index : index + 1;
+    let blockIndex = anchorBlockIndex;
+    if (anchorBlock && anchorBlock.type !== 'straight_sets') {
+      let first = index;
+      let last = index;
+      while (first > 0 && exercises[first - 1].block_index === anchorBlockIndex) first--;
+      while (last < exercises.length - 1 && exercises[last + 1].block_index === anchorBlockIndex) last++;
+      insertAt = position === 'above' ? first : last + 1;
+      blockIndex = null;
+    }
+    insertAt = Math.max(0, Math.min(insertAt, exercises.length));
+
+    setWorkout({
+      ...workout,
+      exercises: withOrder([
+        ...exercises.slice(0, insertAt),
+        buildLoggedExercise(parsed, insertAt, { blockIndex }),
+        ...exercises.slice(insertAt),
+      ]),
+    });
+    setAddContext(null);
+    if (navigator.vibrate) navigator.vibrate(30);
+  };
+
+  const openAddDrawer = (context) => {
+    setAddTab('describe');
+    setAddContext(context);
+  };
+
   // Check if all exercises are complete
-  const isWorkoutComplete = workout?.exercises?.every(ex =>
+  const isWorkoutComplete = workout?.exercises?.length > 0 && workout.exercises.every(ex =>
     ex.sets.every(s => s.is_completed)
   );
 
@@ -915,7 +963,7 @@ export default function LiveSession() {
   };
 
   const saveAndExit = async (mood, notes) => {
-    if (!workout || isSaving) return;
+    if (!workout || isSaving || workout.exercises.length === 0) return;
     setIsSaving(true);
 
     try {
@@ -960,7 +1008,8 @@ export default function LiveSession() {
             restSeconds: set.rest_seconds || 90,
             isCompleted: set.is_completed || false
           })),
-          notes: ex.notes || ''
+          notes: ex.notes || '',
+          ...(ex.raw_note ? { rawNote: ex.raw_note } : {})
         })),
         mood: mood || undefined,
         notes: notes || undefined,
@@ -1003,6 +1052,7 @@ export default function LiveSession() {
           onCancel={() => setShowFeedbackModal(false)}
           workoutStats={getWorkoutStats()}
           isSaving={isSaving}
+          canSave={workout.exercises.length > 0}
         />
       )}
 
@@ -1071,6 +1121,17 @@ export default function LiveSession() {
             ))}
           </div>
         ))}
+
+        <button
+          onClick={() => openAddDrawer({ index: workout.exercises.length - 1, position: 'below', atEnd: true })}
+          className="w-full flex flex-col items-center gap-1 rounded-3xl border-2 border-dashed border-primary-400/60 bg-primary-50 py-5 text-primary-600"
+        >
+          <span className="w-9 h-9 rounded-full bg-primary-500 text-white flex items-center justify-center">
+            <Plus className="w-5 h-5" />
+          </span>
+          <span className="font-bold">Add exercise</span>
+          <span className="text-xs text-primary-700/80">Describe what you did, Sensei fills in the sets</span>
+        </button>
       </div>
 
       {/* Done Workout Button - Fixed at bottom */}
@@ -1105,14 +1166,14 @@ export default function LiveSession() {
               <span className="font-medium text-gray-900">Replace exercise</span>
             </button>
             <button
-              onClick={() => { const i = menuIndex; setMenuIndex(null); setAddContext({ index: i, position: 'above' }); }}
+              onClick={() => { const i = menuIndex; setMenuIndex(null); openAddDrawer({ index: i, position: 'above' }); }}
               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-gray-100 text-left"
             >
               <ArrowUp className="w-5 h-5 text-gray-700" />
               <span className="font-medium text-gray-900">Add exercise above</span>
             </button>
             <button
-              onClick={() => { const i = menuIndex; setMenuIndex(null); setAddContext({ index: i, position: 'below' }); }}
+              onClick={() => { const i = menuIndex; setMenuIndex(null); openAddDrawer({ index: i, position: 'below' }); }}
               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-gray-100 text-left"
             >
               <ArrowDown className="w-5 h-5 text-gray-700" />
@@ -1234,11 +1295,31 @@ export default function LiveSession() {
         <DrawerContent className="pb-6">
           <DrawerHeader>
             <DrawerTitle>
-              {addContext?.position === 'above' ? 'Add exercise above' : 'Add exercise below'}
+              {addContext?.atEnd ? 'Add exercise' : addContext?.position === 'above' ? 'Add exercise above' : 'Add exercise below'}
             </DrawerTitle>
           </DrawerHeader>
-          <div className="px-4">
-            {addContext && (
+          <div className="px-4 max-h-[75vh] overflow-y-auto">
+            <div className="flex bg-gray-100 rounded-xl p-1 mb-4">
+              {[
+                { key: 'describe', label: 'Describe it', icon: Sparkles },
+                { key: 'search', label: 'Search catalog', icon: Search },
+              ].map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setAddTab(t.key)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    addTab === t.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                  }`}
+                >
+                  <t.icon className="w-4 h-4" />
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            {addContext && addTab === 'describe' && (
+              <DescribeExercisePanel onAdd={(parsed) => handleAddDescribedExercise(addContext, parsed)} />
+            )}
+            {addContext && addTab === 'search' && (
               <ExerciseSearchInput
                 autoFocus
                 placeholder="Search to add an exercise..."
