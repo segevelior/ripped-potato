@@ -166,7 +166,8 @@ const createSessionLog = async (req, res) => {
           exerciseName: ex.exerciseName,
           order: i,
           sets: ex.sets || [],
-          notes: ex.notes
+          notes: ex.notes,
+          ...(typeof ex.rawNote === 'string' && ex.rawNote ? { rawNote: ex.rawNote.slice(0, 500) } : {})
         };
       })
     );
@@ -280,7 +281,11 @@ const updateSessionLog = async (req, res) => {
           exerciseName: ex.exerciseName,
           order: ex.order !== undefined ? ex.order : i,
           sets: ex.sets || [],
-          notes: ex.notes
+          notes: ex.notes,
+          // This replaces the whole exercises array: a caller that doesn't
+          // send rawNote back erases it. No current caller edits described
+          // exercises, but a future editor must round-trip it.
+          ...(typeof ex.rawNote === 'string' && ex.rawNote ? { rawNote: ex.rawNote.slice(0, 500) } : {})
         }))
       );
     }

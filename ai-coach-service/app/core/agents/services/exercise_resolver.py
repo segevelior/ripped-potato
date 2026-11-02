@@ -327,6 +327,16 @@ class ExerciseResolver:
                     }
         return sorted(merged.values(), key=lambda c: c["score"], reverse=True)[:MAX_CANDIDATES]
 
+    async def create_private(self, user_id: str, item: Dict[str, Any]) -> Dict[str, Any]:
+        """Create (or reuse, by exact name) a private exercise the user
+        explicitly asked for — e.g. confirming a free-text exercise as their
+        own after declining the "did you mean" candidates. Skips matching on
+        purpose: the user has already seen and rejected the close matches."""
+        name = (item.get("exercise_name") or "").strip()
+        if not name:
+            raise ValueError("exercise_name is required")
+        return await self._create_exercise(item, name, ObjectId(user_id))
+
     async def _create_exercise(
         self, item: Dict[str, Any], name: str, user_oid: ObjectId
     ) -> Dict[str, Any]:
@@ -344,7 +354,7 @@ class ExerciseResolver:
 
         doc = {
             "name": name,
-            "description": f"{name} — added automatically from a generated workout",
+            "description": item.get("description") or f"{name} — added automatically from a generated workout",
             "muscles": item.get("muscles") or ["Full Body"],
             "secondaryMuscles": [],
             "discipline": item.get("discipline") or ["General Fitness"],

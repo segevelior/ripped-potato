@@ -432,6 +432,24 @@ export function parseTemplateToSessionData(workout, { sourceTemplateId, sourceTe
 }
 
 /**
+ * Session data for a blank session started from Train Now: no template, no
+ * exercises — the athlete adds each exercise as they go ("Describe it").
+ * @returns {SessionData}
+ */
+export function createBlankSessionData() {
+  return {
+    title: 'Blank Session',
+    // No type: the discipline is derived from the described exercises at save.
+    type: null,
+    duration_minutes: null,
+    sourceTemplateId: null,
+    sourceTemplateIsCommon: false,
+    blocks: [],
+    exercises: []
+  };
+}
+
+/**
  * Group a session's flat exercise list into renderable block sections.
  *
  * Groups CONSECUTIVE exercises sharing a block_index; ad-hoc additions and
@@ -538,6 +556,47 @@ export function buildSessionExercise(exercise, order = 0, { blockIndex = null, b
     notes: '',
     block_index: Number.isInteger(blockIndex) ? blockIndex : null,
     volume_label: volumeLabel,
+    order,
+    sets
+  };
+}
+
+/**
+ * Build a live-session exercise from a "Describe it" parse — work the athlete
+ * already did, so every set arrives completed with the reps/weight they wrote.
+ *
+ * Never joins a multi-round block (callers pass blockIndex only for
+ * straight_sets blocks): its set count comes from the note, not the block's
+ * rounds, and would break the derived round counter.
+ *
+ * @param {Object} parsed - { exercise_id, name, notes, sets: [{weight_kg, reps}], raw_note, discipline }
+ * @param {number} [order=0]
+ * @param {Object} [options]
+ * @param {number|null} [options.blockIndex=null]
+ * @returns {SessionExercise}
+ */
+export function buildLoggedExercise(parsed, order = 0, { blockIndex = null } = {}) {
+  const sets = (parsed?.sets || []).map((s) => ({
+    target_reps: s.reps || null,
+    reps: s.reps || 0,
+    weight: s.weight_kg || 0,
+    rest_seconds: 90,
+    is_completed: true
+  }));
+  if (sets.length === 0) {
+    // Name only ("hip thrust"): one open set to fill in by hand.
+    sets.push({ target_reps: null, reps: 0, weight: 0, rest_seconds: 90, is_completed: false });
+  }
+
+  return {
+    exercise_id: isValidObjectId(parsed?.exercise_id) ? parsed.exercise_id : null,
+    exercise_name: parsed?.name || 'Exercise',
+    notes: parsed?.notes || '',
+    raw_note: parsed?.raw_note || null,
+    // Sensei's discipline tag; a blank session derives its own from these.
+    discipline: parsed?.discipline || null,
+    block_index: Number.isInteger(blockIndex) ? blockIndex : null,
+    volume_label: null,
     order,
     sets
   };

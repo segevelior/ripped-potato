@@ -32,6 +32,9 @@ const exerciseLogSchema = new mongoose.Schema({
   order: Number,
   sets: [setLogSchema],
   notes: String,
+  // The athlete's own words when the exercise was added via "Describe it"
+  // (free text parsed by the Sensei) — kept so it can be re-parsed later.
+  rawNote: { type: String, maxlength: 500 },
   // Performance metrics
   totalVolume: Number, // reps * weight
   maxWeight: Number,

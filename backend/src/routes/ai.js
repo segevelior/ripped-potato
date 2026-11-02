@@ -864,6 +864,96 @@ router.post('/exercises/substitute/chat', authMiddleware, aiRateLimit, async (re
   }
 });
 
+// POST a JSON body to a user-scoped AI Coach endpoint and resolve its JSON
+// reply. Same transport as the substitute proxies above.
+const postToAiService = (path, payload, authorization) => {
+  const urlParts = new URL(`${AI_SERVICE_URL}${path}`);
+  const isHttps = urlParts.protocol === 'https:';
+  const http = require(isHttps ? 'https' : 'http');
+  const body = JSON.stringify(payload);
+
+  return new Promise((resolve, reject) => {
+    const request = http.request({
+      hostname: urlParts.hostname,
+      port: urlParts.port || (isHttps ? 443 : 80),
+      path: urlParts.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+        ...(authorization && { Authorization: authorization })
+      }
+    }, (response) => {
+      let data = '';
+      response.on('data', (chunk) => { data += chunk; });
+      response.on('end', () => {
+        if (response.statusCode === 200) {
+          try {
+            resolve(JSON.parse(data));
+          } catch (e) {
+            reject(new Error('Invalid JSON response from AI service'));
+          }
+        } else {
+          reject(new Error(`AI service returned status ${response.statusCode}: ${data}`));
+        }
+      });
+    });
+
+    // The downstream call waits on an LLM completion — cap it so a hung
+    // upstream can't hold the client connection open indefinitely.
+    request.setTimeout(30000, () => {
+      request.destroy(new Error('AI service timed out'));
+    });
+
+    request.on('error', reject);
+    request.write(body);
+    request.end();
+  });
+};
+
+// Describe an exercise - live session "Describe it": free text for ONE
+// exercise → name + sets + catalog match preview (proxies to AI Coach).
+router.post('/exercises/describe', authMiddleware, aiRateLimit, async (req, res) => {
+  const { text } = req.body;
+  if (!text || typeof text !== 'string' || !text.trim()) {
+    return res.status(400).json({ success: false, message: 'text is required' });
+  }
+  if (text.length > 500) {
+    return res.status(400).json({ success: false, message: 'Keep it under 500 characters' });
+  }
+
+  try {
+    res.json(await postToAiService('/api/v1/exercises/describe', { text }, req.headers.authorization));
+  } catch (error) {
+    // Upstream bodies stay in the server log, not the client response.
+    console.error('Describe exercise error:', error);
+    res.status(500).json({ success: false, message: 'Failed to read the exercise' });
+  }
+});
+
+// Confirm a described exercise as the athlete's own: creates (or reuses by
+// exact name) a private exercise. Rate-limited: each creation is a paid
+// embeddings call.
+router.post('/exercises/describe/commit', authMiddleware, aiRateLimit, async (req, res) => {
+  const { name, muscles, discipline, equipment } = req.body;
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return res.status(400).json({ success: false, message: 'name is required' });
+  }
+
+  const asList = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
+  try {
+    res.json(await postToAiService('/api/v1/exercises/describe/commit', {
+      name: name.trim().slice(0, 100),
+      muscles: asList(muscles),
+      discipline: asList(discipline),
+      equipment: asList(equipment),
+    }, req.headers.authorization));
+  } catch (error) {
+    console.error('Commit described exercise error:', error);
+    res.status(500).json({ success: false, message: 'Failed to add the exercise' });
+  }
+});
+
 // Progression suggestion streaming endpoint - proxies to Python AI Coach service
 router.post('/progressions/suggest/stream', authMiddleware, aiRateLimit, async (req, res) => {
   try {
