@@ -32,11 +32,20 @@ def _mock_openai(monkeypatch, payload=None, fail=False, raw=None):
     return captured
 
 
-def _mock_db(monkeypatch, names=("Barbell Bench Press", "Pull-up")):
+def _mock_db(monkeypatch, names=("Barbell Bench Press", "Pull-up"), own=(), units="metric"):
+    """Fake db for /describe: find(...).sort(...).to_list → own names for the
+    createdBy query, shared names for the isCommon query."""
     db = MagicMock()
-    cursor = MagicMock()
-    cursor.to_list = AsyncMock(return_value=[{"_id": ObjectId(), "name": n} for n in names])
-    db.exercises.find = MagicMock(return_value=cursor)
+
+    def find(query, projection=None):
+        docs = own if "createdBy" in query else names
+        cursor = MagicMock()
+        cursor.sort = MagicMock(return_value=cursor)
+        cursor.to_list = AsyncMock(return_value=[{"_id": ObjectId(), "name": n} for n in docs])
+        return cursor
+
+    db.exercises.find = MagicMock(side_effect=find)
+    db.users.find_one = AsyncMock(return_value={"settings": {"units": units}})
     monkeypatch.setattr("app.main.db", db)
     return db
 
@@ -129,12 +138,56 @@ class TestDescribeExercise:
     async def test_prompt_grounded_on_visible_catalog_names(self, monkeypatch):
         captured = _mock_openai(monkeypatch, payload=_payload())
         _mock_resolver(monkeypatch, RESOLVED)
-        db = _mock_db(monkeypatch, names=("Pull-up", "Barbell Bench Press", "Pull-up"))
+        db = _mock_db(monkeypatch, names=("Barbell Bench Press", "Pull-up"), own=("My Carry", "Pull-up"))
         await ex.describe_exercise(ex.DescribeExerciseRequest(text="bench 3x8"), CURRENT_USER)
         prompt = captured["messages"][1]["content"]
-        assert "Barbell Bench Press\nPull-up" in prompt  # sorted, de-duplicated
-        visibility = db.exercises.find.call_args[0][0]
-        assert visibility == {"$or": [{"isCommon": True}, {"createdBy": ObjectId(USER_ID)}]}
+        # Own exercises first, then shared; de-duplicated.
+        assert "My Carry\nPull-up\nBarbell Bench Press" in prompt
+        queries = [c.args[0] for c in db.exercises.find.call_args_list]
+        assert {"createdBy": ObjectId(USER_ID)} in queries
+        assert {"isCommon": True} in queries
+
+    async def test_imperial_user_defaults_to_pounds(self, monkeypatch):
+        captured = _mock_openai(monkeypatch, payload=_payload(sets=[{"weight": 135, "reps": 5}]))
+        _mock_resolver(monkeypatch, RESOLVED)
+        _mock_db(monkeypatch, units="imperial")
+        res = await ex.describe_exercise(ex.DescribeExerciseRequest(text="bench 135 x5"), CURRENT_USER)
+        assert '"unit": "lb"' in captured["messages"][1]["content"]
+        assert [(s.weight_kg, s.reps) for s in res.sets] == [(61.25, 5)]
+
+    async def test_metric_user_unitless_weight_stays_kg(self, monkeypatch):
+        _mock_openai(monkeypatch, payload=_payload(sets=[{"weight": 100, "reps": 5}]))
+        _mock_resolver(monkeypatch, RESOLVED)
+        res = await ex.describe_exercise(ex.DescribeExerciseRequest(text="bench 100 x5"), CURRENT_USER)
+        assert [(s.weight_kg, s.reps) for s in res.sets] == [(100, 5)]
+
+    async def test_loose_fuzzy_match_becomes_suggestion(self, monkeypatch):
+        _mock_openai(monkeypatch, payload=_payload(name="Hip Thrust"))
+        hit_id = ObjectId()
+        _mock_resolver(monkeypatch, {"status": "resolved", "exercise_id": hit_id,
+                                     "matched_name": "Single-Leg Hip Thrust", "method": "fuzzy",
+                                     "score": 0.9, "candidates": []})
+        res = await ex.describe_exercise(ex.DescribeExerciseRequest(text="hip thrust 3x10"), CURRENT_USER)
+        assert res.status == "ambiguous"
+        assert res.exercise_id is None
+        assert [(c.id, c.name) for c in res.candidates] == [(str(hit_id), "Single-Leg Hip Thrust")]
+
+    async def test_vector_match_becomes_suggestion(self, monkeypatch):
+        _mock_openai(monkeypatch, payload=_payload(name="Hip Thrust"))
+        _mock_resolver(monkeypatch, {"status": "resolved", "exercise_id": ObjectId(),
+                                     "matched_name": "Glute Bridge", "method": "vector",
+                                     "score": 0.93, "candidates": []})
+        res = await ex.describe_exercise(ex.DescribeExerciseRequest(text="hip thrust"), CURRENT_USER)
+        assert res.status == "ambiguous"
+
+    async def test_same_words_fuzzy_match_is_accepted(self, monkeypatch):
+        _mock_openai(monkeypatch, payload=_payload(name="Push Ups"))
+        _mock_resolver(monkeypatch, {"status": "resolved", "exercise_id": ObjectId(),
+                                     "matched_name": "Push-Up", "method": "fuzzy",
+                                     "score": 0.85, "candidates": []})
+        res = await ex.describe_exercise(ex.DescribeExerciseRequest(text="push ups 3x20"), CURRENT_USER)
+        assert res.status == "matched"
+        assert res.name == "Push-Up"
 
     async def test_ambiguous_returns_top_three_candidates(self, monkeypatch):
         _mock_openai(monkeypatch, payload=_payload(name="Landmine Twist"))
@@ -217,6 +270,32 @@ class TestCommitDescribedExercise:
         assert seen["user_id"] == USER_ID
         assert seen["item"]["muscles"] == ["abs"]
         assert seen["item"]["discipline"] == ["strength"]
+        assert "added by you" in seen["item"]["description"]
+
+
+class TestRealResolverVariants:
+    """The real resolver against a catalog that only has a variant: it
+    auto-accepts the lone substring hit, and /describe must not."""
+
+    async def test_lone_variant_is_suggested_not_matched(self, monkeypatch):
+        variant = {"_id": ObjectId(), "name": "Single-Leg Hip Thrust", "muscles": ["glutes"]}
+        db = MagicMock()
+
+        def find(query, projection=None):
+            cursor = MagicMock()
+            cursor.sort = MagicMock(return_value=cursor)
+            cursor.to_list = AsyncMock(return_value=[variant])
+            return cursor
+
+        db.exercises.find = MagicMock(side_effect=find)
+        db.users.find_one = AsyncMock(return_value={})
+        monkeypatch.setattr("app.main.db", db)
+        monkeypatch.setattr(resolver_mod, "generate_embedding", AsyncMock(return_value=None))
+        _mock_openai(monkeypatch, payload=_payload(name="Hip Thrust"))
+
+        res = await ex.describe_exercise(ex.DescribeExerciseRequest(text="hip thrust 3x10"), CURRENT_USER)
+        assert res.status == "ambiguous"
+        assert [c.name for c in res.candidates] == ["Single-Leg Hip Thrust"]
 
 
 class TestResolverCreatePrivate:

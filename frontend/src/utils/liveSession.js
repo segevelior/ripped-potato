@@ -439,7 +439,8 @@ export function parseTemplateToSessionData(workout, { sourceTemplateId, sourceTe
 export function createBlankSessionData() {
   return {
     title: 'Blank Session',
-    type: 'strength',
+    // No type: the discipline is derived from the described exercises at save.
+    type: null,
     duration_minutes: null,
     sourceTemplateId: null,
     sourceTemplateIsCommon: false,
@@ -568,7 +569,7 @@ export function buildSessionExercise(exercise, order = 0, { blockIndex = null, b
  * straight_sets blocks): its set count comes from the note, not the block's
  * rounds, and would break the derived round counter.
  *
- * @param {Object} parsed - { exercise_id, name, notes, sets: [{weight_kg, reps}], raw_note }
+ * @param {Object} parsed - { exercise_id, name, notes, sets: [{weight_kg, reps}], raw_note, discipline }
  * @param {number} [order=0]
  * @param {Object} [options]
  * @param {number|null} [options.blockIndex=null]
@@ -592,6 +593,8 @@ export function buildLoggedExercise(parsed, order = 0, { blockIndex = null } = {
     exercise_name: parsed?.name || 'Exercise',
     notes: parsed?.notes || '',
     raw_note: parsed?.raw_note || null,
+    // Sensei's discipline tag; a blank session derives its own from these.
+    discipline: parsed?.discipline || null,
     block_index: Number.isInteger(blockIndex) ? blockIndex : null,
     volume_label: null,
     order,

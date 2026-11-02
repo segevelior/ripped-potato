@@ -354,7 +354,7 @@ class ExerciseResolver:
 
         doc = {
             "name": name,
-            "description": f"{name} — added automatically from a generated workout",
+            "description": item.get("description") or f"{name} — added automatically from a generated workout",
             "muscles": item.get("muscles") or ["Full Body"],
             "secondaryMuscles": [],
             "discipline": item.get("discipline") or ["General Fitness"],

@@ -925,18 +925,16 @@ router.post('/exercises/describe', authMiddleware, aiRateLimit, async (req, res)
   try {
     res.json(await postToAiService('/api/v1/exercises/describe', { text }, req.headers.authorization));
   } catch (error) {
+    // Upstream bodies stay in the server log, not the client response.
     console.error('Describe exercise error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to read the exercise',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Failed to read the exercise' });
   }
 });
 
-// Confirm a described exercise that isn't in the catalog: creates (or reuses
-// by exact name) the athlete's own exercise. No LLM call, so no aiRateLimit.
-router.post('/exercises/describe/commit', authMiddleware, async (req, res) => {
+// Confirm a described exercise as the athlete's own: creates (or reuses by
+// exact name) a private exercise. Rate-limited: each creation is a paid
+// embeddings call.
+router.post('/exercises/describe/commit', authMiddleware, aiRateLimit, async (req, res) => {
   const { name, muscles, discipline, equipment } = req.body;
   if (!name || typeof name !== 'string' || !name.trim()) {
     return res.status(400).json({ success: false, message: 'name is required' });
@@ -952,11 +950,7 @@ router.post('/exercises/describe/commit', authMiddleware, async (req, res) => {
     }, req.headers.authorization));
   } catch (error) {
     console.error('Commit described exercise error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to add the exercise',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Failed to add the exercise' });
   }
 });
 

@@ -47,8 +47,10 @@ def stub_catalog(monkeypatch):
     # An empty catalog keeps grading on the model's own names.
     db = MagicMock()
     cursor = MagicMock()
+    cursor.sort = MagicMock(return_value=cursor)
     cursor.to_list = AsyncMock(return_value=[])
     db.exercises.find = MagicMock(return_value=cursor)
+    db.users.find_one = AsyncMock(return_value={"settings": {"units": "metric"}})
     monkeypatch.setattr("app.main.db", db)
 
 

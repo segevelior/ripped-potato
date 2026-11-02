@@ -822,7 +822,7 @@ Rules:
 - "60kg x10, 70 x8" is a weight per set; a weight given once applies to every set.
 - For a rep range like "8-10", use the lower number.
 - Added load on a bodyweight movement ("+10kg") is the weight. Dumbbell weights are per dumbbell.
-- No unit given: assume kg.
+- No unit given: use "unit": "{default_unit}".
 - Only use a catalog name when it is the SAME movement, not a variation of it: "bench" is "Barbell Bench Press" when that is listed, but plain pull-ups are NOT "Pull-Ups + Top Hold" or "Explosive Pull Ups", a Zercher carry is NOT "Farmer's Walk", and a "landmine twist" is NOT a "Landmine Press". When no entry is the same movement, use the common gym name.
 - If no sets or reps are mentioned, return "sets": [].
 - Reps only count repetitions. For distance or time ("40m", "30 seconds"), set "reps": 0 and put the distance or time in "notes".
@@ -853,6 +853,46 @@ def _normalize_sets(raw_sets: Any) -> List[Dict[str, Any]]:
     return sets
 
 
+def _user_oid(current_user: Dict[str, Any]) -> ObjectId:
+    try:
+        return ObjectId(current_user["user_id"])
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid user.")
+
+
+def _word_set(name: str) -> set:
+    """Lower-cased words with a plural "s" dropped: "Push-Ups" == "push up"."""
+    return {w[:-1] if len(w) > 2 and w.endswith("s") and not w.endswith("ss") else w for w in re.findall(r"[a-z]+", name.lower())}
+
+
+def _is_safe_match(res: Dict[str, Any], name: str) -> bool:
+    """Whether a resolver hit can be shown as matched without asking.
+
+    The resolver auto-accepts a lone substring hit ("Hip Thrust" → "Single-Leg
+    Hip Thrust") and high vector scores, which is fine for generated workouts
+    but would silently log the wrong exercise here. Only an exact name, or a
+    fuzzy hit with the same words ("Push Up" / "Push-Up"), skips the question."""
+    if res.get("method") in ("exact", "verified_id"):
+        return True
+    return res.get("method") == "fuzzy" and _word_set(res.get("matched_name") or "") == _word_set(name)
+
+
+async def _catalog_names(db, user_oid: ObjectId) -> List[str]:
+    """The athlete's own exercises first, then the shared catalog, capped —
+    so a large private catalog can't push common names out unpredictably."""
+    own = await db.exercises.find(
+        {"createdBy": user_oid}, {"name": 1}
+    ).sort("name", 1).to_list(MAX_CATALOG_NAMES // 2)
+    common = await db.exercises.find(
+        {"isCommon": True}, {"name": 1}
+    ).sort("name", 1).to_list(MAX_CATALOG_NAMES - len(own))
+    names: List[str] = []
+    for d in own + common:
+        if d.get("name") and d["name"] not in names:
+            names.append(d["name"])
+    return names
+
+
 @router.post("/describe", response_model=DescribeExerciseResponse)
 async def describe_exercise(
     request: DescribeExerciseRequest,
@@ -862,25 +902,21 @@ async def describe_exercise(
     from app.main import db
     from app.core.agents.services.exercise_resolver import ExerciseResolver
 
-    try:
-        ObjectId(current_user["user_id"])
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid user.")
+    user_oid = _user_oid(current_user)
 
     # Ground the name on what the resolver will search, so "bench" comes back
     # as the catalog's "Barbell Bench Press" (an exact match) instead of a
     # generic name that lands in the "did you mean" zone.
-    user_oid = ObjectId(current_user["user_id"])
-    catalog_docs = await db.exercises.find(
-        {"$or": [{"isCommon": True}, {"createdBy": user_oid}]}, {"name": 1}
-    ).to_list(MAX_CATALOG_NAMES)
-    catalog_names = sorted({d["name"] for d in catalog_docs if d.get("name")})
+    catalog_names = await _catalog_names(db, user_oid)
+    user = await db.users.find_one({"_id": user_oid}, {"settings.units": 1}) or {}
+    default_unit = "lb" if (user.get("settings") or {}).get("units") == "imperial" else "kg"
 
     settings = get_settings()
     client = AsyncOpenAI(api_key=settings.openai_api_key)
     prompt = DESCRIBE_EXERCISE_PROMPT.format(
         text=request.text.strip(),
         catalog="\n".join(catalog_names) or "(empty)",
+        default_unit=default_unit,
         muscles=", ".join(VALID_MUSCLES),
         disciplines=", ".join(VALID_DISCIPLINES),
     )
@@ -909,13 +945,18 @@ async def describe_exercise(
     if not name:
         return DescribeExerciseResponse(status="unreadable", message=UNREADABLE_MESSAGE)
 
+    # Sets without a unit get the athlete's default, not always kg.
+    raw_sets = data.get("sets")
+    if isinstance(raw_sets, list):
+        raw_sets = [{**s, "unit": s.get("unit") or default_unit} if isinstance(s, dict) else s for s in raw_sets]
+
     muscles = [m for m in data.get("muscles") or [] if m in VALID_MUSCLES]
     discipline = [d for d in data.get("discipline") or [] if d in VALID_DISCIPLINES]
     equipment = [str(e)[:40] for e in data.get("equipment") or [] if isinstance(e, str)][:5]
     base = dict(
         name=name,
         notes=str(data.get("notes") or "").strip()[:200],
-        sets=_normalize_sets(data.get("sets")),
+        sets=_normalize_sets(raw_sets),
         muscles=muscles,
         discipline=discipline,
         equipment=equipment,
@@ -929,10 +970,17 @@ async def describe_exercise(
         on_ambiguous="ask",
         create=False,
     )
-    if res["status"] == "resolved":
+    if res["status"] == "resolved" and _is_safe_match(res, name):
         return DescribeExerciseResponse(
             status="matched", exercise_id=str(res["exercise_id"]),
             **{**base, "name": res["matched_name"] or name},
+        )
+    if res["status"] == "resolved":
+        # A loose auto-accept (substring / vector) becomes a suggestion.
+        return DescribeExerciseResponse(
+            status="ambiguous",
+            candidates=[DescribedCandidate(id=str(res["exercise_id"]), name=res["matched_name"])],
+            **base,
         )
     if res["status"] == "ambiguous":
         return DescribeExerciseResponse(
@@ -948,20 +996,20 @@ async def commit_described_exercise(
     request: CommitDescribedExerciseRequest,
     current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> CommitDescribedExerciseResponse:
-    """Create the athlete's own exercise for a confirmed "new" description.
+    """Create the athlete's own exercise for a confirmed description.
 
-    Reuses an existing exercise with the exact same name (the resolver's race
-    guard), so double-taps and re-adds never duplicate."""
+    Reuses an existing exercise with the exact same name, so a repeat confirm
+    of the same name doesn't duplicate. The check is find-then-insert (the
+    resolver's race guard), not atomic: two simultaneous commits can still
+    create two copies; the UI's disabled button covers double-taps."""
     from app.main import db
     from app.core.agents.services.exercise_resolver import ExerciseResolver
 
-    try:
-        ObjectId(current_user["user_id"])
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid user.")
-
+    _user_oid(current_user)
+    name = request.name.strip()
     doc = await ExerciseResolver(db).create_private(current_user["user_id"], {
-        "exercise_name": request.name.strip(),
+        "exercise_name": name,
+        "description": f"{name} — added by you from a session note",
         "muscles": [m for m in request.muscles if m in VALID_MUSCLES],
         "discipline": [d for d in request.discipline if d in VALID_DISCIPLINES],
         "equipment": [e[:40] for e in request.equipment][:5],

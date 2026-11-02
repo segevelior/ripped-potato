@@ -10,6 +10,8 @@ const EXAMPLES = [
 
 const volumeLabel = (sets) => {
   if (!sets.length) return null;
+  // Distance/time work comes back with 0 reps (the distance is in the notes).
+  if (sets.every((s) => !s.reps)) return `${sets.length} ${sets.length === 1 ? "set" : "sets"}`;
   const sameReps = sets.every((s) => s.reps === sets[0].reps);
   return sameReps ? `${sets.length} × ${sets[0].reps}` : `${sets.length} sets · ${sets.map((s) => s.reps).join(" / ")}`;
 };
@@ -71,11 +73,23 @@ export default function DescribeExercisePanel({ onAdd }) {
   const [text, setText] = useState("");
   const [phase, setPhase] = useState("compose"); // compose | reading | preview | adding
   const [result, setResult] = useState(null);
-  const [choice, setChoice] = useState(null);    // ambiguous: candidate {id, name} or "own"
+  const [choice, setChoice] = useState(null);    // candidate {id, name}, or "own" to save as their own exercise
+  const [ownName, setOwnName] = useState("");
   const [error, setError] = useState(null);
   const abortRef = useRef(null);
+  const mountedRef = useRef(true);
 
-  useEffect(() => () => abortRef.current?.abort(), []);
+  // Closing the drawer unmounts the panel: abort a pending read, and never
+  // add an exercise whose commit finishes after the athlete closed it.
+  useEffect(() => () => {
+    mountedRef.current = false;
+    abortRef.current?.abort();
+  }, []);
+
+  const keepAsOwn = () => {
+    setChoice("own");
+    setOwnName(result.name);
+  };
 
   const read = async () => {
     const note = text.trim();
@@ -91,11 +105,13 @@ export default function DescribeExercisePanel({ onAdd }) {
         setPhase("compose");
         return;
       }
+      if (!mountedRef.current) return;
       setResult({ ...res, raw_note: note });
       setChoice(null);
+      setOwnName("");
       setPhase("preview");
     } catch (e) {
-      if (e?.name === "AbortError") return;
+      if (e?.name === "AbortError" || !mountedRef.current) return;
       setError("Sensei couldn't read that just now. Try again, or search the catalog instead.");
       setPhase("compose");
     }
@@ -104,31 +120,41 @@ export default function DescribeExercisePanel({ onAdd }) {
   const add = async () => {
     if (!result) return;
     setError(null);
+    const ownChosen = choice === "own" || result.status === "new";
     let exerciseId = result.exercise_id || null;
     let name = result.name;
-    const picked = result.status === "ambiguous" && choice && choice !== "own" ? choice : null;
-    if (picked) {
-      exerciseId = picked.id;
-      name = picked.name;
-    } else if (!exerciseId) {
-      // "new", or ambiguous where the athlete kept their own name.
+    if (choice && choice !== "own") {
+      exerciseId = choice.id;
+      name = choice.name;
+    } else if (ownChosen) {
+      // "new", or the athlete rejected the match/suggestions for their own name.
+      const ownLabel = (choice === "own" ? ownName : result.name).trim();
       setPhase("adding");
       try {
         const created = await aiService.commitDescribedExercise({
-          name: result.name,
+          name: ownLabel,
           muscles: result.muscles,
           discipline: result.discipline,
           equipment: result.equipment,
         });
+        if (!mountedRef.current) return;
         exerciseId = created.exercise_id;
         name = created.name;
       } catch {
-        setError(`Couldn't add “${result.name}”. Try again, or search the catalog instead.`);
+        if (!mountedRef.current) return;
+        setError(`Couldn't add “${ownLabel}”. Try again, or search the catalog instead.`);
         setPhase("preview");
         return;
       }
     }
-    onAdd({ exercise_id: exerciseId, name, notes: result.notes, sets: result.sets, raw_note: result.raw_note });
+    onAdd({
+      exercise_id: exerciseId,
+      name,
+      notes: result.notes,
+      sets: result.sets,
+      raw_note: result.raw_note,
+      discipline: result.discipline?.[0] || null,
+    });
   };
 
   if (phase === "reading") {
@@ -142,7 +168,10 @@ export default function DescribeExercisePanel({ onAdd }) {
 
   if ((phase === "preview" || phase === "adding") && result) {
     const isAmbiguous = result.status === "ambiguous";
-    const shownName = isAmbiguous && choice && choice !== "own" ? choice.name : result.name;
+    const shownName = choice === "own"
+      ? (ownName.trim() || result.name)
+      : choice ? choice.name : result.name;
+    const canAdd = phase !== "adding" && (!isAmbiguous || choice) && (choice !== "own" || ownName.trim());
     return (
       <div className="space-y-3">
         <div>
@@ -173,14 +202,33 @@ export default function DescribeExercisePanel({ onAdd }) {
                 </button>
               ))}
               <button
-                onClick={() => setChoice("own")}
+                onClick={keepAsOwn}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
                   choice === "own" ? "bg-amber-600 text-white" : "bg-white text-amber-900"
                 }`}
               >
-                Keep “{result.name}” as my own
+                None of these, save my own
               </button>
             </div>
+          </div>
+        )}
+        {result.status === "matched" && choice !== "own" && (
+          <button onClick={keepAsOwn} className="text-sm text-gray-500 underline underline-offset-2">
+            Not {result.name}? Save it as my own exercise
+          </button>
+        )}
+        {choice === "own" && (
+          <div className="space-y-1">
+            <label htmlFor="describe-own-name" className="text-xs font-semibold text-gray-600">
+              Save as your own exercise, named
+            </label>
+            <input
+              id="describe-own-name"
+              value={ownName}
+              maxLength={100}
+              onChange={(e) => setOwnName(e.target.value)}
+              className="w-full rounded-xl border border-gray-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
           </div>
         )}
         {result.status === "new" && (
@@ -205,7 +253,7 @@ export default function DescribeExercisePanel({ onAdd }) {
 
         <button
           onClick={add}
-          disabled={phase === "adding" || (isAmbiguous && !choice)}
+          disabled={!canAdd}
           className="w-full py-3 bg-primary-500 text-white rounded-xl font-semibold disabled:opacity-50"
         >
           {phase === "adding" ? "Adding…" : "Add to session"}

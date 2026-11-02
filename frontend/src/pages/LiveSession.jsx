@@ -916,12 +916,20 @@ export default function LiveSession() {
   // added exercise; a multi-round block (circuit, emom, ...) is stepped around
   // instead — the note's set count would break its round counter — so the new
   // exercise lands just before/after the whole block, keeping it contiguous.
+  // Uses the functional update: the panel calls this after an async commit,
+  // so the workout captured at render time may be stale.
   const handleAddDescribedExercise = ({ index, position }, parsed) => {
-    const exercises = workout.exercises;
+    setWorkout((current) => insertDescribedExercise(current, { index, position }, parsed));
+    setAddContext(null);
+    if (navigator.vibrate) navigator.vibrate(30);
+  };
+
+  const insertDescribedExercise = (current, { index, position }, parsed) => {
+    const exercises = current.exercises;
     const anchor = exercises[index];
     const rawAnchor = anchor?.block_index;
     const anchorBlockIndex = Number.isInteger(rawAnchor) ? rawAnchor : null;
-    const anchorBlock = anchorBlockIndex === null ? null : workout.blocks?.[anchorBlockIndex] ?? null;
+    const anchorBlock = anchorBlockIndex === null ? null : current.blocks?.[anchorBlockIndex] ?? null;
 
     let insertAt = position === 'above' ? index : index + 1;
     let blockIndex = anchorBlockIndex;
@@ -935,16 +943,14 @@ export default function LiveSession() {
     }
     insertAt = Math.max(0, Math.min(insertAt, exercises.length));
 
-    setWorkout({
-      ...workout,
+    return {
+      ...current,
       exercises: withOrder([
         ...exercises.slice(0, insertAt),
         buildLoggedExercise(parsed, insertAt, { blockIndex }),
         ...exercises.slice(insertAt),
       ]),
-    });
-    setAddContext(null);
-    if (navigator.vibrate) navigator.vibrate(30);
+    };
   };
 
   const openAddDrawer = (context) => {
@@ -956,6 +962,17 @@ export default function LiveSession() {
   const isWorkoutComplete = workout?.exercises?.length > 0 && workout.exercises.every(ex =>
     ex.sets.every(s => s.is_completed)
   );
+
+  // A blank session has no type: use the most common discipline Sensei
+  // tagged on its described exercises, so it doesn't always count as strength.
+  const describedDiscipline = (exercises) => {
+    const counts = {};
+    exercises.forEach((ex) => {
+      if (ex.discipline) counts[ex.discipline] = (counts[ex.discipline] || 0) + 1;
+    });
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    return top ? top[0].toLowerCase() : 'strength';
+  };
 
   const getDiscipline = (type) => {
     if (!type) return 'strength';
@@ -991,7 +1008,7 @@ export default function LiveSession() {
 
       const sessionLogData = {
         title: workout.title || 'Session',
-        discipline: getDiscipline(workout.type),
+        discipline: workout.type ? getDiscipline(workout.type) : describedDiscipline(workout.exercises),
         startedAt: workoutStartTime.toISOString(),
         completedAt: new Date().toISOString(),
         actualDuration: Math.ceil(totalSessionTime / 60) || workout.duration_minutes || 60,
@@ -1316,15 +1333,20 @@ export default function LiveSession() {
                 </button>
               ))}
             </div>
-            {addContext && addTab === 'describe' && (
-              <DescribeExercisePanel onAdd={(parsed) => handleAddDescribedExercise(addContext, parsed)} />
-            )}
-            {addContext && addTab === 'search' && (
-              <ExerciseSearchInput
-                autoFocus
-                placeholder="Search to add an exercise..."
-                onSelect={(ex) => handleAddExercise(addContext.index, addContext.position, ex)}
-              />
+            {/* Both tabs stay mounted so a half-written note survives a
+                look at the catalog; `hidden` only toggles visibility. */}
+            {addContext && (
+              <>
+                <div className={addTab === 'describe' ? '' : 'hidden'}>
+                  <DescribeExercisePanel onAdd={(parsed) => handleAddDescribedExercise(addContext, parsed)} />
+                </div>
+                <div className={addTab === 'search' ? '' : 'hidden'}>
+                  <ExerciseSearchInput
+                    placeholder="Search to add an exercise..."
+                    onSelect={(ex) => handleAddExercise(addContext.index, addContext.position, ex)}
+                  />
+                </div>
+              </>
             )}
           </div>
         </DrawerContent>
